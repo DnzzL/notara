@@ -1,15 +1,31 @@
 services:
-  notion-alt:
+  server:
     build:
       context: .
-      dockerfile: Dockerfile
-    ports:
-      - "3000:3000"
+      dockerfile: packages/server/Dockerfile
     volumes:
       - notion-alt-data:/data
     restart: unless-stopped
     environment:
       - NODE_ENV=production
+      - DATA_DIR=/data
+    healthcheck:
+      test: ["CMD", "bun", "-e", "fetch('http://localhost:3000').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"]
+      interval: 30s
+      timeout: 10s
+      start_period: 15s
+      retries: 3
+
+  app:
+    build:
+      context: .
+      dockerfile: packages/app/Dockerfile
+    ports:
+      - "80:80"
+    restart: unless-stopped
+    depends_on:
+      server:
+        condition: service_healthy
 
 volumes:
   notion-alt-data:

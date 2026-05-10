@@ -46,6 +46,7 @@
         "@effect/rpc-http": "^0.42.0",
         "@effect/sql": "^0.51.0",
         "@effect/sql-sqlite-bun": "^0.52.0",
+        "@notion-alt/shared": "workspace:*",
         "effect": "^3.15.0",
         "ulidx": "^2.3.0",
       },
