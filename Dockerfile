@@ -28,25 +28,22 @@ COPY packages/app/index.html ./packages/app/
 COPY packages/app/src/ ./packages/app/src/
 RUN cd packages/app && bun run build
 
-# Runtime
+# Runtime stage
 FROM oven/bun:1-slim
 WORKDIR /app
 
-# Copy the entire workspace structure including node_modules
-COPY --from=builder /app/node_modules ./node_modules
-COPY --from=builder /app/packages/shared/node_modules ./packages/shared/node_modules
-COPY --from=builder /app/packages/server/node_modules ./packages/server/node_modules
-
-# Remove heavy electron binary
-RUN rm -rf ./node_modules/electron ./node_modules/.bun/electron*
-
-# Copy package manifests
-COPY --from=builder /app/package.json ./
-COPY --from=builder /app/packages/shared/package.json ./packages/shared/
-COPY --from=builder /app/packages/server/package.json ./packages/server/
-
-# Copy built artifacts
+# Copy all package manifests and lockfile
+COPY package.json bun.lock tsconfig.base.json ./
+COPY packages/shared/package.json ./packages/shared/
+COPY packages/server/package.json ./packages/server/
+# We need shared's dist for the workspace dependency
 COPY --from=builder /app/packages/shared/dist ./packages/shared/dist
+
+# Install dependencies fresh in runtime (Bun handles this well)
+# Exclude electron by not copying its package.json
+RUN bun install --frozen-lockfile --production --ignore-scripts
+
+# Copy built server and frontend
 COPY --from=builder /app/packages/server/dist ./packages/server/dist
 COPY --from=builder /app/packages/server/migrations ./packages/server/migrations
 COPY --from=builder /app/packages/app/dist ./packages/app/dist
@@ -55,4 +52,4 @@ ENV DATA_DIR=/data
 RUN mkdir -p /data
 
 EXPOSE 3000
-CMD ["bun", "run", "packages/server/dist/index.js"]
+CMD ["bun", "packages/server/dist/index.js"]
