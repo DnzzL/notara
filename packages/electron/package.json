@@ -3,7 +3,8 @@
   "main": "main.js",
   "scripts": {
     "dev": "NODE_ENV=development electron .",
-    "build": "electron-builder"
+    "build": "electron-builder",
+    "test": "bun test"
   },
   "dependencies": {
     "electron": "^33.0.0"
