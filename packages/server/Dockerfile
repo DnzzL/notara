@@ -21,15 +21,19 @@ RUN cd packages/server && bun run build
 FROM oven/bun:1-slim
 WORKDIR /app
 
+# Copy package manifests
 COPY package.json bun.lock tsconfig.base.json ./
 COPY packages/shared/package.json ./packages/shared/
 COPY packages/server/package.json ./packages/server/
 
+# Copy built artifacts
 COPY --from=builder /app/packages/shared/dist ./packages/shared/dist
 COPY --from=builder /app/packages/server/dist ./packages/server/dist
 COPY --from=builder /app/packages/server/migrations ./packages/server/migrations
 
-RUN bun install --production
+# Copy node_modules from builder (production deps only)
+COPY --from=builder /app/node_modules ./node_modules
+RUN rm -rf node_modules/electron node_modules/.bun/electron
 
 ENV DATA_DIR=/data
 RUN mkdir -p /data
