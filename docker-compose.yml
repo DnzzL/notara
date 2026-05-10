@@ -1,0 +1,15 @@
+services:
+  notion-alt:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    ports:
+      - "3000:3000"
+    volumes:
+      - notion-alt-data:/data
+    restart: unless-stopped
+    environment:
+      - NODE_ENV=production
+
+volumes:
+  notion-alt-data:

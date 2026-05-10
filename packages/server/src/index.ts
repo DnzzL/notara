@@ -1,74 +1,132 @@
 import { Effect, Layer } from "effect";
-import { RpcServer, RpcGroup } from "@effect/rpc";
-import { SqliteClient } from "@effect/sql-sqlite-bun";
-import { AppRpc } from "@notion-alt/shared";
-import { runMigrations, makeSqliteLayer } from "./db.js";
+import { HttpRouter, HttpServer, HttpServerRequest, HttpServerResponse } from "@effect/platform";
+import { NodeHttpServer, NodeRuntime } from "@effect/platform-node";
+import { RpcRouter } from "@effect/rpc";
+import { RpcHttpServer } from "@effect/rpc-http";
+import { SqliteLive, runMigrations } from "./db.js";
 import * as Pages from "./handlers/pages.js";
 import * as Blocks from "./handlers/blocks.js";
 import * as Databases from "./handlers/databases.js";
+import { AppRpc } from "@notion-alt/shared";
+import * as path from "node:path";
+import * as fs from "node:fs";
 
-// Handler implementations mapped to RPC endpoints
-const handlers = AppRpc.of({
-  listPages: () => Pages.listPages,
-  getPage: ({ id }) => Pages.getPage(id),
-  createPage: (req) => Pages.createPage(req),
-  updatePage: (req) => Pages.updatePage(req),
-  deletePage: ({ id }) => Pages.deletePage(id),
-  searchPages: ({ query }) => Pages.searchPages(query),
+// Try to find the app dist directory
+const appDistPaths = [
+  path.join(import.meta.dirname || __dirname, "../../app/dist"),
+  path.join(process.cwd(), "app/dist"),
+  path.join(__dirname, "../../../app/dist"),
+];
 
-  listBlocks: ({ pageId }) => Blocks.listBlocks(pageId),
-  createBlock: (req) => Blocks.createBlock(req),
-  updateBlock: (req) => Blocks.updateBlock(req),
-  deleteBlock: ({ id }) => Blocks.deleteBlock(id),
-  reorderBlocks: ({ pageId, blockIds }) => Blocks.reorderBlocks(pageId, blockIds),
+let appDist: string | null = null;
+for (const p of appDistPaths) {
+  if (fs.existsSync(path.join(p, "index.html"))) {
+    appDist = p;
+    break;
+  }
+}
 
-  listDatabases: ({ pageId }) => Databases.listDatabases(pageId),
-  getDatabase: ({ id }) => Databases.getDatabase(id),
-  createDatabase: (req) => Databases.createDatabase(req),
-  listFields: ({ databaseId }) => Databases.listFields(databaseId),
-  createField: (req) => Databases.createField(req),
-  listRecords: ({ databaseId }) => Databases.listRecords(databaseId),
-  getRecordWithValues: ({ recordId }) => Databases.getRecordWithValues(recordId),
-  createRecord: (req) => Databases.createRecord(req),
-  updateFieldValue: (req) => Databases.updateFieldValue(req),
-  deleteRecord: ({ id }) => Databases.deleteRecord(id),
-  listViews: ({ databaseId }) => Databases.listViews(databaseId),
-  createView: (req) => Databases.createView(req),
-});
+const router = RpcRouter.make(
+  AppRpc,
+  {
+    listPages: () => Pages.listPages,
+    getPage: ({ id }) => Pages.getPage(id),
+    createPage: (req) => Pages.createPage(req),
+    updatePage: (req) => Pages.updatePage(req),
+    deletePage: ({ id }) => Pages.deletePage(id),
+    searchPages: ({ query }) => Pages.searchPages(query),
 
-// Layer that provides all RPC handler implementations
-const HandlersLive = AppRpc.toLayer(handlers);
+    listBlocks: ({ pageId }) => Blocks.listBlocks(pageId),
+    createBlock: (req) => Blocks.createBlock(req),
+    updateBlock: (req) => Blocks.updateBlock(req),
+    deleteBlock: ({ id }) => Blocks.deleteBlock(id),
+    reorderBlocks: ({ pageId, blockIds }) => Blocks.reorderBlocks(pageId, blockIds),
 
-// Combined layer: handlers + SQLite
-const ServerLayer = Layer.merge(HandlersLive, makeSqliteLayer());
+    listDatabases: ({ pageId }) => Databases.listDatabases(pageId),
+    getDatabase: ({ id }) => Databases.getDatabase(id),
+    createDatabase: (req) => Databases.createDatabase(req),
+    listFields: ({ databaseId }) => Databases.listFields(databaseId),
+    createField: (req) => Databases.createField(req),
+    listRecords: ({ databaseId }) => Databases.listRecords(databaseId),
+    getRecordWithValues: ({ recordId }) => Databases.getRecordWithValues(recordId),
+    createRecord: (req) => Databases.createRecord(req),
+    updateFieldValue: (req) => Databases.updateFieldValue(req),
+    deleteRecord: ({ id }) => Databases.deleteRecord(id),
+    listViews: ({ databaseId }) => Databases.listViews(databaseId),
+    createView: (req) => Databases.createView(req),
+  },
+);
 
-// Main: run migrations, then start the Bun HTTP server
+// HTTP server with RPC + static file serving
+const httpApp = Effect.gen(function* () {
+  const httpRouter = yield* HttpRouter.Default;
+
+  // RPC endpoint
+  yield* httpRouter.pipe(
+    RpcHttpServer.serve("/api"),
+  );
+
+  // Static file serving for frontend (if available)
+  if (appDist) {
+    console.log(`Serving static files from: ${appDist}`);
+
+    const mimeTypes: Record<string, string> = {
+      ".html": "text/html",
+      ".js": "application/javascript",
+      ".css": "text/css",
+      ".json": "application/json",
+      ".png": "image/png",
+      ".jpg": "image/jpeg",
+      ".svg": "image/svg+xml",
+      ".ico": "image/x-icon",
+      ".woff": "font/woff",
+      ".woff2": "font/woff2",
+    };
+
+    // Serve static files
+    yield* httpRouter.get("/*", Effect.gen(function* () {
+      const request = yield* HttpServerRequest.HttpServerRequest;
+      let urlPath = request.url.split("?")[0];
+      if (urlPath === "/" || urlPath === "") urlPath = "/index.html";
+
+      const filePath = path.join(appDist, urlPath);
+
+      // Check if file exists
+      if (!fs.existsSync(filePath)) {
+        // SPA fallback - serve index.html for any route
+        const indexPath = path.join(appDist!, "index.html");
+        if (fs.existsSync(indexPath)) {
+          const content = fs.readFileSync(indexPath);
+          return HttpServerResponse.text(content, { status: 200, headers: { "Content-Type": "text/html" } });
+        }
+        return HttpServerResponse.text("Not found", { status: 404 });
+      }
+
+      const ext = path.extname(filePath);
+      const contentType = mimeTypes[ext] || "application/octet-stream";
+      const content = fs.readFileSync(filePath);
+
+      return HttpServerResponse.unsafeBuffer(Buffer.from(content), {
+        headers: { "Content-Type": contentType },
+      });
+    }));
+  } else {
+    console.log("No frontend dist found - API only mode");
+  }
+
+  yield* HttpServer.serve();
+}).pipe(
+  Effect.provide(RpcRouter.toLayer(router)),
+);
+
+// Main: run migrations, then start server
 const main = Effect.gen(function* () {
   yield* runMigrations;
-
-  // Create the RPC web handler
-  const { handler, dispose } = RpcServer.toWebHandler(AppRpc, {
-    layer: ServerLayer,
-  });
-
-  // Start Bun HTTP server
-  const server = Bun.serve({
-    port: 3000,
-    fetch: handler,
-  });
-
-  console.log(`Server running on http://localhost:${server.port}/api`);
-
-  // Handle graceful shutdown
-  yield* Effect.acquireRelease(Effect.succeed(server), () =>
-    Effect.sync(() => {
-      server.stop();
-      dispose();
-    }),
-  );
+  yield* httpApp;
+  console.log("Server running on http://localhost:3000");
 }).pipe(
+  Effect.provide(SqliteLive),
   Effect.catchAllCause(Effect.logFatal),
 );
 
-// Run the server
-main.pipe(Effect.runPromise);
+main.pipe(NodeRuntime.runMain);
