@@ -12,6 +12,9 @@ COPY packages/electron/package.json ./packages/electron/
 COPY scripts/patch-msgpackr.sh /tmp/patch-msgpackr.sh
 RUN rm -f bun.lock && bun install && sh /tmp/patch-msgpackr.sh
 
+# Fix @effect/rpc importing { Msgpackr } from @effect/platform/MsgPack (missing re-export)
+RUN echo 'export * as Msgpackr from "msgpackr";' >> /app/node_modules/@effect/platform/dist/esm/MsgPack.js
+
 COPY packages/shared/tsconfig.json ./packages/shared/
 COPY packages/shared/src/ ./packages/shared/src/
 RUN cd packages/shared && bun run build
