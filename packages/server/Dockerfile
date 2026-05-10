@@ -7,8 +7,8 @@ COPY packages/server/package.json ./packages/server/
 COPY packages/app/package.json ./packages/app/
 COPY packages/electron/package.json ./packages/electron/
 
-# Don't use frozen lockfile - need to resolve platform-specific deps for Linux
-RUN bun install
+# Remove lockfile to allow platform-specific resolution (Linux ARM64 in container)
+RUN rm -f bun.lock && bun install
 
 COPY packages/shared/tsconfig.json ./packages/shared/
 COPY packages/shared/src/ ./packages/shared/src/
