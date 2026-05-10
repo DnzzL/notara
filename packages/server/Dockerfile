@@ -7,7 +7,8 @@ COPY packages/server/package.json ./packages/server/
 COPY packages/app/package.json ./packages/app/
 COPY packages/electron/package.json ./packages/electron/
 
-RUN bun install --frozen-lockfile
+# Don't use frozen lockfile - need to resolve platform-specific deps for Linux
+RUN bun install
 
 COPY packages/shared/tsconfig.json ./packages/shared/
 COPY packages/shared/src/ ./packages/shared/src/
