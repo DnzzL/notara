@@ -1,6 +1,6 @@
-import { Effect, Layer } from "effect";
+import { Effect } from "effect";
 import { HttpRouter, HttpServer, HttpServerRequest, HttpServerResponse } from "@effect/platform";
-import { NodeHttpServer, NodeRuntime } from "@effect/platform-node";
+import { NodeRuntime } from "@effect/platform-node";
 import { RpcRouter } from "@effect/rpc";
 import { RpcHttpServer } from "@effect/rpc-http";
 import { SqliteLive, runMigrations } from "./db.js";
@@ -12,14 +12,13 @@ import * as path from "node:path";
 import * as fs from "node:fs";
 
 // Try to find the app dist directory
-const appDistPaths = [
-  path.join(import.meta.dirname || __dirname, "../../app/dist"),
+const possiblePaths = [
+  path.join(process.cwd(), "packages/app/dist"),
   path.join(process.cwd(), "app/dist"),
-  path.join(__dirname, "../../../app/dist"),
 ];
 
 let appDist: string | null = null;
-for (const p of appDistPaths) {
+for (const p of possiblePaths) {
   if (fs.existsSync(path.join(p, "index.html"))) {
     appDist = p;
     break;
@@ -68,7 +67,7 @@ const httpApp = Effect.gen(function* () {
 
   // Static file serving for frontend (if available)
   if (appDist) {
-    console.log(`Serving static files from: ${appDist}`);
+    console.log("Serving static files from:", appDist);
 
     const mimeTypes: Record<string, string> = {
       ".html": "text/html",
@@ -83,21 +82,22 @@ const httpApp = Effect.gen(function* () {
       ".woff2": "font/woff2",
     };
 
-    // Serve static files
     yield* httpRouter.get("/*", Effect.gen(function* () {
       const request = yield* HttpServerRequest.HttpServerRequest;
       let urlPath = request.url.split("?")[0];
       if (urlPath === "/" || urlPath === "") urlPath = "/index.html";
 
-      const filePath = path.join(appDist, urlPath);
+      const filePath = path.join(appDist!, urlPath);
 
-      // Check if file exists
       if (!fs.existsSync(filePath)) {
-        // SPA fallback - serve index.html for any route
+        // SPA fallback
         const indexPath = path.join(appDist!, "index.html");
         if (fs.existsSync(indexPath)) {
           const content = fs.readFileSync(indexPath);
-          return HttpServerResponse.text(content, { status: 200, headers: { "Content-Type": "text/html" } });
+          return HttpServerResponse.rawUint8Array(new Uint8Array(content), {
+            status: 200,
+            headers: { "Content-Type": "text/html" },
+          });
         }
         return HttpServerResponse.text("Not found", { status: 404 });
       }
@@ -106,7 +106,7 @@ const httpApp = Effect.gen(function* () {
       const contentType = mimeTypes[ext] || "application/octet-stream";
       const content = fs.readFileSync(filePath);
 
-      return HttpServerResponse.unsafeBuffer(Buffer.from(content), {
+      return HttpServerResponse.rawUint8Array(new Uint8Array(content), {
         headers: { "Content-Type": contentType },
       });
     }));
