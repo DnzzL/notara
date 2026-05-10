@@ -1,12 +1,15 @@
-import React from "react";
-import ReactDOM from "react-dom/client";
+import { createRoot } from "react-dom/client";
+import { Sidebar } from "./components/Sidebar.js";
+import { BlockEditor } from "./components/BlockEditor.js";
+import "./styles.css";
 
-const App = () => {
-  return <h1>Notion Alt</h1>;
-};
+function App() {
+  return (
+    <div className="app">
+      <Sidebar />
+      <BlockEditor />
+    </div>
+  );
+}
 
-ReactDOM.createRoot(document.getElementById("root")!).render(
-  <React.StrictMode>
-    <App />
-  </React.StrictMode>
-);
+createRoot(document.getElementById("root")!).render(<App />);
