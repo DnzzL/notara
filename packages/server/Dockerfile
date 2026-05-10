@@ -21,19 +21,18 @@ RUN cd packages/server && bun run build
 FROM oven/bun:1-slim
 WORKDIR /app
 
-COPY --from=builder /app/node_modules ./node_modules
-RUN rm -rf ./node_modules/electron
+COPY package.json bun.lock tsconfig.base.json ./
+COPY packages/shared/package.json ./packages/shared/
+COPY packages/server/package.json ./packages/server/
 
 COPY --from=builder /app/packages/shared/dist ./packages/shared/dist
 COPY --from=builder /app/packages/server/dist ./packages/server/dist
 COPY --from=builder /app/packages/server/migrations ./packages/server/migrations
 
-COPY --from=builder /app/package.json ./
-COPY --from=builder /app/packages/shared/package.json ./packages/shared/
-COPY --from=builder /app/packages/server/package.json ./packages/server/
+RUN bun install --production --no-save
 
 ENV DATA_DIR=/data
 RUN mkdir -p /data
 
 EXPOSE 3000
-CMD ["bun", "run", "packages/server/dist/index.js"]
+CMD ["bun", "packages/server/dist/index.js"]
