@@ -29,7 +29,7 @@ COPY --from=builder /app/packages/shared/dist ./packages/shared/dist
 COPY --from=builder /app/packages/server/dist ./packages/server/dist
 COPY --from=builder /app/packages/server/migrations ./packages/server/migrations
 
-RUN bun install --production --no-save
+RUN bun install --production
 
 ENV DATA_DIR=/data
 RUN mkdir -p /data
