@@ -1,0 +1,12 @@
+{
+  "name": "notion-alt",
+  "private": true,
+  "scripts": {
+    "dev:server": "pnpm --filter server dev",
+    "dev:app": "pnpm --filter app dev",
+    "dev:electron": "pnpm --filter electron dev",
+    "build": "pnpm -r build",
+    "db:migrate": "pnpm --filter server db:migrate",
+    "test": "pnpm -r test"
+  }
+}
