@@ -31,13 +31,13 @@ COPY --from=builder /app/packages/shared/dist ./packages/shared/dist
 COPY --from=builder /app/packages/server/dist ./packages/server/dist
 COPY --from=builder /app/packages/server/migrations ./packages/server/migrations
 
-# Copy ALL node_modules including workspace ones
-COPY --from=builder /app/node_modules ./node_modules
-COPY --from=builder /app/packages/shared/node_modules ./packages/shared/node_modules
-COPY --from=builder /app/packages/server/node_modules ./packages/server/node_modules
+# Copy node_modules with all symlinks preserved
+COPY --from=builder --link /app/node_modules ./node_modules
+COPY --from=builder --link /app/packages/shared/node_modules ./packages/shared/node_modules
+COPY --from=builder --link /app/packages/server/node_modules ./packages/server/node_modules
 
 # Remove electron
-RUN rm -rf node_modules/electron node_modules/.bun/electron* packages/*/node_modules/electron
+RUN rm -rf node_modules/electron node_modules/.bun/electron* packages/*/node_modules/electron 2>/dev/null || true
 
 ENV DATA_DIR=/data
 RUN mkdir -p /data
