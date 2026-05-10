@@ -32,13 +32,18 @@ RUN cd packages/app && bun run build
 FROM oven/bun:1-slim
 WORKDIR /app
 
-# Copy workspace manifests for dependency resolution
-COPY package.json bun.lock tsconfig.base.json ./
-COPY packages/shared/package.json ./packages/shared/
-COPY packages/server/package.json ./packages/server/
+# Copy the entire workspace structure including node_modules
+COPY --from=builder /app/node_modules ./node_modules
+COPY --from=builder /app/packages/shared/node_modules ./packages/shared/node_modules
+COPY --from=builder /app/packages/server/node_modules ./packages/server/node_modules
 
-# Install only server dependencies (no dev deps, no electron)
-RUN bun install --frozen-lockfile --production && rm -rf node_modules/electron
+# Remove heavy electron binary
+RUN rm -rf ./node_modules/electron ./node_modules/.bun/electron*
+
+# Copy package manifests
+COPY --from=builder /app/package.json ./
+COPY --from=builder /app/packages/shared/package.json ./packages/shared/
+COPY --from=builder /app/packages/server/package.json ./packages/server/
 
 # Copy built artifacts
 COPY --from=builder /app/packages/shared/dist ./packages/shared/dist
