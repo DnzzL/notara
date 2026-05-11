@@ -1,9 +1,2 @@
 [install]
-# Force msgpackr to 1.10.5 - the last version with the 'Msgpackr' named export
-# @effect/platform@0.96.1's MsgPack.js breaks with msgpackr >= 1.11.0
 registry = "https://registry.npmjs.org"
-
-[install.scopes]
-
-[install.overrides]
-msgpackr = "1.10.5"

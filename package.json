@@ -1,16 +1,14 @@
 {
   "name": "notion-alt",
   "private": true,
-  "overrides": {
-    "msgpackr": "1.10.5"
-  },
   "scripts": {
     "dev:server": "pnpm --filter server dev",
     "dev:app": "pnpm --filter app dev",
     "dev:electron": "pnpm --filter electron dev",
     "build": "pnpm -r build",
     "db:migrate": "pnpm --filter server db:migrate",
-    "test": "pnpm -r test"
+    "test": "pnpm -r test",
+    "postinstall": "bash scripts/patch-msgpackr.sh"
   },
   "workspaces": [
     "packages/*"
