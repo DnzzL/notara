@@ -1,33 +1,27 @@
 #!/usr/bin/env bash
 # Fix for @effect/platform@0.96.1 + msgpackr@1.11.x on Bun 1.3.x
-# "import * as Msgpackr" doesn't work with msgpackr's re-exports in Bun.
-# Patches MsgPack.js to use named imports instead.
+# Bun caches ESM modules internally - filesystem patches to MsgPack.js are ignored.
+# Since the project uses JSON RPC serialization (layerJson), MsgPack is never called.
+# Solution: Comment out the MsgPack export in index.js so it never gets loaded.
 set -euo pipefail
 
-MSGPACK_JS=""
-for dir in node_modules/@effect/platform \
-           node_modules/.bun/@effect+platform@*/node_modules/@effect/platform; do
-  if [ -f "$dir/dist/esm/MsgPack.js" ]; then
-    MSGPACK_JS="$dir/dist/esm/MsgPack.js"
+# Find the platform package index.js
+INDEX_JS=""
+for dir in node_modules/.bun/@effect+platform@*/node_modules/@effect/platform; do
+  if [ -f "$dir/dist/esm/index.js" ]; then
+    INDEX_JS="$dir/dist/esm/index.js"
     break
   fi
 done
 
-if [ -z "$MSGPACK_JS" ] || [ ! -f "$MSGPACK_JS" ]; then
-  echo "WARN: MsgPack.js not found, skipping patch"
+if [ -z "$INDEX_JS" ] || [ ! -f "$INDEX_JS" ]; then
+  echo "WARN: @effect/platform index.js not found"
   exit 0
 fi
 
-if ! grep -q 'import \* as Msgpackr from "msgpackr"' "$MSGPACK_JS" 2>/dev/null; then
-  echo "MsgPack.js already patched or uses different format"
-  exit 0
+if grep -q 'export \* as MsgPack from "./MsgPack.js"' "$INDEX_JS" 2>/dev/null; then
+  sed -i 's|export \* as MsgPack from "./MsgPack.js";|// export * as MsgPack from "./MsgPack.js"; // disabled - msgpackr incompatible with Bun 1.3.x (project uses JSON RPC)|' "$INDEX_JS"
+  echo "Patched $INDEX_JS - commented out MsgPack export"
+else
+  echo "MsgPack export already disabled"
 fi
-
-# Cross-platform sed: macOS requires -i '', GNU sed uses -i without arg
-# Use a temp file approach instead to avoid sed -i compatibility issues
-TMP="${MSGPACK_JS}.patched"
-sed 's/import \* as Msgpackr from "msgpackr";/import { encode as msgpackrEncode, decode as msgpackrDecode } from "msgpackr";/' "$MSGPACK_JS" > "$TMP"
-sed 's/Msgpackr\.decode(/msgpackrDecode(/g; s/Msgpackr\.encode(/msgpackrEncode(/g' "$TMP" > "${TMP}.2"
-mv "${TMP}.2" "$MSGPACK_JS"
-rm -f "$TMP"
-echo "Patched $MSGPACK_JS"
