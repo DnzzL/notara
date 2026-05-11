@@ -7,7 +7,8 @@
     "dev:electron": "bun run --filter @notion-alt/electron dev",
     "build": "bun run --filter @notion-alt/shared build && bun run --filter '*' build",
     "db:migrate": "bun run --filter @notion-alt/server db:migrate",
-    "test": "bun run --filter '*' test"
+    "test": "bun run --filter '*' test",
+    "postinstall": "bash scripts/patch-msgpackr.sh"
   },
   "workspaces": [
     "packages/*"

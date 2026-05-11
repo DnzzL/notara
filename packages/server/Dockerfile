@@ -9,13 +9,8 @@ COPY packages/electron/package.json ./packages/electron/
 
 # Install deps then patch msgpackr for Bun compatibility
 # msgpackr 1.11.x ESM exports don't work with "import * as" in Bun 1.3.x
-RUN rm -f bun.lock && bun install && \
-    MSGPACK_JS=$(find node_modules/@effect/platform -path '*/dist/esm/MsgPack.js' | head -1) && \
-    if [ -n "$MSGPACK_JS" ] && grep -q 'import \* as Msgpackr from "msgpackr"' "$MSGPACK_JS"; then \
-      sed -i 's/import \* as Msgpackr from "msgpackr";/import { encode as msgpackrEncode, decode as msgpackrDecode } from "msgpackr";/' "$MSGPACK_JS" && \
-      sed -i 's/Msgpackr\.decode(/msgpackrDecode(/g; s/Msgpackr\.encode(/msgpackrEncode(/g' "$MSGPACK_JS" && \
-      echo "Patched MsgPack.js for Bun compatibility"; \
-    fi
+COPY scripts/patch-msgpackr.sh /tmp/patch-msgpackr.sh
+RUN rm -f bun.lock && bun install && sh /tmp/patch-msgpackr.sh
 
 COPY packages/shared/tsconfig.json ./packages/shared/
 COPY packages/shared/src/ ./packages/shared/src/
