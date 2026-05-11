@@ -67,7 +67,7 @@ export const createField = (req: {
     VALUES (${id}, ${req.databaseId}, ${req.name}, ${req.type}, ${options}, ${req.relationTargetDbId})
     RETURNING id, database_id as "databaseId", name, type, options, relation_target_db_id as "relationTargetDbId"
   `;
-  const r = rows[0];
+  const r = rows[0] as { options: string | null };
   return { ...r, options: r.options ? JSON.parse(r.options) : null } as DatabaseField;
 });
 
@@ -109,7 +109,7 @@ export const getRecordWithValues = (recordId: string) =>
     `;
 
     const values: Record<string, unknown> = {};
-    for (const fv of fieldValues) {
+    for (const fv of fieldValues as unknown as Array<{ name: string; type: string; value: string }>) {
       values[fv.name] = fv.type === "number" ? Number(fv.value) :
                         fv.type === "checkbox" ? fv.value === "true" :
                         fv.type === "select" ? fv.value :  // single select: plain string
@@ -200,5 +200,5 @@ export const createView = (req: {
               sort_field_id as "sortFieldId",
               sort_order as "sortOrder"
   `;
-  return viewFromRow(rows[0]);
+  return viewFromRow(rows[0] as unknown as { [key: string]: unknown });
 });

@@ -1,8 +1,0 @@
-packages:
-  - 'packages/*'
-allowBuilds:
-  '@parcel/watcher': false
-  better-sqlite3: false
-  electron: false
-  esbuild: false
-  msgpackr-extract: false

@@ -1,0 +1,10 @@
+node_modules
+packages/*/node_modules
+packages/app/dist
+packages/server/dist
+packages/shared/dist
+packages/electron/dist
+.data
+.git
+.env*
+*.md
