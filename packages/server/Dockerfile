@@ -7,8 +7,15 @@ COPY packages/server/package.json ./packages/server/
 COPY packages/app/package.json ./packages/app/
 COPY packages/electron/package.json ./packages/electron/
 
-# Remove lockfile to allow platform-specific resolution (Linux ARM64 in container)
-RUN rm -f bun.lock && bun install
+# Install deps then patch msgpackr for Bun compatibility
+# msgpackr 1.11.x ESM exports don't work with "import * as" in Bun 1.3.x
+RUN rm -f bun.lock && bun install && \
+    MSGPACK_JS=$(find node_modules/@effect/platform -path '*/dist/esm/MsgPack.js' | head -1) && \
+    if [ -n "$MSGPACK_JS" ] && grep -q 'import \* as Msgpackr from "msgpackr"' "$MSGPACK_JS"; then \
+      sed -i 's/import \* as Msgpackr from "msgpackr";/import { encode as msgpackrEncode, decode as msgpackrDecode } from "msgpackr";/' "$MSGPACK_JS" && \
+      sed -i 's/Msgpackr\.decode(/msgpackrDecode(/g; s/Msgpackr\.encode(/msgpackrEncode(/g' "$MSGPACK_JS" && \
+      echo "Patched MsgPack.js for Bun compatibility"; \
+    fi
 
 COPY packages/shared/tsconfig.json ./packages/shared/
 COPY packages/shared/src/ ./packages/shared/src/
