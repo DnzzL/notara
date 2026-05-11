@@ -13,7 +13,14 @@ COPY scripts/patch-msgpackr.sh /tmp/patch-msgpackr.sh
 RUN rm -f bun.lock && bun install && sh /tmp/patch-msgpackr.sh
 
 # Fix @effect/rpc importing { Msgpackr } from @effect/platform/MsgPack (missing re-export)
-RUN echo 'export * as Msgpackr from "msgpackr";' >> /app/node_modules/@effect/platform/dist/esm/MsgPack.js
+# Patch MUST target the .bun/ resolved path, not the plain node_modules path
+RUN MSGPACK_JS=$(find /app/node_modules/.bun -path "*/@effect+platform*/dist/esm/MsgPack.js" -print -quit) && \
+    if [ -n "$MSGPACK_JS" ]; then \
+      echo 'export * as Msgpackr from "msgpackr";' >> "$MSGPACK_JS"; \
+      echo "Patched: $MSGPACK_JS"; \
+    else \
+      echo "ERROR: MsgPack.js not found in .bun directory" && exit 1; \
+    fi
 
 COPY packages/shared/tsconfig.json ./packages/shared/
 COPY packages/shared/src/ ./packages/shared/src/

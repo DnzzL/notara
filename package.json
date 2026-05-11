@@ -12,5 +12,8 @@
   },
   "workspaces": [
     "packages/*"
-  ]
+  ],
+  "overrides": {
+    "msgpackr": "1.10.2"
+  }
 }
