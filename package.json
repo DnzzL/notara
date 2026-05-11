@@ -1,6 +1,9 @@
 {
   "name": "notion-alt",
   "private": true,
+  "overrides": {
+    "msgpackr": "1.10.5"
+  },
   "scripts": {
     "dev:server": "pnpm --filter server dev",
     "dev:app": "pnpm --filter app dev",
