@@ -14,7 +14,9 @@ interface AppState {
 
   loadPages: () => Promise<void>;
   selectPage: (page: any) => Promise<void>;
+  selectPageById: (id: string) => Promise<void>;
   createPage: (title: string, parentId?: string | null) => Promise<void>;
+  updatePage: (id: string, title: string) => Promise<void>;
   deletePage: (id: string) => Promise<void>;
   searchPages: (query: string) => Promise<void>;
 
@@ -24,11 +26,13 @@ interface AppState {
   reorderBlocks: (pageId: string, blockIds: string[]) => Promise<void>;
 
   loadDatabases: (pageId: string) => Promise<void>;
+  createDatabase: (pageId: string, name: string) => Promise<void>;
   loadDbFields: (databaseId: string) => Promise<void>;
   loadDbRecords: (databaseId: string) => Promise<void>;
   createDbRecord: (databaseId: string, title: string) => Promise<void>;
   updateFieldValue: (recordId: string, fieldId: string, value: string) => Promise<void>;
   loadDbViews: (databaseId: string) => Promise<void>;
+  createField: (req: any) => Promise<void>;
 }
 
 export const useStore = create<AppState>((set, get) => ({
@@ -57,11 +61,43 @@ export const useStore = create<AppState>((set, get) => ({
     set({ currentPage: page });
     await get().loadBlocks(page.id);
     await get().loadDatabases(page.id);
+    // Update URL without triggering navigation
+    const url = new URL(window.location.href);
+    url.searchParams.set('page', page.id);
+    window.history.replaceState({}, '', url);
+  },
+
+  selectPageById: async (id) => {
+    const page = get().pages.find((p) => p.id === id);
+    if (page) {
+      await get().selectPage(page);
+    } else {
+      // Page not in list, try to fetch it
+      try {
+        const fetchedPage = await api.getPage(id);
+        if (fetchedPage) {
+          set({ currentPage: fetchedPage });
+          await get().loadBlocks(id);
+          await get().loadDatabases(id);
+        }
+      } catch (e) {
+        console.error('Failed to load page:', e);
+      }
+    }
   },
 
   createPage: async (title, parentId = null) => {
     const page = await api.createPage(title, parentId);
     set((s) => ({ pages: [page, ...s.pages] }));
+    await get().selectPage(page);
+  },
+
+  updatePage: async (id, title) => {
+    const page = await api.updatePage(id, title);
+    set((s) => ({
+      pages: s.pages.map((p) => (p.id === id ? page : p)),
+      currentPage: s.currentPage?.id === id ? page : s.currentPage,
+    }));
   },
 
   deletePage: async (id) => {
@@ -102,6 +138,12 @@ export const useStore = create<AppState>((set, get) => ({
     set({ databases });
   },
 
+  createDatabase: async (pageId, name) => {
+    const db = await api.createDatabase(pageId, name);
+    set((s) => ({ databases: [...s.databases, db] }));
+    return db;
+  },
+
   loadDbFields: async (databaseId) => {
     const fields = await api.listFields(databaseId);
     set({ dbFields: fields });
@@ -133,5 +175,10 @@ export const useStore = create<AppState>((set, get) => ({
   loadDbViews: async (databaseId) => {
     const views = await api.listViews(databaseId);
     set({ dbViews: views });
+  },
+
+  createField: async (req) => {
+    const field = await api.createField(req);
+    set((s) => ({ dbFields: [...s.dbFields, field] }));
   },
 }));

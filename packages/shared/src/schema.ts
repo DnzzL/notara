@@ -1,5 +1,6 @@
 import { Schema } from "effect";
 
+// Use String for datetime fields since SQLite returns ISO strings
 export class Page extends Schema.Class<Page>("Page")({
   id: Schema.String,
   title: Schema.String,
@@ -7,8 +8,8 @@ export class Page extends Schema.Class<Page>("Page")({
   icon: Schema.NullOr(Schema.String),
   coverUrl: Schema.NullOr(Schema.String),
   isDeleted: Schema.Boolean,
-  createdAt: Schema.DateTimeUtc,
-  updatedAt: Schema.DateTimeUtc,
+  createdAt: Schema.String,
+  updatedAt: Schema.String,
 }) {}
 
 export class Block extends Schema.Class<Block>("Block")({
@@ -54,7 +55,7 @@ export class DatabaseRecord extends Schema.Class<DatabaseRecord>("DatabaseRecord
   databaseId: Schema.String,
   title: Schema.String,
   isDeleted: Schema.Boolean,
-  createdAt: Schema.DateTimeUtc,
+  createdAt: Schema.String,
 }) {}
 
 export class RecordFieldValue extends Schema.Class<RecordFieldValue>("RecordFieldValue")({

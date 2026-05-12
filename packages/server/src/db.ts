@@ -7,9 +7,16 @@ import fs from "node:fs";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
+// Go up from src/ to packages/ to repo root
 const dbPath = process.env.DATA_DIR
   ? path.join(process.env.DATA_DIR, "notes.db")
-  : path.join(__dirname, "../../.data", "notes.db");
+  : path.join(__dirname, "../../../.data", "notes.db");
+
+// Ensure data directory exists
+const dataDir = path.dirname(dbPath);
+if (!fs.existsSync(dataDir)) {
+  fs.mkdirSync(dataDir, { recursive: true });
+}
 
 export const makeSqliteLayer = (filename: string = dbPath) =>
   SqliteClient.layer({ filename });

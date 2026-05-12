@@ -19,8 +19,8 @@ CREATE TABLE IF NOT EXISTS blocks (
   parent_id TEXT REFERENCES blocks(id) ON DELETE CASCADE,
   "index" INTEGER NOT NULL DEFAULT 0
 );
-CREATE INDEX idx_blocks_page ON blocks(page_id);
-CREATE INDEX idx_blocks_parent ON blocks(parent_id);
+CREATE INDEX IF NOT EXISTS idx_blocks_page ON blocks(page_id);
+CREATE INDEX IF NOT EXISTS idx_blocks_parent ON blocks(parent_id);
 
 -- Databases
 CREATE TABLE IF NOT EXISTS databases (
@@ -56,8 +56,8 @@ CREATE TABLE IF NOT EXISTS record_field_values (
   field_id TEXT NOT NULL REFERENCES database_fields(id) ON DELETE CASCADE,
   value TEXT NOT NULL DEFAULT ''
 );
-CREATE INDEX idx_rfv_record ON record_field_values(record_id);
-CREATE INDEX idx_rfv_field ON record_field_values(field_id);
+CREATE INDEX IF NOT EXISTS idx_rfv_record ON record_field_values(record_id);
+CREATE INDEX IF NOT EXISTS idx_rfv_field ON record_field_values(field_id);
 
 -- Database views (table/board configurations)
 CREATE TABLE IF NOT EXISTS database_views (

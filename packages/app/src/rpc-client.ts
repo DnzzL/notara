@@ -2,23 +2,22 @@
 // The Effect RPC server accepts POST requests with JSON body
 // Format: { _tag: "Request", id: <number>, method: <name>, payload: <object>, successSchemaId, errorSchemaId }
 
-const API_URL = "http://localhost:3000/api";
+// Use relative URL so Vite dev server can proxy to backend
+const API_URL = "/api";
 
 let nextId = 1;
 
 async function rpcCall(method: string, payload: Record<string, unknown> = {}): Promise<unknown> {
-  const id = nextId++;
+  const id = String(nextId++);
   const response = await fetch(API_URL, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify([{
+    body: JSON.stringify({
       _tag: "Request",
       id,
-      method,
+      tag: method,
       payload,
-      successSchemaId: method,
-      errorSchemaId: `${method}/Error`,
-    }]),
+    }),
   });
 
   if (!response.ok) {
@@ -26,19 +25,19 @@ async function rpcCall(method: string, payload: Record<string, unknown> = {}): P
   }
 
   const results = await response.json();
-  const result = results.find((r: any) => r.id === id);
+  const result = results.find((r: any) => r.requestId === id);
   if (!result) throw new Error(`RPC ${method}: no response for id ${id}`);
 
-  if (result._tag === "Failure") {
-    throw new Error(`RPC ${method} error: ${JSON.stringify(result.cause)}`);
+  if (result._tag === "Exit" && result.exit._tag === "Failure") {
+    throw new Error(`RPC ${method} error: ${JSON.stringify(result.exit.cause)}`);
   }
 
-  return result.value;
+  return result.exit.value;
 }
 
 export const api = {
   listPages: () => rpcCall("listPages", {}) as Promise<any[]>,
-  getPage: (id: string) => rpcCall("getPage", { id }) as Promise<any>,
+  getPage: (id: string) => rpcCall("getPage", { id }) as Promise<any | null>,
   createPage: (title: string, parentId: string | null = null) =>
     rpcCall("createPage", { title, parentId }) as Promise<any>,
   updatePage: (id: string, title: string) => rpcCall("updatePage", { id, title }) as Promise<any>,

@@ -1,12 +1,17 @@
 import { useState, useEffect } from "react";
 import { useStore } from "../store.js";
 
-export function DatabaseView({ database }: { database: any }) {
-  const { dbFields, records, loadDbFields, loadDbRecords, createDbRecord, updateFieldValue, dbViews } = useStore();
+export function DatabaseView({ database, isNew }: { database: any; isNew?: boolean }) {
+  const { dbFields, records, loadDbFields, loadDbRecords, createDbRecord, updateFieldValue, dbViews, createField } = useStore();
   const [viewType, setViewType] = useState("table");
   const [newTitle, setNewTitle] = useState("");
   const [editingCell, setEditingCell] = useState<{ recordId: string; fieldId: string } | null>(null);
   const [editValue, setEditValue] = useState("");
+  const [showAddField, setShowAddField] = useState(false);
+  const [newFieldName, setNewFieldName] = useState("");
+  const [newFieldType, setNewFieldType] = useState("text");
+  const [isEditingName, setIsEditingName] = useState(isNew);
+  const [dbName, setDbName] = useState(database.name || "Untitled");
 
   useEffect(() => {
     loadDbFields(database.id);
@@ -21,12 +26,27 @@ export function DatabaseView({ database }: { database: any }) {
 
   const handleCellEdit = async (recordId: string, fieldId: string) => {
     await updateFieldValue(recordId, fieldId, editValue);
+    await loadDbRecords(database.id); // Refresh records after edit
     setEditingCell(null);
     setEditValue("");
   };
 
+  const handleAddField = async () => {
+    if (!newFieldName.trim()) return;
+    await createField({
+      databaseId: database.id,
+      name: newFieldName.trim(),
+      type: newFieldType,
+      options: null,
+      relationTargetDbId: null,
+    });
+    await loadDbFields(database.id);
+    setNewFieldName("");
+    setShowAddField(false);
+  };
+
   if (viewType === "board") {
-    return <BoardView database={database} fields={dbFields} records={records} />;
+    return <BoardView database={database} fields={dbFields} records={records} onSwitchView={() => setViewType("table")} />;
   }
 
   return (
@@ -42,6 +62,51 @@ export function DatabaseView({ database }: { database: any }) {
           <tr>
             <th>Title</th>
             {dbFields.map((f: any) => <th key={f.id}>{f.name}</th>)}
+            <th style={{ width: 40 }}>
+              {showAddField ? (
+                <div style={{ display: "flex", gap: 4 }}>
+                  <input
+                    placeholder="Field name"
+                    value={newFieldName}
+                    onChange={(e) => setNewFieldName(e.target.value)}
+                    onKeyDown={(e) => {
+                      if (e.key === "Enter") handleAddField();
+                      if (e.key === "Escape") setShowAddField(false);
+                    }}
+                    onBlur={handleAddField}
+                    autoFocus
+                    style={{ width: 80, fontSize: 12, padding: "2px 4px" }}
+                  />
+                  <select
+                    value={newFieldType}
+                    onChange={(e) => setNewFieldType(e.target.value)}
+                    style={{ width: 60, fontSize: 11 }}
+                  >
+                    <option value="text">Text</option>
+                    <option value="number">Number</option>
+                    <option value="select">Select</option>
+                    <option value="multiSelect">Multi-select</option>
+                    <option value="date">Date</option>
+                    <option value="checkbox">Checkbox</option>
+                  </select>
+                </div>
+              ) : (
+                <button
+                  onClick={() => setShowAddField(true)}
+                  style={{
+                    background: "none",
+                    border: "none",
+                    cursor: "pointer",
+                    fontSize: 16,
+                    color: "#999",
+                    padding: "2px 6px",
+                  }}
+                  title="Add field"
+                >
+                  +
+                </button>
+              )}
+            </th>
           </tr>
         </thead>
         <tbody>
@@ -91,6 +156,7 @@ export function DatabaseView({ database }: { database: any }) {
               />
             </td>
             {dbFields.map((f: any) => <td key={f.id}></td>)}
+            <td></td>
           </tr>
         </tbody>
       </table>
@@ -98,7 +164,7 @@ export function DatabaseView({ database }: { database: any }) {
   );
 }
 
-function BoardView({ database, fields, records }: { database: any; fields: any[]; records: any[] }) {
+function BoardView({ database, fields, records, onSwitchView }: { database: any; fields: any[]; records: any[]; onSwitchView: () => void }) {
   // Find first select field for grouping
   const groupField = fields.find((f: any) => f.type === "select");
 
@@ -112,7 +178,7 @@ function BoardView({ database, fields, records }: { database: any; fields: any[]
   return (
     <div>
       <div className="db-toolbar">
-        <button onClick={() => {}}>Table</button>
+        <button onClick={onSwitchView}>Table</button>
         <button className="active">Board</button>
         <span style={{ marginLeft: "auto", fontSize: 13, color: "#666" }}>{database.name}</span>
       </div>

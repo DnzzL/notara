@@ -4,10 +4,33 @@ import { useStore } from "../store.js";
 export function Sidebar() {
   const { pages, currentPage, selectPage, createPage, loadPages, loading } = useStore();
   const [searchQuery, setSearchQuery] = useState("");
+  const [isCreating, setIsCreating] = useState(false);
+  const [newPageTitle, setNewPageTitle] = useState("");
 
   useEffect(() => {
     loadPages();
   }, []);
+
+  const handleCreateClick = () => {
+    setIsCreating(true);
+    setNewPageTitle("");
+  };
+
+  const handleCreateSubmit = async () => {
+    const title = newPageTitle.trim() || "Untitled";
+    await createPage(title);
+    setIsCreating(false);
+    setNewPageTitle("");
+  };
+
+  const handleKeyDown = (e: React.KeyboardEvent) => {
+    if (e.key === "Enter") {
+      e.preventDefault();
+      handleCreateSubmit();
+    } else if (e.key === "Escape") {
+      setIsCreating(false);
+    }
+  };
 
   const filtered = searchQuery
     ? pages.filter((p) => !p.isDeleted && p.title.toLowerCase().includes(searchQuery.toLowerCase()))
@@ -25,7 +48,19 @@ export function Sidebar() {
           value={searchQuery}
           onChange={(e) => setSearchQuery(e.target.value)}
         />
-        <button onClick={() => createPage("Untitled")}>+ New Page</button>
+        {isCreating ? (
+          <input
+            type="text"
+            placeholder="Page title..."
+            value={newPageTitle}
+            onChange={(e) => setNewPageTitle(e.target.value)}
+            onKeyDown={handleKeyDown}
+            onBlur={handleCreateSubmit}
+            autoFocus
+          />
+        ) : (
+          <button onClick={handleCreateClick}>+ New Page</button>
+        )}
       </div>
 
       <nav>

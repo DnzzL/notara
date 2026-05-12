@@ -1,4 +1,4 @@
-import { Effect, Layer } from "effect";
+import { Effect, Layer, pipe } from "effect";
 import * as HttpLayerRouter from "@effect/platform/HttpLayerRouter";
 import * as HttpServerResponse from "@effect/platform/HttpServerResponse";
 import * as HttpServerRequest from "@effect/platform/HttpServerRequest";
@@ -48,9 +48,21 @@ const mimeTypes: Record<string, string> = {
   ".woff2": "font/woff2",
 };
 
+// CORS headers
+const corsHeaders = {
+  "Access-Control-Allow-Origin": "*",
+  "Access-Control-Allow-Methods": "GET, POST, PUT, DELETE, OPTIONS",
+  "Access-Control-Allow-Headers": "Content-Type",
+};
+
 // Static file handler as an Effect
 const staticFilesRoute = Effect.gen(function* () {
   const router = yield* HttpLayerRouter.HttpRouter;
+  
+  // Handle CORS preflight
+  yield* router.add("OPTIONS", "/*", Effect.succeed(
+    HttpServerResponse.empty({ status: 204, headers: corsHeaders })
+  ));
   
   if (!appDist) return;
   
@@ -66,7 +78,7 @@ const staticFilesRoute = Effect.gen(function* () {
     }
 
     if (!fs.existsSync(filePath)) {
-      return HttpServerResponse.text("Not found", { status: 404 });
+      return HttpServerResponse.text("Not found", { status: 404, headers: corsHeaders });
     }
 
     const ext = path.extname(filePath);
@@ -74,7 +86,7 @@ const staticFilesRoute = Effect.gen(function* () {
     const content = fs.readFileSync(filePath);
 
     return HttpServerResponse.uint8Array(new Uint8Array(content), {
-      headers: { "Content-Type": contentType },
+      headers: { "Content-Type": contentType, ...corsHeaders },
     });
   }));
 });
@@ -141,13 +153,15 @@ const AppLive = Layer.mergeAll(
 
 // Serve the app with HTTP server
 const ServerLive = HttpLayerRouter.serve(AppLive).pipe(
-  Layer.provide(NodeHttpServer.layer(createServer, { port: 3000 })),
+  Layer.provide(NodeHttpServer.layer(createServer, { port: 3000, host: "127.0.0.1" })),
 );
 
 // Run migrations then start server
 const program = Effect.gen(function* () {
   yield* runMigrations;
   yield* Effect.logInfo("Server running on http://localhost:3000");
+  // Keep the server running
+  yield* Effect.never;
 });
 
 // Server program - combine migrations with server layer
