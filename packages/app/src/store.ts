@@ -26,7 +26,7 @@ interface AppState {
   reorderBlocks: (pageId: string, blockIds: string[]) => Promise<void>;
 
   loadDatabases: (pageId: string) => Promise<void>;
-  createDatabase: (pageId: string, name: string) => Promise<void>;
+  createDatabase: (pageId: string, name: string) => Promise<any>;
   loadDbFields: (databaseId: string) => Promise<void>;
   loadDbRecords: (databaseId: string) => Promise<void>;
   createDbRecord: (databaseId: string, title: string) => Promise<void>;

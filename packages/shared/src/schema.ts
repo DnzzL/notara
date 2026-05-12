@@ -28,6 +28,8 @@ export class Block extends Schema.Class<Block>("Block")({
     "divider",
     "image",
     "database",
+    "toggle",
+    "callout",
   ),
   content: Schema.String,
   parentId: Schema.NullOr(Schema.String),

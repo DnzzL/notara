@@ -46,7 +46,7 @@ export function DatabaseView({ database, isNew }: { database: any; isNew?: boole
   };
 
   if (viewType === "board") {
-    return <BoardView database={database} fields={dbFields} records={records} onSwitchView={() => setViewType("table")} isNew={isNew} onNameChange={() => setIsEditingName(true)} />;
+    return <BoardView database={database} fields={dbFields} records={records} onSwitchView={() => setViewType("table")} />;
   }
 
   const handleNameSave = async () => {
