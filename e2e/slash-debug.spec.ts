@@ -1,52 +1,79 @@
 import { test, expect } from "@playwright/test";
 
-test("debug slash command", async ({ page }) => {
-  await page.goto("http://localhost:5173");
-  await page.waitForSelector(".sidebar", { timeout: 10000 });
+// Clean up test results after running
+test.afterAll(async () => {
+  // Clean up any created test data via API if needed
+  // For now, tests use unique names to avoid conflicts
+});
 
-  // Create a page
-  await page.click("button:has-text('+ New Page')");
-  const titleInput = page.locator('input[placeholder="Page title..."]');
-  await titleInput.fill("Slash Test");
-  await titleInput.press("Enter");
+test.describe("slash command", () => {
+  test("click selection creates block", async ({ page }) => {
+    await page.goto("http://localhost:5173");
+    await page.waitForSelector(".sidebar", { timeout: 10000 });
 
-  // Wait for editor
-  await page.waitForSelector(".ProseMirror", { timeout: 5000 });
-  const editor = page.locator(".ProseMirror");
+    // Create a page with unique name
+    const testId = Date.now().toString(36);
+    await page.click("button:has-text('+ New Page')");
+    const titleInput = page.locator('input[placeholder="Page title..."]');
+    await titleInput.fill(`Slash Click ${testId}`);
+    await titleInput.press("Enter");
 
-  // Click in editor and type
-  await editor.click();
-  await editor.fill("Some text");
-  await page.waitForTimeout(500);
+    // Wait for editor
+    await page.waitForSelector(".ProseMirror", { timeout: 5000 });
+    const editor = page.locator(".ProseMirror");
 
-  // Press Enter to go to new line, then type slash
-  await editor.press("End");
-  await editor.press("Enter");
+    // Click in editor and go to new line
+    await editor.click();
+    await editor.press("End");
+    await editor.press("Enter");
+    await editor.press("/");
 
-  // Get HTML before
-  const beforeHtml = await editor.innerHTML();
-  console.log("Before slash HTML:", beforeHtml);
+    // Wait for menu
+    await page.waitForSelector(".slash-menu", { timeout: 3000 });
 
-  // Type slash
-  await editor.press("/");
+    // Click Heading 1
+    await page.click(".slash-menu-item:has-text('Heading 1')");
+    await page.waitForTimeout(500);
 
-  // Wait for menu
-  await page.waitForSelector(".slash-menu", { timeout: 3000 });
+    // Check result - should have heading without the "/"
+    const html = await editor.innerHTML();
+    console.log("After click HTML:", html);
+    expect(html).toContain("<h1>");
+    expect(html).not.toContain("/<h1>"); // No slash in heading
+  });
 
-  // Click Heading 1
-  await page.click(".slash-menu-item:has-text('Heading 1')");
+  test("enter selection creates block", async ({ page }) => {
+    await page.goto("http://localhost:5173");
+    await page.waitForSelector(".sidebar", { timeout: 10000 });
 
-  // Wait
-  await page.waitForTimeout(500);
+    // Create a page with unique name
+    const testId = Date.now().toString(36);
+    await page.click("button:has-text('+ New Page')");
+    const titleInput = page.locator('input[placeholder="Page title..."]');
+    await titleInput.fill(`Slash Enter ${testId}`);
+    await titleInput.press("Enter");
 
-  // Get editor HTML after
-  const afterHtml = await editor.innerHTML();
-  console.log("After slash HTML:", afterHtml);
+    // Wait for editor
+    await page.waitForSelector(".ProseMirror", { timeout: 5000 });
+    const editor = page.locator(".ProseMirror");
 
-  // Check for heading
-  const hasH1 = await editor.locator("h1").count();
-  console.log("H1 elements:", hasH1);
+    // Click in editor and go to new line
+    await editor.click();
+    await editor.press("End");
+    await editor.press("Enter");
+    await editor.press("/");
 
-  // Should have heading
-  expect(hasH1).toBeGreaterThan(0);
+    // Wait for menu
+    await page.waitForSelector(".slash-menu", { timeout: 3000 });
+
+    // Press Enter to select first item (Heading 1)
+    await page.keyboard.press("Enter");
+    await page.waitForTimeout(500);
+
+    // Check result - should have heading without the "/"
+    const html = await editor.innerHTML();
+    console.log("After enter HTML:", html);
+    expect(html).toContain("<h1>");
+    expect(html).not.toContain("/<h1>"); // No slash in heading
+  });
 });

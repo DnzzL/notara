@@ -21,14 +21,27 @@ export function BlockEditor() {
     autofocus: true,
     editorProps: {
       handleKeyDown: (view, event) => {
-        // Close menu on Escape
-        if (event.key === "Escape" && slashMenu.show) {
-          setSlashMenu((m) => ({ ...m, show: false }));
-          return true;
+        // If menu is open, only handle Escape and let SlashMenu handle other keys
+        if (slashMenu.show) {
+          if (event.key === "Escape") {
+            setSlashMenu((m) => ({ ...m, show: false }));
+            return true;
+          }
+          // Prevent other keys from affecting editor while menu is open
+          if (event.key === "Enter" || event.key === "ArrowUp" || event.key === "ArrowDown") {
+            return true;
+          }
+          // Close menu on other keys (like typing)
+          if (event.key.length === 1 && !event.ctrlKey && !event.metaKey) {
+            // Don't close on these keys as they're used for filtering
+            if (!/[a-zA-Z0-9]/i.test(event.key)) {
+              setSlashMenu((m) => ({ ...m, show: false }));
+            }
+          }
         }
         
         // Handle slash key
-        if (event.key === "/") {
+        if (event.key === "/" && !slashMenu.show) {
           const { from } = view.state.selection;
           const lineStart = view.state.doc.resolve(from).start();
           const textFromLineStart = view.state.doc.textBetween(lineStart, from, "\n");
