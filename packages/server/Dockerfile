@@ -7,20 +7,8 @@ COPY packages/server/package.json ./packages/server/
 COPY packages/app/package.json ./packages/app/
 COPY packages/electron/package.json ./packages/electron/
 
-# Install deps then patch msgpackr for Bun compatibility
-# msgpackr 1.11.x ESM exports don't work with "import * as" in Bun 1.3.x
-COPY scripts/patch-msgpackr.sh /tmp/patch-msgpackr.sh
-RUN rm -f bun.lock && bun install && sh /tmp/patch-msgpackr.sh
-
-# Fix @effect/rpc importing { Msgpackr } from @effect/platform/MsgPack (missing re-export)
-# Patch MUST target the .bun/ resolved path, not the plain node_modules path
-RUN MSGPACK_JS=$(find /app/node_modules/.bun -path "*/@effect+platform*/dist/esm/MsgPack.js" -print -quit) && \
-    if [ -n "$MSGPACK_JS" ]; then \
-      echo 'export * as Msgpackr from "msgpackr";' >> "$MSGPACK_JS"; \
-      echo "Patched: $MSGPACK_JS"; \
-    else \
-      echo "ERROR: MsgPack.js not found in .bun directory" && exit 1; \
-    fi
+# Install deps
+RUN rm -f bun.lock && bun install
 
 COPY packages/shared/tsconfig.json ./packages/shared/
 COPY packages/shared/src/ ./packages/shared/src/

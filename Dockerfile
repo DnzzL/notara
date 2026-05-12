@@ -16,7 +16,7 @@ COPY packages/shared/package.json ./packages/shared/
 COPY packages/server/package.json ./packages/server/
 COPY packages/app/package.json ./packages/app/
 
-# Install deps + apply msgpackr patch via postinstall
+# Install deps
 RUN bun install --frozen-lockfile --no-cache
 
 # Copy source
