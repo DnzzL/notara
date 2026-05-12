@@ -107,35 +107,42 @@ export function BlockEditor() {
   const handleSlashCommand = async (command: string) => {
     if (!editor || !currentPage) return;
     
-    // Clear the slash from editor
-    const text = editor.getText();
-    const cursor = editor.state.selection.anchor;
-    const textBefore = text.slice(0, cursor - 1);
+    // Get current selection and text
+    const { from, to } = editor.state.selection;
+    const textBefore = editor.state.doc.textBetween(0, from, "\n");
     const lineStart = textBefore.lastIndexOf("\n") + 1;
-    const slashPos = textBefore.indexOf("/", lineStart);
+    const textOnLine = textBefore.slice(lineStart);
+    const slashIndex = textOnLine.lastIndexOf("/");
     
-    if (slashPos >= 0) {
-      editor.commands.deleteRange({ from: slashPos + 1, to: cursor });
-    }
+    // Calculate position of the slash in the document
+    const slashPos = from - textOnLine.length + slashIndex;
+    
+    // Close menu first
     setSlashMenu((m) => ({ ...m, show: false }));
     
+    // Delete from slash to current cursor position
+    if (slashIndex >= 0) {
+      editor.chain().focus().deleteRange({ from: slashPos + 1, to: to }).run();
+    }
+    
+    // Apply the command
     if (command === "database") {
       // Create inline database with default name
       const db = await createDatabase(currentPage.id, "Untitled");
       await loadDatabases(currentPage.id);
       setNewDbId(db.id);
     } else if (command === "heading1") {
-      editor.commands.setHeading({ level: 1 });
+      editor.chain().focus().setHeading({ level: 1 }).run();
     } else if (command === "heading2") {
-      editor.commands.setHeading({ level: 2 });
+      editor.chain().focus().setHeading({ level: 2 }).run();
     } else if (command === "heading3") {
-      editor.commands.setHeading({ level: 3 });
+      editor.chain().focus().setHeading({ level: 3 }).run();
     } else if (command === "bullet") {
-      editor.commands.toggleBulletList();
+      editor.chain().focus().toggleBulletList().run();
     } else if (command === "numbered") {
-      editor.commands.toggleOrderedList();
+      editor.chain().focus().toggleOrderedList().run();
     } else if (command === "code") {
-      editor.commands.toggleCodeBlock();
+      editor.chain().focus().toggleCodeBlock().run();
     }
   };
 
