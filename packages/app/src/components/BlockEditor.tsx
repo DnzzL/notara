@@ -19,28 +19,51 @@ export function BlockEditor() {
     extensions: [StarterKit],
     content: "<p></p>",
     autofocus: true,
+    editorProps: {
+      handleKeyDown: (view, event) => {
+        // Close menu on Escape
+        if (event.key === "Escape" && slashMenu.show) {
+          setSlashMenu((m) => ({ ...m, show: false }));
+          return true;
+        }
+        
+        // Handle slash key
+        if (event.key === "/") {
+          const { from } = view.state.selection;
+          const lineStart = view.state.doc.resolve(from).start();
+          const textFromLineStart = view.state.doc.textBetween(lineStart, from, "\n");
+          
+          // Only trigger at start of line
+          if (textFromLineStart === "") {
+            setTimeout(() => {
+              const coords = view.coordsAtPos(from);
+              setSlashMenu({
+                show: true,
+                query: "",
+                top: coords.bottom + window.scrollY,
+                left: coords.left + window.scrollX,
+              });
+            }, 0);
+          }
+        }
+        return false;
+      },
+    },
     onUpdate: ({ editor }) => {
       if (!currentPage || savingRef.current) return;
       
-      // Check for slash command
-      const text = editor.getText();
-      const cursor = editor.state.selection.anchor;
-      const textBefore = text.slice(0, cursor - 1);
-      const lineStart = textBefore.lastIndexOf("\n") + 1;
-      const textOnLine = textBefore.slice(lineStart);
-      
-      if (textOnLine.startsWith("/")) {
-        const query = textOnLine.slice(1);
-        const { from } = editor.state.selection;
-        const coords = editor.view.coordsAtPos(from);
-        setSlashMenu({
-          show: true,
-          query,
-          top: coords.bottom,
-          left: coords.left,
-        });
-      } else if (slashMenu.show && !textOnLine.includes("/")) {
-        setSlashMenu((m) => ({ ...m, show: false }));
+      // Check for slash command query
+      if (slashMenu.show) {
+        const text = editor.getText();
+        const cursor = editor.state.selection.anchor;
+        const lineStart = editor.state.doc.resolve(cursor).start();
+        const textOnLine = text.slice(lineStart - 1, cursor - 1);
+        
+        if (textOnLine.startsWith("/")) {
+          setSlashMenu((m) => ({ ...m, query: textOnLine.slice(1) }));
+        } else {
+          setSlashMenu((m) => ({ ...m, show: false }));
+        }
       }
 
       savingRef.current = true;
@@ -107,23 +130,16 @@ export function BlockEditor() {
   const handleSlashCommand = async (command: string) => {
     if (!editor || !currentPage) return;
     
-    // Get current selection and text
-    const { from, to } = editor.state.selection;
-    const textBefore = editor.state.doc.textBetween(0, from, "\n");
-    const lineStart = textBefore.lastIndexOf("\n") + 1;
-    const textOnLine = textBefore.slice(lineStart);
-    const slashIndex = textOnLine.lastIndexOf("/");
-    
-    // Calculate position of the slash in the document
-    const slashPos = from - textOnLine.length + slashIndex;
+    // Get the current line start position in the document
+    const { from } = editor.state.selection;
+    const $pos = editor.state.doc.resolve(from);
+    const lineStart = $pos.start();
     
     // Close menu first
     setSlashMenu((m) => ({ ...m, show: false }));
     
-    // Delete from slash to current cursor position
-    if (slashIndex >= 0) {
-      editor.chain().focus().deleteRange({ from: slashPos + 1, to: to }).run();
-    }
+    // Delete from line start (including the slash) to current position
+    editor.chain().focus().deleteRange({ from: lineStart, to: from }).run();
     
     // Apply the command
     if (command === "database") {

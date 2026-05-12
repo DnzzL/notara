@@ -53,9 +53,11 @@ test.describe("Basic User Stories", () => {
     // Wait for editor
     await page.waitForSelector(".ProseMirror", { timeout: 5000 });
     
-    // Type slash to open menu
+    // Click in editor and type slash at start of line
     const editor = page.locator(".ProseMirror");
-    await editor.fill("/");
+    await editor.click();
+    await editor.press("Home"); // Go to start of line
+    await editor.press("/");
     
     // Wait for slash menu
     await page.waitForSelector(".slash-menu", { timeout: 2000 });
@@ -77,7 +79,10 @@ test.describe("Basic User Stories", () => {
     await page.locator('input[placeholder="Page title..."]').press("Enter");
     
     await page.waitForSelector(".ProseMirror", { timeout: 5000 });
-    await page.locator(".ProseMirror").fill("/");
+    const editor = page.locator(".ProseMirror");
+    await editor.click();
+    await editor.press("Home");
+    await editor.press("/");
     await page.waitForSelector(".slash-menu", { timeout: 2000 });
     await page.click(".slash-menu-item:has-text('Database')");
     await page.waitForSelector(".table-view", { timeout: 5000 });
