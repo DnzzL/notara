@@ -3,6 +3,7 @@ import { useEditor, EditorContent } from "@tiptap/react";
 import StarterKit from "@tiptap/starter-kit";
 import { useStore } from "../store.js";
 import { DatabaseView } from "./DatabaseView.js";
+import { SlashMenu } from "./SlashMenu.js";
 
 export function BlockEditor() {
   const { currentPage, blocks, updateBlock, createBlock, createDatabase, updatePage, databases, loadDatabases } = useStore();
@@ -18,33 +19,6 @@ export function BlockEditor() {
     extensions: [StarterKit],
     content: "<p></p>",
     autofocus: true,
-    editorProps: {
-      handleKeyDown: (view, event) => {
-        // Handle slash key
-        if (event.key === "/") {
-          const { from } = view.state.selection;
-          const textBefore = view.state.doc.textBetween(0, from, "\n");
-          const lineStart = textBefore.lastIndexOf("\n") + 1;
-          const textOnLine = textBefore.slice(lineStart);
-          
-          // Check if we're at start of line or after space
-          if (textOnLine === "" || textOnLine.endsWith(" ")) {
-            const coords = view.coordsAtPos(from);
-            setSlashMenu({
-              show: true,
-              query: "",
-              top: coords.bottom,
-              left: coords.left,
-            });
-          }
-        }
-        // Close menu on Escape
-        if (event.key === "Escape") {
-          setSlashMenu((m) => ({ ...m, show: false }));
-        }
-        return false;
-      },
-    },
     onUpdate: ({ editor }) => {
       if (!currentPage || savingRef.current) return;
       
@@ -210,28 +184,13 @@ export function BlockEditor() {
         
         {/* Slash Command Menu */}
         {slashMenu.show && editor && (
-          <div
-            className="slash-menu"
-            style={{
-              position: "absolute",
-              top: slashMenu.top,
-              left: slashMenu.left,
-              zIndex: 100,
-            }}
-          >
-            {slashCommands
-              .filter((cmd) => cmd.name.toLowerCase().includes(slashMenu.query.toLowerCase()))
-              .map((cmd) => (
-                <button
-                  key={cmd.id}
-                  className="slash-menu-item"
-                  onClick={() => handleSlashCommand(cmd.id)}
-                >
-                  <span className="slash-icon">{cmd.icon}</span>
-                  <span>{cmd.name}</span>
-                </button>
-              ))}
-          </div>
+          <SlashMenu
+            commands={slashCommands}
+            query={slashMenu.query}
+            position={{ top: slashMenu.top, left: slashMenu.left }}
+            onSelect={handleSlashCommand}
+            onClose={() => setSlashMenu((m) => ({ ...m, show: false }))}
+          />
         )}
       </div>
 

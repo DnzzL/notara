@@ -46,15 +46,51 @@ export function DatabaseView({ database, isNew }: { database: any; isNew?: boole
   };
 
   if (viewType === "board") {
-    return <BoardView database={database} fields={dbFields} records={records} onSwitchView={() => setViewType("table")} />;
+    return <BoardView database={database} fields={dbFields} records={records} onSwitchView={() => setViewType("table")} isNew={isNew} onNameChange={() => setIsEditingName(true)} />;
   }
+
+  const handleNameSave = async () => {
+    // TODO: implement database rename on backend
+    setIsEditingName(false);
+  };
+
+  const handleNameKeyDown = (e: React.KeyboardEvent) => {
+    if (e.key === "Enter") {
+      e.preventDefault();
+      handleNameSave();
+    } else if (e.key === "Escape") {
+      setIsEditingName(false);
+    }
+  };
 
   return (
     <div className="table-view">
       <div className="db-toolbar">
         <button className={viewType === "table" ? "active" : ""} onClick={() => setViewType("table")}>Table</button>
         <button className={viewType === "board" ? "active" : ""} onClick={() => setViewType("board")}>Board</button>
-        <span style={{ marginLeft: "auto", fontSize: 13, color: "#666" }}>{database.name}</span>
+        <span style={{ marginLeft: "auto", fontSize: 13, color: "#666", display: "flex", alignItems: "center", gap: 8 }}>
+          {isEditingName ? (
+            <input
+              type="text"
+              value={dbName}
+              onChange={(e) => setDbName(e.target.value)}
+              onBlur={handleNameSave}
+              onKeyDown={handleNameKeyDown}
+              autoFocus
+              style={{
+                fontSize: 13,
+                padding: "2px 6px",
+                border: "1px solid #2eaadc",
+                borderRadius: 4,
+                width: 120,
+              }}
+            />
+          ) : (
+            <span onClick={() => setIsEditingName(true)} style={{ cursor: "pointer" }}>
+              {database.name || "Untitled"}
+            </span>
+          )}
+        </span>
       </div>
 
       <table>

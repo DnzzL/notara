@@ -54,7 +54,17 @@ body {
   border-radius: 8px;
   box-shadow: 0 4px 12px rgba(0,0,0,0.15);
   padding: 8px 0;
-  min-width: 200px;
+  min-width: 260px;
+  max-height: 400px;
+  overflow-y: auto;
+}
+.slash-menu-header {
+  padding: 8px 16px;
+  font-size: 12px;
+  font-weight: 600;
+  color: #666;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
 }
 .slash-menu-item {
   display: flex;
@@ -68,8 +78,12 @@ body {
   text-align: left;
   font-size: 14px;
 }
-.slash-menu-item:hover {
+.slash-menu-item:hover,
+.slash-menu-item.selected {
   background: #f7f6f3;
+}
+.slash-menu-item.selected {
+  background: #d3e5ef;
 }
 .slash-icon {
   display: flex;
@@ -80,6 +94,21 @@ body {
   background: #f7f6f3;
   border-radius: 4px;
   font-size: 12px;
+}
+.slash-item-content {
+  display: flex;
+  flex: 1;
+  justify-content: space-between;
+  align-items: center;
+  gap: 8px;
+}
+.slash-item-name {
+  font-weight: 500;
+}
+.slash-item-shortcut {
+  font-size: 12px;
+  color: #999;
+  font-family: monospace;
 }
 
 .editor { position: relative; }
