@@ -132,6 +132,14 @@ const rpcHandlersLayer = AppRpc.toLayer({
     type: req.type,
     groupByFieldId: req.groupByFieldId,
   }).pipe(Effect.orDie),
+  updateField: ({ id, options }) => Databases.updateField({
+    id,
+    options: options ? [...options] : null,
+  }).pipe(Effect.orDie),
+  reorderRecords: ({ databaseId, recordIds }) => Databases.reorderRecords({
+    databaseId,
+    recordIds: [...recordIds],
+  }).pipe(Effect.orDie),
 });
 
 // Create RPC router layer

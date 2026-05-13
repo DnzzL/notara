@@ -68,4 +68,8 @@ export const api = {
   deleteRecord: (id: string) => rpcCall("deleteRecord", { id }) as Promise<void>,
   listViews: (databaseId: string) => rpcCall("listViews", { databaseId }) as Promise<any[]>,
   createView: (req: any) => rpcCall("createView", req) as Promise<any>,
+  updateField: (id: string, options: string[] | null) =>
+    rpcCall("updateField", { id, options }) as Promise<any>,
+  reorderRecords: (databaseId: string, recordIds: string[]) =>
+    rpcCall("reorderRecords", { databaseId, recordIds }) as Promise<any>,
 };

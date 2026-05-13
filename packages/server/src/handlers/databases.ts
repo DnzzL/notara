@@ -186,6 +186,32 @@ export const listViews = (databaseId: string) =>
     return rows.map(viewFromRow);
   });
 
+export const updateField = (req: { id: string; options: string[] | null }) =>
+  Effect.gen(function* () {
+    const sql = yield* SqlClient.SqlClient;
+    const options = req.options ? JSON.stringify(req.options) : null;
+    const rows = yield* sql`
+      UPDATE database_fields SET options = ${options}
+      WHERE id = ${req.id}
+      RETURNING id, database_id as "databaseId", name, type, options, relation_target_db_id as "relationTargetDbId"
+    `;
+    if (rows.length === 0) return yield* Effect.fail(new Error(`Field ${req.id} not found`));
+    const r = rows[0] as { options: string | null };
+    return { ...r, options: r.options ? JSON.parse(r.options) : null } as DatabaseField;
+  });
+
+export const reorderRecords = (req: { databaseId: string; recordIds: string[] }) =>
+  Effect.gen(function* () {
+    const sql = yield* SqlClient.SqlClient;
+    // Assign fractional sort orders to allow future insertions between records
+    yield* Effect.all(
+      req.recordIds.map((recordId, index) =>
+        sql`UPDATE database_records SET sort_order = ${index + 1} WHERE id = ${recordId}`
+      ),
+    );
+    return { reordered: true };
+  });
+
 export const createView = (req: {
   databaseId: string; name: string; type: string;
   groupByFieldId: string | null;

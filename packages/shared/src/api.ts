@@ -126,6 +126,20 @@ export const AppRpc = RpcGroup.make(
     },
     success: DatabaseView,
   }),
+  Rpc.make("updateField", {
+    payload: {
+      id: Schema.String,
+      options: Schema.NullOr(Schema.Array(Schema.String)),
+    },
+    success: DatabaseField,
+  }),
+  Rpc.make("reorderRecords", {
+    payload: {
+      databaseId: Schema.String,
+      recordIds: Schema.Array(Schema.String),
+    },
+    success: Schema.Struct({ reordered: Schema.Boolean }),
+  }),
 );
 
 // Export the type for client use

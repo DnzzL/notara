@@ -34,6 +34,8 @@ interface AppState {
   updateFieldValue: (recordId: string, fieldId: string, value: string) => Promise<void>;
   loadDbViews: (databaseId: string) => Promise<void>;
   createField: (req: any) => Promise<void>;
+  updateField: (id: string, options: string[] | null) => Promise<void>;
+  reorderRecords: (databaseId: string, recordIds: string[]) => Promise<void>;
 }
 
 export const useStore = create<AppState>((set, get) => ({
@@ -186,5 +188,17 @@ export const useStore = create<AppState>((set, get) => ({
   createField: async (req) => {
     const field = await api.createField(req);
     set((s) => ({ dbFields: [...s.dbFields, field] }));
+  },
+
+  updateField: async (id, options) => {
+    await api.updateField(id, options);
+    const db = get().currentDb;
+    if (db) await get().loadDbFields(db.id);
+  },
+
+  reorderRecords: async (databaseId, recordIds) => {
+    await api.reorderRecords(databaseId, recordIds);
+    const db = get().currentDb;
+    if (db) await get().loadDbRecords(db.id);
   },
 }));
