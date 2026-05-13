@@ -23,6 +23,7 @@ interface AppState {
   loadBlocks: (pageId: string) => Promise<void>;
   createBlock: (req: any) => Promise<void>;
   updateBlock: (id: string, content: string) => Promise<void>;
+  deleteBlock: (id: string) => Promise<void>;
   reorderBlocks: (pageId: string, blockIds: string[]) => Promise<void>;
 
   loadDatabases: (pageId: string) => Promise<void>;
@@ -126,6 +127,11 @@ export const useStore = create<AppState>((set, get) => ({
   updateBlock: async (id, content) => {
     const block = await api.updateBlock(id, content);
     set((s) => ({ blocks: s.blocks.map((b) => (b.id === id ? block : b)) }));
+  },
+
+  deleteBlock: async (id) => {
+    await api.deleteBlock(id);
+    set((s) => ({ blocks: s.blocks.filter((b) => b.id !== id) }));
   },
 
   reorderBlocks: async (pageId, blockIds) => {
