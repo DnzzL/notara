@@ -43,5 +43,8 @@
   },
   "devDependencies": {
     "@playwright/test": "^1.60.0"
+  },
+  "dependencies": {
+    "@dnd-kit/utilities": "^3.2.2"
   }
 }

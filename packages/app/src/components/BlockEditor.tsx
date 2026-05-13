@@ -10,6 +10,10 @@ import { BlockNavigationExtension, type BlockNavigationCallbacks } from "./Block
 import { useStore } from "../store.js";
 import { DatabaseView } from "./DatabaseView.js";
 import { SlashMenu } from "./SlashMenu.js";
+import { DndContext, type DragEndEvent, type DragStartEvent, type DragOverEvent, DragOverlay, PointerSensor, useSensor, useSensors } from "@dnd-kit/core";
+import { SortableContext, useSortable, verticalListSortingStrategy } from "@dnd-kit/sortable";
+import { CSS } from "@dnd-kit/utilities";
+import { DragHandle } from "./DragHandle.js";
 
 /** Shared TipTap extensions — same set for every block editor. */
 const SHARED_EXTENSIONS = [
@@ -189,8 +193,62 @@ function SingleBlockEditor({
   );
 }
 
+/** Drop indicator between blocks during drag. */
+function DropIndicator({ active }: { active: boolean }) {
+  if (!active) return null;
+  return <div className="drop-indicator" />;
+}
+
+/** Sortable wrapper for a single block with drag handle. */
+function SortableBlock({
+  id,
+  children,
+  showDropIndicator,
+  isDragging,
+  onDragStart,
+  blockType,
+}: {
+  id: string;
+  children: React.ReactNode;
+  showDropIndicator: boolean;
+  isDragging: boolean;
+  onDragStart: () => void;
+  blockType: string;
+}) {
+  const { attributes, listeners, setNodeRef, transform, transition, isDragging: isSortableDragging } = useSortable({
+    id,
+    disabled: false,
+  });
+
+  const style: React.CSSProperties = {
+    transform: CSS.Transform.toString(transform),
+    transition,
+    opacity: isSortableDragging ? 0.3 : 1,
+  };
+
+  return (
+    <div ref={setNodeRef} style={style} className="sortable-block-wrapper" data-block-type={blockType}>
+      <DropIndicator active={showDropIndicator} />
+      <div className={`block-container ${isDragging || isSortableDragging ? "block-dragging" : ""}`}>
+        <div
+          className="drag-handle-wrapper"
+          onMouseDown={(e) => {
+            e.stopPropagation();
+            onDragStart();
+          }}
+          {...listeners}
+          {...attributes}
+        >
+          <DragHandle onDragStart={onDragStart} testId={`drag-handle-${id}`} />
+        </div>
+        <div className="block-content">{children}</div>
+      </div>
+    </div>
+  );
+}
+
 export function BlockEditor() {
-  const { currentPage, blocks, updateBlock, createBlock, deleteBlock, createDatabase, updatePage, databases, loadDatabases } = useStore();
+  const { currentPage, blocks, updateBlock, createBlock, deleteBlock, createDatabase, updatePage, databases, loadDatabases, reorderBlocks } = useStore();
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [isEditingTitle, setIsEditingTitle] = useState(false);
   const [titleValue, setTitleValue] = useState("");
@@ -198,6 +256,19 @@ export function BlockEditor() {
     show: false, query: "", top: 0, left: 0, blockIndex: 0,
   });
   const [newDbId, setNewDbId] = useState<string | null>(null);
+
+  // Drag-drop state
+  const [activeBlockId, setActiveBlockId] = useState<string | null>(null);
+  const [dropIndicatorIndex, setDropIndicatorIndex] = useState<number | null>(null);
+
+  // Pointer sensor for drag-drop - prevent text selection during drag
+  const sensors = useSensors(
+    useSensor(PointerSensor, {
+      activationConstraint: {
+        distance: 8,
+      },
+    }),
+  );
 
   // Sorted blocks (filter out database blocks - they render separately)
   const sortedBlocks = [...blocks]
@@ -360,6 +431,103 @@ export function BlockEditor() {
     else if (e.key === "Escape") { setIsEditingTitle(false); }
   };
 
+  // ── Drag-Drop handlers ──────────────────────────────────────────────
+
+  /** Determine converted type when a block is dragged to a new position. */
+  function getConvertedType(draggedType: string, targetIndex: number, allBlocks: typeof sortedBlocks): string {
+    if (targetIndex < 0 || targetIndex >= allBlocks.length) return draggedType;
+
+    const prevBlock = allBlocks[targetIndex - 1];
+    const nextBlock = allBlocks[targetIndex + 1];
+
+    // Check if dropping into a list context
+    const prevIsList = prevBlock && (prevBlock.type === "bulletList" || prevBlock.type === "numberedList");
+    const nextIsList = nextBlock && (nextBlock.type === "bulletList" || nextBlock.type === "numberedList");
+
+    if (prevIsList || nextIsList) {
+      const listType = prevIsList ? prevBlock!.type : nextBlock!.type;
+      if (draggedType === "paragraph" || draggedType === "heading1" || draggedType === "heading2" || draggedType === "heading3") {
+        return listType;
+      }
+    }
+
+    // Check if dropping out of a list context
+    const isListType = draggedType === "bulletList" || draggedType === "numberedList";
+    if (isListType && !prevIsList && !nextIsList) {
+      return "paragraph";
+    }
+
+    return draggedType;
+  }
+
+  const handleDragStart = ({ active }: DragStartEvent) => {
+    setActiveBlockId(active.id as string);
+  };
+
+  const handleDragOver = ({ over }: DragOverEvent) => {
+    if (!over || !currentPage) return;
+
+    const overId = String(over.id);
+    const overIndex = allItems.findIndex((item) => item.id === overId);
+    if (overIndex >= 0) {
+      setDropIndicatorIndex(overIndex);
+    }
+  };
+
+  const handleDragEnd = async ({ active, over }: DragEndEvent) => {
+    setActiveBlockId(null);
+    setDropIndicatorIndex(null);
+
+    if (!over || !currentPage) return;
+    if (active.id === over.id) return;
+
+    const oldIndex = allItems.findIndex((item) => item.id === active.id);
+    const newIndex = allItems.findIndex((item) => item.id === over.id);
+
+    if (oldIndex === -1 || newIndex === -1) return;
+
+    // Get the block being dragged
+    const draggedBlock = sortedBlocks.find((b) => b.id === active.id);
+    if (!draggedBlock) return;
+
+    // Calculate new order
+    const newItems = [...allItems];
+    const [movedItem] = newItems.splice(oldIndex, 1);
+    newItems.splice(newIndex, 0, movedItem);
+
+    // Extract block IDs for reorder API
+    const newBlockOrder = newItems.filter((item) => item.type === "block").map((item) => item.id);
+
+    // Call reorder API
+    await reorderBlocks(currentPage.id, newBlockOrder);
+
+    // Handle list conversion: if block type needs to change based on new context
+    const convertedType = getConvertedType(draggedBlock.type, newIndex, allItems.filter((item) => item.type === "block"));
+    if (convertedType !== draggedBlock.type) {
+      // Convert the block type
+      const defaultHtml = defaultContentForType(convertedType);
+      const currentText = stripHtml(draggedBlock.content || defaultContentForType(draggedBlock.type));
+      let newHtml: string;
+      if (convertedType.startsWith("heading")) {
+        const level = getHeadingLevel(draggedBlock.content || defaultContentForType(draggedBlock.type));
+        newHtml = `<h${level}>${currentText}</h${level}>`;
+      } else {
+        newHtml = defaultHtml.replace(/>$/, `>${currentText}</`).replace(defaultHtml.match(/<\/\w+>/)?.[0] || "", "");
+        // Simpler approach: just use default content with text inserted
+        const tag = convertedType === "bulletList" ? "ul" : convertedType === "numberedList" ? "ol" : "p";
+        newHtml = `<${tag}><li>${currentText}</li></${tag}>`;
+      }
+      await updateBlock(draggedBlock.id, newHtml);
+    }
+  };
+
+  // Build combined items list (blocks + databases) for drag-drop
+  const allItems = [...sortedBlocks, ...databases.map((db) => ({
+    id: `db-${db.id}`,
+    type: "database" as const,
+    index: databases.indexOf(db) + sortedBlocks.length,
+  }))];
+
   if (!currentPage) {
     return (
       <div className="empty-state">
@@ -369,78 +537,123 @@ export function BlockEditor() {
   }
 
   return (
-    <div className="main">
-      <input ref={fileInputRef} type="file" accept="image/*" multiple style={{ display: "none" }} />
+    <DndContext
+      sensors={sensors}
+      onDragStart={handleDragStart}
+      onDragOver={handleDragOver}
+      onDragEnd={handleDragEnd}
+    >
+      <SortableContext items={allItems.map((item) => item.id)} strategy={verticalListSortingStrategy}>
+        <div className="main">
+          <input ref={fileInputRef} type="file" accept="image/*" multiple style={{ display: "none" }} />
 
-      {isEditingTitle ? (
-        <input
-          type="text" className="page-title-input" value={titleValue}
-          onChange={(e) => setTitleValue(e.target.value)} onBlur={handleTitleSave}
-          onKeyDown={handleTitleKeyDown} autoFocus placeholder="Page title..."
-        />
-      ) : (
-        <h1 className="page-title" onClick={() => { setIsEditingTitle(true); setTitleValue(currentPage.title || ""); }} style={{ cursor: "pointer" }}>
-          {currentPage.title || "Untitled"}
-        </h1>
-      )}
-
-      <div className="editor">
-        {sortedBlocks.map((block, index) => {
-          const callbacks: BlockNavigationCallbacks = {
-            navigateToBlock: (targetIdx, cursorPos) => navigateToBlock(targetIdx, cursorPos),
-            mergeWithPrevious: () => mergeWithPrevious(index),
-            splitBlock: (before, after, newType) => splitBlock(index, before, after, newType),
-            insertBlockAfter: () => insertBlockAfter(index),
-            updateBlock: handleUpdateBlock,
-          };
-
-          return (
-            <SingleBlockEditor
-              key={block.id}
-              block={block}
-              blockIndex={index}
-              totalBlocks={sortedBlocks.length}
-              callbacks={callbacks}
-              onSlashMenuOpen={(data) => {
-                setSlashMenu({ show: true, query: data.query, top: data.top, left: data.left, blockIndex: index });
-              }}
+          {isEditingTitle ? (
+            <input
+              type="text" className="page-title-input" value={titleValue}
+              onChange={(e) => setTitleValue(e.target.value)} onBlur={handleTitleSave}
+              onKeyDown={handleTitleKeyDown} autoFocus placeholder="Page title..."
             />
-          );
-        })}
+          ) : (
+            <h1 className="page-title" onClick={() => { setIsEditingTitle(true); setTitleValue(currentPage.title || ""); }} style={{ cursor: "pointer" }}>
+              {currentPage.title || "Untitled"}
+            </h1>
+          )}
 
-        {/* Empty state: no blocks yet */}
-        {sortedBlocks.length === 0 && (
-          <div
-            className="block-node empty-block"
-            onClick={async () => {
-              await createBlock({
-                pageId: currentPage.id, type: "paragraph", content: "<p></p>", index: 0, parentId: null,
-              });
-            }}
-            style={{ cursor: "text" }}
-          >
-            Click here or press '/' to start editing...
+          <div className="editor">
+            {allItems.map((item, index) => {
+              if (item.type === "database") {
+                const db = databases.find((d) => `db-${d.id}` === item.id);
+                if (!db) return null;
+                return (
+                  <SortableBlock
+                    key={item.id}
+                    id={item.id}
+                    showDropIndicator={dropIndicatorIndex === index}
+                    isDragging={activeBlockId === item.id}
+                    onDragStart={() => setActiveBlockId(item.id)}
+                    blockType="database"
+                  >
+                    <DatabaseView database={db} isNew={db.id === newDbId} />
+                  </SortableBlock>
+                );
+              }
+
+              const block = sortedBlocks.find((b) => b.id === item.id);
+              if (!block) return null;
+              const blockIndex = sortedBlocks.indexOf(block);
+              const callbacks: BlockNavigationCallbacks = {
+                navigateToBlock: (targetIdx, cursorPos) => navigateToBlock(targetIdx, cursorPos),
+                mergeWithPrevious: () => mergeWithPrevious(blockIndex),
+                splitBlock: (before, after, newType) => splitBlock(blockIndex, before, after, newType),
+                insertBlockAfter: () => insertBlockAfter(blockIndex),
+                updateBlock: handleUpdateBlock,
+              };
+
+              return (
+                <SortableBlock
+                  key={block.id}
+                  id={block.id}
+                  showDropIndicator={dropIndicatorIndex === index}
+                  isDragging={activeBlockId === block.id}
+                  onDragStart={() => setActiveBlockId(block.id)}
+                  blockType={block.type}
+                >
+                  <SingleBlockEditor
+                    block={block}
+                    blockIndex={blockIndex}
+                    totalBlocks={sortedBlocks.length}
+                    callbacks={callbacks}
+                    onSlashMenuOpen={(data) => {
+                      setSlashMenu({ show: true, query: data.query, top: data.top, left: data.left, blockIndex: blockIndex });
+                    }}
+                  />
+                </SortableBlock>
+              );
+            })}
+
+            {/* Empty state: no blocks yet */}
+            {sortedBlocks.length === 0 && databases.length === 0 && (
+              <div
+                className="block-node empty-block"
+                onClick={async () => {
+                  await createBlock({
+                    pageId: currentPage.id, type: "paragraph", content: "<p></p>", index: 0, parentId: null,
+                  });
+                }}
+                style={{ cursor: "text" }}
+              >
+                Click here or press '/' to start editing...
+              </div>
+            )}
+
+            {/* Slash Command Menu */}
+            {slashMenu.show && (
+              <SlashMenu
+                commands={slashCommands}
+                query={slashMenu.query}
+                position={{ top: slashMenu.top, left: slashMenu.left }}
+                onSelect={(cmd) => handleSlashCommand(cmd, slashMenu.blockIndex)}
+                onClose={() => setSlashMenu((m) => ({ ...m, show: false }))}
+              />
+            )}
           </div>
-        )}
 
-        {/* Slash Command Menu */}
-        {slashMenu.show && (
-          <SlashMenu
-            commands={slashCommands}
-            query={slashMenu.query}
-            position={{ top: slashMenu.top, left: slashMenu.left }}
-            onSelect={(cmd) => handleSlashCommand(cmd, slashMenu.blockIndex)}
-            onClose={() => setSlashMenu((m) => ({ ...m, show: false }))}
-          />
-        )}
-      </div>
-
-      {databases.map((db) => (
-        <div key={db.id} style={{ marginTop: 24 }}>
-          <DatabaseView database={db} isNew={db.id === newDbId} />
+          <DragOverlay>
+            {activeBlockId ? (
+              <div className="drag-overlay">
+                {(() => {
+                  const block = sortedBlocks.find((b) => b.id === activeBlockId);
+                  if (block) return <div className="drag-preview">{block.type}</div>;
+                  const db = databases.find((d) => `db-${d.id}` === activeBlockId);
+                  if (db) return <div className="drag-preview">Database: {db.name}</div>;
+                  return null;
+                })()}
+              </div>
+            ) : null}
+          </DragOverlay>
         </div>
-      ))}
-    </div>
+      </SortableContext>
+    </DndContext>
   );
 }
 
