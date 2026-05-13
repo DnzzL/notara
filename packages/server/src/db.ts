@@ -37,7 +37,17 @@ export const runMigrations = Effect.gen(function* () {
   try {
     for (const file of files) {
       const sqlContent = fs.readFileSync(path.join(migrationsDir, file), "utf-8");
-      db.exec(sqlContent);
+      try {
+        db.exec(sqlContent);
+      } catch (e: any) {
+        // Log but continue if migration fails (e.g., column already exists)
+        // This allows idempotent migrations
+        if (e.message?.includes("already exists") || e.message?.includes("duplicate column")) {
+          console.log(`Migration ${file}: already applied, skipping`);
+        } else {
+          throw e;
+        }
+      }
     }
   } finally {
     db.close();
