@@ -28,6 +28,7 @@
         "@tiptap/extension-task-list": "2.11.0",
         "@tiptap/react": "2.11.0",
         "@tiptap/starter-kit": "2.11.0",
+        "@tiptap/suggestion": "^3.23.4",
         "effect": "^3.15.0",
         "react": "^19.0.0",
         "react-dom": "^19.0.0",
@@ -450,6 +451,8 @@
     "@tiptap/react": ["@tiptap/react@2.11.0", "", { "dependencies": { "@tiptap/extension-bubble-menu": "^2.11.0", "@tiptap/extension-floating-menu": "^2.11.0", "@types/use-sync-external-store": "^0.0.6", "fast-deep-equal": "^3", "use-sync-external-store": "^1" }, "peerDependencies": { "@tiptap/core": "^2.7.0", "@tiptap/pm": "^2.7.0", "react": "^17.0.0 || ^18.0.0 || ^19.0.0", "react-dom": "^17.0.0 || ^18.0.0 || ^19.0.0" } }, "sha512-AALzHbqNq/gerJpkbXmN2OXFmHAs2bQENH7rXbnH70bpxVdIfQVtvjK4dIb+cQQvAuTWZvhsISnTrFY2BesT3Q=="],
 
     "@tiptap/starter-kit": ["@tiptap/starter-kit@2.11.0", "", { "dependencies": { "@tiptap/core": "^2.11.0", "@tiptap/extension-blockquote": "^2.11.0", "@tiptap/extension-bold": "^2.11.0", "@tiptap/extension-bullet-list": "^2.11.0", "@tiptap/extension-code": "^2.11.0", "@tiptap/extension-code-block": "^2.11.0", "@tiptap/extension-document": "^2.11.0", "@tiptap/extension-dropcursor": "^2.11.0", "@tiptap/extension-gapcursor": "^2.11.0", "@tiptap/extension-hard-break": "^2.11.0", "@tiptap/extension-heading": "^2.11.0", "@tiptap/extension-history": "^2.11.0", "@tiptap/extension-horizontal-rule": "^2.11.0", "@tiptap/extension-italic": "^2.11.0", "@tiptap/extension-list-item": "^2.11.0", "@tiptap/extension-ordered-list": "^2.11.0", "@tiptap/extension-paragraph": "^2.11.0", "@tiptap/extension-strike": "^2.11.0", "@tiptap/extension-text": "^2.11.0", "@tiptap/extension-text-style": "^2.11.0", "@tiptap/pm": "^2.11.0" } }, "sha512-lrYmkeaAFiuUjN5nGnCowdjponrsR7eRmeTf/15/5oZsNrMN7t/fvPb014AqhG/anNasa0ism4CKZns3D+4pKQ=="],
+
+    "@tiptap/suggestion": ["@tiptap/suggestion@3.23.4", "", { "peerDependencies": { "@tiptap/core": "3.23.4", "@tiptap/pm": "3.23.4" } }, "sha512-KvrHKQcGpEKPPuetH2N4K21kA7hc31n5WDzw3FM+fNpMKdJOToYoNZzS9rmuBBHmNZ9wyK2sWmzi09enmv6wbg=="],
 
     "@tootallnate/once": ["@tootallnate/once@2.0.1", "", {}, "sha512-HqmEUIGRJ5fSXchkVgR5F7qn48bDBzv0kWj/Kfu5e6uci4UlEeng4331LnBkWffb++Ei3FOVLxo8JJWMFBDMeQ=="],
 

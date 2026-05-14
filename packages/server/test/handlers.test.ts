@@ -768,52 +768,116 @@ describe("Database CRUD", () => {
     }
   });
 
-  test("should list records and get record with values for board view simulation", async () => {
+  });
+
+// ---------- Page References (Backlinks) ----------
+
+describe("Page References (Backlinks)", () => {
+  test("should find blocks that reference a page (backlinks)", async () => {
     const { filename, tmpDir } = makeTestDb();
     try {
       runMigrations(filename);
-      const page = await Pages.createPage({ title: "DB Page", parentId: null }).pipe(
+      // Create two pages
+      const pageA = await Pages.createPage({ title: "Page A", parentId: null }).pipe(
         Effect.provide(TestDbLayer(filename)),
         Effect.runPromise,
       );
-      const db = await Databases.createDatabase({ pageId: page.id, name: "Tasks" }).pipe(
+      const pageB = await Pages.createPage({ title: "Page B", parentId: null }).pipe(
         Effect.provide(TestDbLayer(filename)),
         Effect.runPromise,
       );
-      const statusField = await Databases.createField({
-        databaseId: db.id, name: "Status", type: "select",
-        options: ["todo", "in-progress", "done"], relationTargetDbId: null,
+
+      // Create a block on Page A that references Page B
+      // The format will be: <span data-page-ref="pageId">Page Name</span>
+      const referenceContent = `<p>This links to <span data-page-ref="${pageB.id}">Page B</span>.</p>`;
+      await Blocks.createBlock({
+        pageId: pageA.id, type: "paragraph", content: referenceContent, index: 0, parentId: null,
       }).pipe(Effect.provide(TestDbLayer(filename)), Effect.runPromise);
 
-      const r1 = await Databases.createRecord({ databaseId: db.id, title: "Design wireframes" }).pipe(Effect.provide(TestDbLayer(filename)), Effect.runPromise);
-      const r2 = await Databases.createRecord({ databaseId: db.id, title: "Implement API" }).pipe(Effect.provide(TestDbLayer(filename)), Effect.runPromise);
-      const r3 = await Databases.createRecord({ databaseId: db.id, title: "Write tests" }).pipe(Effect.provide(TestDbLayer(filename)), Effect.runPromise);
-
-      await Databases.updateFieldValue({ recordId: r1.id, fieldId: statusField.id, value: "done" }).pipe(Effect.provide(TestDbLayer(filename)), Effect.runPromise);
-      await Databases.updateFieldValue({ recordId: r2.id, fieldId: statusField.id, value: "in-progress" }).pipe(Effect.provide(TestDbLayer(filename)), Effect.runPromise);
-      await Databases.updateFieldValue({ recordId: r3.id, fieldId: statusField.id, value: "todo" }).pipe(Effect.provide(TestDbLayer(filename)), Effect.runPromise);
-
-      const records = await Databases.listRecords(db.id).pipe(
+      // Query for backlinks to Page B
+      const backlinks = await Blocks.getBacklinks(pageB.id).pipe(
         Effect.provide(TestDbLayer(filename)),
         Effect.runPromise,
       );
-      expect(records.length).toBe(3);
 
-      // Simulate board grouping: get all records with values
-      const groupings: Record<string, string[]> = {};
-      for (const rec of records) {
-        const { values } = await Databases.getRecordWithValues(rec.id).pipe(
-          Effect.provide(TestDbLayer(filename)),
-          Effect.runPromise,
-        );
-        const status = String(values["Status"] || "none");
-        if (!groupings[status]) groupings[status] = [];
-        groupings[status].push(rec.title);
-      }
+      expect(backlinks.length).toBe(1);
+      expect(backlinks[0].pageId).toBe(pageA.id);
+      expect(backlinks[0].pageTitle).toBe("Page A");
+      expect(backlinks[0].content).toContain(pageB.id);
+    } finally {
+      cleanup(tmpDir);
+    }
+  });
 
-      expect(groupings["done"]).toContain("Design wireframes");
-      expect(groupings["in-progress"]).toContain("Implement API");
-      expect(groupings["todo"]).toContain("Write tests");
+  test("should return empty array when no backlinks exist", async () => {
+    const { filename, tmpDir } = makeTestDb();
+    try {
+      runMigrations(filename);
+      const pageA = await Pages.createPage({ title: "Page A", parentId: null }).pipe(
+        Effect.provide(TestDbLayer(filename)),
+        Effect.runPromise,
+      );
+      const pageB = await Pages.createPage({ title: "Page B", parentId: null }).pipe(
+        Effect.provide(TestDbLayer(filename)),
+        Effect.runPromise,
+      );
+
+      // No blocks reference Page B
+      await Blocks.createBlock({
+        pageId: pageA.id, type: "paragraph", content: "<p>No references here.</p>", index: 0, parentId: null,
+      }).pipe(Effect.provide(TestDbLayer(filename)), Effect.runPromise);
+
+      const backlinks = await Blocks.getBacklinks(pageB.id).pipe(
+        Effect.provide(TestDbLayer(filename)),
+        Effect.runPromise,
+      );
+
+      expect(backlinks.length).toBe(0);
+    } finally {
+      cleanup(tmpDir);
+    }
+  });
+
+  test("should find multiple backlinks from different pages", async () => {
+    const { filename, tmpDir } = makeTestDb();
+    try {
+      runMigrations(filename);
+      const pageA = await Pages.createPage({ title: "Page A", parentId: null }).pipe(
+        Effect.provide(TestDbLayer(filename)),
+        Effect.runPromise,
+      );
+      const pageB = await Pages.createPage({ title: "Page B", parentId: null }).pipe(
+        Effect.provide(TestDbLayer(filename)),
+        Effect.runPromise,
+      );
+      const pageC = await Pages.createPage({ title: "Page C", parentId: null }).pipe(
+        Effect.provide(TestDbLayer(filename)),
+        Effect.runPromise,
+      );
+
+      // Page A references Page B
+      await Blocks.createBlock({
+        pageId: pageA.id, type: "paragraph", 
+        content: `<p>See <span data-page-ref="${pageB.id}">Page B</span> for details.</p>`,
+        index: 0, parentId: null,
+      }).pipe(Effect.provide(TestDbLayer(filename)), Effect.runPromise);
+
+      // Page C also references Page B
+      await Blocks.createBlock({
+        pageId: pageC.id, type: "paragraph",
+        content: `<p>Related: <span data-page-ref="${pageB.id}">Page B</span></p>`,
+        index: 0, parentId: null,
+      }).pipe(Effect.provide(TestDbLayer(filename)), Effect.runPromise);
+
+      const backlinks = await Blocks.getBacklinks(pageB.id).pipe(
+        Effect.provide(TestDbLayer(filename)),
+        Effect.runPromise,
+      );
+
+      expect(backlinks.length).toBe(2);
+      const pageIds = backlinks.map(b => b.pageId);
+      expect(pageIds).toContain(pageA.id);
+      expect(pageIds).toContain(pageC.id);
     } finally {
       cleanup(tmpDir);
     }

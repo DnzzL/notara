@@ -36,8 +36,25 @@ interface AppState {
   updateFieldValue: (recordId: string, fieldId: string, value: string) => Promise<void>;
   loadDbViews: (databaseId: string) => Promise<void>;
   createField: (req: any) => Promise<void>;
-  updateField: (id: string, options: string[] | null) => Promise<void>;
+  deleteField: (id: string) => Promise<void>;
+  deleteRecord: (id: string) => Promise<void>;
+  updateField: (id: string, updates: { name?: string; options?: string[] | null; relationTargetDbId?: string | null }) => Promise<void>;
+  renameDatabase: (id: string, name: string) => Promise<void>;
   reorderRecords: (databaseId: string, recordIds: string[]) => Promise<void>;
+
+  // View state
+  activeFilters: Array<{ fieldId: string; operator: string; value: string }>;
+  activeSorts: Array<{ fieldId: string; direction: "asc" | "desc" }>;
+  boardGroupByFieldId: string | null;
+  setBoardGroupBy: (fieldId: string | null) => void;
+  addFilter: (filter: { fieldId: string; operator: string; value: string }) => void;
+  setFilter: (index: number, filter: { fieldId: string; operator: string; value: string }) => void;
+  removeFilter: (index: number) => void;
+  addSort: (sort: { fieldId: string; direction: "asc" | "desc" }) => void;
+  setSort: (index: number, sort: { fieldId: string; direction: "asc" | "desc" }) => void;
+  removeSort: (index: number) => void;
+  clearFilters: () => void;
+  clearSorts: () => void;
 }
 
 export const useStore = create<AppState>((set, get) => ({
@@ -205,10 +222,28 @@ export const useStore = create<AppState>((set, get) => ({
     set((s) => ({ dbFields: [...s.dbFields, field] }));
   },
 
-  updateField: async (id, options) => {
-    await api.updateField(id, options);
+  deleteField: async (id) => {
+    await api.deleteField(id);
+    set((s) => ({ dbFields: s.dbFields.filter((f) => f.id !== id) }));
+  },
+
+  deleteRecord: async (id) => {
+    await api.deleteRecord(id);
+    set((s) => ({ records: s.records.filter((r) => r.record.id !== id) }));
+  },
+
+  updateField: async (id, updates) => {
+    await api.updateField(id, updates);
     const db = get().currentDb;
     if (db) await get().loadDbFields(db.id);
+  },
+
+  renameDatabase: async (id, name) => {
+    await api.renameDatabase(id, name);
+    set((s) => ({
+      databases: s.databases.map((d) => (d.id === id ? { ...d, name } : d)),
+      currentDb: s.currentDb?.id === id ? { ...s.currentDb, name } : s.currentDb,
+    }));
   },
 
   reorderRecords: async (databaseId, recordIds) => {
@@ -216,4 +251,26 @@ export const useStore = create<AppState>((set, get) => ({
     const db = get().currentDb;
     if (db) await get().loadDbRecords(db.id);
   },
+
+  // View state defaults
+  activeFilters: [],
+  activeSorts: [],
+  boardGroupByFieldId: null,
+  setBoardGroupBy: (fieldId) => set({ boardGroupByFieldId: fieldId }),
+  addFilter: (filter) => set((s) => ({ activeFilters: [...s.activeFilters, filter] })),
+  setFilter: (index, filter) => set((s) => {
+    const newFilters = [...s.activeFilters];
+    newFilters[index] = filter;
+    return { activeFilters: newFilters };
+  }),
+  removeFilter: (index) => set((s) => ({ activeFilters: s.activeFilters.filter((_, i) => i !== index) })),
+  addSort: (sort) => set((s) => ({ activeSorts: [...s.activeSorts, sort] })),
+  setSort: (index, sort) => set((s) => {
+    const newSorts = [...s.activeSorts];
+    newSorts[index] = sort;
+    return { activeSorts: newSorts };
+  }),
+  removeSort: (index) => set((s) => ({ activeSorts: s.activeSorts.filter((_, i) => i !== index) })),
+  clearFilters: () => set({ activeFilters: [] }),
+  clearSorts: () => set({ activeSorts: [] }),
 }));

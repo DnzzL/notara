@@ -72,8 +72,15 @@ export const api = {
   deleteRecord: (id: string) => rpcCall("deleteRecord", { id }) as Promise<void>,
   listViews: (databaseId: string) => rpcCall("listViews", { databaseId }) as Promise<any[]>,
   createView: (req: any) => rpcCall("createView", req) as Promise<any>,
-  updateField: (id: string, options: string[] | null) =>
-    rpcCall("updateField", { id, options }) as Promise<any>,
+  updateField: (id: string, updates: { name?: string; options?: string[] | null; relationTargetDbId?: string | null }) =>
+    rpcCall("updateField", { id, ...updates }) as Promise<any>,
   reorderRecords: (databaseId: string, recordIds: string[]) =>
     rpcCall("reorderRecords", { databaseId, recordIds }) as Promise<any>,
+  renameDatabase: (id: string, name: string) =>
+    rpcCall("renameDatabase", { id, name }) as Promise<any>,
+  deleteField: (id: string) =>
+    rpcCall("deleteField", { id }) as Promise<any>,
+  
+  getBacklinks: (pageId: string) =>
+    rpcCall("getBacklinks", { pageId }) as Promise<any[]>,
 };

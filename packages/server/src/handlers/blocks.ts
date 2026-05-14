@@ -1,6 +1,6 @@
 import { Effect } from "effect";
 import { SqlClient } from "@effect/sql";
-import { Block } from "@notion-alt/shared";
+import { Block, Backlink } from "@notion-alt/shared";
 import { ulid } from "ulidx";
 
 export const listBlocks = (pageId: string) =>
@@ -58,4 +58,23 @@ export const reorderBlocks = (pageId: string, blockIds: string[]) =>
              parent_id as "parentId", "index"
       FROM blocks WHERE page_id = ${pageId} ORDER BY "index" ASC
     `;
+  });
+
+/**
+ * Get all blocks that reference a specific page (backlinks).
+ * Searches for data-page-ref attribute containing the page ID.
+ */
+export const getBacklinks = (pageId: string) =>
+  Effect.gen(function* () {
+    const sql = yield* SqlClient.SqlClient;
+    // Search for blocks containing a page reference to this page
+    // The format is: data-page-ref="pageId"
+    const rows = yield* sql<{ blockId: string; pageId: string; pageTitle: string; content: string }>`
+      SELECT b.id as "blockId", b.page_id as "pageId", p.title as "pageTitle", b.content
+      FROM blocks b
+      JOIN pages p ON b.page_id = p.id
+      WHERE b.content LIKE ${`%data-page-ref="${pageId}"%`}
+        AND p.is_deleted = 0
+    `;
+    return rows;
   });

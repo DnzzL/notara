@@ -77,3 +77,11 @@ export class DatabaseView extends Schema.Class<DatabaseView>("DatabaseView")({
   sortFieldId: Schema.NullOr(Schema.String),
   sortOrder: Schema.Literal("asc", "desc"),
 }) {}
+
+/** A backlink represents a block that references another page. */
+export class Backlink extends Schema.Class<Backlink>("Backlink")({
+  blockId: Schema.String,
+  pageId: Schema.String,
+  pageTitle: Schema.String,
+  content: Schema.String,
+}) {}

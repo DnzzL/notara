@@ -431,8 +431,9 @@ function PageNode({
             key={child.id}
             page={child}
             children={allPages.filter((p) => p.parentId === child.id)}
-            isSelected={isSelected}
-            onSelect={() => {}}
+            isSelected={activePageId === child.id}
+            onSelect={onSelect}
+            onDelete={onDelete}
             allPages={allPages}
             dragOverTarget={dragOverTarget}
             activePageId={activePageId}

@@ -110,6 +110,7 @@ const rpcHandlersLayer = AppRpc.toLayer({
   updateBlock: (req) => Blocks.updateBlock(req).pipe(Effect.orDie),
   deleteBlock: ({ id }) => Blocks.deleteBlock(id).pipe(Effect.orDie),
   reorderBlocks: ({ pageId, blockIds }) => Blocks.reorderBlocks(pageId, [...blockIds]).pipe(Effect.orDie),
+  getBacklinks: ({ pageId }) => Blocks.getBacklinks(pageId).pipe(Effect.orDie),
 
   listDatabases: ({ pageId }) => Databases.listDatabases(pageId).pipe(Effect.orDie),
   getDatabase: ({ id }) => Databases.getDatabase(id).pipe(Effect.orDie),
@@ -142,6 +143,11 @@ const rpcHandlersLayer = AppRpc.toLayer({
     databaseId,
     recordIds: [...recordIds],
   }).pipe(Effect.orDie),
+  renameDatabase: (req) => Databases.renameDatabase({
+    id: req.id,
+    name: req.name,
+  }).pipe(Effect.orDie),
+  deleteField: ({ id }) => Databases.deleteField(id).pipe(Effect.orDie),
 });
 
 // Create RPC router layer

@@ -8,6 +8,7 @@ import {
   DatabaseRecord,
   RecordFieldValue,
   DatabaseView,
+  Backlink,
 } from "./schema.js";
 
 // Combined RPC group — all requests
@@ -72,6 +73,10 @@ export const AppRpc = RpcGroup.make(
   Rpc.make("reorderBlocks", {
     payload: { pageId: Schema.String, blockIds: Schema.Array(Schema.String) },
     success: Schema.Array(Block),
+  }),
+  Rpc.make("getBacklinks", {
+    payload: { pageId: Schema.String },
+    success: Schema.Array(Backlink),
   }),
 
   // Databases
@@ -150,6 +155,14 @@ export const AppRpc = RpcGroup.make(
       recordIds: Schema.Array(Schema.String),
     },
     success: Schema.Struct({ reordered: Schema.Boolean }),
+  }),
+  Rpc.make("renameDatabase", {
+    payload: { id: Schema.String, name: Schema.String },
+    success: Database,
+  }),
+  Rpc.make("deleteField", {
+    payload: { id: Schema.String },
+    success: Schema.Struct({ deleted: Schema.Boolean }),
   }),
 );
 

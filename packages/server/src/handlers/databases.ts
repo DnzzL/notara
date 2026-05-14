@@ -186,18 +186,49 @@ export const listViews = (databaseId: string) =>
     return rows.map(viewFromRow);
   });
 
-export const updateField = (req: { id: string; options: string[] | null }) =>
+export const updateField = (req: { id: string; name?: string; options?: string[] | null; relationTargetDbId?: string | null }) =>
   Effect.gen(function* () {
     const sql = yield* SqlClient.SqlClient;
-    const options = req.options ? JSON.stringify(req.options) : null;
+
+    // Fetch current field to merge updates
+    const existing = yield* sql`
+      SELECT name, options, relation_target_db_id as "relationTargetDbId"
+      FROM database_fields WHERE id = ${req.id}
+    `;
+    if (existing.length === 0) return yield* Effect.fail(new Error(`Field ${req.id} not found`));
+
+    const current = existing[0];
+    const newName = req.name ?? current.name;
+    const newOptions = req.options === undefined ? current.options : (req.options ? JSON.stringify(req.options) : null);
+    const newRelationTargetDbId = req.relationTargetDbId === undefined ? current.relationTargetDbId : req.relationTargetDbId;
+
     const rows = yield* sql`
-      UPDATE database_fields SET options = ${options}
+      UPDATE database_fields
+      SET name = ${newName}, options = ${newOptions}, relation_target_db_id = ${newRelationTargetDbId}
       WHERE id = ${req.id}
       RETURNING id, database_id as "databaseId", name, type, options, relation_target_db_id as "relationTargetDbId"
     `;
-    if (rows.length === 0) return yield* Effect.fail(new Error(`Field ${req.id} not found`));
     const r = rows[0] as { options: string | null };
     return { ...r, options: r.options ? JSON.parse(r.options) : null } as DatabaseField;
+  });
+
+export const deleteField = (id: string) =>
+  Effect.gen(function* () {
+    const sql = yield* SqlClient.SqlClient;
+    yield* sql`DELETE FROM database_fields WHERE id = ${id}`;
+    return { deleted: true };
+  });
+
+export const renameDatabase = (req: { id: string; name: string }) =>
+  Effect.gen(function* () {
+    const sql = yield* SqlClient.SqlClient;
+    const rows = yield* sql`
+      UPDATE databases SET name = ${req.name}
+      WHERE id = ${req.id} AND is_deleted = 0
+      RETURNING id, page_id as "pageId", name, is_deleted as "isDeleted"
+    `;
+    if (rows.length === 0) return yield* Effect.fail(new Error(`Database ${req.id} not found`));
+    return databaseFromRow(rows[0]);
   });
 
 export const reorderRecords = (req: { databaseId: string; recordIds: string[] }) =>

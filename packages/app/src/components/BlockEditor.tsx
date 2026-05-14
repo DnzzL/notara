@@ -7,6 +7,8 @@ import HorizontalRule from "@tiptap/extension-horizontal-rule";
 import Image from "@tiptap/extension-image";
 import { DetailsNode, DetailsSummary, DetailsContent } from "./DetailsExtension.js";
 import { BlockNavigationExtension, type BlockNavigationCallbacks } from "./BlockNavigationExtension.js";
+import { PageReferenceNode, PageReferenceExtension, createPageReferenceRender } from "./PageReferenceExtension.js";
+import { api } from "../rpc-client.js";
 import { useStore } from "../store.js";
 import { DatabaseView } from "./DatabaseView.js";
 import { SlashMenu } from "./SlashMenu.js";
@@ -14,6 +16,7 @@ import { DndContext, type DragEndEvent, type DragStartEvent, type DragOverEvent,
 import { SortableContext, useSortable, verticalListSortingStrategy } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
 import { DragHandle } from "./DragHandle.js";
+import { BacklinksPanel } from "./BacklinksPanel.js";
 
 /** Shared TipTap extensions — same set for every block editor. */
 const SHARED_EXTENSIONS = [
@@ -25,6 +28,7 @@ const SHARED_EXTENSIONS = [
   DetailsNode,
   DetailsContent,
   DetailsSummary,
+  PageReferenceNode,
 ];
 
 /** Map a block type to its default HTML content when empty. */
@@ -85,6 +89,19 @@ function SingleBlockEditor({
         totalBlocks,
         callbacks,
         blockType: block.type,
+      }),
+      PageReferenceExtension.configure({
+        items: async (query: string) => {
+          // Search pages matching the query
+          const pages = query.length > 0 
+            ? await api.searchPages(query)
+            : await api.listPages();
+          return pages.slice(0, 10).map((page: any) => ({
+            pageId: page.id,
+            pageTitle: page.title,
+          }));
+        },
+        render: createPageReferenceRender,
       }),
     ],
     content: blockContent(block),
@@ -175,9 +192,15 @@ function SingleBlockEditor({
   }
 
   if (block.type === "image") {
-    const srcMatch = block.content?.match(/src="([^"]+)"/);
+    // Try to extract image src from content (handles both URLs and data URLs)
+    const srcMatch = block.content?.match(/src=["'](https?:\/\/[^"']+|data:[^"']+)["']/);
     if (srcMatch) {
-      return <img src={srcMatch[1]} alt="Block image" className="block-image" />;
+      return <img src={srcMatch[1]} alt="Block image" className="block-image" style={{ maxWidth: "100%", borderRadius: 4, display: "block", margin: "4px 0" }} />;
+    }
+    // Try simple src match as fallback
+    const simpleMatch = block.content?.match(/src="([^"]+)"/);
+    if (simpleMatch) {
+      return <img src={simpleMatch[1]} alt="Block image" className="block-image" style={{ maxWidth: "100%", borderRadius: 4, display: "block", margin: "4px 0" }} />;
     }
     return <div className="block-image-placeholder">Click to add image</div>;
   }
@@ -492,43 +515,17 @@ export function BlockEditor() {
 
     if (oldIndex === -1 || newIndex === -1) return;
 
-    // Get the block being dragged
-    const draggedBlock = sortedBlocks.find((b) => b.id === active.id);
-    if (!draggedBlock) return;
-
     // Calculate new order
     const newItems = [...allItems];
     const [movedItem] = newItems.splice(oldIndex, 1);
     newItems.splice(newIndex, 0, movedItem);
 
-    // Extract block IDs for reorder API (items with type !== "database" are blocks)
+    // Reorder blocks (items that are NOT databases)
     const newBlockOrder = newItems.filter((item) => item.type !== "database").map((item) => item.id);
-
-    // Call reorder API
     await reorderBlocks(currentPage.id, newBlockOrder);
 
-    // Handle list conversion: determine new position within the block-only array
-    const reorderedBlocks = newItems.filter((item) => item.type !== "database");
-    const newBlockIndex = reorderedBlocks.findIndex((item) => item.id === draggedBlock.id);
-
-    // Use the reordered block array for neighbor lookups
-    const convertedType = getConvertedType(draggedBlock.type, newBlockIndex, reorderedBlocks);
-    if (convertedType !== draggedBlock.type) {
-      // Convert the block type
-      const defaultHtml = defaultContentForType(convertedType);
-      const currentText = stripHtml(draggedBlock.content || defaultContentForType(draggedBlock.type));
-      let newHtml: string;
-      if (convertedType.startsWith("heading")) {
-        const level = getHeadingLevel(draggedBlock.content || defaultContentForType(draggedBlock.type));
-        newHtml = `<h${level}>${currentText}</h${level}>`;
-      } else {
-        newHtml = defaultHtml.replace(/>$/, `>${currentText}</`).replace(defaultHtml.match(/<\/\w+>/)?.[0] || "", "");
-        // Simpler approach: just use default content with text inserted
-        const tag = convertedType === "bulletList" ? "ul" : convertedType === "numberedList" ? "ol" : "p";
-        newHtml = `<${tag}><li>${currentText}</li></${tag}>`;
-      }
-      await updateBlock(draggedBlock.id, newHtml);
-    }
+    // If a database was moved, we don't have a reorder API for databases,
+    // but the visual order is handled by allItems
   };
 
   // Build combined items list (blocks + databases) for drag-drop
@@ -648,6 +645,9 @@ export function BlockEditor() {
               />
             )}
           </div>
+
+          {/* Backlinks Panel */}
+          <BacklinksPanel />
 
           <DragOverlay>
             {activeBlockId ? (
