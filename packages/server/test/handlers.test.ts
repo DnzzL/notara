@@ -22,12 +22,15 @@ function cleanup(tmpDir: string) {
 const TestDbLayer = (filename: string) => SqliteClient.layer({ filename });
 
 const migrationsPath = path.join(import.meta.dirname || __dirname, "../migrations/001_initial.sql");
+const migrationsPath002 = path.join(import.meta.dirname || __dirname, "../migrations/002_board_sort_order.sql");
 
 function runMigrations(filename: string) {
-  const sqlContent = fs.readFileSync(migrationsPath, "utf-8");
+  const sqlContent001 = fs.readFileSync(migrationsPath, "utf-8");
+  const sqlContent002 = fs.readFileSync(migrationsPath002, "utf-8");
   const db = new Database(filename);
   try {
-    db.exec(sqlContent);
+    db.exec(sqlContent001);
+    db.exec(sqlContent002);
   } finally {
     db.close();
   }
@@ -608,6 +611,48 @@ describe("Database CRUD", () => {
         Effect.runPromise,
       );
       expect(views.length).toBe(2);
+    } finally {
+      cleanup(tmpDir);
+    }
+  });
+
+  test("should list records ordered by sort_order, not created_at", async () => {
+    const { filename, tmpDir } = makeTestDb();
+    try {
+      runMigrations(filename);
+      const page = await Pages.createPage({ title: "DB Page", parentId: null }).pipe(
+        Effect.provide(TestDbLayer(filename)),
+        Effect.runPromise,
+      );
+      const db = await Databases.createDatabase({ pageId: page.id, name: "Tasks" }).pipe(
+        Effect.provide(TestDbLayer(filename)),
+        Effect.runPromise,
+      );
+
+      // Create records - they'll have created_at in this order
+      const r1 = await Databases.createRecord({ databaseId: db.id, title: "First Created" }).pipe(Effect.provide(TestDbLayer(filename)), Effect.runPromise);
+      const r2 = await Databases.createRecord({ databaseId: db.id, title: "Second Created" }).pipe(Effect.provide(TestDbLayer(filename)), Effect.runPromise);
+      const r3 = await Databases.createRecord({ databaseId: db.id, title: "Third Created" }).pipe(Effect.provide(TestDbLayer(filename)), Effect.runPromise);
+
+      // Verify initial order matches creation order (sort_order defaults to 0, so ORDER BY sort_order ASC, created_at would match)
+      const initialRecords = await Databases.listRecords(db.id).pipe(Effect.provide(TestDbLayer(filename)), Effect.runPromise);
+      expect(initialRecords.length).toBe(3);
+      expect(initialRecords[0].title).toBe("First Created");
+      expect(initialRecords[1].title).toBe("Second Created");
+      expect(initialRecords[2].title).toBe("Third Created");
+
+      // Reorder: put r3 first, r1 second, r2 third
+      await Databases.reorderRecords({ databaseId: db.id, recordIds: [r3.id, r1.id, r2.id] }).pipe(
+        Effect.provide(TestDbLayer(filename)),
+        Effect.runPromise,
+      );
+
+      // Verify listRecords returns records in sort_order, NOT created_at
+      const reorderedRecords = await Databases.listRecords(db.id).pipe(Effect.provide(TestDbLayer(filename)), Effect.runPromise);
+      expect(reorderedRecords.length).toBe(3);
+      expect(reorderedRecords[0].title).toBe("Third Created"); // r3 should be first now
+      expect(reorderedRecords[1].title).toBe("First Created"); // r1 should be second
+      expect(reorderedRecords[2].title).toBe("Second Created"); // r2 should be third
     } finally {
       cleanup(tmpDir);
     }

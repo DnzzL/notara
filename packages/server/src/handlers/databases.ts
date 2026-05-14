@@ -84,7 +84,7 @@ export const listRecords = (databaseId: string) =>
       SELECT id, database_id as "databaseId", title,
              is_deleted as "isDeleted", created_at as "createdAt"
       FROM database_records WHERE database_id = ${databaseId} AND is_deleted = 0
-      ORDER BY created_at ASC
+      ORDER BY sort_order ASC
     `;
     return rows.map(recordFromRow);
   });
