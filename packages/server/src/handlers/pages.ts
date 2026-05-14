@@ -5,6 +5,7 @@ import { ulid } from "ulidx";
 
 const pageFromRow = (r: any): Page => ({
   ...r,
+  sortOrder: r.sortOrder ?? 0,
   isDeleted: r.isDeleted === 1,
   createdAt: new Date(r.createdAt).toISOString(),
   updatedAt: new Date(r.updatedAt).toISOString(),
@@ -15,10 +16,11 @@ export const listPages = Effect.gen(function* () {
   const rows = yield* sql`
     SELECT id, title, parent_id as "parentId", icon,
            cover_url as "coverUrl",
+           sort_order as "sortOrder",
            is_deleted as "isDeleted",
            created_at as "createdAt", updated_at as "updatedAt"
     FROM pages WHERE is_deleted = 0
-    ORDER BY updated_at DESC
+    ORDER BY sort_order ASC
   `;
   return rows.map(pageFromRow);
 });
@@ -29,6 +31,7 @@ export const getPage = (id: string) =>
     const rows = yield* sql`
       SELECT id, title, parent_id as "parentId", icon,
              cover_url as "coverUrl",
+             sort_order as "sortOrder",
              is_deleted as "isDeleted",
              created_at as "createdAt", updated_at as "updatedAt"
       FROM pages WHERE id = ${id} AND is_deleted = 0
@@ -42,11 +45,25 @@ export const createPage = (req: { title: string; parentId: string | null }) =>
     const sql = yield* SqlClient.SqlClient;
     const id = ulid();
     const now = new Date().toISOString();
+
+    // Calculate sort_order: if parentId is set, get max sort_order of siblings + 1
+    const siblingMaxOrder = req.parentId
+      ? yield* sql`
+          SELECT COALESCE(MAX(sort_order), 0) as max_order
+          FROM pages WHERE parent_id = ${req.parentId} AND is_deleted = 0
+        `
+      : yield* sql`
+          SELECT COALESCE(MAX(sort_order), 0) as max_order
+          FROM pages WHERE parent_id IS NULL AND is_deleted = 0
+        `;
+    const sortOrder = (Number(siblingMaxOrder[0]?.max_order) || 0) + 1;
+
     const rows = yield* sql`
-      INSERT INTO pages (id, title, parent_id, created_at, updated_at)
-      VALUES (${id}, ${req.title}, ${req.parentId}, ${now}, ${now})
+      INSERT INTO pages (id, title, parent_id, sort_order, created_at, updated_at)
+      VALUES (${id}, ${req.title}, ${req.parentId}, ${sortOrder}, ${now}, ${now})
       RETURNING id, title, parent_id as "parentId", icon,
                 cover_url as "coverUrl",
+                sort_order as "sortOrder",
                 is_deleted as "isDeleted",
                 created_at as "createdAt", updated_at as "updatedAt"
     `;
@@ -62,6 +79,7 @@ export const updatePage = (req: { id: string; title: string }) =>
       WHERE id = ${req.id} AND is_deleted = 0
       RETURNING id, title, parent_id as "parentId", icon,
                 cover_url as "coverUrl",
+                sort_order as "sortOrder",
                 is_deleted as "isDeleted",
                 created_at as "createdAt", updated_at as "updatedAt"
     `;
@@ -82,6 +100,7 @@ export const searchPages = (query: string) =>
     const rows = yield* sql`
       SELECT p.id, p.title, p.parent_id as "parentId", p.icon,
              p.cover_url as "coverUrl",
+             p.sort_order as "sortOrder",
              p.is_deleted as "isDeleted",
              p.created_at as "createdAt", p.updated_at as "updatedAt"
       FROM pages p
@@ -139,9 +158,22 @@ export const movePage = (req: { id: string; parentId: string | null }) =>
       WHERE id = ${req.id} AND is_deleted = 0
       RETURNING id, title, parent_id as "parentId", icon,
                 cover_url as "coverUrl",
+                sort_order as "sortOrder",
                 is_deleted as "isDeleted",
                 created_at as "createdAt", updated_at as "updatedAt"
     `;
     if (rows.length === 0) return yield* Effect.fail(new Error(`Page ${req.id} not found`));
     return pageFromRow(rows[0]);
+  });
+
+export const reorderPages = (req: { pageIds: string[] }) =>
+  Effect.gen(function* () {
+    const sql = yield* SqlClient.SqlClient;
+    // Assign sort_order based on the new ordering position
+    yield* Effect.all(
+      req.pageIds.map((pageId, index) =>
+        sql`UPDATE pages SET sort_order = ${index + 1} WHERE id = ${pageId}`
+      ),
+    );
+    return { reordered: true };
   });

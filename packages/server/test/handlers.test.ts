@@ -23,14 +23,17 @@ const TestDbLayer = (filename: string) => SqliteClient.layer({ filename });
 
 const migrationsPath = path.join(import.meta.dirname || __dirname, "../migrations/001_initial.sql");
 const migrationsPath002 = path.join(import.meta.dirname || __dirname, "../migrations/002_board_sort_order.sql");
+const migrationsPath003 = path.join(import.meta.dirname || __dirname, "../migrations/003_page_sort_order.sql");
 
 function runMigrations(filename: string) {
   const sqlContent001 = fs.readFileSync(migrationsPath, "utf-8");
   const sqlContent002 = fs.readFileSync(migrationsPath002, "utf-8");
+  const sqlContent003 = fs.readFileSync(migrationsPath003, "utf-8");
   const db = new Database(filename);
   try {
     db.exec(sqlContent001);
     db.exec(sqlContent002);
+    db.exec(sqlContent003);
   } finally {
     db.close();
   }
@@ -200,6 +203,113 @@ describe("Pages CRUD", () => {
         Effect.runPromise,
       );
       expect(child.parentId).toBe(parent.id);
+    } finally {
+      cleanup(tmpDir);
+    }
+  });
+
+  test("should create pages with increasing sort_order for siblings", async () => {
+    const { filename, tmpDir } = makeTestDb();
+    try {
+      runMigrations(filename);
+      const p1 = await Pages.createPage({ title: "First", parentId: null }).pipe(
+        Effect.provide(TestDbLayer(filename)),
+        Effect.runPromise,
+      );
+      const p2 = await Pages.createPage({ title: "Second", parentId: null }).pipe(
+        Effect.provide(TestDbLayer(filename)),
+        Effect.runPromise,
+      );
+      const p3 = await Pages.createPage({ title: "Third", parentId: null }).pipe(
+        Effect.provide(TestDbLayer(filename)),
+        Effect.runPromise,
+      );
+      expect(p1.sortOrder).toBe(1);
+      expect(p2.sortOrder).toBe(2);
+      expect(p3.sortOrder).toBe(3);
+    } finally {
+      cleanup(tmpDir);
+    }
+  });
+
+  test("should list pages ordered by sort_order", async () => {
+    const { filename, tmpDir } = makeTestDb();
+    try {
+      runMigrations(filename);
+      const p1 = await Pages.createPage({ title: "First", parentId: null }).pipe(
+        Effect.provide(TestDbLayer(filename)),
+        Effect.runPromise,
+      );
+      const p2 = await Pages.createPage({ title: "Second", parentId: null }).pipe(
+        Effect.provide(TestDbLayer(filename)),
+        Effect.runPromise,
+      );
+      const p3 = await Pages.createPage({ title: "Third", parentId: null }).pipe(
+        Effect.provide(TestDbLayer(filename)),
+        Effect.runPromise,
+      );
+
+      const pages = await Pages.listPages.pipe(
+        Effect.provide(TestDbLayer(filename)),
+        Effect.runPromise,
+      );
+      expect(pages.length).toBe(3);
+      expect(pages[0].title).toBe("First");
+      expect(pages[1].title).toBe("Second");
+      expect(pages[2].title).toBe("Third");
+    } finally {
+      cleanup(tmpDir);
+    }
+  });
+
+  test("should reorder sibling pages via reorderPages", async () => {
+    const { filename, tmpDir } = makeTestDb();
+    try {
+      runMigrations(filename);
+      const p1 = await Pages.createPage({ title: "First", parentId: null }).pipe(
+        Effect.provide(TestDbLayer(filename)),
+        Effect.runPromise,
+      );
+      const p2 = await Pages.createPage({ title: "Second", parentId: null }).pipe(
+        Effect.provide(TestDbLayer(filename)),
+        Effect.runPromise,
+      );
+      const p3 = await Pages.createPage({ title: "Third", parentId: null }).pipe(
+        Effect.provide(TestDbLayer(filename)),
+        Effect.runPromise,
+      );
+
+      // Reverse the order: Third, First, Second
+      const result = await Pages.reorderPages({ pageIds: [p3.id, p1.id, p2.id] }).pipe(
+        Effect.provide(TestDbLayer(filename)),
+        Effect.runPromise,
+      );
+      expect(result.reordered).toBe(true);
+
+      // Verify the order changed
+      const pages = await Pages.listPages.pipe(
+        Effect.provide(TestDbLayer(filename)),
+        Effect.runPromise,
+      );
+      expect(pages.length).toBe(3);
+      expect(pages[0].title).toBe("Third");
+      expect(pages[1].title).toBe("First");
+      expect(pages[2].title).toBe("Second");
+    } finally {
+      cleanup(tmpDir);
+    }
+  });
+
+  test("should have sortOrder field in Page schema", async () => {
+    const { filename, tmpDir } = makeTestDb();
+    try {
+      runMigrations(filename);
+      const page = await Pages.createPage({ title: "Test", parentId: null }).pipe(
+        Effect.provide(TestDbLayer(filename)),
+        Effect.runPromise,
+      );
+      expect(page.sortOrder).toBeDefined();
+      expect(typeof page.sortOrder).toBe("number");
     } finally {
       cleanup(tmpDir);
     }

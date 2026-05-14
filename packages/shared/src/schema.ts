@@ -7,6 +7,7 @@ export class Page extends Schema.Class<Page>("Page")({
   parentId: Schema.NullOr(Schema.String),
   icon: Schema.NullOr(Schema.String),
   coverUrl: Schema.NullOr(Schema.String),
+  sortOrder: Schema.Number,
   isDeleted: Schema.Boolean,
   createdAt: Schema.String,
   updatedAt: Schema.String,
