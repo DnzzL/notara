@@ -39,7 +39,10 @@ export const AppRpc = RpcGroup.make(
     success: Page,
   }),
   Rpc.make("reorderPages", {
-    payload: { pageIds: Schema.Array(Schema.String) },
+    payload: {
+      parentId: Schema.NullOr(Schema.String),
+      pageIds: Schema.Array(Schema.String),
+    },
     success: Schema.Struct({ reordered: Schema.Boolean }),
   }),
 

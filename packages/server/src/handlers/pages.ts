@@ -166,13 +166,26 @@ export const movePage = (req: { id: string; parentId: string | null }) =>
     return pageFromRow(rows[0]);
   });
 
-export const reorderPages = (req: { pageIds: string[] }) =>
+export const reorderPages = (req: { parentId: string | null; pageIds: string[] }) =>
   Effect.gen(function* () {
     const sql = yield* SqlClient.SqlClient;
-    // Assign sort_order based on the new ordering position
+    // Assign sort_order based on the new ordering position, scoped to siblings
+    const parentCondition = req.parentId === null
+      ? sql`parent_id IS NULL`
+      : sql`parent_id = ${req.parentId}`;
+
+    // Verify all pageIds belong to this sibling group
+    const countRow = yield* sql`
+      SELECT COUNT(*) as cnt FROM pages
+      WHERE id IN ${sql.in(req.pageIds)} AND ${parentCondition} AND is_deleted = 0
+    `;
+    if (Number(countRow[0].cnt) !== req.pageIds.length) {
+      return yield* Effect.fail(new Error("One or more pages do not belong to this sibling group"));
+    }
+
     yield* Effect.all(
       req.pageIds.map((pageId, index) =>
-        sql`UPDATE pages SET sort_order = ${index + 1} WHERE id = ${pageId}`
+        sql`UPDATE pages SET sort_order = ${index + 1}, updated_at = ${new Date().toISOString()} WHERE id = ${pageId} AND ${parentCondition}`
       ),
     );
     return { reordered: true };

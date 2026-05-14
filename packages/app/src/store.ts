@@ -19,6 +19,7 @@ interface AppState {
   updatePage: (id: string, title: string) => Promise<void>;
   deletePage: (id: string) => Promise<void>;
   movePage: (id: string, parentId: string | null) => Promise<void>;
+  reorderPages: (parentId: string | null, pageIds: string[]) => Promise<void>;
   searchPages: (query: string) => Promise<void>;
 
   loadBlocks: (pageId: string) => Promise<void>;
@@ -118,6 +119,11 @@ export const useStore = create<AppState>((set, get) => ({
       pages: s.pages.map((p) => (p.id === id ? page : p)),
       currentPage: s.currentPage?.id === id ? page : s.currentPage,
     }));
+  },
+
+  reorderPages: async (parentId, pageIds) => {
+    await api.reorderPages(parentId, pageIds);
+    await get().loadPages();
   },
 
   searchPages: async (query) => {

@@ -280,7 +280,7 @@ describe("Pages CRUD", () => {
       );
 
       // Reverse the order: Third, First, Second
-      const result = await Pages.reorderPages({ pageIds: [p3.id, p1.id, p2.id] }).pipe(
+      const result = await Pages.reorderPages({ parentId: null, pageIds: [p3.id, p1.id, p2.id] }).pipe(
         Effect.provide(TestDbLayer(filename)),
         Effect.runPromise,
       );

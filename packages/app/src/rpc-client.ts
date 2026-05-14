@@ -45,6 +45,8 @@ export const api = {
   searchPages: (query: string) => rpcCall("searchPages", { query }) as Promise<any[]>,
   movePage: (id: string, parentId: string | null) =>
     rpcCall("movePage", { id, parentId }) as Promise<any>,
+  reorderPages: (parentId: string | null, pageIds: string[]) =>
+    rpcCall("reorderPages", { parentId, pageIds }) as Promise<any>,
 
   listBlocks: (pageId: string) => rpcCall("listBlocks", { pageId }) as Promise<any[]>,
   createBlock: (req: { pageId: string; type: string; content: string; index: number; parentId?: string | null }) =>

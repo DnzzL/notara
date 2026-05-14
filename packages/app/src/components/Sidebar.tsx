@@ -54,7 +54,7 @@ const pointerPos = { x: 0, y: 0 };
 const dragStartPos = { x: 0, y: 0 };
 
 export function Sidebar() {
-  const { pages, currentPage, selectPage, createPage, deletePage, loadPages, movePage, loading } =
+  const { pages, currentPage, selectPage, createPage, deletePage, loadPages, movePage, reorderPages, loading } =
     useStore();
   const [searchQuery, setSearchQuery] = useState("");
   const [isCreating, setIsCreating] = useState(false);
@@ -179,13 +179,39 @@ export function Sidebar() {
         // Nest under target page
         await movePage(draggedId, targetId);
       } else {
-        // Reorder: place above or below target
-        // For reorder within same level, keep the same parentId
+        // Reorder: place above or below target within same sibling group
         const targetParentId = targetPage.parentId || null;
+        const parentId = draggedPage.parentId || null;
+
+        // Only call reorderPages if dragged page is a sibling of target
+        if (parentId === targetParentId) {
+          // Build the reordered sibling list
+          const siblings = filtered
+            .filter((p) => (p.parentId || null) === parentId)
+            .map((p) => p.id);
+
+          const draggedIdx = siblings.indexOf(draggedId);
+          const targetIdx = siblings.indexOf(targetId);
+
+          if (draggedIdx !== -1 && targetIdx !== -1) {
+            // Remove dragged from its position
+            siblings.splice(draggedIdx, 1);
+            // Recalculate target index after removal
+            const newTargetIdx = siblings.indexOf(targetId);
+            // Insert dragged at target position
+            const insertIdx = position === "above" ? newTargetIdx : newTargetIdx + 1;
+            siblings.splice(insertIdx, 0, draggedId);
+
+            await reorderPages(parentId, siblings);
+            return;
+          }
+        }
+
+        // Fallback: just update parentId (for cross-level moves)
         await movePage(draggedId, targetParentId);
       }
     },
-    [filtered, pages, movePage]
+    [filtered, pages, movePage, reorderPages]
   );
 
   const handleCreateClick = () => {
