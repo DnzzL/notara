@@ -34,6 +34,10 @@ export const AppRpc = RpcGroup.make(
     payload: { query: Schema.String },
     success: Schema.Array(Page),
   }),
+  Rpc.make("movePage", {
+    payload: { id: Schema.String, parentId: Schema.NullOr(Schema.String) },
+    success: Page,
+  }),
 
   // Blocks
   Rpc.make("listBlocks", {

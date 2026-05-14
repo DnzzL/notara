@@ -18,6 +18,7 @@ interface AppState {
   createPage: (title: string, parentId?: string | null) => Promise<void>;
   updatePage: (id: string, title: string) => Promise<void>;
   deletePage: (id: string) => Promise<void>;
+  movePage: (id: string, parentId: string | null) => Promise<void>;
   searchPages: (query: string) => Promise<void>;
 
   loadBlocks: (pageId: string) => Promise<void>;
@@ -108,6 +109,14 @@ export const useStore = create<AppState>((set, get) => ({
     set((s) => ({
       pages: s.pages.filter((p) => p.id !== id),
       currentPage: s.currentPage?.id === id ? null : s.currentPage,
+    }));
+  },
+
+  movePage: async (id, parentId) => {
+    const page = await api.movePage(id, parentId);
+    set((s) => ({
+      pages: s.pages.map((p) => (p.id === id ? page : p)),
+      currentPage: s.currentPage?.id === id ? page : s.currentPage,
     }));
   },
 

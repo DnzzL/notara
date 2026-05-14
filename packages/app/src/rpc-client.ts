@@ -43,6 +43,8 @@ export const api = {
   updatePage: (id: string, title: string) => rpcCall("updatePage", { id, title }) as Promise<any>,
   deletePage: (id: string) => rpcCall("deletePage", { id }) as Promise<void>,
   searchPages: (query: string) => rpcCall("searchPages", { query }) as Promise<any[]>,
+  movePage: (id: string, parentId: string | null) =>
+    rpcCall("movePage", { id, parentId }) as Promise<any>,
 
   listBlocks: (pageId: string) => rpcCall("listBlocks", { pageId }) as Promise<any[]>,
   createBlock: (req: { pageId: string; type: string; content: string; index: number; parentId?: string | null }) =>

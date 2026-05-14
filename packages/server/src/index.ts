@@ -102,6 +102,7 @@ const rpcHandlersLayer = AppRpc.toLayer({
   updatePage: (req) => Pages.updatePage(req).pipe(Effect.orDie),
   deletePage: ({ id }) => Pages.deletePage(id).pipe(Effect.orDie),
   searchPages: ({ query }) => Pages.searchPages(query).pipe(Effect.orDie),
+  movePage: (req) => Pages.movePage(req).pipe(Effect.orDie),
 
   listBlocks: ({ pageId }) => Blocks.listBlocks(pageId).pipe(Effect.orDie),
   createBlock: (req) => Blocks.createBlock(req).pipe(Effect.orDie),
