@@ -148,6 +148,10 @@ const rpcHandlersLayer = AppRpc.toLayer({
     name: req.name,
   }).pipe(Effect.orDie),
   deleteField: ({ id }) => Databases.deleteField(id).pipe(Effect.orDie),
+  reorderDatabases: (req) => Databases.reorderDatabases({
+    pageId: req.pageId,
+    databaseIds: [...req.databaseIds],
+  }).pipe(Effect.orDie),
 });
 
 // Create RPC router layer

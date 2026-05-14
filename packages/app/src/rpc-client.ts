@@ -76,6 +76,8 @@ export const api = {
     rpcCall("updateField", { id, ...updates }) as Promise<any>,
   reorderRecords: (databaseId: string, recordIds: string[]) =>
     rpcCall("reorderRecords", { databaseId, recordIds }) as Promise<any>,
+  reorderDatabases: (pageId: string, databaseIds: string[]) =>
+    rpcCall("reorderDatabases", { pageId, databaseIds }) as Promise<any>,
   renameDatabase: (id: string, name: string) =>
     rpcCall("renameDatabase", { id, name }) as Promise<any>,
   deleteField: (id: string) =>

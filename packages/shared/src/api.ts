@@ -164,6 +164,10 @@ export const AppRpc = RpcGroup.make(
     payload: { id: Schema.String },
     success: Schema.Struct({ deleted: Schema.Boolean }),
   }),
+  Rpc.make("reorderDatabases", {
+    payload: { pageId: Schema.String, databaseIds: Schema.Array(Schema.String) },
+    success: Schema.Struct({ reordered: Schema.Boolean }),
+  }),
 );
 
 // Export the type for client use

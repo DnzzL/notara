@@ -271,7 +271,7 @@ function SortableBlock({
 }
 
 export function BlockEditor() {
-  const { currentPage, blocks, updateBlock, createBlock, deleteBlock, createDatabase, updatePage, databases, loadDatabases, reorderBlocks } = useStore();
+  const { currentPage, blocks, updateBlock, createBlock, deleteBlock, createDatabase, updatePage, databases, loadDatabases, reorderBlocks, reorderDatabases } = useStore();
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [isEditingTitle, setIsEditingTitle] = useState(false);
   const [titleValue, setTitleValue] = useState("");
@@ -515,17 +515,20 @@ export function BlockEditor() {
 
     if (oldIndex === -1 || newIndex === -1) return;
 
-    // Calculate new order
+    // Calculate new interleaved order
     const newItems = [...allItems];
     const [movedItem] = newItems.splice(oldIndex, 1);
     newItems.splice(newIndex, 0, movedItem);
 
-    // Reorder blocks (items that are NOT databases)
+    // Extract new order for blocks and databases separately
     const newBlockOrder = newItems.filter((item) => item.type !== "database").map((item) => item.id);
-    await reorderBlocks(currentPage.id, newBlockOrder);
+    const newDbOrder = newItems.filter((item) => item.type === "database").map((item) => item.id.replace("db-", ""));
 
-    // If a database was moved, we don't have a reorder API for databases,
-    // but the visual order is handled by allItems
+    // Persist both orders
+    await reorderBlocks(currentPage.id, newBlockOrder);
+    if (newDbOrder.length > 0) {
+      await reorderDatabases(currentPage.id, newDbOrder);
+    }
   };
 
   // Build combined items list (blocks + databases) for drag-drop

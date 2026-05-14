@@ -41,6 +41,7 @@ interface AppState {
   updateField: (id: string, updates: { name?: string; options?: string[] | null; relationTargetDbId?: string | null }) => Promise<void>;
   renameDatabase: (id: string, name: string) => Promise<void>;
   reorderRecords: (databaseId: string, recordIds: string[]) => Promise<void>;
+  reorderDatabases: (pageId: string, databaseIds: string[]) => Promise<void>;
 
   // View state
   activeFilters: Array<{ fieldId: string; operator: string; value: string }>;
@@ -250,6 +251,12 @@ export const useStore = create<AppState>((set, get) => ({
     await api.reorderRecords(databaseId, recordIds);
     const db = get().currentDb;
     if (db) await get().loadDbRecords(db.id);
+  },
+
+  reorderDatabases: async (pageId, databaseIds) => {
+    await api.reorderDatabases(pageId, databaseIds);
+    // Reload databases to get updated sort order
+    if (get().currentPage) await get().loadDatabases(get().currentPage.id);
   },
 
   // View state defaults

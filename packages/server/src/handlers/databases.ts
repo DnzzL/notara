@@ -6,14 +6,16 @@ import { ulid } from "ulidx";
 const databaseFromRow = (r: any): Database => ({
   ...r,
   isDeleted: r.isDeleted === 1,
+  sortOrder: r.sortOrder || 0,
 });
 
 export const listDatabases = (pageId: string) =>
   Effect.gen(function* () {
     const sql = yield* SqlClient.SqlClient;
     const rows = yield* sql`
-      SELECT id, page_id as "pageId", name, is_deleted as "isDeleted"
+      SELECT id, page_id as "pageId", name, is_deleted as "isDeleted", sort_order as "sortOrder"
       FROM databases WHERE page_id = ${pageId} AND is_deleted = 0
+      ORDER BY sort_order ASC
     `;
     return rows.map(databaseFromRow);
   });
@@ -238,6 +240,17 @@ export const reorderRecords = (req: { databaseId: string; recordIds: string[] })
     yield* Effect.all(
       req.recordIds.map((recordId, index) =>
         sql`UPDATE database_records SET sort_order = ${index + 1} WHERE id = ${recordId}`
+      ),
+    );
+    return { reordered: true };
+  });
+
+export const reorderDatabases = (req: { pageId: string; databaseIds: string[] }) =>
+  Effect.gen(function* () {
+    const sql = yield* SqlClient.SqlClient;
+    yield* Effect.all(
+      req.databaseIds.map((dbId, index) =>
+        sql`UPDATE databases SET sort_order = ${index + 1} WHERE id = ${dbId} AND page_id = ${req.pageId}`
       ),
     );
     return { reordered: true };

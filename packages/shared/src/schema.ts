@@ -42,6 +42,7 @@ export class Database extends Schema.Class<Database>("Database")({
   pageId: Schema.String,
   name: Schema.String,
   isDeleted: Schema.Boolean,
+  sortOrder: Schema.Number,
 }) {}
 
 export class DatabaseField extends Schema.Class<DatabaseField>("DatabaseField")({
