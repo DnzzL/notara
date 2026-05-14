@@ -17,15 +17,15 @@ import { DragHandle } from "./DragHandle.js";
 
 /** Shared TipTap extensions — same set for every block editor. */
 const SHARED_EXTENSIONS = [
-  StarterKit,
-  TaskList.configure({ HTMLAttributes: { class: "task-list" } }),
-  TaskItem.configure({ nested: true, HTMLAttributes: { class: "task-item" } }),
-  HorizontalRule,
-  Image.configure({ inline: false }),
+  StarterKit as any,
+  TaskList.configure({ HTMLAttributes: { class: "task-list" } }) as any,
+  TaskItem.configure({ nested: true, HTMLAttributes: { class: "task-item" } }) as any,
+  HorizontalRule as any,
+  Image.configure({ inline: false }) as any,
   DetailsNode,
   DetailsContent,
   DetailsSummary,
-] as const;
+];
 
 /** Map a block type to its default HTML content when empty. */
 function defaultContentForType(type: string): string {
@@ -260,6 +260,7 @@ export function BlockEditor() {
   // Drag-drop state
   const [activeBlockId, setActiveBlockId] = useState<string | null>(null);
   const [dropIndicatorIndex, setDropIndicatorIndex] = useState<number | null>(null);
+  const dragCancelRequested = useRef(false);
 
   // Pointer sensor for drag-drop - prevent text selection during drag
   const sensors = useSensors(
@@ -474,6 +475,11 @@ export function BlockEditor() {
     }
   };
 
+  const handleDragCancel = () => {
+    setActiveBlockId(null);
+    setDropIndicatorIndex(null);
+  };
+
   const handleDragEnd = async ({ active, over }: DragEndEvent) => {
     setActiveBlockId(null);
     setDropIndicatorIndex(null);
@@ -502,7 +508,8 @@ export function BlockEditor() {
     await reorderBlocks(currentPage.id, newBlockOrder);
 
     // Handle list conversion: if block type needs to change based on new context
-    const convertedType = getConvertedType(draggedBlock.type, newIndex, allItems.filter((item) => item.type === "block"));
+    const reorderedBlockTypes = newItems.filter((item) => item.type === "block");
+    const convertedType = getConvertedType(draggedBlock.type, newIndex, reorderedBlockTypes);
     if (convertedType !== draggedBlock.type) {
       // Convert the block type
       const defaultHtml = defaultContentForType(convertedType);
@@ -541,6 +548,7 @@ export function BlockEditor() {
       sensors={sensors}
       onDragStart={handleDragStart}
       onDragOver={handleDragOver}
+      onDragCancel={handleDragCancel}
       onDragEnd={handleDragEnd}
     >
       <SortableContext items={allItems.map((item) => item.id)} strategy={verticalListSortingStrategy}>

@@ -97,28 +97,9 @@ export const searchPages = (query: string) =>
  * Get all descendants of a page (recursive).
  * Returns an array of page IDs that are children, grandchildren, etc.
  */
-const getDescendants = (pageId: string): Effect.Effect<Set<string>> =>
+const getDescendants = (pageId: string) =>
   Effect.gen(function* () {
     const sql = yield* SqlClient.SqlClient;
-    const descendants = new Set<string>();
-    let currentLevel = [pageId];
-
-    while (currentLevel.length > 0) {
-      const rows = yield* sql`
-        SELECT id FROM pages
-        WHERE parent_id IN (${sql(currentLevel)}) AND is_deleted = 0
-      `;
-      for (const row of rows) {
-        if (!descendants.has(row.id)) {
-          descendants.add(row.id);
-          currentLevel = [...currentLevel, row.id];
-        }
-      }
-      // Remove processed IDs to avoid infinite loops
-      currentLevel = currentLevel.filter((id) => !descendants.has(id) || id === pageId);
-      // Actually, we need a cleaner approach
-      break; // Simplified: use recursive CTE instead
-    }
 
     // Use recursive CTE for clean descendant lookup
     const cteRows = yield* sql`
@@ -131,7 +112,7 @@ const getDescendants = (pageId: string): Effect.Effect<Set<string>> =>
       )
       SELECT id FROM descendants WHERE id != ${pageId}
     `;
-    return new Set(cteRows.map((r: any) => r.id));
+    return new Set(cteRows.map((r) => r.id as string));
   });
 
 export const movePage = (req: { id: string; parentId: string | null }) =>

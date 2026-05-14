@@ -1,4 +1,4 @@
-import { Node, mergeAttributes } from "@tiptap/core";
+import { Node, mergeAttributes, type AnyExtension } from "@tiptap/core";
 import type { CommandProps } from "@tiptap/core";
 
 export interface DetailsOptions {
@@ -63,9 +63,9 @@ export const DetailsNode = Node.create<DetailsOptions>({
             ],
           });
         },
-    };
+    } as any;
   },
-});
+}) as AnyExtension;
 
 export const DetailsSummary = Node.create({
   name: "detailsSummary",
@@ -87,7 +87,7 @@ export const DetailsSummary = Node.create({
   renderHTML({ HTMLAttributes }: { HTMLAttributes: Record<string, any> }) {
     return ["summary", mergeAttributes(HTMLAttributes), 0];
   },
-});
+}) as AnyExtension;
 
 export const DetailsContent = Node.create({
   name: "detailsContent",
@@ -109,4 +109,4 @@ export const DetailsContent = Node.create({
   renderHTML({ HTMLAttributes }: { HTMLAttributes: Record<string, any> }) {
     return ["div", mergeAttributes(HTMLAttributes, { "data-details-content": true }), 0];
   },
-});
+}) as AnyExtension;
