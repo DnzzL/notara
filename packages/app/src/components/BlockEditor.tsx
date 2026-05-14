@@ -501,15 +501,18 @@ export function BlockEditor() {
     const [movedItem] = newItems.splice(oldIndex, 1);
     newItems.splice(newIndex, 0, movedItem);
 
-    // Extract block IDs for reorder API
-    const newBlockOrder = newItems.filter((item) => item.type === "block").map((item) => item.id);
+    // Extract block IDs for reorder API (items with type !== "database" are blocks)
+    const newBlockOrder = newItems.filter((item) => item.type !== "database").map((item) => item.id);
 
     // Call reorder API
     await reorderBlocks(currentPage.id, newBlockOrder);
 
-    // Handle list conversion: if block type needs to change based on new context
-    const reorderedBlockTypes = newItems.filter((item) => item.type === "block");
-    const convertedType = getConvertedType(draggedBlock.type, newIndex, reorderedBlockTypes);
+    // Handle list conversion: determine new position within the block-only array
+    const reorderedBlocks = newItems.filter((item) => item.type !== "database");
+    const newBlockIndex = reorderedBlocks.findIndex((item) => item.id === draggedBlock.id);
+
+    // Use the reordered block array for neighbor lookups
+    const convertedType = getConvertedType(draggedBlock.type, newBlockIndex, reorderedBlocks);
     if (convertedType !== draggedBlock.type) {
       // Convert the block type
       const defaultHtml = defaultContentForType(convertedType);
