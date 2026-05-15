@@ -1,0 +1,215 @@
+import { useState, useCallback } from "react";
+import {
+  DndContext, DragOverlay, PointerSensor, useSensor, useSensors,
+  type DragStartEvent, type DragOverEvent, type DragEndEvent,
+} from "@dnd-kit/core";
+import { SortableContext, useSortable, verticalListSortingStrategy } from "@dnd-kit/sortable";
+import { CSS } from "@dnd-kit/utilities";
+import { useStore } from "../../store.js";
+import { api } from "../../rpc-client.js";
+import { SelectPill, CellDisplay } from "./CellComponents.js";
+
+export function BoardView({
+  database, fields, records, databases, onSwitchView, allRecords = {},
+}: {
+  database: any; fields: any[]; records: any[]; databases: any[];
+  onSwitchView: () => void; allRecords?: Record<string, any[]>;
+}) {
+  const { boardGroupByFieldId, setBoardGroupBy, updateFieldValue, updateField, loadDbRecords, createDbRecord } = useStore();
+
+  const groupField = fields.find((f: any) => f.id === boardGroupByFieldId) || fields.find((f: any) => f.type === "select") || null;
+
+  const [activeRecordId, setActiveRecordId] = useState<string | null>(null);
+  const [activeRecord, setActiveRecord] = useState<any>(null);
+  const [activeGroupValue, setActiveGroupValue] = useState("");
+  const [dropTarget, setDropTarget] = useState<{ columnId: string; index: number } | null>(null);
+  const [overColumnId, setOverColumnId] = useState<string | null>(null);
+
+  const sensors = useSensors(useSensor(PointerSensor, { activationConstraint: { distance: 8 } }));
+
+  // Build groups
+  const groups: Record<string, typeof records> = {};
+  const groupOrder: string[] = [];
+
+  if (!groupField) {
+    groups["All"] = records;
+    groupOrder.push("All");
+  } else {
+    const fieldOptions: string[] = groupField.options || [];
+    for (const r of records) {
+      let key: string;
+      if (groupField.type === "select") {
+        key = String(r.values[groupField.name] || "Untitled");
+      } else if (groupField.type === "multiSelect") {
+        const vals = typeof r.values[groupField.name] === "string" ? (r.values[groupField.name] ? JSON.parse(r.values[groupField.name]) : []) : (r.values[groupField.name] || []);
+        key = vals.length > 0 ? vals.join(", ") : "Untitled";
+      } else {
+        key = String(r.values[groupField.name] || "Untitled");
+      }
+      if (!groups[key]) { groups[key] = []; groupOrder.push(key); }
+      groups[key].push(r);
+    }
+    for (const opt of fieldOptions) {
+      if (!groups[opt]) { groups[opt] = []; groupOrder.push(opt); }
+    }
+    groupOrder.sort((a, b) => {
+      const aI = fieldOptions.indexOf(a), bI = fieldOptions.indexOf(b);
+      if (aI >= 0 && bI >= 0) return aI - bI;
+      if (aI >= 0) return -1;
+      if (bI >= 0) return 1;
+      return 0;
+    });
+  }
+
+  const handleDragStart = useCallback(({ active }: DragStartEvent) => {
+    const id = String(active.id);
+    const entry = records.find((r) => r.record.id === id);
+    if (entry) {
+      setActiveRecordId(id);
+      setActiveRecord(entry.record);
+      setActiveGroupValue(groupField ? String(entry.values[groupField.name] || "Untitled") : "All");
+    }
+  }, [records, groupField]);
+
+  const handleDragOver = useCallback(({ active, over }: DragOverEvent) => {
+    if (!over) { setOverColumnId(null); setDropTarget(null); return; }
+    const overId = String(over.id);
+    if (overId.startsWith("col-")) {
+      const colId = overId.slice(4);
+      setOverColumnId(colId);
+      setDropTarget({ columnId: colId, index: (groups[colId] || []).length });
+      return;
+    }
+    const overRecord = records.find((r) => r.record.id === overId);
+    if (overRecord && groupField) {
+      const colId = String(overRecord.values[groupField.name] || "Untitled");
+      setOverColumnId(colId);
+      const idx = (groups[colId] || []).findIndex((r) => r.record.id === overId);
+      if (idx >= 0) setDropTarget({ columnId: colId, index: idx });
+    } else { setOverColumnId(null); setDropTarget(null); }
+  }, [records, groupField, groups]);
+
+  const handleDragEnd = useCallback(async ({ over }: DragEndEvent) => {
+    setActiveRecordId(null); setActiveRecord(null); setActiveGroupValue("");
+    setOverColumnId(null); setDropTarget(null);
+    if (!over || !activeRecord || !groupField) return;
+    const targetCol = dropTarget?.columnId || overColumnId;
+    if (!targetCol) return;
+
+    if (targetCol === activeGroupValue) {
+      const col = groups[targetCol] || [];
+      const ids = col.map((r) => r.record.id);
+      const from = ids.indexOf(activeRecord.id);
+      let to = dropTarget?.index ?? col.length;
+      if (from >= 0 && from < to) to -= 1;
+      if (from >= 0 && from !== to) {
+        ids.splice(from, 1);
+        ids.splice(to, 0, activeRecord.id);
+        await api.reorderRecords(database.id, ids);
+      }
+      await loadDbRecords(database.id);
+      return;
+    }
+
+    if (groupField.type === "select" && !groups[targetCol]) {
+      await updateField(groupField.id, { options: [...(groupField.options || []), targetCol] });
+    }
+    if (groupField.type === "select") {
+      await updateFieldValue(activeRecord.id, groupField.id, targetCol === "Untitled" ? "" : targetCol);
+    }
+    await loadDbRecords(database.id);
+  }, [activeRecord, activeGroupValue, groupField, groups, database.id, dropTarget, overColumnId, updateField, updateFieldValue, loadDbRecords]);
+
+  const SortableCard = ({ record, isDragging }: { record: any; isDragging: boolean }) => {
+    const { attributes, listeners, setNodeRef, transform, transition, isDragging: sd } = useSortable({ id: record.record.id });
+    const style: React.CSSProperties = { transform: CSS.Transform.toString(transform), transition, opacity: sd ? 0.3 : 1 };
+
+    return (
+      <div ref={setNodeRef} style={style}>
+        <div className={`board-card ${isDragging || sd ? "board-card-dragging" : ""}`}>
+          <div className="board-card-drag-handle" {...listeners} {...attributes}>
+            <svg width="14" height="14" viewBox="0 0 16 16" fill="currentColor">
+              <circle cx="5" cy="3" r="1.5" /><circle cx="11" cy="3" r="1.5" />
+              <circle cx="5" cy="8" r="1.5" /><circle cx="11" cy="8" r="1.5" />
+              <circle cx="5" cy="13" r="1.5" /><circle cx="11" cy="13" r="1.5" />
+            </svg>
+          </div>
+          <span className="board-card-title">{record.record.title}</span>
+          <div style={{ marginTop: 8, display: "flex", flexDirection: "column", gap: 4 }}>
+            {fields
+              .filter((f: any) => f.id !== groupField?.id && f.type !== "checkbox")
+              .slice(0, 2)
+              .map((f: any) => {
+                const val = record.values[f.name];
+                if (!val) return null;
+                return (
+                  <div key={f.id} style={{ fontSize: 12, color: "#666" }}>
+                    <span style={{ fontWeight: 500 }}>{f.name}:</span>{" "}
+                    <CellDisplay field={f} value={val} databases={databases} allRecords={allRecords} />
+                  </div>
+                );
+              })}
+          </div>
+        </div>
+      </div>
+    );
+  };
+
+  return (
+    <DndContext sensors={sensors} onDragStart={handleDragStart} onDragOver={handleDragOver} onDragEnd={handleDragEnd}>
+      <div className="board-view">
+        <div className="db-toolbar">
+          <button className="active" onClick={onSwitchView}>Board</button>
+          <button onClick={onSwitchView}>Table</button>
+
+          <div style={{ marginLeft: 16, display: "flex", alignItems: "center", gap: 6, fontSize: 13, color: "#666" }}>
+            <span style={{ fontWeight: 500 }}>Group by:</span>
+            <select
+              value={boardGroupByFieldId || groupField?.id || ""}
+              onChange={(e) => setBoardGroupBy(e.target.value || null)}
+              className="db-select"
+            >
+              <option value="">None</option>
+              {fields.map((f: any) => (<option key={f.id} value={f.id}>{f.name} ({f.type})</option>))}
+            </select>
+          </div>
+
+          <span style={{ marginLeft: "auto", fontSize: 13, color: "#666" }}>{database.name}</span>
+        </div>
+
+        <div className="board">
+          {groupOrder.map((colName) => (
+            <div key={colName} className="board-column" data-column-id={colName}>
+              <h3 className="board-column-header">
+                {groupField?.type === "select" && groupField.options?.includes(colName) ? (
+                  <SelectPill value={colName} colorIdx={groupField.options.indexOf(colName)} />
+                ) : (<span style={{ fontSize: 13 }}>{colName}</span>)}
+                <span style={{ color: "#999", fontWeight: 400 }}> ({(groups[colName] || []).length})</span>
+              </h3>
+              <SortableContext items={(groups[colName] || []).map((r) => r.record.id)} strategy={verticalListSortingStrategy}>
+                <div className="board-cards-container">
+                  {(groups[colName] || []).map((item) => (
+                    <SortableCard key={item.record.id} record={item} isDragging={activeRecordId === item.record.id} />
+                  ))}
+                </div>
+              </SortableContext>
+              <div style={{ padding: "8px 4px" }}>
+                <button className="board-add-card" onClick={async () => {
+                  const title = prompt("New record title:");
+                  if (title?.trim()) {
+                    await createDbRecord(database.id, title.trim());
+                    await loadDbRecords(database.id);
+                  }
+                }}>+ New</button>
+              </div>
+            </div>
+          ))}
+        </div>
+
+        <DragOverlay>
+          {activeRecord ? (<div className="board-card board-card-overlay">{activeRecord.title}</div>) : null}
+        </DragOverlay>
+      </div>
+    </DndContext>
+  );
+}
