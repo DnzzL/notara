@@ -115,14 +115,14 @@ export function ColumnHeader({
 export function OptionsEditor({
   field, onClose, onUpdate, onDeleteOption, onAddOption,
 }: {
-  field: { id: string; name: string; type: string; options?: string[] };
+  field: { id: string; name: string; type: string; options?: string[] | null };
   onClose: () => void;
   onUpdate: (options: string[]) => void;
   onDeleteOption: (option: string) => void;
   onAddOption: (option: string) => void;
 }) {
   const [newOption, setNewOption] = useState("");
-  const [options, setOptions] = useState<string[]>(field.options || []);
+  const [options, setOptions] = useState<string[]>(field.options ? [...field.options] : []);
   const inputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => { inputRef.current?.focus(); }, []);
