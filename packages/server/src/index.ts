@@ -9,7 +9,7 @@ import { SqliteLive, runMigrations } from "./db.js";
 import * as Pages from "./handlers/pages.js";
 import * as Blocks from "./handlers/blocks.js";
 import * as Databases from "./handlers/databases.js";
-import { AppRpc } from "@notion-alt/shared";
+import { AppRpc, RecordFieldValue } from "@notion-alt/shared";
 import { createServer } from "node:http";
 import * as path from "node:path";
 import * as fs from "node:fs";
@@ -127,7 +127,15 @@ const rpcHandlersLayer = AppRpc.toLayer({
   listRecordsWithValues: ({ databaseId }) => Databases.listRecordsWithValues(databaseId).pipe(Effect.orDie),
   getRecordWithValues: ({ recordId }) => Databases.getRecordWithValues(recordId).pipe(Effect.orDie),
   createRecord: (req) => Databases.createRecord(req).pipe(Effect.orDie),
-  updateFieldValue: (req) => Databases.updateFieldValue(req).pipe(Effect.orDie),
+  updateFieldValue: (req) => Databases.updateFieldValue(req).pipe(
+    Effect.map((row) => new RecordFieldValue({
+      id: row.id as string,
+      recordId: row.recordId as string,
+      fieldId: row.fieldId as string,
+      value: row.value as string,
+    })),
+    Effect.orDie,
+  ),
   deleteRecord: ({ id }) => Databases.deleteRecord(id).pipe(Effect.orDie),
   listViews: ({ databaseId }) => Databases.listViews(databaseId).pipe(Effect.orDie),
   createView: (req) => Databases.createView({
@@ -190,4 +198,4 @@ const main = program.pipe(
   Effect.provide(ServerLive),
 );
 
-NodeRuntime.runMain(main);
+NodeRuntime.runMain(main as import("effect/Effect").Effect<void, unknown, never>);
