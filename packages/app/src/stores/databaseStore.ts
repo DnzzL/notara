@@ -102,12 +102,7 @@ export const useDatabaseStore = create<DatabaseState>((set, get) => ({
   },
 
   loadDbRecords: async (databaseId) => {
-    const records = await api.listRecords(databaseId);
-    const recordsWithValues = await Promise.all(
-      records.map(async (r: any) => {
-        return await api.getRecordWithValues(r.id);
-      })
-    );
+    const recordsWithValues = await api.listRecordsWithValues(databaseId);
     set({ records: recordsWithValues });
   },
 

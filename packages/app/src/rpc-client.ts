@@ -82,6 +82,8 @@ export const api = {
   createField: (req: { databaseId: string; name: string; type: string; options?: string[] | null; relationTargetDbId?: string | null }) =>
     rpcCall<DatabaseField>("createField", req),
   listRecords: (databaseId: string) => rpcCall<DatabaseRecord[]>("listRecords", { databaseId }),
+  listRecordsWithValues: (databaseId: string) =>
+    rpcCall<Array<{ record: DatabaseRecord; values: Record<string, unknown> }>>("listRecordsWithValues", { databaseId }),
   getRecordWithValues: (recordId: string) =>
     rpcCall<{ record: DatabaseRecord; values: Record<string, unknown> }>("getRecordWithValues", { recordId }),
   createRecord: (databaseId: string, title: string) =>

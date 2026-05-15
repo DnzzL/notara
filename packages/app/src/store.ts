@@ -4,23 +4,21 @@
  * module is purely a composition layer.
  *
  * The only cross-domain behavior is selectPage/selectPageById which cascade
- * to load blocks and databases — handled by usePageSelection.
+ * to load blocks and databases — handled directly in the page store via
+ * useBlockStore.getState() / useDatabaseStore.getState().
  */
 import { usePageStore } from "./stores/pageStore.js";
 import { useBlockStore } from "./stores/blockStore.js";
 import { useDatabaseStore } from "./stores/databaseStore.js";
-import { usePageSelection } from "./stores/usePageSelection.js";
 
 /**
  * Backwards-compatible composed hook. Returns the merged state from all
- * three slices, with selectPage and selectPageById overridden to cascade
- * to block/database loading.
+ * three slices. selectPage and selectPageById cascade to load blocks/databases.
  */
 export function useStore() {
   const pageState = usePageStore();
   const blockState = useBlockStore();
   const dbState = useDatabaseStore();
-  const { selectPage: selectPageWithCascade, selectPageById: selectPageByIdWithCascade } = usePageSelection();
 
   return {
     // Page state
@@ -28,8 +26,8 @@ export function useStore() {
     currentPage: pageState.currentPage,
     loading: pageState.loading,
     loadPages: pageState.loadPages,
-    selectPage: selectPageWithCascade,
-    selectPageById: selectPageByIdWithCascade,
+    selectPage: pageState.selectPageWithCascade,
+    selectPageById: pageState.selectPageByIdWithCascade,
     createPage: pageState.createPage,
     updatePage: pageState.updatePage,
     deletePage: pageState.deletePage,
@@ -86,4 +84,3 @@ export function useStore() {
 export { usePageStore } from "./stores/pageStore.js";
 export { useBlockStore } from "./stores/blockStore.js";
 export { useDatabaseStore } from "./stores/databaseStore.js";
-export { usePageSelection } from "./stores/usePageSelection.js";

@@ -75,6 +75,48 @@ export const listRecords = (databaseId: string) =>
     return rows.map(recordFromRow);
   });
 
+export const listRecordsWithValues = (databaseId: string) =>
+  Effect.gen(function* () {
+    const sql = yield* SqlClient.SqlClient;
+
+    // Fetch records
+    const records = yield* sql`
+      SELECT id, database_id as "databaseId", title,
+             is_deleted as "isDeleted", created_at as "createdAt"
+      FROM database_records WHERE database_id = ${databaseId} AND is_deleted = 0
+      ORDER BY sort_order ASC
+    `;
+
+    if (records.length === 0) return [];
+
+    // Fetch all field values in one query
+    const recordIds = records.map((r) => r.id);
+    const fieldValues = yield* sql`
+      SELECT rf.record_id as "recordId", rf.field_id as "fieldId", rf.value, df.name, df.type
+      FROM record_field_values rf
+      JOIN database_fields df ON rf.field_id = df.id
+      WHERE rf.record_id IN ${sql.in(recordIds)}
+    `;
+
+    // Build value maps per record
+    const valueMaps = new Map<string, Record<string, unknown>>();
+    for (const fv of fieldValues as unknown as Array<{ recordId: string; name: string; type: string; value: string }>) {
+      if (!valueMaps.has(fv.recordId)) valueMaps.set(fv.recordId, {});
+      const vm = valueMaps.get(fv.recordId)!;
+      vm[fv.name] = fv.type === "number" ? Number(fv.value) :
+                    fv.type === "checkbox" ? fv.value === "true" :
+                    fv.type === "select" ? fv.value :
+                    fv.type === "multiSelect" ?
+                      (fv.value ? JSON.parse(fv.value) : []) :
+                    fv.value;
+    }
+
+    return records.map(recordFromRow).map((record) => ({
+      record,
+      values: valueMaps.get(record.id) ?? {},
+    }));
+  });
+
 export const getRecordWithValues = (recordId: string) =>
   Effect.gen(function* () {
     const sql = yield* SqlClient.SqlClient;

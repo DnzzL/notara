@@ -1,6 +1,8 @@
 import { create } from "zustand";
 import { api } from "../rpc-client.js";
 import type { Page } from "@notion-alt/shared";
+import { useBlockStore } from "./blockStore.js";
+import { useDatabaseStore } from "./databaseStore.js";
 
 export interface PageState {
   pages: Page[];
@@ -18,6 +20,10 @@ export interface PageState {
   movePage: (id: string, parentId: string | null) => Promise<void>;
   reorderPages: (parentId: string | null, pageIds: string[]) => Promise<void>;
   searchPages: (query: string) => Promise<void>;
+
+  /** Cascade version: selects page AND loads blocks + databases. */
+  selectPageWithCascade: (page: Page) => Promise<void>;
+  selectPageByIdWithCascade: (id: string) => Promise<void>;
 }
 
 export const usePageStore = create<PageState>((set, get) => ({
@@ -52,6 +58,30 @@ export const usePageStore = create<PageState>((set, get) => ({
         const fetchedPage = await api.getPage(id);
         if (fetchedPage) {
           get().selectPage(fetchedPage);
+        }
+      } catch (e) {
+        console.error("Failed to load page:", e);
+      }
+    }
+  },
+
+  selectPageWithCascade: async (page) => {
+    get().selectPage(page);
+    await useBlockStore.getState().loadBlocks(page.id);
+    await useDatabaseStore.getState().loadDatabases(page.id);
+  },
+
+  selectPageByIdWithCascade: async (id) => {
+    const page = get().pages.find((p) => p.id === id);
+    if (page) {
+      await get().selectPageWithCascade(page);
+    } else {
+      try {
+        const fetchedPage = await api.getPage(id);
+        if (fetchedPage) {
+          get().selectPage(fetchedPage);
+          await useBlockStore.getState().loadBlocks(id);
+          await useDatabaseStore.getState().loadDatabases(id);
         }
       } catch (e) {
         console.error("Failed to load page:", e);

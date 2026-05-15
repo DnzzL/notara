@@ -124,6 +124,7 @@ const rpcHandlersLayer = AppRpc.toLayer({
     relationTargetDbId: req.relationTargetDbId,
   }).pipe(Effect.orDie),
   listRecords: ({ databaseId }) => Databases.listRecords(databaseId).pipe(Effect.orDie),
+  listRecordsWithValues: ({ databaseId }) => Databases.listRecordsWithValues(databaseId).pipe(Effect.orDie),
   getRecordWithValues: ({ recordId }) => Databases.getRecordWithValues(recordId).pipe(Effect.orDie),
   createRecord: (req) => Databases.createRecord(req).pipe(Effect.orDie),
   updateFieldValue: (req) => Databases.updateFieldValue(req).pipe(Effect.orDie),

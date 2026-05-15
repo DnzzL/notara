@@ -110,6 +110,13 @@ export const AppRpc = RpcGroup.make(
     payload: { databaseId: Schema.String },
     success: Schema.Array(DatabaseRecord),
   }),
+  Rpc.make("listRecordsWithValues", {
+    payload: { databaseId: Schema.String },
+    success: Schema.Array(Schema.Struct({
+      record: DatabaseRecord,
+      values: Schema.Record({ key: Schema.String, value: Schema.Unknown }),
+    })),
+  }),
   Rpc.make("getRecordWithValues", {
     payload: { recordId: Schema.String },
     success: Schema.Struct({
