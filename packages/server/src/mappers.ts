@@ -14,15 +14,6 @@ import type { Page, Block, Database, DatabaseField, DatabaseRecord, RecordFieldV
 
 // ── Page Mapper ──────────────────────────────────────────────────────────────
 
-/** Shared SELECT fragment with column aliases. Interpolate with sql tag in handlers. */
-export const PAGE_COLUMNS = `
-  id, title, parent_id as "parentId", icon,
-  cover_url as "coverUrl",
-  sort_order as "sortOrder",
-  is_deleted as "isDeleted",
-  created_at as "createdAt", updated_at as "updatedAt"
-`;
-
 export function pageFromRow(r: unknown): Page {
   const row = r as Record<string, unknown>;
   return {
@@ -40,20 +31,11 @@ export function pageFromRow(r: unknown): Page {
 
 // ── Block Mapper ─────────────────────────────────────────────────────────────
 
-export const BLOCK_COLUMNS = `
-  id, page_id as "pageId", type, content,
-  parent_id as "parentId", "index"
-`;
-
 export function blockFromRow(r: unknown): Block {
   return r as Block;
 }
 
 // ── Database Mapper ──────────────────────────────────────────────────────────
-
-export const DB_COLUMNS = `
-  id, page_id as "pageId", name, is_deleted as "isDeleted", sort_order as "sortOrder"
-`;
 
 export function dbFromRow(r: unknown): Database {
   const row = r as Record<string, unknown>;
@@ -67,11 +49,6 @@ export function dbFromRow(r: unknown): Database {
 }
 
 // ── DatabaseField Mapper ─────────────────────────────────────────────────────
-
-export const FIELD_COLUMNS = `
-  id, database_id as "databaseId", name, type,
-  options, relation_target_db_id as "relationTargetDbId"
-`;
 
 export function fieldFromRow(r: unknown): DatabaseField {
   const row = r as Record<string, unknown>;
@@ -87,11 +64,6 @@ export function fieldFromRow(r: unknown): DatabaseField {
 
 // ── DatabaseRecord Mapper ────────────────────────────────────────────────────
 
-export const RECORD_COLUMNS = `
-  id, database_id as "databaseId", title,
-  is_deleted as "isDeleted", created_at as "createdAt"
-`;
-
 export function recordFromRow(r: unknown): DatabaseRecord {
   const row = r as Record<string, unknown>;
   return {
@@ -105,22 +77,11 @@ export function recordFromRow(r: unknown): DatabaseRecord {
 
 // ── RecordFieldValue Mapper ──────────────────────────────────────────────────
 
-export const VALUE_COLUMNS = `
-  id, record_id as "recordId", field_id as "fieldId", value
-`;
-
 export function valueFromRow(r: unknown): RecordFieldValue {
   return r as RecordFieldValue;
 }
 
 // ── DatabaseView Mapper ──────────────────────────────────────────────────────
-
-export const VIEW_COLUMNS = `
-  id, database_id as "databaseId", name, type,
-  group_by_field_id as "groupByFieldId",
-  sort_field_id as "sortFieldId",
-  sort_order as "sortOrder"
-`;
 
 export function viewFromRow(r: unknown): DatabaseView {
   const row = r as Record<string, unknown>;
