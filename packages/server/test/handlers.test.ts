@@ -24,16 +24,19 @@ const TestDbLayer = (filename: string) => SqliteClient.layer({ filename });
 const migrationsPath = path.join(import.meta.dirname || __dirname, "../migrations/001_initial.sql");
 const migrationsPath002 = path.join(import.meta.dirname || __dirname, "../migrations/002_board_sort_order.sql");
 const migrationsPath003 = path.join(import.meta.dirname || __dirname, "../migrations/003_page_sort_order.sql");
+const migrationsPath004 = path.join(import.meta.dirname || __dirname, "../migrations/004_database_sort_order.sql");
 
 function runMigrations(filename: string) {
   const sqlContent001 = fs.readFileSync(migrationsPath, "utf-8");
   const sqlContent002 = fs.readFileSync(migrationsPath002, "utf-8");
   const sqlContent003 = fs.readFileSync(migrationsPath003, "utf-8");
+  const sqlContent004 = fs.readFileSync(migrationsPath004, "utf-8");
   const db = new Database(filename);
   try {
     db.exec(sqlContent001);
     db.exec(sqlContent002);
     db.exec(sqlContent003);
+    db.exec(sqlContent004);
   } finally {
     db.close();
   }
