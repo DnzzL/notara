@@ -2,16 +2,17 @@ import { Effect } from "effect";
 import { SqlClient } from "@effect/sql";
 import { Block, Backlink } from "@notion-alt/shared";
 import { ulid } from "ulidx";
+import { blockFromRow } from "../mappers.js";
 
 export const listBlocks = (pageId: string) =>
   Effect.gen(function* () {
     const sql = yield* SqlClient.SqlClient;
-    return yield* sql<Block>`
+    return yield* sql`
       SELECT id, page_id as "pageId", type, content,
              parent_id as "parentId", "index"
       FROM blocks WHERE page_id = ${pageId}
       ORDER BY "index" ASC
-    `;
+    `.pipe(Effect.map(rows => rows.map(blockFromRow)));
   });
 
 export const createBlock = (req: {
@@ -20,25 +21,25 @@ export const createBlock = (req: {
 }) => Effect.gen(function* () {
   const sql = yield* SqlClient.SqlClient;
   const id = ulid();
-  const rows = yield* sql<Block>`
+  const rows = yield* sql`
     INSERT INTO blocks (id, page_id, type, content, "index", parent_id)
     VALUES (${id}, ${req.pageId}, ${req.type}, ${req.content}, ${req.index}, ${req.parentId})
     RETURNING id, page_id as "pageId", type, content,
               parent_id as "parentId", "index"
   `;
-  return rows[0];
+  return blockFromRow(rows[0]);
 });
 
 export const updateBlock = (req: { id: string; content: string }) =>
   Effect.gen(function* () {
     const sql = yield* SqlClient.SqlClient;
-    const rows = yield* sql<Block>`
+    const rows = yield* sql`
       UPDATE blocks SET content = ${req.content} WHERE id = ${req.id}
       RETURNING id, page_id as "pageId", type, content,
                 parent_id as "parentId", "index"
     `;
     if (rows.length === 0) return yield* Effect.fail(new Error(`Block ${req.id} not found`));
-    return rows[0];
+    return blockFromRow(rows[0]);
   });
 
 export const deleteBlock = (id: string) =>
@@ -53,22 +54,20 @@ export const reorderBlocks = (pageId: string, blockIds: string[]) =>
     for (let i = 0; i < blockIds.length; i++) {
       yield* sql`UPDATE blocks SET "index" = ${i} WHERE id = ${blockIds[i]} AND page_id = ${pageId}`;
     }
-    return yield* sql<Block>`
+    const rows = yield* sql`
       SELECT id, page_id as "pageId", type, content,
              parent_id as "parentId", "index"
       FROM blocks WHERE page_id = ${pageId} ORDER BY "index" ASC
     `;
+    return rows.map(blockFromRow);
   });
 
 /**
  * Get all blocks that reference a specific page (backlinks).
- * Searches for data-page-ref attribute containing the page ID.
  */
 export const getBacklinks = (pageId: string) =>
   Effect.gen(function* () {
     const sql = yield* SqlClient.SqlClient;
-    // Search for blocks containing a page reference to this page
-    // The format is: data-page-ref="pageId"
     const rows = yield* sql<{ blockId: string; pageId: string; pageTitle: string; content: string }>`
       SELECT b.id as "blockId", b.page_id as "pageId", p.title as "pageTitle", b.content
       FROM blocks b
@@ -76,5 +75,10 @@ export const getBacklinks = (pageId: string) =>
       WHERE b.content LIKE ${`%data-page-ref="${pageId}"%`}
         AND p.is_deleted = 0
     `;
-    return rows;
+    return rows.map(r => new Backlink({
+      blockId: r.blockId,
+      pageId: r.pageId,
+      pageTitle: r.pageTitle,
+      content: r.content,
+    }));
   });
