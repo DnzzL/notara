@@ -2,14 +2,7 @@ import { Effect } from "effect";
 import { SqlClient } from "@effect/sql";
 import { Page } from "@notion-alt/shared";
 import { ulid } from "ulidx";
-
-const pageFromRow = (r: any): Page => ({
-  ...r,
-  sortOrder: r.sortOrder ?? 0,
-  isDeleted: r.isDeleted === 1,
-  createdAt: new Date(r.createdAt).toISOString(),
-  updatedAt: new Date(r.updatedAt).toISOString(),
-});
+import { pageFromRow } from "../mappers.js";
 
 export const listPages = Effect.gen(function* () {
   const sql = yield* SqlClient.SqlClient;
@@ -46,7 +39,6 @@ export const createPage = (req: { title: string; parentId: string | null }) =>
     const id = ulid();
     const now = new Date().toISOString();
 
-    // Calculate sort_order: if parentId is set, get max sort_order of siblings + 1
     const siblingMaxOrder = req.parentId
       ? yield* sql`
           SELECT COALESCE(MAX(sort_order), 0) as max_order
@@ -112,15 +104,9 @@ export const searchPages = (query: string) =>
     return rows.map(pageFromRow);
   });
 
-/**
- * Get all descendants of a page (recursive).
- * Returns an array of page IDs that are children, grandchildren, etc.
- */
 const getDescendants = (pageId: string) =>
   Effect.gen(function* () {
     const sql = yield* SqlClient.SqlClient;
-
-    // Use recursive CTE for clean descendant lookup
     const cteRows = yield* sql`
       WITH RECURSIVE descendants AS (
         SELECT id FROM pages WHERE id = ${pageId}
@@ -137,24 +123,14 @@ const getDescendants = (pageId: string) =>
 export const movePage = (req: { id: string; parentId: string | null }) =>
   Effect.gen(function* () {
     const sql = yield* SqlClient.SqlClient;
-
-    // Cannot move into self
-    if (req.parentId === req.id) {
-      return yield* Effect.fail(new Error("Cannot move a page into itself"));
-    }
-
-    // Cannot move into a descendant (circular reference)
+    if (req.parentId === req.id) return yield* Effect.fail(new Error("Cannot move a page into itself"));
     if (req.parentId) {
       const descendants = yield* getDescendants(req.id);
-      if (descendants.has(req.parentId)) {
-        return yield* Effect.fail(new Error("Cannot move a page into one of its descendants"));
-      }
+      if (descendants.has(req.parentId)) return yield* Effect.fail(new Error("Cannot move a page into one of its descendants"));
     }
-
     const now = new Date().toISOString();
     const rows = yield* sql`
-      UPDATE pages
-      SET parent_id = ${req.parentId}, updated_at = ${now}
+      UPDATE pages SET parent_id = ${req.parentId}, updated_at = ${now}
       WHERE id = ${req.id} AND is_deleted = 0
       RETURNING id, title, parent_id as "parentId", icon,
                 cover_url as "coverUrl",
@@ -169,12 +145,7 @@ export const movePage = (req: { id: string; parentId: string | null }) =>
 export const reorderPages = (req: { parentId: string | null; pageIds: string[] }) =>
   Effect.gen(function* () {
     const sql = yield* SqlClient.SqlClient;
-    // Assign sort_order based on the new ordering position, scoped to siblings
-    const parentCondition = req.parentId === null
-      ? sql`parent_id IS NULL`
-      : sql`parent_id = ${req.parentId}`;
-
-    // Verify all pageIds belong to this sibling group
+    const parentCondition = req.parentId === null ? sql`parent_id IS NULL` : sql`parent_id = ${req.parentId}`;
     const countRow = yield* sql`
       SELECT COUNT(*) as cnt FROM pages
       WHERE id IN ${sql.in(req.pageIds)} AND ${parentCondition} AND is_deleted = 0
@@ -182,7 +153,6 @@ export const reorderPages = (req: { parentId: string | null; pageIds: string[] }
     if (Number(countRow[0].cnt) !== req.pageIds.length) {
       return yield* Effect.fail(new Error("One or more pages do not belong to this sibling group"));
     }
-
     yield* Effect.all(
       req.pageIds.map((pageId, index) =>
         sql`UPDATE pages SET sort_order = ${index + 1}, updated_at = ${new Date().toISOString()} WHERE id = ${pageId} AND ${parentCondition}`
