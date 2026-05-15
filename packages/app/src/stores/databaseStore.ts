@@ -1,12 +1,13 @@
 import { create } from "zustand";
 import { api } from "../rpc-client.js";
+import type { Database, DatabaseField, DatabaseRecord, DatabaseView } from "@notion-alt/shared";
 
 export interface DatabaseState {
-  databases: any[];
-  currentDb: any | null;
-  dbFields: any[];
-  records: any[];
-  dbViews: any[];
+  databases: Database[];
+  currentDb: Database | null;
+  dbFields: DatabaseField[];
+  records: Array<{ record: DatabaseRecord; values: Record<string, unknown> }>;
+  dbViews: DatabaseView[];
 
   // View state
   activeFilters: Array<{ fieldId: string; operator: string; value: string }>;
@@ -19,7 +20,7 @@ export interface DatabaseState {
   reorderDatabases: (pageId: string, databaseIds: string[]) => Promise<void>;
 
   loadDbFields: (databaseId: string) => Promise<void>;
-  createField: (req: any) => Promise<void>;
+  createField: (req: Parameters<typeof api.createField>[0]) => Promise<void>;
   updateField: (id: string, updates: { name?: string; options?: string[] | null; relationTargetDbId?: string | null }) => Promise<void>;
   deleteField: (id: string) => Promise<void>;
 

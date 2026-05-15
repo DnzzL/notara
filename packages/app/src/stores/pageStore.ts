@@ -1,17 +1,18 @@
 import { create } from "zustand";
 import { api } from "../rpc-client.js";
+import type { Page } from "@notion-alt/shared";
 
 export interface PageState {
-  pages: any[];
-  currentPage: any | null;
+  pages: Page[];
+  currentPage: Page | null;
   loading: boolean;
 
   loadPages: () => Promise<void>;
   /** Set currentPage and update URL. Does NOT load blocks/databases — use the composition hook for that. */
-  selectPage: (page: any) => void;
+  selectPage: (page: Page) => void;
   /** Fetch a page by ID and select it. Does NOT load blocks/databases. */
   selectPageById: (id: string) => Promise<void>;
-  createPage: (title: string, parentId?: string | null) => Promise<any>;
+  createPage: (title: string, parentId?: string | null) => Promise<Page>;
   updatePage: (id: string, title: string) => Promise<void>;
   deletePage: (id: string) => Promise<void>;
   movePage: (id: string, parentId: string | null) => Promise<void>;

@@ -1,11 +1,12 @@
 import { create } from "zustand";
 import { api } from "../rpc-client.js";
+import type { Block } from "@notion-alt/shared";
 
 export interface BlockState {
-  blocks: any[];
+  blocks: Block[];
 
   loadBlocks: (pageId: string) => Promise<void>;
-  createBlock: (req: any) => Promise<void>;
+  createBlock: (req: Parameters<typeof api.createBlock>[0]) => Promise<void>;
   updateBlock: (id: string, content: string) => Promise<void>;
   deleteBlock: (id: string) => Promise<void>;
   reorderBlocks: (pageId: string, blockIds: string[]) => Promise<void>;
