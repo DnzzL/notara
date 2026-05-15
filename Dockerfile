@@ -16,8 +16,8 @@ COPY packages/shared/package.json ./packages/shared/
 COPY packages/server/package.json ./packages/server/
 COPY packages/app/package.json ./packages/app/
 
-# Install deps
-RUN bun install --frozen-lockfile --no-cache
+# Install deps (no --frozen-lockfile to allow platform-specific native module resolution)
+RUN rm -f bun.lock && bun install --no-cache
 
 # Copy source
 COPY packages/shared/tsconfig.json ./packages/shared/
