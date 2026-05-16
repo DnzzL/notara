@@ -7,13 +7,13 @@
     "dev:electron": "bun run --filter @notion-alt/electron dev",
     "build": "bun run --filter @notion-alt/shared build && bun run --filter '*' build",
     "db:migrate": "bun run --filter @notion-alt/server db:migrate",
-    "test": "bun run --filter '*' test"
+    "test": "bun run --filter '*' test",
+    "postinstall": "bash scripts/patch-msgpackr.sh"
   },
   "workspaces": [
     "packages/*"
   ],
   "overrides": {
-    "@effect/platform": "0.96.0",
     "@tiptap/core": "2.11.0",
     "@tiptap/pm": "2.11.0",
     "@tiptap/react": "2.11.0",
@@ -42,8 +42,12 @@
     "@tiptap/extension-text": "2.11.0",
     "@tiptap/extension-text-style": "2.11.0"
   },
+  "resolutions": {
+    "@effect/platform": "0.96.0"
+  },
   "devDependencies": {
-    "@playwright/test": "^1.60.0"
+    "@playwright/test": "^1.60.0",
+    "patch-package": "^8.0.1"
   },
   "dependencies": {
     "@dnd-kit/core": "^6.3.1",

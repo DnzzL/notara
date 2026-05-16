@@ -1,0 +1,11 @@
+diff --git a/node_modules/.bun/@effect+platform@0.96.0+941c8e2324531656/node_modules/@effect/platform/dist/esm/MsgPack.js b/node_modules/.bun/@effect+platform@0.96.0+941c8e2324531656/node_modules/@effect/platform/dist/esm/MsgPack.js
+--- a/node_modules/.bun/@effect+platform@0.96.0+941c8e2324531656/node_modules/@effect/platform/dist/esm/MsgPack.js
++++ b/node_modules/.bun/@effect+platform@0.96.0+941c8e2324531656/node_modules/@effect/platform/dist/esm/MsgPack.js
+@@ -107,4 +107,4 @@
+ });
+ //# sourceMappingURL=MsgPack.js.map
+-// Added for @effect/rpc compatibility with Bun
+-export * as Msgpackr from "msgpackr";
++// Added for @effect/rpc compatibility with Bun - use default export since msgpackr has no named Msgpackr export
++import * as Msgpackr_ from "msgpackr";
++export { Msgpackr_ as Msgpackr };
