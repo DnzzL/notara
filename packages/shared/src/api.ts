@@ -10,6 +10,10 @@ import {
   DatabaseView,
   Backlink,
   SearchResult,
+  PageExport,
+  DatabaseCsvExport,
+  ImportResult,
+  ExportAllResult,
 } from "./schema.js";
 
 // Combined RPC group — all requests
@@ -175,6 +179,24 @@ export const AppRpc = RpcGroup.make(
   Rpc.make("reorderDatabases", {
     payload: { pageId: Schema.String, databaseIds: Schema.Array(Schema.String) },
     success: Schema.Struct({ reordered: Schema.Boolean }),
+  }),
+
+  // Import/Export
+  Rpc.make("importNotion", {
+    payload: { directory: Schema.String },
+    success: ImportResult,
+  }),
+  Rpc.make("exportPage", {
+    payload: { pageId: Schema.String, includeDatabases: Schema.Boolean },
+    success: PageExport,
+  }),
+  Rpc.make("exportDatabase", {
+    payload: { dbId: Schema.String },
+    success: DatabaseCsvExport,
+  }),
+  Rpc.make("exportAll", {
+    payload: { outputDir: Schema.String },
+    success: ExportAllResult,
   }),
 );
 

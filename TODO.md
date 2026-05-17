@@ -60,7 +60,7 @@
 
 - [ ] Favorite/starred pages
 
-- [ ] Recently viewed pages
+- [x] Recently viewed pages
 
 - [ ] Page templates (blank, todo, meeting notes)
 

@@ -95,3 +95,31 @@ export class SearchResult extends Schema.Class<SearchResult>("SearchResult")({
   content: Schema.String,
   pageId: Schema.String,
 }) {}
+
+/** Result of exporting a page as Markdown. */
+export class PageExport extends Schema.Class<PageExport>("PageExport")({
+  pageId: Schema.String,
+  title: Schema.String,
+  markdown: Schema.String,
+  databasesExported: Schema.Number,
+}) {}
+
+/** Result of exporting a database as CSV. */
+export class DatabaseCsvExport extends Schema.Class<DatabaseCsvExport>("DatabaseCsvExport")({
+  dbId: Schema.String,
+  name: Schema.String,
+  csv: Schema.String,
+}) {}
+
+/** Result of importing from a directory. */
+export class ImportResult extends Schema.Class<ImportResult>("ImportResult")({
+  pagesImported: Schema.Number,
+  databasesImported: Schema.Number,
+}) {}
+
+/** Result of exporting all pages to a directory. */
+export class ExportAllResult extends Schema.Class<ExportAllResult>("ExportAllResult")({
+  pagesExported: Schema.Number,
+  databasesExported: Schema.Number,
+  outputDir: Schema.String,
+}) {}
