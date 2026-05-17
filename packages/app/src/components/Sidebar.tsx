@@ -1,5 +1,6 @@
 import { useEffect, useState, useCallback, useRef } from "react";
 import { useStore } from "../store.js";
+import { ImportModal } from "./ImportModal.js";
 import {
   DndContext,
   type DragEndEvent,
@@ -59,6 +60,7 @@ export function Sidebar() {
   const [searchQuery, setSearchQuery] = useState("");
   const [isCreating, setIsCreating] = useState(false);
   const [newPageTitle, setNewPageTitle] = useState("");
+  const [showImport, setShowImport] = useState(false);
 
   // Drag state
   const [activePageId, setActivePageId] = useState<string | null>(null);
@@ -257,19 +259,24 @@ export function Sidebar() {
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
             />
-            {isCreating ? (
-              <input
-                type="text"
-                placeholder="Page title..."
-                value={newPageTitle}
-                onChange={(e) => setNewPageTitle(e.target.value)}
-                onKeyDown={handleKeyDown}
-                onBlur={handleCreateSubmit}
-                autoFocus
-              />
-            ) : (
-              <button onClick={handleCreateClick}>+ New Page</button>
-            )}
+            <div className="sidebar-actions">
+              <button className="sidebar-action-btn" onClick={() => setShowImport(true)} title="Import Notion export">
+                Import
+              </button>
+              {isCreating ? (
+                <input
+                  type="text"
+                  placeholder="Page title..."
+                  value={newPageTitle}
+                  onChange={(e) => setNewPageTitle(e.target.value)}
+                  onKeyDown={handleKeyDown}
+                  onBlur={handleCreateSubmit}
+                  autoFocus
+                />
+              ) : (
+                <button onClick={handleCreateClick}>+ New Page</button>
+              )}
+            </div>
           </div>
 
           <nav>
@@ -313,6 +320,7 @@ export function Sidebar() {
           </div>
         ) : null}
       </DragOverlay>
+      <ImportModal open={showImport} onClose={() => setShowImport(false)} />
     </DndContext>
   );
 }

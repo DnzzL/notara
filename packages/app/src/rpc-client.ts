@@ -107,4 +107,14 @@ export const api = {
 
   // Backlinks
   getBacklinks: (pageId: string) => rpcCall<Backlink[]>("getBacklinks", { pageId }),
+
+  // Import/Export
+  importNotion: (directory: string) =>
+    rpcCall<{ pagesImported: number; databasesImported: number }>("importNotion", { directory }),
+  exportPage: (pageId: string, includeDatabases: boolean) =>
+    rpcCall<{ pageId: string; title: string; markdown: string; databasesExported: number }>("exportPage", { pageId, includeDatabases }),
+  exportDatabase: (dbId: string) =>
+    rpcCall<{ dbId: string; name: string; csv: string }>("exportDatabase", { dbId }),
+  exportAll: (outputDir: string) =>
+    rpcCall<{ pagesExported: number; databasesExported: number; outputDir: string }>("exportAll", { outputDir }),
 };

@@ -65,6 +65,9 @@ export function useStore() {
     reorderRecords: dbState.reorderRecords,
     reorderDatabases: dbState.reorderDatabases,
 
+    // Import/Export
+    importNotion: pageState.importNotion,
+
     // View state
     activeFilters: dbState.activeFilters,
     activeSorts: dbState.activeSorts,

@@ -25,6 +25,8 @@ export interface PageState {
   /** Cascade version: selects page AND loads blocks + databases. */
   selectPageWithCascade: (page: Page) => Promise<void>;
   selectPageByIdWithCascade: (id: string) => Promise<void>;
+
+  importNotion: (directory: string) => Promise<{ pagesImported: number; databasesImported: number }>;
 }
 
 export const usePageStore = create<PageState>((set, get) => ({
@@ -141,5 +143,16 @@ export const usePageStore = create<PageState>((set, get) => ({
     const results = await api.globalSearch(query);
     console.log("[pageStore] Search results:", results);
     set({ searchResults: results });
+  },
+
+  importNotion: async (directory) => {
+    set({ loading: true });
+    try {
+      const result = await api.importNotion(directory);
+      await get().loadPages();
+      return result;
+    } finally {
+      set({ loading: false });
+    }
   },
 }));
