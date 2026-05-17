@@ -144,11 +144,11 @@ export function importNotionExport(exportDir: string) {
       const blocks = markdownToBlocks(content);
       for (let i = 0; i < blocks.length; i++) {
         const blockId = ulid();
-        yield* sql`
-          INSERT INTO blocks (id, page_id, type, content, index)
-          VALUES (${blockId}, ${pageId}, ${blocks[i].type},
-                  ${blocks[i].content}, ${i})
-        `;
+      yield* sql`
+        INSERT INTO blocks (id, page_id, type, content, "index")
+        VALUES (${blockId}, ${pageId}, ${blocks[i].type},
+                ${blocks[i].content}, ${i})
+      `;
       }
 
       if (guid) {

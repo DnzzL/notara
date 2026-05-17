@@ -57,17 +57,53 @@ const corsHeaders = {
   "Access-Control-Allow-Headers": "Content-Type",
 };
 
-// Static file handler as an Effect
+// Static file handler + import upload route as an Effect
 const staticFilesRoute = Effect.gen(function* () {
   const router = yield* HttpLayerRouter.HttpRouter;
-  
+
   // Handle CORS preflight
   yield* router.add("OPTIONS", "/*", Effect.succeed(
     HttpServerResponse.empty({ status: 204, headers: corsHeaders })
   ));
-  
+
+  // Import upload route
+  yield* router.add("POST", "/import-notion", Effect.gen(function* () {
+    const request = yield* HttpServerRequest.HttpServerRequest;
+
+    const ab = yield* request.arrayBuffer;
+    const buffer = Buffer.from(ab);
+
+    if (buffer.length === 0) {
+      return HttpServerResponse.text(JSON.stringify({ error: "Empty request body" }), {
+        status: 400, headers: { "Content-Type": "application/json", ...corsHeaders },
+      });
+    }
+
+    const cd = request.headers["content-disposition"] || "";
+    const filenameMatch = cd.match(/filename="([^"]+)"/);
+    const fileName = filenameMatch ? filenameMatch[1] : "notion-export.zip";
+
+    const result = yield* ImportExport.importNotionZip(buffer, fileName).pipe(
+      Effect.provide(SqliteLive)
+    );
+
+    return HttpServerResponse.text(JSON.stringify({
+      pagesImported: result.pagesImported,
+      databasesImported: result.databasesImported,
+    }), { headers: { "Content-Type": "application/json", ...corsHeaders } });
+  }).pipe(
+    Effect.catchAllCause((cause) => {
+      const msg = cause._tag === "Fail"
+        ? String(cause.error)
+        : cause.toString();
+      return HttpServerResponse.text(JSON.stringify({ error: msg }), {
+        status: 500, headers: { "Content-Type": "application/json", ...corsHeaders },
+      });
+    })
+  ));
+
   if (!appDist) return;
-  
+
   yield* router.add("GET", "/*", Effect.gen(function* () {
     const request = yield* HttpServerRequest.HttpServerRequest;
     let urlPath = request.url.split("?")[0];
@@ -93,7 +129,7 @@ const staticFilesRoute = Effect.gen(function* () {
   }));
 });
 
-// Layer that adds static file routes
+// Layer that adds static file routes + import upload
 const StaticFilesLive = Layer.effectDiscard(staticFilesRoute);
 
 // RPC handlers layer
