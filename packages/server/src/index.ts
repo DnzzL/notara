@@ -9,6 +9,7 @@ import { SqliteLive, runMigrations } from "./db.js";
 import * as Pages from "./handlers/pages.js";
 import * as Blocks from "./handlers/blocks.js";
 import * as Databases from "./handlers/databases.js";
+import * as Search from "./handlers/search.js";
 import { AppRpc, RecordFieldValue } from "@notion-alt/shared";
 import { createServer } from "node:http";
 import * as path from "node:path";
@@ -101,7 +102,7 @@ const rpcHandlersLayer = AppRpc.toLayer({
   createPage: (req) => Pages.createPage(req).pipe(Effect.orDie),
   updatePage: (req) => Pages.updatePage(req).pipe(Effect.orDie),
   deletePage: ({ id }) => Pages.deletePage(id).pipe(Effect.orDie),
-  searchPages: ({ query }) => Pages.searchPages(query).pipe(Effect.orDie),
+  globalSearch: ({ query }) => Search.globalSearch(query).pipe(Effect.orDie),
   movePage: (req) => Pages.movePage(req).pipe(Effect.orDie),
   reorderPages: ({ parentId, pageIds }) => Pages.reorderPages({ parentId, pageIds: [...pageIds] }).pipe(Effect.orDie),
 

@@ -2,6 +2,7 @@ import { createRoot } from "react-dom/client";
 import { useEffect } from "react";
 import { Sidebar } from "./components/Sidebar.js";
 import { BlockEditor } from "./components/BlockEditor.js";
+import { SearchModal } from "./components/SearchModal.js";
 import { useStore } from "./store.js";
 import "./styles.css";
 
@@ -27,6 +28,7 @@ function App() {
     <div className="app">
       <Sidebar />
       <BlockEditor />
+      <SearchModal />
     </div>
   );
 }

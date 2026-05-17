@@ -9,6 +9,7 @@ import {
   RecordFieldValue,
   DatabaseView,
   Backlink,
+  SearchResult,
 } from "./schema.js";
 
 // Combined RPC group — all requests
@@ -31,9 +32,9 @@ export const AppRpc = RpcGroup.make(
     payload: { id: Schema.String },
     success: Schema.Void,
   }),
-  Rpc.make("searchPages", {
+  Rpc.make("globalSearch", {
     payload: { query: Schema.String },
-    success: Schema.Array(Page),
+    success: Schema.Array(SearchResult),
   }),
   Rpc.make("movePage", {
     payload: { id: Schema.String, parentId: Schema.NullOr(Schema.String) },

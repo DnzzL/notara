@@ -86,3 +86,12 @@ export class Backlink extends Schema.Class<Backlink>("Backlink")({
   pageTitle: Schema.String,
   content: Schema.String,
 }) {}
+
+/** A unified search result from pages or blocks. */
+export class SearchResult extends Schema.Class<SearchResult>("SearchResult")({
+  type: Schema.Literal("page", "block"),
+  id: Schema.String,
+  title: Schema.String,
+  content: Schema.String,
+  pageId: Schema.String,
+}) {}

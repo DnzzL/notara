@@ -33,7 +33,8 @@ export function useStore() {
     deletePage: pageState.deletePage,
     movePage: pageState.movePage,
     reorderPages: pageState.reorderPages,
-    searchPages: pageState.searchPages,
+    searchResults: pageState.searchResults,
+    globalSearch: pageState.globalSearch,
 
     // Block state
     blocks: blockState.blocks,

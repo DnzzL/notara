@@ -15,6 +15,7 @@ import {
   RecordFieldValue,
   DatabaseView,
   Backlink,
+  SearchResult,
 } from "@notion-alt/shared";
 
 const API_URL = "/api";
@@ -58,7 +59,7 @@ export const api = {
     rpcCall<Page>("createPage", { title, parentId }),
   updatePage: (id: string, title: string) => rpcCall<Page>("updatePage", { id, title }),
   deletePage: (id: string) => rpcCall<void>("deletePage", { id }),
-  searchPages: (query: string) => rpcCall<Page[]>("searchPages", { query }),
+  globalSearch: (query: string) => rpcCall<SearchResult[]>("globalSearch", { query }),
   movePage: (id: string, parentId: string | null) =>
     rpcCall<Page>("movePage", { id, parentId }),
   reorderPages: (parentId: string | null, pageIds: string[]) =>

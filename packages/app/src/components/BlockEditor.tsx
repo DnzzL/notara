@@ -93,10 +93,11 @@ function SingleBlockEditor({
       PageReferenceExtension.configure({
         items: async (query: string) => {
           // Search pages matching the query
-          const pages = query.length > 0 
-            ? await api.searchPages(query)
-            : await api.listPages();
-          return pages.slice(0, 10).map((page: any) => ({
+          const results = query.length > 0
+            ? await api.globalSearch(query)
+            : (await api.listPages()).map((p: any) => ({ type: "page" as const, id: p.id, title: p.title, content: "", pageId: p.id }));
+          const pages = results.filter((r: any) => r.type === "page").slice(0, 10);
+          return pages.map((page: any) => ({
             pageId: page.id,
             pageTitle: page.title,
           }));

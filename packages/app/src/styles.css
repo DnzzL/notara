@@ -1011,3 +1011,151 @@ body {
 }
 
 .board-add-card:hover { border-color: #999; color: #666; }
+/* Search Modal (Cmd+K) */
+.search-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.5);
+  backdrop-filter: blur(4px);
+  display: flex;
+  align-items: flex-start;
+  justify-content: center;
+  padding-top: 15vh;
+  z-index: 10000;
+}
+
+.search-modal {
+  width: 600px;
+  max-width: 90vw;
+  background: #fff;
+  border-radius: 12px;
+  box-shadow: 0 16px 48px rgba(0, 0, 0, 0.2);
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  max-height: 400px;
+}
+
+.search-input-row {
+  display: flex;
+  align-items: center;
+  padding: 12px 16px;
+  border-bottom: 1px solid #e9e9e7;
+  gap: 8px;
+}
+
+.search-icon {
+  font-size: 18px;
+  flex-shrink: 0;
+}
+
+.search-input {
+  flex: 1;
+  border: none;
+  outline: none;
+  font-size: 16px;
+  padding: 4px 0;
+  background: transparent;
+}
+
+.search-input::placeholder {
+  color: #999;
+}
+
+.search-spinner {
+  width: 16px;
+  height: 16px;
+  border: 2px solid #e9e9e7;
+  border-top-color: #2eaadc;
+  border-radius: 50%;
+  animation: spin 0.6s linear infinite;
+}
+
+@keyframes spin {
+  to { transform: rotate(360deg); }
+}
+
+.search-results {
+  overflow-y: auto;
+  max-height: 280px;
+  padding: 8px 0;
+}
+
+.search-section {
+  padding: 0;
+}
+
+.search-section-header {
+  padding: 6px 16px;
+  font-size: 11px;
+  font-weight: 600;
+  color: #999;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.search-item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 8px 16px;
+  cursor: pointer;
+  transition: background 0.1s;
+}
+
+.search-item:hover,
+.search-item.selected {
+  background: #f7f6f3;
+}
+
+.search-item.selected {
+  background: #d3e5ef;
+}
+
+.search-item-icon {
+  font-size: 16px;
+  flex-shrink: 0;
+  width: 24px;
+  text-align: center;
+}
+
+.search-item-content {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.search-item-title {
+  font-size: 14px;
+  color: #37352f;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.search-item-subtitle {
+  font-size: 12px;
+  color: #999;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.search-empty {
+  padding: 24px 16px;
+  text-align: center;
+  color: #999;
+  font-size: 14px;
+}
+
+.search-footer {
+  display: flex;
+  justify-content: flex-end;
+  gap: 16px;
+  padding: 8px 16px;
+  border-top: 1px solid #e9e9e7;
+  font-size: 11px;
+  color: #999;
+}
