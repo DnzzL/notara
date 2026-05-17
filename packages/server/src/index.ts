@@ -10,6 +10,7 @@ import * as Pages from "./handlers/pages.js";
 import * as Blocks from "./handlers/blocks.js";
 import * as Databases from "./handlers/databases.js";
 import * as Search from "./handlers/search.js";
+import * as ImportExport from "./handlers/importExport.js";
 import { AppRpc, RecordFieldValue } from "@notion-alt/shared";
 import { createServer } from "node:http";
 import * as path from "node:path";
@@ -162,6 +163,13 @@ const rpcHandlersLayer = AppRpc.toLayer({
     pageId: req.pageId,
     databaseIds: [...req.databaseIds],
   }).pipe(Effect.orDie),
+
+  // Import/Export
+  importNotion: ({ directory }) => ImportExport.importNotion(directory).pipe(Effect.orDie),
+  exportPage: ({ pageId, includeDatabases }) =>
+    ImportExport.exportPage(pageId, includeDatabases).pipe(Effect.orDie),
+  exportDatabase: ({ dbId }) => ImportExport.exportDatabase(dbId).pipe(Effect.orDie),
+  exportAll: ({ outputDir }) => ImportExport.exportAll(outputDir).pipe(Effect.orDie),
 });
 
 // Create RPC router layer
