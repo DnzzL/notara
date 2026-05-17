@@ -97,9 +97,9 @@ export function exportPageAsMarkdown(pageId: string) {
     // Fetch blocks ordered by index
     const blockRows = yield* sql`
       SELECT id, page_id as "pageId", type, content,
-             parent_id as "parentId", index
+             parent_id as "parentId", "index"
       FROM blocks WHERE page_id = ${pageId}
-      ORDER BY index ASC
+      ORDER BY "index" ASC
     `;
     const blocks = blockRows.map(blockFromRow);
 
