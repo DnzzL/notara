@@ -65,6 +65,7 @@ A local-first, desktop Notion alternative with block editing, nested pages, tabl
 | 4. Databases | Table/board views, fields, records | ✅ Done |
 | 5. Desktop | Electron wrapper, auto-start server | TODO |
 | 6. Import | Notion Markdown → blocks, CSV → databases | TODO |
+| 7. File Attachments | Image + PDF upload, storage, inline rendering | TODO |
 
 ## Current State
 
@@ -74,7 +75,7 @@ A local-first, desktop Notion alternative with block editing, nested pages, tabl
 - ✅ React frontend with Vite
 - ✅ Slash commands (/ for blocks)
 - ✅ All block types: heading, quote, callout, divider, todo, toggle, image, bullet, numbered, code, database
-- ✅ Image upload via native file picker (slash command or paste)
+- ⏳ Image/PDF upload (in design — ADR-001)
 - ✅ Nested pages with tree sidebar
 - ✅ Inline databases (table/board views)
 - ✅ URL-based page routing (?page=id)

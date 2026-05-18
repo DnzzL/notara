@@ -94,15 +94,29 @@
 
 - [ ] Single executable build
 
-### 8. File Attachments
+### 8. File Attachments (ADR-001)
 
-- [ ] Upload images/files
+- [ ] Migration: Add `attachments` table to SQLite
 
-- [ ] Store in local filesystem
+- [ ] Server: `POST /api/upload` endpoint (multipart/form-data)
 
-- [ ] Embed images in blocks
+- [ ] Server: Extend static file handler for `.data/attachments/`
 
-- [ ] File viewer for PDFs
+- [ ] Schema: Add `"pdf"` to Block type literal
+
+- [ ] Frontend: PDF block renderer (inline `<iframe>`)
+
+- [ ] Frontend: Update image renderer for JSON content format
+
+- [ ] Frontend: Slash command upload (already wired, needs backend)
+
+- [ ] Frontend: Drag-and-drop upload handler
+
+- [ ] Frontend: Paste-from-clipboard upload handler
+
+- [ ] Tests: E2E tests for upload flow
+
+- [ ] Backward compat: Support old HTML image format alongside new JSON format
 
 ---
 
