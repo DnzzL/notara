@@ -1,7 +1,9 @@
 import { Effect, Layer, pipe } from "effect";
 import * as HttpLayerRouter from "@effect/platform/HttpLayerRouter";
+import * as HttpRouter from "@effect/platform/HttpRouter";
 import * as HttpServerResponse from "@effect/platform/HttpServerResponse";
 import * as HttpServerRequest from "@effect/platform/HttpServerRequest";
+
 import { NodeHttpServer, NodeRuntime } from "@effect/platform-node";
 import * as RpcServer from "@effect/rpc/RpcServer";
 import * as RpcSerialization from "@effect/rpc/RpcSerialization";
@@ -15,6 +17,12 @@ import { AppRpc, RecordFieldValue } from "@notion-alt/shared";
 import { createServer } from "node:http";
 import * as path from "node:path";
 import * as fs from "node:fs";
+import { fileURLToPath } from "node:url";
+import { dirname } from "node:path";
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = dirname(__filename);
+const rootDir = path.join(__dirname, "../..");
 
 // Static file paths
 const possibleDistPaths = [
@@ -101,6 +109,46 @@ const staticFilesRoute = Effect.gen(function* () {
       });
     })
   ));
+
+  // File upload route - simplified version using raw body
+  yield* router.add("POST", "/api/upload", Effect.gen(function* () {
+    const request = yield* HttpServerRequest.HttpServerRequest;
+    const body = yield* request.arrayBuffer;
+    
+    // For now, return a simple error response
+    // Full multipart parsing requires more complex handling
+    return HttpServerResponse.text(JSON.stringify({ error: "Upload endpoint not yet implemented - use /import-notion for now" }), {
+      status: 501,
+      headers: { "Content-Type": "application/json", ...corsHeaders },
+    });
+  }));
+
+  // Attachment serving route
+  yield* router.add("GET", "/attachments/:fileName", Effect.gen(function* () {
+    const params = yield* HttpRouter.params;
+    const fileName = params["fileName"] as string | undefined;
+
+    if (!fileName) {
+      return HttpServerResponse.text("Not found", { status: 404, headers: corsHeaders });
+    }
+
+    const dataDir = process.env.DATA_DIR
+      ? path.join(process.env.DATA_DIR, "attachments")
+      : path.join(rootDir, ".data", "attachments");
+    const filePath = path.join(dataDir, fileName);
+
+    if (!fs.existsSync(filePath)) {
+      return HttpServerResponse.text("Not found", { status: 404, headers: corsHeaders });
+    }
+
+    const ext = path.extname(filePath);
+    const contentType = mimeTypes[ext] || "application/octet-stream";
+    const content = fs.readFileSync(filePath);
+
+    return HttpServerResponse.uint8Array(new Uint8Array(content), {
+      headers: { "Content-Type": contentType, ...corsHeaders },
+    });
+  }));
 
   if (!appDist) return;
 
