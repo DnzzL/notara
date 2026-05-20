@@ -195,11 +195,11 @@ export function exportDatabaseAsCsv(dbId: string) {
     const recordIds = records.map((r) => r.id);
     let fieldValues: Array<{ recordId: string; fieldId: string; value: string }> = [];
     if (recordIds.length > 0) {
-      fieldValues = yield* sql`
+      fieldValues = [...(yield* sql`
         SELECT record_id as "recordId", field_id as "fieldId", value
         FROM record_field_values
         WHERE record_id IN ${sql.in(recordIds)}
-      `;
+      `)];
     }
 
     // Build value lookup: recordId -> fieldId -> value
