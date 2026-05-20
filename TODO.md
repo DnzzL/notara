@@ -54,11 +54,11 @@
 
 ### 5. Page Features
 
-- [ ] Page icons (emoji picker)
+- [x] Page icons (emoji picker)
 
 - [ ] Cover images (upload or URL)
 
-- [ ] Favorite/starred pages
+- [x] Favorite/starred pages
 
 - [x] Recently viewed pages
 
@@ -66,15 +66,15 @@
 
 ### 6. Import/Export
 
-- [ ] Import Notion Markdown export
+- [x] Import Notion Markdown export
 
-- [ ] Import Notion CSV databases
+- [x] Import Notion CSV databases
 
-- [ ] Export page as Markdown
+- [x] Export page as Markdown
 
-- [ ] Export database as CSV
+- [x] Export database as CSV
 
-- [ ] Export all as ZIP
+- [x] Export all as ZIP
 
 ---
 
@@ -96,27 +96,27 @@
 
 ### 8. File Attachments (ADR-001)
 
-- [ ] Migration: Add `attachments` table to SQLite
+- [x] Migration: Add `attachments` table to SQLite
 
-- [ ] Server: `POST /api/upload` endpoint (multipart/form-data)
+- [x] Server: `POST /api/upload` endpoint (raw bytes with header metadata)
 
-- [ ] Server: Extend static file handler for `.data/attachments/`
+- [x] Server: Extend static file handler for `.data/attachments/`
 
-- [ ] Schema: Add `"pdf"` to Block type literal
+- [x] Schema: Add `"pdf"` to Block type literal
 
-- [ ] Frontend: PDF block renderer (inline `<iframe>`)
+- [x] Frontend: PDF block renderer (inline `<iframe>`)
 
-- [ ] Frontend: Update image renderer for JSON content format
+- [x] Frontend: Update image renderer for JSON content format
 
-- [ ] Frontend: Slash command upload (already wired, needs backend)
+- [x] Frontend: Slash command upload (already wired, needs backend)
 
-- [ ] Frontend: Drag-and-drop upload handler
+- [x] Frontend: Drag-and-drop upload handler
 
-- [ ] Frontend: Paste-from-clipboard upload handler
+- [x] Frontend: Paste-from-clipboard upload handler
 
 - [ ] Tests: E2E tests for upload flow
 
-- [ ] Backward compat: Support old HTML image format alongside new JSON format
+- [x] Backward compat: Support old HTML image format alongside new JSON format
 
 ---
 
@@ -134,13 +134,13 @@
 
 ### 10. Keyboard Shortcuts
 
-- [ ] `Cmd+[` / `Cmd+]` - History back/forward
+- [x] `Cmd+[` / `Cmd+]` - History back/forward
 
-- [ ] `Cmd+D` - Duplicate block
+- [x] `Cmd+D` - Duplicate block
 
-- [ ] `Cmd+Shift+↑↓` - Move block up/down
+- [x] `Cmd+Shift+↑↓` - Move block up/down
 
-- [ ] `Cmd+Shift+N` - New page
+- [x] `Cmd+Shift+N` - New page
 
 - [ ] `Cmd+P` - Quick search
 

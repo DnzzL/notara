@@ -29,7 +29,13 @@ export const AppRpc = RpcGroup.make(
     success: Page,
   }),
   Rpc.make("updatePage", {
-    payload: { id: Schema.String, title: Schema.String },
+    payload: {
+      id: Schema.String,
+      title: Schema.optional(Schema.NullOr(Schema.String)),
+      icon: Schema.optional(Schema.NullOr(Schema.String)),
+      coverUrl: Schema.optional(Schema.NullOr(Schema.String)),
+      isFavorite: Schema.optional(Schema.NullOr(Schema.Boolean)),
+    },
     success: Page,
   }),
   Rpc.make("deletePage", {
@@ -157,9 +163,16 @@ export const AppRpc = RpcGroup.make(
   Rpc.make("updateField", {
     payload: {
       id: Schema.String,
-      options: Schema.NullOr(Schema.Array(Schema.String)),
+      name: Schema.optional(Schema.String),
+      type: Schema.optional(Schema.Literal("text", "number", "select", "multiSelect", "date", "checkbox", "relation")),
+      options: Schema.optional(Schema.NullOr(Schema.Array(Schema.String))),
+      relationTargetDbId: Schema.optional(Schema.NullOr(Schema.String)),
     },
     success: DatabaseField,
+  }),
+  Rpc.make("updateRecord", {
+    payload: { id: Schema.String, title: Schema.String },
+    success: Schema.Struct({ updated: Schema.Boolean }),
   }),
   Rpc.make("reorderRecords", {
     payload: {

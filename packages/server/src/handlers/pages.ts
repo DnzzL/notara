@@ -4,31 +4,28 @@ import { Page } from "@notion-alt/shared";
 import { ulid } from "ulidx";
 import { pageFromRow } from "../mappers.js";
 
+const PAGE_COLS = `id, title, parent_id as "parentId", icon,
+             cover_url as "coverUrl",
+             sort_order as "sortOrder",
+             is_deleted as "isDeleted",
+             is_favorite as "isFavorite",
+             created_at as "createdAt", updated_at as "updatedAt"`;
+
 export const listPages = Effect.gen(function* () {
   const sql = yield* SqlClient.SqlClient;
-  const rows = yield* sql`
-    SELECT id, title, parent_id as "parentId", icon,
-           cover_url as "coverUrl",
-           sort_order as "sortOrder",
-           is_deleted as "isDeleted",
-           created_at as "createdAt", updated_at as "updatedAt"
-    FROM pages WHERE is_deleted = 0
-    ORDER BY sort_order ASC
-  `;
+  const rows = yield* sql.unsafe(
+    `SELECT ${PAGE_COLS} FROM pages WHERE is_deleted = 0 ORDER BY sort_order ASC`
+  );
   return rows.map(pageFromRow);
 });
 
 export const getPage = (id: string) =>
   Effect.gen(function* () {
     const sql = yield* SqlClient.SqlClient;
-    const rows = yield* sql`
-      SELECT id, title, parent_id as "parentId", icon,
-             cover_url as "coverUrl",
-             sort_order as "sortOrder",
-             is_deleted as "isDeleted",
-             created_at as "createdAt", updated_at as "updatedAt"
-      FROM pages WHERE id = ${id} AND is_deleted = 0
-    `;
+    const rows = yield* sql.unsafe(
+      `SELECT ${PAGE_COLS} FROM pages WHERE id = ? AND is_deleted = 0`,
+      [id]
+    );
     if (rows.length === 0) return yield* Effect.fail(new Error(`Page ${id} not found`));
     return pageFromRow(rows[0]);
   });
@@ -50,31 +47,56 @@ export const createPage = (req: { title: string; parentId: string | null }) =>
         `;
     const sortOrder = (Number(siblingMaxOrder[0]?.max_order) || 0) + 1;
 
-    const rows = yield* sql`
+    yield* sql`
       INSERT INTO pages (id, title, parent_id, sort_order, created_at, updated_at)
       VALUES (${id}, ${req.title}, ${req.parentId}, ${sortOrder}, ${now}, ${now})
-      RETURNING id, title, parent_id as "parentId", icon,
-                cover_url as "coverUrl",
-                sort_order as "sortOrder",
-                is_deleted as "isDeleted",
-                created_at as "createdAt", updated_at as "updatedAt"
     `;
+    const rows = yield* sql.unsafe(
+      `SELECT ${PAGE_COLS} FROM pages WHERE id = ?`,
+      [id]
+    );
     return pageFromRow(rows[0]);
   });
 
-export const updatePage = (req: { id: string; title: string }) =>
+export const updatePage = (req: {
+  id: string;
+  title?: string | null;
+  icon?: string | null;
+  coverUrl?: string | null;
+  isFavorite?: boolean | null;
+}) =>
   Effect.gen(function* () {
     const sql = yield* SqlClient.SqlClient;
     const now = new Date().toISOString();
-    const rows = yield* sql`
-      UPDATE pages SET title = ${req.title}, updated_at = ${now}
-      WHERE id = ${req.id} AND is_deleted = 0
-      RETURNING id, title, parent_id as "parentId", icon,
-                cover_url as "coverUrl",
-                sort_order as "sortOrder",
-                is_deleted as "isDeleted",
-                created_at as "createdAt", updated_at as "updatedAt"
-    `;
+
+    const sets: string[] = ["updated_at = ?"];
+    const params: unknown[] = [now];
+    if (req.title !== undefined && req.title !== null) {
+      sets.push("title = ?");
+      params.push(req.title);
+    }
+    if (req.icon !== undefined) {
+      sets.push("icon = ?");
+      params.push(req.icon);
+    }
+    if (req.coverUrl !== undefined) {
+      sets.push("cover_url = ?");
+      params.push(req.coverUrl);
+    }
+    if (req.isFavorite !== undefined && req.isFavorite !== null) {
+      sets.push("is_favorite = ?");
+      params.push(req.isFavorite ? 1 : 0);
+    }
+    params.push(req.id);
+
+    yield* sql.unsafe(
+      `UPDATE pages SET ${sets.join(", ")} WHERE id = ? AND is_deleted = 0`,
+      params
+    );
+    const rows = yield* sql.unsafe(
+      `SELECT ${PAGE_COLS} FROM pages WHERE id = ?`,
+      [req.id]
+    );
     if (rows.length === 0) return yield* Effect.fail(new Error(`Page ${req.id} not found`));
     return pageFromRow(rows[0]);
   });
@@ -89,18 +111,20 @@ export const deletePage = (id: string) =>
 export const searchPages = (query: string) =>
   Effect.gen(function* () {
     const sql = yield* SqlClient.SqlClient;
-    const rows = yield* sql`
-      SELECT p.id, p.title, p.parent_id as "parentId", p.icon,
-             p.cover_url as "coverUrl",
-             p.sort_order as "sortOrder",
-             p.is_deleted as "isDeleted",
-             p.created_at as "createdAt", p.updated_at as "updatedAt"
-      FROM pages p
-      JOIN pages_fts fts ON fts.rowid = p.rowid
-      WHERE pages_fts MATCH ${query} AND p.is_deleted = 0
-      ORDER BY fts.rank
-      LIMIT 50
-    `;
+    const rows = yield* sql.unsafe(
+      `SELECT p.id, p.title, p.parent_id as "parentId", p.icon,
+              p.cover_url as "coverUrl",
+              p.sort_order as "sortOrder",
+              p.is_deleted as "isDeleted",
+              p.is_favorite as "isFavorite",
+              p.created_at as "createdAt", p.updated_at as "updatedAt"
+       FROM pages p
+       JOIN pages_fts fts ON fts.rowid = p.rowid
+       WHERE pages_fts MATCH ? AND p.is_deleted = 0
+       ORDER BY fts.rank
+       LIMIT 50`,
+      [query]
+    );
     return rows.map(pageFromRow);
   });
 
@@ -129,15 +153,11 @@ export const movePage = (req: { id: string; parentId: string | null }) =>
       if (descendants.has(req.parentId)) return yield* Effect.fail(new Error("Cannot move a page into one of its descendants"));
     }
     const now = new Date().toISOString();
-    const rows = yield* sql`
+    yield* sql`
       UPDATE pages SET parent_id = ${req.parentId}, updated_at = ${now}
       WHERE id = ${req.id} AND is_deleted = 0
-      RETURNING id, title, parent_id as "parentId", icon,
-                cover_url as "coverUrl",
-                sort_order as "sortOrder",
-                is_deleted as "isDeleted",
-                created_at as "createdAt", updated_at as "updatedAt"
     `;
+    const rows = yield* sql.unsafe(`SELECT ${PAGE_COLS} FROM pages WHERE id = ?`, [req.id]);
     if (rows.length === 0) return yield* Effect.fail(new Error(`Page ${req.id} not found`));
     return pageFromRow(rows[0]);
   });

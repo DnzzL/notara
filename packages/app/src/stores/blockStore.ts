@@ -6,7 +6,7 @@ export interface BlockState {
   blocks: Block[];
 
   loadBlocks: (pageId: string) => Promise<void>;
-  createBlock: (req: Parameters<typeof api.createBlock>[0]) => Promise<void>;
+  createBlock: (req: Parameters<typeof api.createBlock>[0]) => Promise<Block>;
   updateBlock: (id: string, content: string) => Promise<void>;
   deleteBlock: (id: string) => Promise<void>;
   reorderBlocks: (pageId: string, blockIds: string[]) => Promise<void>;
@@ -22,7 +22,10 @@ export const useBlockStore = create<BlockState>((set) => ({
 
   createBlock: async (req) => {
     const block = await api.createBlock(req);
-    set((s) => ({ blocks: [...s.blocks, block] }));
+    // Server shifts later indices on insert, so refetch keeps client in sync.
+    const fresh = await api.listBlocks(req.pageId);
+    set({ blocks: fresh });
+    return block;
   },
 
   updateBlock: async (id, content) => {

@@ -739,6 +739,8 @@ body {
 .db-menu-item:hover { background: #f5f5f5; }
 .db-menu-item--danger { color: #e00; }
 .db-menu-item--danger:hover { background: #ffe8e8; }
+.db-menu-item--active { background: rgba(46,170,220,0.08); }
+.db-menu-item { display: flex; align-items: center; gap: 6px; }
 
 .db-table-row { transition: background 0.1s; }
 .db-table-row:hover { background: #fafafa; }
@@ -790,6 +792,31 @@ body {
   border-bottom: 1px solid #f5f5f5;
   vertical-align: middle;
   min-height: 32px;
+  position: relative;
+}
+
+.db-cell-popover {
+  position: absolute;
+  top: 100%;
+  left: 0;
+  z-index: 100;
+  background: #fff;
+  border: 1px solid #e9e9e7;
+  border-radius: 8px;
+  box-shadow: 0 4px 20px rgba(0,0,0,0.15);
+  padding: 4px;
+  min-width: 200px;
+  max-height: 320px;
+  overflow-y: auto;
+  margin-top: 2px;
+}
+
+.db-title-display { cursor: text; padding: 4px 6px; border-radius: 4px; min-height: 24px; }
+.db-title-display:hover { background: #f5f5f5; }
+.db-title-input {
+  width: 100%; border: 1px solid #2eaadc; border-radius: 4px;
+  padding: 2px 6px; font-size: 14px; font-weight: 500; outline: none;
+  background: #fff;
 }
 
 .db-cell-content {
@@ -1222,3 +1249,204 @@ body {
 .import-modal-icon { font-size: 32px; }
 .import-modal-status.success .import-modal-icon { color: #1a7f37; }
 .import-modal-status.error .import-modal-icon { color: #c0392b; }
+
+/* ── Page header (icon + title + favorite + menu) ──────────────────── */
+.page-header { display: flex; align-items: center; gap: 8px; margin-bottom: 20px; }
+.page-header .page-title,
+.page-header .page-title-input { margin-bottom: 0; }
+.page-icon-btn {
+  font-size: 2.5em; line-height: 1; background: none; border: none;
+  cursor: pointer; padding: 4px 8px; border-radius: 6px;
+}
+.page-icon-btn:hover { background: #f0eee9; }
+.page-fav-btn {
+  font-size: 24px; background: none; border: none; cursor: pointer;
+  color: #999; padding: 4px 8px; border-radius: 4px;
+}
+.page-fav-btn:hover { color: #f5b800; background: #f7f6f3; }
+.page-menu-wrap { position: relative; }
+.page-menu-btn {
+  font-size: 20px; background: none; border: none; cursor: pointer;
+  color: #999; padding: 4px 10px; border-radius: 4px;
+}
+.page-menu-btn:hover { background: #f7f6f3; }
+.page-menu {
+  position: absolute; right: 0; top: 100%; margin-top: 4px;
+  background: #fff; border: 1px solid #e9e9e7; border-radius: 6px;
+  box-shadow: 0 4px 12px rgba(0,0,0,0.12); min-width: 200px; z-index: 100;
+  padding: 4px 0;
+}
+.page-menu button {
+  display: block; width: 100%; text-align: left; padding: 8px 12px;
+  background: none; border: none; font-size: 14px; cursor: pointer;
+}
+.page-menu button:hover { background: #f7f6f3; }
+
+/* ── Sidebar favorites + per-page star ─────────────────────────────── */
+.sidebar-section { margin-bottom: 8px; }
+.sidebar-section-header {
+  font-size: 11px; text-transform: uppercase; letter-spacing: 0.5px;
+  color: #888; padding: 6px 8px 4px; font-weight: 600;
+}
+.page-fav-mini {
+  background: none; border: none; cursor: pointer; color: #ccc;
+  font-size: 14px; padding: 0 4px; visibility: hidden;
+  margin-left: auto;
+}
+.page-node:hover .page-fav-mini { visibility: visible; }
+.page-fav-mini:hover { color: #f5b800; }
+.page-node .page-fav-mini[data-active="true"] { visibility: visible; color: #f5b800; }
+
+/* ── Emoji picker ──────────────────────────────────────────────────── */
+.emoji-picker {
+  background: #fff; border: 1px solid #e9e9e7; border-radius: 8px;
+  box-shadow: 0 8px 24px rgba(0,0,0,0.15); width: 320px; max-height: 360px;
+  display: flex; flex-direction: column; overflow: hidden;
+}
+.emoji-picker-header {
+  display: flex; gap: 6px; padding: 8px; border-bottom: 1px solid #f0eee9;
+}
+.emoji-picker-search {
+  flex: 1; padding: 6px 8px; border: 1px solid #e9e9e7; border-radius: 4px;
+  font-size: 13px; outline: none;
+}
+.emoji-picker-remove {
+  background: none; border: 1px solid #e9e9e7; border-radius: 4px;
+  font-size: 12px; padding: 4px 8px; cursor: pointer; color: #666;
+}
+.emoji-picker-remove:hover { background: #f7f6f3; }
+.emoji-picker-grid { overflow-y: auto; padding: 8px; }
+.emoji-picker-category-title {
+  font-size: 11px; text-transform: uppercase; color: #888;
+  padding: 6px 4px 4px; font-weight: 600;
+}
+.emoji-picker-category-grid,
+.emoji-picker-grid > div.emoji-picker-category > .emoji-picker-category-grid {
+  display: grid; grid-template-columns: repeat(8, 1fr); gap: 2px;
+}
+.emoji-picker-grid > button {
+  display: inline-block;
+}
+.emoji-picker-btn {
+  font-size: 20px; background: none; border: none; cursor: pointer;
+  padding: 4px; border-radius: 4px; line-height: 1;
+}
+.emoji-picker-btn:hover { background: #f0eee9; }
+
+/* When search active: grid spans full width */
+.emoji-picker-grid:not(:has(.emoji-picker-category)) {
+  display: grid; grid-template-columns: repeat(8, 1fr); gap: 2px;
+}
+
+/* ── Upload toast ──────────────────────────────────────────────────── */
+.upload-toast {
+  position: fixed; bottom: 24px; right: 24px;
+  background: #37352f; color: #fff;
+  padding: 8px 16px; border-radius: 6px;
+  font-size: 13px; z-index: 1000;
+  box-shadow: 0 4px 12px rgba(0,0,0,0.2);
+}
+
+/* ── PDF block ─────────────────────────────────────────────────────── */
+.block-pdf {
+  border: 1px solid #e9e9e7; border-radius: 6px; overflow: hidden;
+  margin: 4px 0;
+}
+.block-pdf-header {
+  display: flex; justify-content: space-between; align-items: center;
+  padding: 8px 12px; background: #f7f6f3; font-size: 13px;
+  border-bottom: 1px solid #e9e9e7;
+}
+.block-pdf-header a { color: #2eaadc; text-decoration: none; font-size: 12px; }
+.block-pdf-header a:hover { text-decoration: underline; }
+.block-pdf-frame { width: 100%; height: 600px; border: none; display: block; }
+
+/* ── Block gutter: drag handle + insert button (hover-only) ──────────── */
+.block-gutter {
+  display: flex; align-items: center; gap: 0;
+  width: 48px; flex-shrink: 0; margin-top: 2px;
+  opacity: 0; transition: opacity 0.15s ease;
+}
+.block-container:hover .block-gutter { opacity: 1; }
+
+.block-insert-btn {
+  width: 22px; height: 22px; border: none; background: none;
+  color: #9b9a97; cursor: pointer; border-radius: 4px;
+  font-size: 18px; line-height: 1; display: flex;
+  align-items: center; justify-content: center; padding: 0;
+}
+.block-insert-btn:hover { background: rgba(0,0,0,0.06); color: #37352f; }
+
+/* override the old wrapper - margin-top is now on .block-gutter */
+.block-gutter .drag-handle-wrapper { opacity: 1; margin-top: 0; }
+
+/* ── TipTap placeholder ─────────────────────────────────────────────── */
+.ProseMirror p.is-editor-empty:first-child::before,
+.ProseMirror.is-editor-empty > *:first-child::before {
+  content: attr(data-placeholder);
+  float: left;
+  color: #c5c4c0;
+  pointer-events: none;
+  height: 0;
+}
+/* Stronger selector for nested cases (heading, etc.) */
+.ProseMirror h1.is-empty::before,
+.ProseMirror h2.is-empty::before,
+.ProseMirror h3.is-empty::before,
+.ProseMirror blockquote.is-empty p::before,
+.ProseMirror pre.is-empty code::before {
+  content: attr(data-placeholder);
+  color: #c5c4c0;
+  pointer-events: none;
+  float: left;
+  height: 0;
+}
+
+/* ── Bubble menu (inline formatting) ────────────────────────────────── */
+.bubble-menu {
+  display: flex; gap: 2px;
+  background: #37352f; color: #fff;
+  border-radius: 6px; padding: 4px;
+  box-shadow: 0 4px 12px rgba(0,0,0,0.25);
+}
+.bubble-menu button {
+  background: none; border: none; color: #d4d3cf;
+  cursor: pointer; padding: 4px 8px; border-radius: 4px;
+  font-size: 13px; min-width: 24px;
+}
+.bubble-menu button:hover { background: rgba(255,255,255,0.1); color: #fff; }
+.bubble-menu button.active { background: rgba(255,255,255,0.18); color: #fff; }
+.bubble-menu code { font-size: 12px; }
+
+/* ── Database polish ───────────────────────────────────────────────── */
+.db-view-switcher {
+  display: inline-flex; background: #f0eee9; border-radius: 6px; padding: 2px;
+}
+.db-view-switcher button {
+  background: transparent !important; border: none !important;
+  padding: 4px 12px !important; font-size: 12px !important; font-weight: 500;
+  color: #666 !important; border-radius: 4px !important; cursor: pointer;
+}
+.db-view-switcher button.active {
+  background: #fff !important; color: #37352f !important;
+  box-shadow: 0 1px 2px rgba(0,0,0,0.06);
+}
+
+.db-add-row td { border-bottom: none !important; padding: 0 !important; }
+.db-new-record-input {
+  width: 100%; border: none; outline: none; background: transparent;
+  padding: 8px 12px; font-size: 13px; color: #999;
+  border-top: 1px solid #f5f5f5;
+}
+.db-new-record-input:focus { color: #37352f; background: #fafafa; }
+.db-new-record-input::placeholder { color: #b8b6b1; }
+
+.db-filter-btn {
+  background: none; border: none; padding: 4px 8px; font-size: 12px;
+  color: #666; cursor: pointer; border-radius: 4px;
+  display: inline-flex; align-items: center; gap: 4px;
+}
+.db-filter-btn:hover { background: #f5f5f5; }
+
+/* Compact, consistent column header */
+.db-col-header { font-weight: 500; font-size: 12px; }

@@ -124,6 +124,34 @@ function SortableRow({
   );
 }
 
+// ── Title Cell (inline editable) ──────────────────────────────────────────
+
+function TitleCell({ recordId, title, onSave }: { recordId: string; title: string; onSave: (t: string) => Promise<void> | void }) {
+  const [editing, setEditing] = useState(false);
+  const [value, setValue] = useState(title || "");
+  useEffect(() => { setValue(title || ""); }, [title]);
+  if (!editing) {
+    return (
+      <div className="db-title-display" onClick={() => setEditing(true)}>
+        {title || <span style={{ color: "#d3d1cb" }}>Untitled</span>}
+      </div>
+    );
+  }
+  return (
+    <input
+      autoFocus
+      className="db-title-input"
+      value={value}
+      onChange={(e) => setValue(e.target.value)}
+      onBlur={async () => { setEditing(false); if (value !== title) await onSave(value); }}
+      onKeyDown={async (e) => {
+        if (e.key === "Enter") { e.preventDefault(); (e.target as HTMLInputElement).blur(); }
+        else if (e.key === "Escape") { setValue(title || ""); setEditing(false); }
+      }}
+    />
+  );
+}
+
 // ── Main DatabaseView ─────────────────────────────────────────────────────
 
 export function DatabaseView({ database, isNew }: { database: any; isNew?: boolean }) {
@@ -287,8 +315,10 @@ export function DatabaseView({ database, isNew }: { database: any; isNew?: boole
       <div className="table-view">
         {/* Toolbar */}
         <div className="db-toolbar">
-          <button className={viewType === "table" ? "active" : ""} onClick={() => setViewType("table")}>Table</button>
-          <button className={viewType === "board" ? "active" : ""} onClick={() => setViewType("board")}>Board</button>
+          <div className="db-view-switcher" role="tablist">
+            <button className="active" onClick={() => setViewType("table")} role="tab" aria-selected="true">Table</button>
+            <button onClick={() => setViewType("board")} role="tab" aria-selected="false">Board</button>
+          </div>
 
           <div style={{ marginLeft: 16, display: "flex", alignItems: "center", gap: 12, flexWrap: "wrap" }}>
             <FilterBar fields={dbFields} filters={activeFilters} onAdd={() => addFilter({ fieldId: dbFields[0]?.id || "", operator: "contains", value: "" })}
@@ -314,7 +344,9 @@ export function DatabaseView({ database, isNew }: { database: any; isNew?: boole
                 <ColumnHeader field={{ id: "title", name: "Name", type: "text" }} onRename={() => {}} onDelete={() => {}} isTitle width={columnWidths["__title__"]} onResize={handleColumnResize} />
                 {dbFields.map((f: any) => (
                   <ColumnHeader key={f.id} field={f} onRename={(name) => handleRenameField(f.id, name)} onDelete={() => handleDeleteField(f.id)}
-                    onOptions={() => setShowOptionsFor(showOptionsFor === f.id ? null : f.id)} width={columnWidths[f.id]} onResize={handleColumnResize} />
+                    onOptions={() => setShowOptionsFor(showOptionsFor === f.id ? null : f.id)}
+                    onChangeType={async (type) => { await api.updateField(f.id, { type }); await loadDbFields(database.id); await loadDbRecords(database.id); }}
+                    width={columnWidths[f.id]} onResize={handleColumnResize} />
                 ))}
                 <th style={{ width: 40 }}>
                   <button ref={addFieldBtnRef} onClick={() => setShowAddField(true)} className="db-add-col-btn" title="Add property">+</button>
@@ -326,7 +358,14 @@ export function DatabaseView({ database, isNew }: { database: any; isNew?: boole
                 {sortedRecords.map(({ record, values }: any) => (
                   <SortableRow key={record.id} id={record.id} isDragging={activeRowId === record.id} onDelete={() => handleDeleteRecord(record.id)}>
                     <td className="db-cell db-title-cell" style={columnWidths["__title__"] ? { minWidth: columnWidths["__title__"], width: columnWidths["__title__"] } : undefined}>
-                      {record.title || <span style={{ color: "#d3d1cb" }}>Untitled</span>}
+                      <TitleCell
+                        recordId={record.id}
+                        title={record.title}
+                        onSave={async (newTitle) => {
+                          await api.updateRecord(record.id, newTitle);
+                          await loadDbRecords(database.id);
+                        }}
+                      />
                     </td>
                     {dbFields.map((field: any) => {
                       const val = values[field.name] ?? "";
@@ -348,9 +387,9 @@ export function DatabaseView({ database, isNew }: { database: any; isNew?: boole
                   </SortableRow>
                 ))}
                 <tr className="db-add-row">
-                  <td colSpan={dbFields.length + 2} style={{ padding: "2px 12px" }}>
+                  <td colSpan={dbFields.length + 2}>
                     <input value={newTitle} onChange={(e) => setNewTitle(e.target.value)} onKeyDown={(e) => { if (e.key === "Enter") handleAddRecord(); if (e.key === "Escape") setNewTitle(""); }}
-                      onBlur={handleAddRecord} placeholder="+ New record" className="db-new-record-input" />
+                      onBlur={handleAddRecord} placeholder="+ New" className="db-new-record-input" />
                   </td>
                 </tr>
               </tbody>

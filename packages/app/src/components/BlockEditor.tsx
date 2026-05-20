@@ -5,6 +5,8 @@ import TaskList from "@tiptap/extension-task-list";
 import TaskItem from "@tiptap/extension-task-item";
 import HorizontalRule from "@tiptap/extension-horizontal-rule";
 import Image from "@tiptap/extension-image";
+import Placeholder from "@tiptap/extension-placeholder";
+import { BubbleMenu } from "@tiptap/react";
 import { DetailsNode, DetailsSummary, DetailsContent } from "./DetailsExtension.js";
 import { BlockNavigationExtension, type BlockNavigationCallbacks } from "./BlockNavigationExtension.js";
 import { PageReferenceNode, PageReferenceExtension, createPageReferenceRender } from "./PageReferenceExtension.js";
@@ -17,19 +19,44 @@ import { SortableContext, useSortable, verticalListSortingStrategy } from "@dnd-
 import { CSS } from "@dnd-kit/utilities";
 import { DragHandle } from "./DragHandle.js";
 import { BacklinksPanel } from "./BacklinksPanel.js";
+import { EmojiPicker } from "./EmojiPicker.js";
+import { PageMenu } from "./PageMenu.js";
+import { uploadFile as apiUploadFile, isUploadable } from "../uploader.js";
+import { useBlockStore } from "../stores/blockStore.js";
+
+/** Placeholder text shown on empty blocks, keyed by block type. */
+function placeholderForType(blockType: string): string {
+  switch (blockType) {
+    case "heading1": return "Heading 1";
+    case "heading2": return "Heading 2";
+    case "heading3": return "Heading 3";
+    case "blockquote": return "Quote";
+    case "code": return "Code";
+    case "todo": return "To-do";
+    case "bulletList":
+    case "numberedList": return "List";
+    default: return "Type '/' for commands";
+  }
+}
 
 /** Shared TipTap extensions — same set for every block editor. */
-const SHARED_EXTENSIONS = [
-  StarterKit as any,
-  TaskList.configure({ HTMLAttributes: { class: "task-list" } }) as any,
-  TaskItem.configure({ nested: true, HTMLAttributes: { class: "task-item" } }) as any,
-  HorizontalRule as any,
-  Image.configure({ inline: false }) as any,
-  DetailsNode,
-  DetailsContent,
-  DetailsSummary,
-  PageReferenceNode,
-];
+function sharedExtensions(blockType: string) {
+  return [
+    StarterKit as any,
+    TaskList.configure({ HTMLAttributes: { class: "task-list" } }) as any,
+    TaskItem.configure({ nested: true, HTMLAttributes: { class: "task-item" } }) as any,
+    HorizontalRule as any,
+    Image.configure({ inline: false }) as any,
+    Placeholder.configure({
+      placeholder: placeholderForType(blockType),
+      emptyEditorClass: "is-editor-empty",
+    }) as any,
+    DetailsNode,
+    DetailsContent,
+    DetailsSummary,
+    PageReferenceNode,
+  ];
+}
 
 /** Map a block type to its default HTML content when empty. */
 function defaultContentForType(type: string): string {
@@ -83,7 +110,7 @@ function SingleBlockEditor({
 
   const editor = useEditor({
     extensions: [
-      ...SHARED_EXTENSIONS,
+      ...sharedExtensions(block.type),
       BlockNavigationExtension.configure({
         blockIndex,
         totalBlocks,
@@ -107,27 +134,9 @@ function SingleBlockEditor({
     ],
     content: blockContent(block),
     autofocus: false,
-    editorProps: {
-      handleKeyDown: (_view, event) => {
-        if (event.key === "/") {
-          setTimeout(() => {
-            try {
-              const pos = editor?.state?.selection?.from ?? 0;
-              const coords = editor?.view.coordsAtPos(pos);
-              if (coords) {
-                onSlashMenuOpen({
-                  query: "",
-                  top: coords.bottom + window.scrollY,
-                  left: coords.left + window.scrollX,
-                });
-              }
-            } catch { /* coordsAtPos may throw */ }
-          }, 0);
-        }
-        return false;
-      },
-    },
+    editorProps: {},
     onUpdate: ({ editor: ed }) => {
+      detectSlashCommand(ed);
       if (savingRef.current) return;
       savingRef.current = true;
       clearTimeout(debounceRef.current);
@@ -139,7 +148,33 @@ function SingleBlockEditor({
         savingRef.current = false;
       }, 500);
     },
+    onSelectionUpdate: ({ editor: ed }) => {
+      detectSlashCommand(ed);
+    },
   });
+
+  /**
+   * Scan text immediately before the cursor for a `/word` slash trigger.
+   * Reports the query (text after `/`) and screen coords to the parent;
+   * parent renders the SlashMenu. Closes when no trigger is present.
+   */
+  function detectSlashCommand(ed: Editor) {
+    try {
+      const { from } = ed.state.selection;
+      const before = ed.state.doc.textBetween(Math.max(0, from - 60), from, "\n", "\0");
+      const match = before.match(/(?:^|\s)\/([\w-]*)$/);
+      if (!match) {
+        onSlashMenuOpen({ query: "__close__", top: 0, left: 0 });
+        return;
+      }
+      const coords = ed.view.coordsAtPos(from);
+      onSlashMenuOpen({
+        query: match[1],
+        top: coords.bottom + window.scrollY,
+        left: coords.left + window.scrollX,
+      });
+    } catch { /* coordsAtPos may throw mid-transaction */ }
+  }
 
   // Focus this editor when a block-focus event targets this block
   // Also handle block-focus-new for newly created blocks (focused by index)
@@ -169,11 +204,23 @@ function SingleBlockEditor({
         editor.commands.focus();
       }
     };
+    const handlerStripSlash = (e: Event) => {
+      const detail = (e as CustomEvent).detail;
+      if (detail.blockId !== block.id || !editor) return;
+      const { from } = editor.state.selection;
+      const before = editor.state.doc.textBetween(Math.max(0, from - 60), from, "\n", "\0");
+      const match = before.match(/\/[\w-]*$/);
+      if (match) {
+        editor.chain().focus().deleteRange({ from: from - match[0].length, to: from }).run();
+      }
+    };
     window.addEventListener("block-focus", handler);
     window.addEventListener("block-focus-new", handlerNew);
+    window.addEventListener("block-strip-slash", handlerStripSlash);
     return () => {
       window.removeEventListener("block-focus", handler);
       window.removeEventListener("block-focus-new", handlerNew);
+      window.removeEventListener("block-strip-slash", handlerStripSlash);
     };
   }, [block.id, blockIndex, editor]);
 
@@ -193,17 +240,49 @@ function SingleBlockEditor({
   }
 
   if (block.type === "image") {
-    // Try to extract image src from content (handles both URLs and data URLs)
-    const srcMatch = block.content?.match(/src=["'](https?:\/\/[^"']+|data:[^"']+)["']/);
-    if (srcMatch) {
-      return <img src={srcMatch[1]} alt="Block image" className="block-image" style={{ maxWidth: "100%", borderRadius: 4, display: "block", margin: "4px 0" }} />;
+    // New format: JSON { src, mimeType, fileName }
+    let src: string | null = null;
+    let alt = "Block image";
+    if (block.content?.startsWith("{")) {
+      try {
+        const data = JSON.parse(block.content);
+        src = data.src;
+        alt = data.fileName || alt;
+      } catch { /* fall through */ }
     }
-    // Try simple src match as fallback
-    const simpleMatch = block.content?.match(/src="([^"]+)"/);
-    if (simpleMatch) {
-      return <img src={simpleMatch[1]} alt="Block image" className="block-image" style={{ maxWidth: "100%", borderRadius: 4, display: "block", margin: "4px 0" }} />;
+    if (!src) {
+      // Legacy HTML format
+      const srcMatch = block.content?.match(/src=["']([^"']+)["']/);
+      if (srcMatch) src = srcMatch[1];
+    }
+    if (src) {
+      return <img src={src} alt={alt} className="block-image" style={{ maxWidth: "100%", borderRadius: 4, display: "block", margin: "4px 0" }} />;
     }
     return <div className="block-image-placeholder">Click to add image</div>;
+  }
+
+  if (block.type === "pdf") {
+    let src: string | null = null;
+    let fileName = "document.pdf";
+    if (block.content?.startsWith("{")) {
+      try {
+        const data = JSON.parse(block.content);
+        src = data.src;
+        fileName = data.fileName || fileName;
+      } catch { /* fall through */ }
+    }
+    if (!src) {
+      return <div className="block-image-placeholder">PDF not found</div>;
+    }
+    return (
+      <div className="block-pdf">
+        <div className="block-pdf-header">
+          <span>📄 {fileName}</span>
+          <a href={src} target="_blank" rel="noopener noreferrer">Open</a>
+        </div>
+        <iframe src={src} title={fileName} className="block-pdf-frame" />
+      </div>
+    );
   }
 
   if (block.type === "database") {
@@ -212,6 +291,16 @@ function SingleBlockEditor({
 
   return (
     <div className="block-node" data-block-index={blockIndex} data-block-type={block.type}>
+      {editor && (
+        <BubbleMenu editor={editor} tippyOptions={{ duration: 100, placement: "top" }}>
+          <div className="bubble-menu">
+            <button onClick={() => (editor.chain().focus() as any).toggleBold().run()} className={editor.isActive("bold") ? "active" : ""} title="Bold (Cmd+B)"><b>B</b></button>
+            <button onClick={() => (editor.chain().focus() as any).toggleItalic().run()} className={editor.isActive("italic") ? "active" : ""} title="Italic (Cmd+I)"><i>I</i></button>
+            <button onClick={() => (editor.chain().focus() as any).toggleStrike().run()} className={editor.isActive("strike") ? "active" : ""} title="Strikethrough"><s>S</s></button>
+            <button onClick={() => (editor.chain().focus() as any).toggleCode().run()} className={editor.isActive("code") ? "active" : ""} title="Inline code"><code>{"<>"}</code></button>
+          </div>
+        </BubbleMenu>
+      )}
       <EditorContent editor={editor} />
     </div>
   );
@@ -230,6 +319,7 @@ function SortableBlock({
   showDropIndicator,
   isDragging,
   onDragStart,
+  onInsertBelow,
   blockType,
 }: {
   id: string;
@@ -237,6 +327,7 @@ function SortableBlock({
   showDropIndicator: boolean;
   isDragging: boolean;
   onDragStart: () => void;
+  onInsertBelow?: () => void;
   blockType: string;
 }) {
   const { attributes, listeners, setNodeRef, transform, transition, isDragging: isSortableDragging } = useSortable({
@@ -254,16 +345,26 @@ function SortableBlock({
     <div ref={setNodeRef} style={style} className="sortable-block-wrapper" data-block-type={blockType}>
       <DropIndicator active={showDropIndicator} />
       <div className={`block-container ${isDragging || isSortableDragging ? "block-dragging" : ""}`}>
-        <div
-          className="drag-handle-wrapper"
-          onMouseDown={(e) => {
-            e.stopPropagation();
-            onDragStart();
-          }}
-          {...listeners}
-          {...attributes}
-        >
-          <DragHandle onDragStart={onDragStart} testId={`drag-handle-${id}`} />
+        <div className="block-gutter">
+          <button
+            type="button"
+            className="block-insert-btn"
+            title="Add block below"
+            onClick={(e) => { e.stopPropagation(); onInsertBelow?.(); }}
+          >
+            +
+          </button>
+          <div
+            className="drag-handle-wrapper"
+            onMouseDown={(e) => {
+              e.stopPropagation();
+              onDragStart();
+            }}
+            {...listeners}
+            {...attributes}
+          >
+            <DragHandle onDragStart={onDragStart} testId={`drag-handle-${id}`} />
+          </div>
         </div>
         <div className="block-content">{children}</div>
       </div>
@@ -272,7 +373,27 @@ function SortableBlock({
 }
 
 export function BlockEditor() {
-  const { currentPage, blocks, updateBlock, createBlock, deleteBlock, createDatabase, updatePage, databases, loadDatabases, reorderBlocks, reorderDatabases } = useStore();
+  const { currentPage, blocks, updateBlock, createBlock, deleteBlock, createDatabase, updatePage, setPageIcon, toggleFavorite, databases, loadDatabases, reorderBlocks, reorderDatabases, loadBlocks } = useStore();
+  const [uploading, setUploading] = useState(false);
+
+  const handleFiles = useCallback(async (files: FileList | File[]) => {
+    if (!currentPage) return;
+    const list = Array.from(files).filter(isUploadable);
+    if (list.length === 0) return;
+    setUploading(true);
+    try {
+      for (const file of list) {
+        await apiUploadFile(currentPage.id, file);
+      }
+      await loadBlocks(currentPage.id);
+    } catch (err) {
+      console.error("Upload failed:", err);
+      alert(`Upload failed: ${err instanceof Error ? err.message : String(err)}`);
+    } finally {
+      setUploading(false);
+    }
+  }, [currentPage, loadBlocks]);
+  const [iconPickerAnchor, setIconPickerAnchor] = useState<{ top: number; left: number } | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [isEditingTitle, setIsEditingTitle] = useState(false);
   const [titleValue, setTitleValue] = useState("");
@@ -348,6 +469,20 @@ export function BlockEditor() {
     }, 50);
   }, [sortedBlocks, updateBlock, deleteBlock]);
 
+  /** Focus a block by ID once its editor has mounted. */
+  const focusBlockWhenReady = (blockId: string, cursorPosition: "start" | "end" = "start") => {
+    let tries = 0;
+    const tick = () => {
+      window.dispatchEvent(new CustomEvent("block-focus", {
+        detail: { blockId, cursorPosition },
+      }));
+      tries += 1;
+      // Editor may not have mounted yet on first dispatch; retry a few times.
+      if (tries < 6) setTimeout(tick, 30);
+    };
+    tick();
+  };
+
   /** Split the current block. beforeContent stays, afterContent becomes new block. */
   const splitBlock = useCallback(async (blockIndex: number, beforeContent: string, afterContent: string, newBlockType?: string) => {
     const current = sortedBlocks[blockIndex];
@@ -360,7 +495,7 @@ export function BlockEditor() {
     // Create new block with after content
     const newType = newBlockType || "paragraph";
     const finalAfter = afterContent || defaultContentForType(newType);
-    await createBlock({
+    const newBlock = await createBlock({
       pageId: currentPage.id,
       type: newType,
       content: finalAfter,
@@ -368,12 +503,7 @@ export function BlockEditor() {
       parentId: null,
     });
 
-    // Focus the new block after it's created
-    setTimeout(() => {
-      window.dispatchEvent(new CustomEvent("block-focus-new", {
-        detail: { index: blockIndex + 1, cursorPosition: "start" },
-      }));
-    }, 100);
+    if (newBlock?.id) focusBlockWhenReady(newBlock.id, "start");
   }, [sortedBlocks, currentPage, updateBlock, createBlock]);
 
   /** Insert a new empty paragraph after this block. */
@@ -381,7 +511,7 @@ export function BlockEditor() {
     const current = sortedBlocks[blockIndex];
     if (!current || !currentPage) return;
 
-    await createBlock({
+    const newBlock = await createBlock({
       pageId: currentPage.id,
       type: "paragraph",
       content: "<p></p>",
@@ -389,12 +519,7 @@ export function BlockEditor() {
       parentId: null,
     });
 
-    // Focus the new block
-    setTimeout(() => {
-      window.dispatchEvent(new CustomEvent("block-focus-new", {
-        detail: { index: blockIndex + 1, cursorPosition: "start" },
-      }));
-    }, 100);
+    if (newBlock?.id) focusBlockWhenReady(newBlock.id, "start");
   }, [sortedBlocks, currentPage, createBlock]);
 
   /** Update a block's content (for debounced saves). */
@@ -409,6 +534,11 @@ export function BlockEditor() {
 
     const currentBlock = sortedBlocks[blockIndex];
     if (!currentBlock) return;
+
+    // Remove the trailing `/query` from the block before applying the command.
+    window.dispatchEvent(new CustomEvent("block-strip-slash", {
+      detail: { blockId: currentBlock.id },
+    }));
 
     if (command === "database") {
       const db = await createDatabase(currentPage.id, "Untitled");
@@ -446,7 +576,7 @@ export function BlockEditor() {
   // ── Title editing ─────────────────────────────────────────────────
   const handleTitleSave = async () => {
     if (currentPage && titleValue !== currentPage.title) {
-      await updatePage(currentPage.id, titleValue);
+      await updatePage(currentPage.id, { title: titleValue });
     }
     setIsEditingTitle(false);
   };
@@ -556,20 +686,83 @@ export function BlockEditor() {
       onDragEnd={handleDragEnd}
     >
       <SortableContext items={allItems.map((item) => item.id)} strategy={verticalListSortingStrategy}>
-        <div className="main">
-          <input ref={fileInputRef} type="file" accept="image/*" multiple style={{ display: "none" }} />
+        <div
+          className="main"
+          onDragOver={(e) => {
+            if (e.dataTransfer.types.includes("Files")) {
+              e.preventDefault();
+              e.dataTransfer.dropEffect = "copy";
+            }
+          }}
+          onDrop={(e) => {
+            if (e.dataTransfer.files.length > 0) {
+              e.preventDefault();
+              handleFiles(e.dataTransfer.files);
+            }
+          }}
+          onPaste={(e) => {
+            const files: File[] = [];
+            for (const item of Array.from(e.clipboardData.items)) {
+              const f = item.getAsFile();
+              if (f && isUploadable(f)) files.push(f);
+            }
+            if (files.length > 0) {
+              e.preventDefault();
+              handleFiles(files);
+            }
+          }}
+        >
+          <input
+            ref={fileInputRef}
+            type="file"
+            accept="image/*,application/pdf"
+            multiple
+            style={{ display: "none" }}
+            onChange={(e) => {
+              if (e.target.files) handleFiles(e.target.files);
+              e.target.value = "";
+            }}
+          />
+          {uploading && <div className="upload-toast">Uploading…</div>}
 
-          {isEditingTitle ? (
-            <input
-              type="text" className="page-title-input" value={titleValue}
-              onChange={(e) => setTitleValue(e.target.value)} onBlur={handleTitleSave}
-              onKeyDown={handleTitleKeyDown} autoFocus placeholder="Page title..."
-            />
-          ) : (
-            <h1 className="page-title" onClick={() => { setIsEditingTitle(true); setTitleValue(currentPage.title || ""); }} style={{ cursor: "pointer" }}>
-              {currentPage.title || "Untitled"}
-            </h1>
-          )}
+          <div className="page-header">
+            <button
+              className="page-icon-btn"
+              title="Change icon"
+              onClick={(e) => {
+                const rect = (e.currentTarget as HTMLElement).getBoundingClientRect();
+                setIconPickerAnchor({ top: rect.bottom + 4, left: rect.left });
+              }}
+            >
+              {currentPage.icon || "📄"}
+            </button>
+            {isEditingTitle ? (
+              <input
+                type="text" className="page-title-input" value={titleValue}
+                onChange={(e) => setTitleValue(e.target.value)} onBlur={handleTitleSave}
+                onKeyDown={handleTitleKeyDown} autoFocus placeholder="Page title..."
+              />
+            ) : (
+              <h1 className="page-title" onClick={() => { setIsEditingTitle(true); setTitleValue(currentPage.title || ""); }} style={{ cursor: "pointer" }}>
+                {currentPage.title || "Untitled"}
+              </h1>
+            )}
+            <button
+              className="page-fav-btn"
+              title={currentPage.isFavorite ? "Unfavorite" : "Add to favorites"}
+              onClick={() => toggleFavorite(currentPage.id)}
+            >
+              {currentPage.isFavorite ? "★" : "☆"}
+            </button>
+            <PageMenu pageId={currentPage.id} />
+          </div>
+          <EmojiPicker
+            open={iconPickerAnchor !== null}
+            anchor={iconPickerAnchor}
+            onClose={() => setIconPickerAnchor(null)}
+            onSelect={(icon) => setPageIcon(currentPage.id, icon)}
+          />
+
 
           <div className="editor">
             {allItems.map((item, index) => {
@@ -608,6 +801,7 @@ export function BlockEditor() {
                   showDropIndicator={dropIndicatorIndex === index}
                   isDragging={activeBlockId === block.id}
                   onDragStart={() => setActiveBlockId(block.id)}
+                  onInsertBelow={() => insertBlockAfter(blockIndex)}
                   blockType={block.type}
                 >
                   <SingleBlockEditor
@@ -616,7 +810,11 @@ export function BlockEditor() {
                     totalBlocks={sortedBlocks.length}
                     callbacks={callbacks}
                     onSlashMenuOpen={(data) => {
-                      setSlashMenu({ show: true, query: data.query, top: data.top, left: data.left, blockIndex: blockIndex });
+                      if (data.query === "__close__") {
+                        setSlashMenu((m) => m.show ? { ...m, show: false } : m);
+                      } else {
+                        setSlashMenu({ show: true, query: data.query, top: data.top, left: data.left, blockIndex: blockIndex });
+                      }
                     }}
                   />
                 </SortableBlock>

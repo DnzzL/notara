@@ -21,6 +21,14 @@ export const createBlock = (req: {
 }) => Effect.gen(function* () {
   const sql = yield* SqlClient.SqlClient;
   const id = ulid();
+  // Shift later blocks down so the new block lands at exactly req.index
+  // without colliding. Without this, two blocks share the same index and
+  // ORDER BY breaks ties by ROWID, which can place the new block at the
+  // bottom of the page.
+  yield* sql`
+    UPDATE blocks SET "index" = "index" + 1
+    WHERE page_id = ${req.pageId} AND "index" >= ${req.index}
+  `;
   const rows = yield* sql`
     INSERT INTO blocks (id, page_id, type, content, "index", parent_id)
     VALUES (${id}, ${req.pageId}, ${req.type}, ${req.content}, ${req.index}, ${req.parentId})

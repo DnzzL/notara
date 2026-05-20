@@ -22,18 +22,20 @@ export const FIELD_TYPES: FieldTypeInfo[] = [
 // ── Column Header with Menu ───────────────────────────────────────────────
 
 export function ColumnHeader({
-  field, onRename, onDelete, onOptions, isTitle, width, onResize,
+  field, onRename, onDelete, onOptions, onChangeType, isTitle, width, onResize,
 }: {
   field: { id: string; name: string; type: string };
   onRename: (name: string) => void;
   onDelete: () => void;
   onOptions?: () => void;
+  onChangeType?: (type: FieldType) => void;
   isTitle?: boolean;
   width?: number;
   onResize?: (fieldId: string, delta: number) => void;
 }) {
   const [showMenu, setShowMenu] = useState(false);
   const [editing, setEditing] = useState(false);
+  const [changingType, setChangingType] = useState(false);
   const [name, setName] = useState(field.name);
   const triggerRef = useRef<HTMLDivElement>(null);
 
@@ -61,7 +63,7 @@ export function ColumnHeader({
     );
   }
 
-  const handleMenuClose = () => { setShowMenu(false); setEditing(false); };
+  const handleMenuClose = () => { setShowMenu(false); setEditing(false); setChangingType(false); };
 
   return (
     <th className="db-col-header" data-field-id={field.id} style={{ minWidth: width || 150, width: width || undefined }}>
@@ -89,12 +91,32 @@ export function ColumnHeader({
               onBlur={() => { if (name.trim()) onRename(name); handleMenuClose(); }} autoFocus
               style={{ width: "100%", border: "1px solid #2eaadc", borderRadius: 4, padding: "4px 8px", fontSize: 13, outline: "none" }} />
           </div>
+        ) : changingType && onChangeType ? (
+          <div>
+            <div style={{ padding: "4px 8px", fontSize: 11, color: "#999", marginBottom: 4, fontWeight: 500 }}>CHANGE TYPE TO</div>
+            {FIELD_TYPES.map((ft) => (
+              <div
+                key={ft.type}
+                className={`db-menu-item ${ft.type === field.type ? "db-menu-item--active" : ""}`}
+                onClick={() => { onChangeType(ft.type); handleMenuClose(); }}
+              >
+                <span style={{ display: "inline-block", width: 20, textAlign: "center", opacity: 0.6 }}>{ft.icon}</span>
+                <span>{ft.label}</span>
+                {ft.type === field.type && <span style={{ marginLeft: "auto", color: "#2eaadc" }}>✓</span>}
+              </div>
+            ))}
+          </div>
         ) : (
           <div>
-            <div style={{ padding: "4px 8px", fontSize: 11, color: "#999", marginBottom: 4, fontWeight: 500 }}>PROPERTY TYPE</div>
-            <div style={{ padding: "4px 8px", fontSize: 13, display: "flex", alignItems: "center", gap: 6, marginBottom: 4 }}>
+            <div
+              className="db-menu-item"
+              onClick={() => onChangeType ? setChangingType(true) : null}
+              style={{ display: "flex", alignItems: "center", gap: 6 }}
+              title={onChangeType ? "Change type" : ""}
+            >
               <span style={{ opacity: 0.5 }}>{typeInfo?.icon || "?"}</span>
               <span>{typeInfo?.label || field.type}</span>
+              {onChangeType && <span style={{ marginLeft: "auto", fontSize: 10, opacity: 0.5 }}>▶</span>}
             </div>
             <div style={{ borderTop: "1px solid #f0f0f0", margin: "4px 0" }} />
 

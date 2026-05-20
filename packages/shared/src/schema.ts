@@ -9,6 +9,7 @@ export class Page extends Schema.Class<Page>("Page")({
   coverUrl: Schema.NullOr(Schema.String),
   sortOrder: Schema.Number,
   isDeleted: Schema.Boolean,
+  isFavorite: Schema.Boolean,
   createdAt: Schema.String,
   updatedAt: Schema.String,
 }) {}
@@ -28,6 +29,7 @@ export class Block extends Schema.Class<Block>("Block")({
     "blockquote",
     "divider",
     "image",
+    "pdf",
     "database",
     "toggle",
     "callout",

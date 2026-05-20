@@ -207,28 +207,36 @@ export const listViews = (databaseId: string) =>
     return rows.map(viewFromRow);
   });
 
-export const updateField = (req: { id: string; name?: string; options?: string[] | null; relationTargetDbId?: string | null }) =>
+export const updateField = (req: { id: string; name?: string; type?: string; options?: string[] | null; relationTargetDbId?: string | null }) =>
   Effect.gen(function* () {
     const sql = yield* SqlClient.SqlClient;
 
     const existing = yield* sql`
-      SELECT name, options, relation_target_db_id as "relationTargetDbId"
+      SELECT name, type, options, relation_target_db_id as "relationTargetDbId"
       FROM database_fields WHERE id = ${req.id}
     `;
     if (existing.length === 0) return yield* Effect.fail(new Error(`Field ${req.id} not found`));
 
     const current = existing[0];
     const newName = req.name ?? current.name;
+    const newType = req.type ?? current.type;
     const newOptions = req.options === undefined ? current.options : (req.options ? JSON.stringify(req.options) : null);
     const newRelationTargetDbId = req.relationTargetDbId === undefined ? current.relationTargetDbId : req.relationTargetDbId;
 
     const rows = yield* sql`
       UPDATE database_fields
-      SET name = ${newName}, options = ${newOptions}, relation_target_db_id = ${newRelationTargetDbId}
+      SET name = ${newName}, type = ${newType}, options = ${newOptions}, relation_target_db_id = ${newRelationTargetDbId}
       WHERE id = ${req.id}
       RETURNING id, database_id as "databaseId", name, type, options, relation_target_db_id as "relationTargetDbId"
     `;
     return fieldFromRow(rows[0]);
+  });
+
+export const updateRecord = (req: { id: string; title: string }) =>
+  Effect.gen(function* () {
+    const sql = yield* SqlClient.SqlClient;
+    yield* sql`UPDATE database_records SET title = ${req.title} WHERE id = ${req.id}`;
+    return { updated: true };
   });
 
 export const deleteField = (id: string) =>

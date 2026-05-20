@@ -208,10 +208,7 @@ export function RelationPicker({
   };
 
   return (
-    <div style={{
-      position: "fixed", zIndex: 10001, background: "#fff", border: "1px solid #e9e9e7",
-      borderRadius: 8, boxShadow: "0 4px 20px rgba(0,0,0,0.15)", padding: 4, minWidth: 260, maxHeight: 350, overflow: "auto",
-    }} onMouseDown={(e) => e.stopPropagation()}>
+    <div className="db-cell-popover" style={{ minWidth: 260 }} onMouseDown={(e) => e.stopPropagation()}>
       {!targetDb ? (
         <div style={{ padding: "8px 12px", color: "#888", fontSize: 13 }}>
           {targetDbId ? "Loading related records..." : "No relation target set. Edit this property to choose a target database."}
@@ -303,10 +300,7 @@ export function InlineCellEditor({
       : [value || ""];
 
     return (
-      <div style={{
-        position: "fixed", zIndex: 10001, background: "#fff", border: "1px solid #e9e9e7",
-        borderRadius: 8, boxShadow: "0 4px 20px rgba(0,0,0,0.15)", padding: 4, minWidth: 200, maxHeight: 300, overflow: "auto",
-      }} onMouseDown={(e) => e.stopPropagation()}>
+      <div className="db-cell-popover" onMouseDown={(e) => e.stopPropagation()}>
         {options.length === 0 ? (
           <div style={{ padding: "8px 12px", color: "#888", fontSize: 13 }}>No options yet. Edit this property to add options.</div>
         ) : options.map((opt, i) => {

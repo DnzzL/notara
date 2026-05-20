@@ -57,7 +57,8 @@ export const api = {
   getPage: (id: string) => rpcCall<Page>("getPage", { id }),
   createPage: (title: string, parentId: string | null = null) =>
     rpcCall<Page>("createPage", { title, parentId }),
-  updatePage: (id: string, title: string) => rpcCall<Page>("updatePage", { id, title }),
+  updatePage: (id: string, patch: { title?: string | null; icon?: string | null; coverUrl?: string | null; isFavorite?: boolean | null }) =>
+    rpcCall<Page>("updatePage", { id, ...patch }),
   deletePage: (id: string) => rpcCall<void>("deletePage", { id }),
   globalSearch: (query: string) => rpcCall<SearchResult[]>("globalSearch", { query }),
   movePage: (id: string, parentId: string | null) =>
@@ -95,8 +96,10 @@ export const api = {
   listViews: (databaseId: string) => rpcCall<DatabaseView[]>("listViews", { databaseId }),
   createView: (req: { databaseId: string; name: string; type: string; groupByFieldId?: string | null }) =>
     rpcCall<DatabaseView>("createView", req),
-  updateField: (id: string, updates: { name?: string; options?: string[] | null; relationTargetDbId?: string | null }) =>
+  updateField: (id: string, updates: { name?: string; type?: string; options?: string[] | null; relationTargetDbId?: string | null }) =>
     rpcCall<DatabaseField>("updateField", { id, ...updates }),
+  updateRecord: (id: string, title: string) =>
+    rpcCall<{ updated: boolean }>("updateRecord", { id, title }),
   reorderRecords: (databaseId: string, recordIds: string[]) =>
     rpcCall<{ reordered: boolean }>("reorderRecords", { databaseId, recordIds }),
   reorderDatabases: (pageId: string, databaseIds: string[]) =>

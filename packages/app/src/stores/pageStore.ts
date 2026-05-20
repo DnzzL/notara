@@ -16,7 +16,9 @@ export interface PageState {
   /** Fetch a page by ID and select it. Does NOT load blocks/databases. */
   selectPageById: (id: string) => Promise<void>;
   createPage: (title: string, parentId?: string | null) => Promise<Page>;
-  updatePage: (id: string, title: string) => Promise<void>;
+  updatePage: (id: string, patch: { title?: string | null; icon?: string | null; coverUrl?: string | null; isFavorite?: boolean | null }) => Promise<void>;
+  setPageIcon: (id: string, icon: string | null) => Promise<void>;
+  toggleFavorite: (id: string) => Promise<void>;
   deletePage: (id: string) => Promise<void>;
   movePage: (id: string, parentId: string | null) => Promise<void>;
   reorderPages: (parentId: string | null, pageIds: string[]) => Promise<void>;
@@ -54,8 +56,13 @@ export const usePageStore = create<PageState>((set, get) => ({
     const filtered = [page.id, ...recent.filter((x: string) => x !== page.id)].slice(0, 5);
     localStorage.setItem("notion-alt:recentPages", JSON.stringify(filtered));
     const url = new URL(window.location.href);
+    const currentPageParam = url.searchParams.get("page");
     url.searchParams.set("page", page.id);
-    window.history.replaceState({}, "", url);
+    if (currentPageParam !== page.id) {
+      window.history.pushState({ pageId: page.id }, "", url);
+    } else {
+      window.history.replaceState({ pageId: page.id }, "", url);
+    }
     console.log("[pageStore] URL updated to:", url.toString());
   },
 
@@ -109,12 +116,21 @@ export const usePageStore = create<PageState>((set, get) => ({
     return page;
   },
 
-  updatePage: async (id, title) => {
-    const page = await api.updatePage(id, title);
+  updatePage: async (id, patch) => {
+    const page = await api.updatePage(id, patch);
     set((s) => ({
       pages: s.pages.map((p) => (p.id === id ? page : p)),
       currentPage: s.currentPage?.id === id ? page : s.currentPage,
     }));
+  },
+
+  setPageIcon: async (id, icon) => {
+    await get().updatePage(id, { icon });
+  },
+
+  toggleFavorite: async (id) => {
+    const page = get().pages.find((p) => p.id === id);
+    await get().updatePage(id, { isFavorite: !page?.isFavorite });
   },
 
   deletePage: async (id) => {

@@ -31,6 +31,13 @@ export const BlockNavigationExtension = Extension.create<{
 }>({
   name: "blockNavigation",
 
+  /**
+   * Outranks StarterKit (priority 100) so our Enter handler runs first.
+   * Without this, the paragraph node's default Enter creates a `<p>` inside
+   * the same TipTap editor instead of splitting into a separate block.
+   */
+  priority: 1000,
+
   addOptions() {
     return {
       blockIndex: 0,
@@ -83,68 +90,63 @@ export const BlockNavigationExtension = Extension.create<{
         return false;
       },
 
-      // ── Enter: split block or create new block ──────────────────────
+      // ── Cmd/Ctrl+Enter: explicit new block (cursor follows) ─────────
+      "Mod-Enter": ({ editor }) => {
+        const { state } = editor;
+        const pos = state.selection.anchor;
+        const docSize = state.doc.content.size;
+        const isEmpty = editor.isEmpty;
+        const newType = blockType.startsWith("heading") ? "paragraph" : "paragraph";
+
+        if (isEmpty || pos >= docSize - 1) {
+          insertBlockAfter?.();
+        } else {
+          const splitResult = splitAtCursor(editor, pos);
+          splitBlock?.(splitResult.before, splitResult.after, newType);
+        }
+        return true;
+      },
+
+      // ── Enter ───────────────────────────────────────────────────────
+      // For text blocks (paragraph/heading/quote/code): insert a soft
+      // line break — stay within the same block. For lists/todos, split
+      // into a new list item (still the same logical block type). New
+      // blocks are created explicitly via Cmd+Enter or the "+" gutter.
       Enter: ({ editor }) => {
         const { state } = editor;
         const pos = state.selection.anchor;
         const docSize = state.doc.content.size;
         const isEmpty = editor.isEmpty;
 
-        // Special handling for headings
-        if (blockType.startsWith("heading")) {
-          if (isEmpty) {
-            // Empty heading: keep it but create empty paragraph below
-            splitBlock?.(editor.getHTML(), "", "paragraph");
-          } else {
-            const splitResult = splitHeadingAtCursor(editor, pos, docSize);
-            splitBlock?.(splitResult.before, splitResult.after, "paragraph");
-          }
-          return true;
-        }
-
-        // Bullet list / numbered list
+        // Lists: empty/end-of-item → exit list to a new paragraph block.
+        // In the middle → split into another list item within same block.
         if (blockType === "bulletList" || blockType === "numberedList") {
-          if (isEmpty) {
-            // Empty list item → exit list (create paragraph below)
+          if (isEmpty || pos >= docSize - 1) {
             splitBlock?.(editor.getHTML(), "", "paragraph");
-          } else if (pos >= docSize - 1) {
-            // At end of list item → exit list (create paragraph below)
-            splitBlock?.(editor.getHTML(), "", "paragraph");
-          } else {
-            // In middle of list item → split into two list items
-            const splitResult = splitListAtCursor(editor, pos, blockType);
-            splitBlock?.(splitResult.before, splitResult.after, blockType);
+            return true;
           }
+          const splitResult = splitListAtCursor(editor, pos, blockType);
+          splitBlock?.(splitResult.before, splitResult.after, blockType);
           return true;
         }
-
-        // Todo list
         if (blockType === "todo") {
-          if (isEmpty) {
+          if (isEmpty || pos >= docSize - 1) {
             splitBlock?.(editor.getHTML(), "", "paragraph");
-          } else if (pos >= docSize - 1) {
-            splitBlock?.(editor.getHTML(), "", "paragraph");
-          } else {
-            const splitResult = splitTodoAtCursor(editor, pos);
-            splitBlock?.(splitResult.before, splitResult.after, "todo");
+            return true;
           }
+          const splitResult = splitTodoAtCursor(editor, pos);
+          splitBlock?.(splitResult.before, splitResult.after, "todo");
           return true;
         }
 
-        // Paragraph / default
-        if (isEmpty) {
-          insertBlockAfter?.();
-          return true;
-        }
+        // Paragraph / heading / quote / code: soft line break.
+        editor.chain().focus().setHardBreak().run();
+        return true;
+      },
 
-        if (pos >= docSize - 1) {
-          insertBlockAfter?.();
-          return true;
-        }
-
-        // In the middle: split content at cursor
-        const splitResult = splitAtCursor(editor, pos);
-        splitBlock?.(splitResult.before, splitResult.after);
+      // ── Shift+Enter: same as Enter for symmetry ─────────────────────
+      "Shift-Enter": ({ editor }) => {
+        editor.chain().focus().setHardBreak().run();
         return true;
       },
     };

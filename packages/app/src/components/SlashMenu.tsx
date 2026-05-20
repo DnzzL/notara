@@ -29,35 +29,45 @@ export function SlashMenu({ commands, query, onSelect, onClose, position }: Slas
     setSelectedIndex(0);
   }, [query]);
 
-  // Handle keyboard navigation
+  // Handle keyboard navigation. Uses capture phase so it intercepts before
+  // TipTap (whose Enter handler would otherwise split the block).
   const handleKeyDown = useCallback((e: KeyboardEvent) => {
-    if (filteredCommands.length === 0) return;
+    if (filteredCommands.length === 0) {
+      if (e.key === "Escape") { e.preventDefault(); e.stopPropagation(); onClose(); }
+      return;
+    }
 
     switch (e.key) {
       case "ArrowDown":
-        e.preventDefault();
+        e.preventDefault(); e.stopPropagation();
         setSelectedIndex((prev) => (prev + 1) % filteredCommands.length);
         break;
       case "ArrowUp":
-        e.preventDefault();
+        e.preventDefault(); e.stopPropagation();
         setSelectedIndex((prev) => (prev - 1 + filteredCommands.length) % filteredCommands.length);
         break;
       case "Enter":
-        e.preventDefault();
+        e.preventDefault(); e.stopPropagation();
+        if (filteredCommands[selectedIndex]) {
+          onSelect(filteredCommands[selectedIndex].id);
+        }
+        break;
+      case "Tab":
+        e.preventDefault(); e.stopPropagation();
         if (filteredCommands[selectedIndex]) {
           onSelect(filteredCommands[selectedIndex].id);
         }
         break;
       case "Escape":
-        e.preventDefault();
+        e.preventDefault(); e.stopPropagation();
         onClose();
         break;
     }
   }, [filteredCommands, selectedIndex, onSelect, onClose]);
 
   useEffect(() => {
-    document.addEventListener("keydown", handleKeyDown);
-    return () => document.removeEventListener("keydown", handleKeyDown);
+    document.addEventListener("keydown", handleKeyDown, true);
+    return () => document.removeEventListener("keydown", handleKeyDown, true);
   }, [handleKeyDown]);
 
   // Adjust position to keep menu in viewport

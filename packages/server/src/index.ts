@@ -13,6 +13,7 @@ import * as Blocks from "./handlers/blocks.js";
 import * as Databases from "./handlers/databases.js";
 import * as Search from "./handlers/search.js";
 import * as ImportExport from "./handlers/importExport.js";
+import * as Upload from "./handlers/upload.js";
 import { AppRpc, RecordFieldValue } from "@notion-alt/shared";
 import { createServer } from "node:http";
 import * as path from "node:path";
@@ -110,18 +111,48 @@ const staticFilesRoute = Effect.gen(function* () {
     })
   ));
 
-  // File upload route - simplified version using raw body
+  // File upload route. Client sends raw bytes; metadata travels in headers.
+  // Headers: X-Page-Id, X-File-Name (URL-encoded), Content-Type (MIME).
   yield* router.add("POST", "/api/upload", Effect.gen(function* () {
     const request = yield* HttpServerRequest.HttpServerRequest;
-    const body = yield* request.arrayBuffer;
-    
-    // For now, return a simple error response
-    // Full multipart parsing requires more complex handling
-    return HttpServerResponse.text(JSON.stringify({ error: "Upload endpoint not yet implemented - use /import-notion for now" }), {
-      status: 501,
+    const pageId = request.headers["x-page-id"];
+    const fileNameRaw = request.headers["x-file-name"];
+    const mimeType = request.headers["content-type"] || "application/octet-stream";
+
+    if (!pageId || !fileNameRaw) {
+      return HttpServerResponse.text(
+        JSON.stringify({ error: "Missing X-Page-Id or X-File-Name header" }),
+        { status: 400, headers: { "Content-Type": "application/json", ...corsHeaders } }
+      );
+    }
+
+    const fileName = decodeURIComponent(fileNameRaw);
+    const ab = yield* request.arrayBuffer;
+    const fileBuffer = Buffer.from(ab);
+
+    if (fileBuffer.length === 0) {
+      return HttpServerResponse.text(
+        JSON.stringify({ error: "Empty file body" }),
+        { status: 400, headers: { "Content-Type": "application/json", ...corsHeaders } }
+      );
+    }
+
+    const result = yield* Upload.uploadFile({ pageId, fileName, mimeType, fileBuffer }).pipe(
+      Effect.provide(SqliteLive)
+    );
+
+    return HttpServerResponse.text(JSON.stringify(result), {
       headers: { "Content-Type": "application/json", ...corsHeaders },
     });
-  }));
+  }).pipe(
+    Effect.catchAllCause((cause) => {
+      const msg = cause._tag === "Fail" ? String(cause.error) : cause.toString();
+      return HttpServerResponse.text(JSON.stringify({ error: msg }), {
+        status: 500,
+        headers: { "Content-Type": "application/json", ...corsHeaders },
+      });
+    })
+  ));
 
   // Attachment serving route
   yield* router.add("GET", "/attachments/:fileName", Effect.gen(function* () {
@@ -230,10 +261,14 @@ const rpcHandlersLayer = AppRpc.toLayer({
     type: req.type,
     groupByFieldId: req.groupByFieldId,
   }).pipe(Effect.orDie),
-  updateField: ({ id, options }) => Databases.updateField({
-    id,
-    options: options ? [...options] : null,
+  updateField: (req) => Databases.updateField({
+    id: req.id,
+    name: req.name,
+    type: req.type,
+    options: req.options === undefined ? undefined : (req.options ? [...req.options] : null),
+    relationTargetDbId: req.relationTargetDbId,
   }).pipe(Effect.orDie),
+  updateRecord: (req) => Databases.updateRecord(req).pipe(Effect.orDie),
   reorderRecords: ({ databaseId, recordIds }) => Databases.reorderRecords({
     databaseId,
     recordIds: [...recordIds],

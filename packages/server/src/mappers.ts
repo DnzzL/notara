@@ -24,6 +24,7 @@ export function pageFromRow(r: unknown): Page {
     coverUrl: (row.coverUrl as string | null) ?? null,
     sortOrder: Number(row.sortOrder ?? 0),
     isDeleted: (row.isDeleted as number) === 1,
+    isFavorite: (row.isFavorite as number) === 1,
     createdAt: new Date(row.createdAt as string).toISOString(),
     updatedAt: new Date(row.updatedAt as string).toISOString(),
   };

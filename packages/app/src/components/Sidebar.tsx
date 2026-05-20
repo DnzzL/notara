@@ -1,6 +1,7 @@
 import { useEffect, useState, useCallback, useRef } from "react";
 import { useStore } from "../store.js";
 import { ImportModal } from "./ImportModal.js";
+import { EmojiPicker } from "./EmojiPicker.js";
 import {
   DndContext,
   type DragEndEvent,
@@ -55,8 +56,9 @@ const pointerPos = { x: 0, y: 0 };
 const dragStartPos = { x: 0, y: 0 };
 
 export function Sidebar() {
-  const { pages, currentPage, selectPage, createPage, deletePage, loadPages, movePage, reorderPages, loading } =
+  const { pages, currentPage, selectPage, createPage, deletePage, loadPages, movePage, reorderPages, loading, setPageIcon, toggleFavorite } =
     useStore();
+  const [iconPickerFor, setIconPickerFor] = useState<{ pageId: string; top: number; left: number } | null>(null);
   const [searchQuery, setSearchQuery] = useState("");
   const [isCreating, setIsCreating] = useState(false);
   const [newPageTitle, setNewPageTitle] = useState("");
@@ -239,6 +241,12 @@ export function Sidebar() {
 
   const roots = filtered.filter((p) => !p.parentId);
   const childrenOf = (parentId: string) => filtered.filter((p) => p.parentId === parentId);
+  const favorites = filtered.filter((p) => p.isFavorite);
+
+  const handleIconClick = (pageId: string, target: HTMLElement) => {
+    const rect = target.getBoundingClientRect();
+    setIconPickerFor({ pageId, top: rect.bottom + 4, left: rect.left });
+  };
 
   return (
     <DndContext
@@ -280,6 +288,24 @@ export function Sidebar() {
           </div>
 
           <nav>
+            {favorites.length > 0 && (
+              <div className="sidebar-section">
+                <div className="sidebar-section-header">★ Favorites</div>
+                {favorites.map((page) => (
+                  <div
+                    key={"fav-" + page.id}
+                    className={`page-node ${currentPage?.id === page.id ? "selected" : ""}`}
+                    onClick={() => selectPage(page)}
+                    style={{ paddingLeft: 8 }}
+                  >
+                    <span style={{ width: 12, display: "inline-block" }} />
+                    <span className="icon">{page.icon || "📄"}</span>
+                    <span className="page-title-text">{page.title || "Untitled"}</span>
+                  </div>
+                ))}
+                <div className="sidebar-section-header" style={{ marginTop: 12 }}>Pages</div>
+              </div>
+            )}
             {loading ? (
               <div style={{ padding: 8, color: "#999", fontSize: 13 }}>Loading...</div>
             ) : roots.length === 0 ? (
@@ -293,6 +319,8 @@ export function Sidebar() {
                   isSelected={currentPage?.id === page.id}
                   onSelect={() => selectPage(page)}
                   onDelete={() => deletePage(page.id)}
+                  onToggleFavorite={(pid) => toggleFavorite(pid)}
+                  onIconClick={handleIconClick}
                   allPages={filtered}
                   dragOverTarget={dragOverTarget}
                   activePageId={activePageId}
@@ -303,6 +331,12 @@ export function Sidebar() {
           </nav>
         </aside>
       </SortableContext>
+      <EmojiPicker
+        open={iconPickerFor !== null}
+        anchor={iconPickerFor}
+        onClose={() => setIconPickerFor(null)}
+        onSelect={(icon) => iconPickerFor && setPageIcon(iconPickerFor.pageId, icon)}
+      />
 
       <DragOverlay>
         {activePageId ? (
@@ -331,6 +365,8 @@ function PageNode({
   isSelected,
   onSelect,
   onDelete,
+  onToggleFavorite,
+  onIconClick,
   allPages,
   dragOverTarget,
   activePageId,
@@ -341,6 +377,8 @@ function PageNode({
   isSelected: boolean;
   onSelect: () => void;
   onDelete?: () => void;
+  onToggleFavorite?: (pageId: string) => void;
+  onIconClick?: (pageId: string, target: HTMLElement) => void;
   allPages: any[];
   dragOverTarget: { id: string; position: "above" | "below" | "nest" } | null;
   activePageId: string | null;
@@ -417,8 +455,22 @@ function PageNode({
           ⋮⋮
         </div>
 
-        <span className="icon">{page.icon || "📄"}</span>
+        <span
+          className="icon"
+          onClick={(e) => { e.stopPropagation(); onIconClick?.(page.id, e.currentTarget); }}
+          style={{ cursor: "pointer" }}
+          title="Change icon"
+        >
+          {page.icon || "📄"}
+        </span>
         <span className="page-title-text">{page.title || "Untitled"}</span>
+        <button
+          className="page-fav-mini"
+          onClick={(e) => { e.stopPropagation(); onToggleFavorite?.(page.id); }}
+          title={page.isFavorite ? "Unfavorite" : "Favorite"}
+        >
+          {page.isFavorite ? "★" : "☆"}
+        </button>
 
         {showDelete && onDelete && (
           <button
@@ -442,6 +494,8 @@ function PageNode({
             isSelected={activePageId === child.id}
             onSelect={onSelect}
             onDelete={onDelete}
+            onToggleFavorite={onToggleFavorite}
+            onIconClick={onIconClick}
             allPages={allPages}
             dragOverTarget={dragOverTarget}
             activePageId={activePageId}

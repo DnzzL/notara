@@ -30,6 +30,8 @@ export function useStore() {
     selectPageById: pageState.selectPageByIdWithCascade,
     createPage: pageState.createPage,
     updatePage: pageState.updatePage,
+    setPageIcon: pageState.setPageIcon,
+    toggleFavorite: pageState.toggleFavorite,
     deletePage: pageState.deletePage,
     movePage: pageState.movePage,
     reorderPages: pageState.reorderPages,
