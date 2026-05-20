@@ -16,12 +16,12 @@ COPY packages/shared/package.json ./packages/shared/
 COPY packages/server/package.json ./packages/server/
 COPY packages/app/package.json ./packages/app/
 
-# Install deps
-RUN bun install --frozen-lockfile --no-cache
+# Postinstall hook in package.json runs `bash scripts/patch-msgpackr.sh`;
+# the script must exist when `bun install` runs or the install fails 127.
+COPY scripts/ ./scripts/
 
-# Copy and run patch script to fix @effect/platform MsgPack.js Msgpackr export
-COPY scripts/patch-msgpackr.sh ./scripts/patch-msgpackr.sh
-RUN bash scripts/patch-msgpackr.sh
+# Install deps (postinstall now finds the patch script)
+RUN bun install --frozen-lockfile --no-cache
 
 # Copy source
 COPY packages/shared/tsconfig.json ./packages/shared/

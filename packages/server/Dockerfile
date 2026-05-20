@@ -7,6 +7,11 @@ COPY packages/server/package.json ./packages/server/
 COPY packages/app/package.json ./packages/app/
 COPY packages/electron/package.json ./packages/electron/
 
+# The root package.json has a `postinstall: bash scripts/patch-msgpackr.sh`
+# hook that patches a missing @effect/platform export. Without the script
+# present at install time, `bun install` aborts with exit 127.
+COPY scripts/ ./scripts/
+
 # Install deps
 RUN rm -f bun.lock && bun install
 
