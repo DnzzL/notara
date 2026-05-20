@@ -14,6 +14,8 @@ import * as Databases from "./handlers/databases.js";
 import * as Search from "./handlers/search.js";
 import * as ImportExport from "./handlers/importExport.js";
 import * as Upload from "./handlers/upload.js";
+import { loadSettings, saveSettings } from "./handlers/settings.js";
+import { triggerBackup } from "./handlers/backup.js";
 import { AppRpc, RecordFieldValue } from "@notion-alt/shared";
 import { createServer } from "node:http";
 import * as path from "node:path";
@@ -73,6 +75,47 @@ const staticFilesRoute = Effect.gen(function* () {
   // Health check
   yield* router.add("GET", "/health", Effect.succeed(
     HttpServerResponse.text("ok", { status: 200 })
+  ));
+
+  // Settings GET
+  yield* router.add("GET", "/api/settings", Effect.gen(function* () {
+    const settings = loadSettings();
+    return HttpServerResponse.text(JSON.stringify(settings), {
+      headers: { "Content-Type": "application/json", ...corsHeaders },
+    });
+  }));
+
+  // Settings POST
+  yield* router.add("POST", "/api/settings", Effect.gen(function* () {
+    const request = yield* HttpServerRequest.HttpServerRequest;
+    const ab = yield* request.arrayBuffer;
+    const body = JSON.parse(Buffer.from(ab).toString("utf-8"));
+    saveSettings(body);
+    return HttpServerResponse.text(JSON.stringify({ ok: true }), {
+      headers: { "Content-Type": "application/json", ...corsHeaders },
+    });
+  }).pipe(
+    Effect.catchAllCause((cause) => {
+      const msg = cause._tag === "Fail" ? String(cause.error) : cause.toString();
+      return HttpServerResponse.text(JSON.stringify({ error: msg }), {
+        status: 500, headers: { "Content-Type": "application/json", ...corsHeaders },
+      });
+    })
+  ));
+
+  // Backup trigger
+  yield* router.add("POST", "/api/backup/trigger", Effect.gen(function* () {
+    const result = yield* Effect.promise(() => triggerBackup());
+    return HttpServerResponse.text(JSON.stringify(result), {
+      headers: { "Content-Type": "application/json", ...corsHeaders },
+    });
+  }).pipe(
+    Effect.catchAllCause((cause) => {
+      const msg = cause._tag === "Fail" ? String(cause.error) : cause.toString();
+      return HttpServerResponse.text(JSON.stringify({ error: msg }), {
+        status: 500, headers: { "Content-Type": "application/json", ...corsHeaders },
+      });
+    })
   ));
 
   // Handle CORS preflight
@@ -320,9 +363,42 @@ const ServerLive = HttpLayerRouter.serve(AppLive).pipe(
   Layer.provide(NodeHttpServer.layer(createServer, { port: 3000, host: "0.0.0.0" })),
 );
 
+const SCHEDULE_INTERVALS: Record<string, number | null> = {
+  manual: null,
+  hourly: 60 * 60 * 1000,
+  every6h: 6 * 60 * 60 * 1000,
+  daily: 24 * 60 * 60 * 1000,
+  weekly: 7 * 24 * 60 * 60 * 1000,
+};
+
+function startBackupScheduler() {
+  let currentHandle: ReturnType<typeof setInterval> | null = null;
+  let currentSchedule: string | null = null;
+
+  const tick = () => {
+    const settings = loadSettings();
+    const interval = SCHEDULE_INTERVALS[settings.s3Schedule ?? "manual"] ?? null;
+
+    if (settings.s3Schedule !== currentSchedule) {
+      if (currentHandle) { clearInterval(currentHandle); currentHandle = null; }
+      currentSchedule = settings.s3Schedule ?? "manual";
+      if (interval !== null) {
+        currentHandle = setInterval(() => {
+          triggerBackup().catch((e) => console.error("[backup] scheduled backup failed:", e));
+        }, interval);
+      }
+    }
+  };
+
+  // Check for schedule changes every minute
+  setInterval(tick, 60_000);
+  tick();
+}
+
 // Run migrations then start server
 const program = Effect.gen(function* () {
   yield* runMigrations;
+  startBackupScheduler();
   yield* Effect.logInfo("Server running on http://localhost:3000");
   // Keep the server running
   yield* Effect.never;

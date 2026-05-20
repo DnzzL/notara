@@ -9,6 +9,7 @@
     "test": "bun test"
   },
   "dependencies": {
+    "@aws-sdk/client-s3": "^3.1050.0",
     "@effect/platform": "0.96.0",
     "@effect/platform-node": "0.106.0",
     "@effect/rpc": "^0.65.0",

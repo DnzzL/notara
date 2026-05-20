@@ -95,6 +95,8 @@ export function ImportModal({ open, onClose }: ImportModalProps) {
       onOpenChange={(details: { open: boolean }) => { if (!details.open && status !== "uploading") onClose(); }}
       closeOnEscape={status !== "uploading"}
       closeOnInteractOutside={status !== "uploading"}
+      lazyMount
+      unmountOnExit
     >
       <Portal>
         <DialogBackdrop className="import-modal-overlay" />

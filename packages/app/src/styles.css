@@ -125,6 +125,17 @@ body {
   width: 2px; background: #2eaadc; border-radius: 1px;
 }
 .page-node .icon { font-size: 14px; line-height: 1; flex-shrink: 0; cursor: pointer; }
+/* Reset Ark UI TreeView structural elements */
+[data-part="tree"] { list-style: none; margin: 0; padding: 0; }
+[data-part="branch"], [data-part="item"] { list-style: none; margin: 0; padding: 0; }
+[data-part="branch-content"] { list-style: none; margin: 0; padding: 0; }
+[data-part="branch-control"] { background: none; border: none; width: 100%; text-align: left; font: inherit; }
+/* Selected state: Ark UI sets data-selected on the branch control */
+[data-part="branch-control"][data-selected] { background: #e0dcd2; font-weight: 500; }
+[data-part="branch-control"][data-selected]::before {
+  content: ""; position: absolute; left: -2px; top: 4px; bottom: 4px;
+  width: 2px; background: #2eaadc; border-radius: 1px;
+}
 .page-node-indent { position: relative; }
 /* Vertical guide marks each indent step (12px). Drawn at the leading edge
    so the actual row content sits to the right of it. */
@@ -594,6 +605,9 @@ body {
   transition: transform 0.15s ease;
   flex-shrink: 0;
 }
+/* TreeView.BranchIndicator sets data-state on the element */
+.page-node .page-node-chevron[data-state="open"] { transform: rotate(90deg); }
+.page-node .page-node-chevron[data-state="closed"] { transform: rotate(0deg); }
 
 .page-node .page-node-chevron:hover {
   color: #37352f;
@@ -1679,36 +1693,36 @@ body {
 .db-page-chip, .db-relation-chip { cursor: pointer; }
 
 /* ── Hover-only row actions + ⋯ menu ──────────────────────────────── */
-.page-node-actions {
-  position: relative;
-  display: flex; align-items: center; margin-left: auto;
-  opacity: 0; transition: opacity 0.1s;
-}
-.page-node:hover .page-node-actions,
-.page-node-actions:focus-within { opacity: 1; }
-
 .page-node-action {
   background: none; border: none; cursor: pointer;
   color: #9b9a93; padding: 0 4px; font-size: 14px; line-height: 1;
-  border-radius: 3px;
+  border-radius: 3px; margin-left: auto;
+  opacity: 0; transition: opacity 0.1s;
+  flex-shrink: 0;
 }
+.page-node:hover .page-node-action,
+.page-node-action[data-state="open"],
+.page-node-action:focus { opacity: 1; }
 .page-node-action:hover { background: rgba(0,0,0,0.08); color: #37352f; }
 
+/* Ark UI Menu.Content portaled — no position: absolute needed */
 .page-node-menu {
-  position: absolute; right: 0; top: 100%; margin-top: 2px;
   background: #fff; border: 1px solid #e9e9e7; border-radius: 6px;
   box-shadow: 0 6px 18px rgba(0,0,0,0.12);
   min-width: 180px; padding: 4px;
-  z-index: 100;
+  z-index: 200;
+  outline: none;
 }
-.page-node-menu button {
+.page-node-menu-item {
   display: block; width: 100%; background: none; border: none;
   text-align: left; padding: 6px 8px; font-size: 13px;
   border-radius: 4px; cursor: pointer; color: #37352f;
 }
-.page-node-menu button:hover { background: #f5f5f5; }
-.page-node-menu .page-node-menu-danger { color: #c0392b; }
-.page-node-menu .page-node-menu-danger:hover { background: #fdecea; }
+.page-node-menu-item:hover,
+.page-node-menu-item[data-highlighted] { background: #f5f5f5; outline: none; }
+.page-node-menu-danger { color: #c0392b; }
+.page-node-menu-danger:hover,
+.page-node-menu-danger[data-highlighted] { background: #fdecea; }
 
 /* ── Page-link block (subpage references from import) ──────────────── */
 .page-link-block {
@@ -1757,3 +1771,112 @@ body {
 .page-link-picker-empty {
   padding: 12px; color: #aaa; font-size: 13px; text-align: center;
 }
+
+/* Settings Modal */
+.settings-modal {
+  background: #fff;
+  border-radius: 8px;
+  box-shadow: 0 8px 40px rgba(0,0,0,0.18);
+  width: 480px;
+  max-width: calc(100vw - 32px);
+  max-height: 85vh;
+  display: flex;
+  flex-direction: column;
+}
+.settings-modal-body {
+  padding: 20px;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+.settings-section-title {
+  font-size: 13px;
+  font-weight: 600;
+  color: #37352f;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  padding-bottom: 4px;
+  border-bottom: 1px solid #ebeae5;
+}
+.settings-toggle-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  cursor: pointer;
+  font-size: 14px;
+  color: #37352f;
+}
+.settings-toggle-row input[type="checkbox"] {
+  width: 16px;
+  height: 16px;
+  cursor: pointer;
+  accent-color: #2eaadc;
+}
+.settings-fields {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+.settings-fields--disabled {
+  opacity: 0.45;
+  pointer-events: none;
+}
+.settings-field {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  font-size: 13px;
+  color: #5a5a5a;
+}
+.settings-field input {
+  border: 1px solid #e9e9e7;
+  border-radius: 4px;
+  padding: 6px 8px;
+  font-size: 13px;
+  color: #37352f;
+  background: #fafafa;
+  outline: none;
+  transition: border-color 0.15s;
+}
+.settings-field input:focus {
+  border-color: #2eaadc;
+  box-shadow: 0 0 0 2px rgba(46,170,220,0.15);
+  background: #fff;
+}
+.settings-field input:disabled {
+  background: #f5f5f5;
+  color: #aaa;
+}
+.settings-backup-status {
+  min-height: 20px;
+}
+.settings-backup-msg {
+  font-size: 13px;
+  color: #37352f;
+}
+.settings-backup-msg.success { color: #1a7f37; }
+.settings-backup-msg.error { color: #c0392b; }
+.settings-last-backup {
+  font-size: 12px;
+  color: #9b9a97;
+}
+.settings-modal-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+  margin-top: 4px;
+}
+.settings-select {
+  border: 1px solid #e9e9e7; border-radius: 4px;
+  padding: 6px 8px; font-size: 13px; color: #37352f;
+  background: #fafafa; outline: none; cursor: pointer;
+}
+.settings-select:focus { border-color: #2eaadc; box-shadow: 0 0 0 2px rgba(46,170,220,0.15); }
+.settings-backup-row {
+  display: flex; align-items: center; gap: 10px;
+  padding: 10px 0 2px;
+  border-top: 1px solid #ebeae5;
+}
+.settings-backup-row .settings-backup-msg,
+.settings-backup-row .settings-last-backup { flex: 1; }

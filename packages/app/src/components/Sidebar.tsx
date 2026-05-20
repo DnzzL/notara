@@ -1,7 +1,11 @@
-import { useEffect, useState, useCallback, useRef } from "react";
+import { useEffect, useState, useCallback, useRef, useMemo } from "react";
 import { useStore } from "../store.js";
 import { ImportModal } from "./ImportModal.js";
+import { SettingsModal } from "./SettingsModal.js";
 import { EmojiPicker } from "./EmojiPicker.js";
+import { createTreeCollection, TreeView } from "@ark-ui/react/tree-view";
+import { Menu } from "@ark-ui/react/menu";
+import { Portal } from "@ark-ui/react/portal";
 import {
   DndContext,
   type DragEndEvent,
@@ -20,6 +24,17 @@ import {
   verticalListSortingStrategy,
 } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
+
+interface TreeNodeData {
+  id: string;
+  children?: TreeNodeData[];
+}
+
+function buildTree(pages: any[], parentId: string | null): TreeNodeData[] {
+  return pages
+    .filter((p) => (p.parentId ?? null) === parentId)
+    .map((p) => ({ id: p.id, children: buildTree(pages, p.id) }));
+}
 
 /** Get all descendant page IDs for a given page. */
 function getDescendants(pageId: string, pages: any[]): Set<string> {
@@ -69,8 +84,8 @@ export function Sidebar() {
   const [isCreating, setIsCreating] = useState(false);
   const [newPageTitle, setNewPageTitle] = useState("");
   const [showImport, setShowImport] = useState(false);
+  const [showSettings, setShowSettings] = useState(false);
 
-  // Width + collapsed state, persisted across sessions.
   const [width, setWidth] = useState<number>(() => {
     const stored = Number(localStorage.getItem(SIDEBAR_WIDTH_KEY));
     return stored >= MIN_WIDTH && stored <= MAX_WIDTH ? stored : DEFAULT_WIDTH;
@@ -79,7 +94,6 @@ export function Sidebar() {
   useEffect(() => { localStorage.setItem(SIDEBAR_WIDTH_KEY, String(width)); }, [width]);
   useEffect(() => { localStorage.setItem(SIDEBAR_COLLAPSED_KEY, collapsed ? "1" : "0"); }, [collapsed]);
 
-  // Cmd+\ toggles collapse.
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
       if ((e.metaKey || e.ctrlKey) && e.key === "\\") {
@@ -91,7 +105,6 @@ export function Sidebar() {
     return () => window.removeEventListener("keydown", onKey);
   }, []);
 
-  // Drag-to-resize the sidebar's right edge.
   const startResize = (e: React.MouseEvent) => {
     e.preventDefault();
     const startX = e.clientX;
@@ -112,35 +125,63 @@ export function Sidebar() {
     document.addEventListener("mouseup", onUp);
   };
 
-  // Drag state
   const [activePageId, setActivePageId] = useState<string | null>(null);
   const [dragOverTarget, setDragOverTarget] = useState<{ id: string; position: "above" | "below" | "nest" } | null>(null);
   const dragOverTargetRef = useRef<{ id: string; position: "above" | "below" | "nest" } | null>(null);
+
+  // Track expanded nodes — initialised to all page IDs once pages load
+  const [expandedValue, setExpandedValue] = useState<string[]>([]);
+  const initializedRef = useRef(false);
 
   useEffect(() => {
     loadPages();
   }, []);
 
   const filtered = searchQuery
-    ? pages.filter(
-        (p) => !p.isDeleted && p.title.toLowerCase().includes(searchQuery.toLowerCase())
-      )
+    ? pages.filter((p) => !p.isDeleted && p.title.toLowerCase().includes(searchQuery.toLowerCase()))
     : pages.filter((p) => !p.isDeleted);
+
+  // Expand all nodes on first load; expand newly added nodes on subsequent updates
+  useEffect(() => {
+    if (filtered.length === 0) return;
+    if (!initializedRef.current) {
+      initializedRef.current = true;
+      setExpandedValue(filtered.map((p) => p.id));
+    } else {
+      setExpandedValue((prev) => {
+        const prevSet = new Set(prev);
+        const newIds = filtered.filter((p) => !prevSet.has(p.id)).map((p) => p.id);
+        return newIds.length > 0 ? [...prev, ...newIds] : prev;
+      });
+    }
+  }, [filtered.length]);
 
   const treeOrder = buildTreeOrder(filtered);
 
-  // Sensor for drag
+  const pageMap = useMemo(() => {
+    const m = new Map<string, any>();
+    for (const p of filtered) m.set(p.id, p);
+    return m;
+  }, [filtered]);
+
+  const tree = useMemo(() => buildTree(filtered, null), [filtered]);
+
+  const collection = useMemo(
+    () =>
+      createTreeCollection<TreeNodeData>({
+        nodeToValue: (n: TreeNodeData) => n.id,
+        nodeToString: (n: TreeNodeData) => pageMap.get(n.id)?.title ?? "Untitled",
+        rootNode: { id: "ROOT", children: tree },
+      }),
+    [tree, pageMap],
+  );
+
   const sensors = useSensors(
-    useSensor(PointerSensor, {
-      activationConstraint: {
-        distance: 5,
-      },
-    })
+    useSensor(PointerSensor, { activationConstraint: { distance: 5 } }),
   );
 
   const handleDragStart = ({ active, activatorEvent }: DragStartEvent) => {
     setActivePageId(active.id as string);
-    // Capture initial pointer position from the activator event
     let startX = 0, startY = 0;
     if (activatorEvent instanceof MouseEvent || activatorEvent instanceof PointerEvent) {
       startX = activatorEvent.clientX;
@@ -156,7 +197,6 @@ export function Sidebar() {
     pointerPos.y = startY;
   };
 
-  /** Track pointer position on every drag move. delta is total translation from start. */
   const handleDragMove = useCallback(({ delta }: DragMoveEvent) => {
     if (delta) {
       pointerPos.x = dragStartPos.x + delta.x;
@@ -176,7 +216,6 @@ export function Sidebar() {
       dragOverTargetRef.current = null;
       return;
     }
-
     const overId = String(over.id);
     const rect = over.rect;
     if (!rect) {
@@ -184,15 +223,12 @@ export function Sidebar() {
       dragOverTargetRef.current = null;
       return;
     }
-
     const { x, y } = pointerPos;
     if (y < rect.top || y > rect.bottom || x < rect.left || x > rect.right) {
       setDragOverTarget(null);
       dragOverTargetRef.current = null;
       return;
     }
-
-    // Nest zone is the right 60% of the node (title area)
     const nestZoneLeft = rect.left + rect.width * 0.4;
     let target: { id: string; position: "above" | "below" | "nest" };
     if (x >= nestZoneLeft) {
@@ -201,7 +237,6 @@ export function Sidebar() {
       const midY = rect.top + rect.height / 2;
       target = { id: overId, position: y < midY ? "above" : "below" };
     }
-
     dragOverTargetRef.current = target;
     setDragOverTarget(target);
   }, []);
@@ -223,47 +258,34 @@ export function Sidebar() {
       const targetPage = filtered.find((p) => p.id === targetId);
       if (!draggedPage || !targetPage) return;
 
-      // Prevent circular move: can't drag into self or descendants
       const descendants = getDescendants(draggedId, pages);
       if (descendants.has(targetId)) return;
 
       if (position === "nest") {
-        // Nest under target page
         await movePage(draggedId, targetId);
       } else {
-        // Reorder: place above or below target within same sibling group
         const targetParentId = targetPage.parentId || null;
         const parentId = draggedPage.parentId || null;
 
-        // Only call reorderPages if dragged page is a sibling of target
         if (parentId === targetParentId) {
-          // Build the reordered sibling list
           const siblings = filtered
             .filter((p) => (p.parentId || null) === parentId)
             .map((p) => p.id);
-
           const draggedIdx = siblings.indexOf(draggedId);
           const targetIdx = siblings.indexOf(targetId);
-
           if (draggedIdx !== -1 && targetIdx !== -1) {
-            // Remove dragged from its position
             siblings.splice(draggedIdx, 1);
-            // Recalculate target index after removal
             const newTargetIdx = siblings.indexOf(targetId);
-            // Insert dragged at target position
             const insertIdx = position === "above" ? newTargetIdx : newTargetIdx + 1;
             siblings.splice(insertIdx, 0, draggedId);
-
             await reorderPages(parentId, siblings);
             return;
           }
         }
-
-        // Fallback: just update parentId (for cross-level moves)
         await movePage(draggedId, targetParentId);
       }
     },
-    [filtered, pages, movePage, reorderPages]
+    [filtered, pages, movePage, reorderPages],
   );
 
   const handleCreateClick = () => {
@@ -287,13 +309,12 @@ export function Sidebar() {
     }
   };
 
-  const roots = filtered.filter((p) => !p.parentId);
-  const childrenOf = (parentId: string) => filtered.filter((p) => p.parentId === parentId);
   const favorites = filtered.filter((p) => p.isFavorite);
 
-  const handleIconClick = (pageId: string, target: HTMLElement) => {
-    const rect = target.getBoundingClientRect();
-    setIconPickerFor({ pageId, top: rect.bottom + 4, left: rect.left });
+  const openSearch = () => {
+    window.dispatchEvent(new KeyboardEvent("keydown", {
+      key: "k", metaKey: true, ctrlKey: true, bubbles: true,
+    }));
   };
 
   if (collapsed) {
@@ -309,12 +330,6 @@ export function Sidebar() {
       </aside>
     );
   }
-
-  const openSearch = () => {
-    window.dispatchEvent(new KeyboardEvent("keydown", {
-      key: "k", metaKey: true, ctrlKey: true, bubbles: true,
-    }));
-  };
 
   return (
     <DndContext
@@ -337,11 +352,7 @@ export function Sidebar() {
               >
                 «
               </button>
-              <button
-                className="sidebar-search"
-                onClick={openSearch}
-                title="Open quick search"
-              >
+              <button className="sidebar-search" onClick={openSearch} title="Open quick search">
                 <span>Search…</span>
                 <kbd>⌘K</kbd>
               </button>
@@ -375,30 +386,46 @@ export function Sidebar() {
                 <div className="sidebar-section-header sidebar-section-header--gap">Pages</div>
               </>
             )}
+
             {loading ? (
               <div className="sidebar-hint">Loading…</div>
-            ) : roots.length === 0 ? (
+            ) : filtered.filter((p) => !p.parentId).length === 0 ? (
               <div className="sidebar-empty">
                 <div>No pages yet</div>
                 <button className="sidebar-action-btn" onClick={handleCreateClick}>+ New page</button>
               </div>
             ) : (
-              roots.map((page) => (
-                <PageNode
-                  key={page.id}
-                  page={page}
-                  children={childrenOf(page.id)}
-                  currentPageId={currentPage?.id ?? null}
-                  onSelect={selectPage}
-                  onDelete={deletePage}
-                  onToggleFavorite={(pid) => toggleFavorite(pid)}
-                  onIconClick={handleIconClick}
-                  allPages={filtered}
-                  dragOverTarget={dragOverTarget}
-                  activePageId={activePageId}
-                  depth={0}
-                />
-              ))
+              <TreeView.Root
+                collection={collection}
+                selectionMode="single"
+                selectedValue={currentPage ? [currentPage.id] : []}
+                expandedValue={expandedValue}
+                onExpandedChange={({ expandedValue: next }: { expandedValue: string[] }) => setExpandedValue(next)}
+                onSelectionChange={({ selectedValue: val }: { selectedValue: string[] }) => {
+                  const id = val[0];
+                  if (id) {
+                    const page = pageMap.get(id);
+                    if (page) selectPage(page);
+                  }
+                }}
+              >
+                <TreeView.Tree>
+                  {collection.rootNode.children?.map((node: TreeNodeData, index: number) => (
+                    <PageTreeNode
+                      key={node.id}
+                      node={node}
+                      indexPath={[index]}
+                      pageMap={pageMap}
+                      dragOverTarget={dragOverTarget}
+                      activePageId={activePageId}
+                      onDelete={deletePage}
+                      onToggleFavorite={(pid) => toggleFavorite(pid)}
+                      onIconClick={(pageId, coords) => setIconPickerFor({ pageId, ...coords })}
+                      depth={0}
+                    />
+                  ))}
+                </TreeView.Tree>
+              </TreeView.Root>
             )}
           </nav>
 
@@ -422,6 +449,9 @@ export function Sidebar() {
             <button className="sidebar-footer-btn" onClick={() => setShowImport(true)} title="Import Notion export">
               <span>⤓</span> Import
             </button>
+            <button className="sidebar-footer-btn" onClick={() => setShowSettings(true)} title="Settings">
+              <span>⚙</span> Settings
+            </button>
           </div>
 
           <div
@@ -432,6 +462,7 @@ export function Sidebar() {
           />
         </aside>
       </SortableContext>
+
       <EmojiPicker
         open={iconPickerFor !== null}
         anchor={iconPickerFor}
@@ -455,52 +486,46 @@ export function Sidebar() {
           </div>
         ) : null}
       </DragOverlay>
+
       <ImportModal open={showImport} onClose={() => setShowImport(false)} />
+      <SettingsModal open={showSettings} onClose={() => setShowSettings(false)} />
     </DndContext>
   );
 }
 
-function PageNode({
-  page,
-  children,
-  currentPageId,
-  onSelect,
-  onDelete,
-  onToggleFavorite,
-  onIconClick,
-  allPages,
-  dragOverTarget,
-  activePageId,
-  depth,
-}: {
-  page: any;
-  children: any[];
-  currentPageId: string | null;
-  onSelect: (page: any) => void;
-  onDelete?: (pageId: string) => void;
-  onToggleFavorite?: (pageId: string) => void;
-  onIconClick?: (pageId: string, target: HTMLElement) => void;
-  allPages: any[];
+// ─── PageTreeNode ─────────────────────────────────────────────────────────────
+
+interface PageTreeNodeProps {
+  node: TreeNodeData;
+  indexPath: number[];
+  pageMap: Map<string, any>;
   dragOverTarget: { id: string; position: "above" | "below" | "nest" } | null;
   activePageId: string | null;
+  onDelete: (id: string) => void;
+  onToggleFavorite: (id: string) => void;
+  onIconClick: (pageId: string, coords: { top: number; left: number }) => void;
   depth: number;
-}) {
-  const isSelected = currentPageId === page.id;
-  const [menuOpen, setMenuOpen] = useState(false);
-  const [isExpanded, setIsExpanded] = useState(true);
-  const menuRef = useRef<HTMLDivElement>(null);
+}
 
-  const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({
-    id: page.id,
+const INDENT_STEP = 12;
+const MAX_VISUAL_DEPTH = 6;
+
+function PageTreeNode({
+  node, indexPath, pageMap, dragOverTarget, activePageId,
+  onDelete, onToggleFavorite, onIconClick, depth,
+}: PageTreeNodeProps) {
+  const page = pageMap.get(node.id);
+  if (!page) return null;
+
+  const { setNodeRef, transform, transition, isDragging, attributes, listeners } = useSortable({
+    id: node.id,
   });
 
-  // Indent shrinks at deep levels so the title still has room to breathe.
-  // Up to depth 6, we use a 12px step; beyond that we cap the visual indent
-  // and rely on the vertical guide line plus title content to suggest depth.
-  const INDENT_STEP = 12;
-  const MAX_VISUAL_DEPTH = 6;
+  const iconRef = useRef<HTMLSpanElement>(null);
+
   const visualDepth = Math.min(depth, MAX_VISUAL_DEPTH);
   const overflowDepth = Math.max(0, depth - MAX_VISUAL_DEPTH);
+
   const style: React.CSSProperties = {
     transform: CSS.Translate.toString(transform),
     transition,
@@ -509,114 +534,153 @@ function PageNode({
     opacity: isDragging ? 0.3 : 1,
   };
 
-  useEffect(() => {
-    if (!menuOpen) return;
-    const onDown = (e: MouseEvent) => {
-      if (menuRef.current && !menuRef.current.contains(e.target as Node)) setMenuOpen(false);
-    };
-    document.addEventListener("mousedown", onDown);
-    return () => document.removeEventListener("mousedown", onDown);
-  }, [menuOpen]);
+  const showAbove = dragOverTarget?.id === node.id && dragOverTarget?.position === "above";
+  const showBelow = dragOverTarget?.id === node.id && dragOverTarget?.position === "below";
+  const isNestTarget = dragOverTarget?.id === node.id && dragOverTarget?.position === "nest";
+  const isActive = activePageId === node.id;
+  const hasChildren = (node.children?.length ?? 0) > 0;
 
-  const toggleExpand = (e: React.MouseEvent) => {
+  const handleIconClick = (e: React.MouseEvent) => {
     e.stopPropagation();
-    setIsExpanded(!isExpanded);
+    if (iconRef.current) {
+      const rect = iconRef.current.getBoundingClientRect();
+      onIconClick(node.id, { top: rect.bottom + 4, left: rect.left });
+    }
   };
 
-  // Drop indicator: show above or below this node
-  const showAboveIndicator = dragOverTarget?.id === page.id && dragOverTarget?.position === "above";
-  const showBelowIndicator = dragOverTarget?.id === page.id && dragOverTarget?.position === "below";
-  const isNestTarget = dragOverTarget?.id === page.id && dragOverTarget?.position === "nest";
-  const isActive = activePageId === page.id;
-
-  const hasChildren = children.length > 0;
-
   return (
-    <div ref={setNodeRef} style={style} className={depth > 0 ? "page-node-indent" : undefined}>
-      {showAboveIndicator && !isActive && <div className="sidebar-drop-indicator" />}
+    <TreeView.NodeProvider node={node} indexPath={indexPath}>
+      <div ref={setNodeRef} style={style} className={depth > 0 ? "page-node-indent" : undefined}>
+        {showAbove && !isActive && <div className="sidebar-drop-indicator" />}
 
-      <div
-        className={`page-node ${isSelected ? "selected" : ""} ${isNestTarget ? "nest-target" : ""}`}
-        onClick={() => onSelect(page)}
-      >
-        <div
-          className="page-drag-handle"
-          onMouseDown={(e) => e.stopPropagation()}
-          {...listeners}
-          {...attributes}
-          title="Drag to move"
-        >
-          ⋮⋮
-        </div>
-
-        <span
-          className={`page-node-chevron ${hasChildren ? "" : "page-node-chevron--ghost"}`}
-          onClick={hasChildren ? toggleExpand : undefined}
-          style={{ transform: isExpanded ? "rotate(90deg)" : "rotate(0deg)" }}
-        >
-          ▶
-        </span>
-
-        <span
-          className="icon"
-          onClick={(e) => { e.stopPropagation(); onIconClick?.(page.id, e.currentTarget); }}
-          title="Change icon"
-        >
-          {page.icon || "📄"}
-        </span>
-        <span className="page-title-text">{page.title || "Untitled"}</span>
-
-        {page.isFavorite && (
-          <span className="page-fav-mini" data-active="true" aria-label="Favorited">★</span>
-        )}
-
-        <div className="page-node-actions" ref={menuRef}>
-          <button
-            className="page-node-action"
-            onClick={(e) => { e.stopPropagation(); setMenuOpen((o) => !o); }}
-            title="More actions"
+        <TreeView.Branch>
+          <TreeView.BranchControl
+            className={`page-node${isNestTarget ? " nest-target" : ""}`}
+            onClick={(e: React.MouseEvent) => e.preventDefault()}
           >
-            ⋯
-          </button>
-          {menuOpen && (
-            <div className="page-node-menu" onClick={(e) => e.stopPropagation()}>
-              <button onClick={() => { onToggleFavorite?.(page.id); setMenuOpen(false); }}>
-                {page.isFavorite ? "Remove from favorites" : "Add to favorites"}
-              </button>
-              <button onClick={(e) => {
-                setMenuOpen(false);
-                onIconClick?.(page.id, e.currentTarget as HTMLElement);
-              }}>Change icon</button>
-              {onDelete && (
-                <button className="page-node-menu-danger" onClick={() => { onDelete(page.id); setMenuOpen(false); }}>
-                  Delete
-                </button>
-              )}
+            <div
+              className="page-drag-handle"
+              onMouseDown={(e: React.MouseEvent) => e.stopPropagation()}
+              {...listeners}
+              {...attributes}
+              title="Drag to move"
+            >
+              ⋮⋮
             </div>
+
+            <TreeView.BranchIndicator className="page-node-chevron" asChild>
+              <span>▶</span>
+            </TreeView.BranchIndicator>
+
+            <span
+              ref={iconRef}
+              className="icon"
+              onClick={handleIconClick}
+              title="Change icon"
+            >
+              {page.icon || "📄"}
+            </span>
+
+            <TreeView.BranchText className="page-title-text">
+              {page.title || "Untitled"}
+            </TreeView.BranchText>
+
+            {page.isFavorite && (
+              <span className="page-fav-mini" data-active="true" aria-label="Favorited">★</span>
+            )}
+
+            <PageActionMenu
+              page={page}
+              onDelete={onDelete}
+              onToggleFavorite={onToggleFavorite}
+              onIconClick={onIconClick}
+              iconRef={iconRef}
+            />
+          </TreeView.BranchControl>
+
+          {hasChildren && (
+            <TreeView.BranchContent>
+              {node.children!.map((child, i) => (
+                <PageTreeNode
+                  key={child.id}
+                  node={child}
+                  indexPath={[...indexPath, i]}
+                  pageMap={pageMap}
+                  dragOverTarget={dragOverTarget}
+                  activePageId={activePageId}
+                  onDelete={onDelete}
+                  onToggleFavorite={onToggleFavorite}
+                  onIconClick={onIconClick}
+                  depth={depth + 1}
+                />
+              ))}
+            </TreeView.BranchContent>
           )}
-        </div>
+        </TreeView.Branch>
+
+        {showBelow && !isActive && <div className="sidebar-drop-indicator" />}
       </div>
+    </TreeView.NodeProvider>
+  );
+}
 
-      {showBelowIndicator && !isActive && <div className="sidebar-drop-indicator" />}
+// ─── PageActionMenu ────────────────────────────────────────────────────────────
 
-      {/* Render children if expanded */}
-      {isExpanded &&
-        children.map((child) => (
-          <PageNode
-            key={child.id}
-            page={child}
-            children={allPages.filter((p) => p.parentId === child.id)}
-            currentPageId={currentPageId}
-            onSelect={onSelect}
-            onDelete={onDelete}
-            onToggleFavorite={onToggleFavorite}
-            onIconClick={onIconClick}
-            allPages={allPages}
-            dragOverTarget={dragOverTarget}
-            activePageId={activePageId}
-            depth={depth + 1}
-          />
-        ))}
-    </div>
+interface PageActionMenuProps {
+  page: any;
+  onDelete: (id: string) => void;
+  onToggleFavorite: (id: string) => void;
+  onIconClick: (pageId: string, coords: { top: number; left: number }) => void;
+  iconRef: React.RefObject<HTMLSpanElement | null>;
+}
+
+function PageActionMenu({ page, onDelete, onToggleFavorite, onIconClick, iconRef }: PageActionMenuProps) {
+  return (
+    <Menu.Root lazyMount unmountOnExit>
+      <Menu.Trigger asChild>
+        <button
+          className="page-node-action"
+          onClick={(e) => e.stopPropagation()}
+          title="More actions"
+        >
+          ⋯
+        </button>
+      </Menu.Trigger>
+      <Portal>
+        <Menu.Positioner>
+          <Menu.Content
+            className="page-node-menu"
+            onClick={(e: React.MouseEvent) => e.stopPropagation()}
+          >
+            <Menu.Item
+              value="favorite"
+              className="page-node-menu-item"
+              onSelect={() => onToggleFavorite(page.id)}
+            >
+              {page.isFavorite ? "Remove from favorites" : "Add to favorites"}
+            </Menu.Item>
+            <Menu.Item
+              value="icon"
+              className="page-node-menu-item"
+              onSelect={() => {
+                if (iconRef.current) {
+                  const rect = iconRef.current.getBoundingClientRect();
+                  onIconClick(page.id, { top: rect.bottom + 4, left: rect.left });
+                }
+              }}
+            >
+              Change icon
+            </Menu.Item>
+            <Menu.Item
+              value="delete"
+              className="page-node-menu-item page-node-menu-danger"
+              onSelect={() => onDelete(page.id)}
+            >
+              Delete
+            </Menu.Item>
+          </Menu.Content>
+        </Menu.Positioner>
+      </Portal>
+    </Menu.Root>
   );
 }
