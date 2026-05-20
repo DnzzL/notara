@@ -70,6 +70,11 @@ const corsHeaders = {
 const staticFilesRoute = Effect.gen(function* () {
   const router = yield* HttpLayerRouter.HttpRouter;
 
+  // Health check
+  yield* router.add("GET", "/health", Effect.succeed(
+    HttpServerResponse.text("ok", { status: 200 })
+  ));
+
   // Handle CORS preflight
   yield* router.add("OPTIONS", "/*", Effect.succeed(
     HttpServerResponse.empty({ status: 204, headers: corsHeaders })
