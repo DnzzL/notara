@@ -9,32 +9,127 @@ body {
 .app { display: flex; height: 100vh; }
 
 .sidebar {
-  width: 260px;
-  background: #f7f6f3;
-  border-right: 1px solid #e9e9e7;
-  padding: 12px;
-  overflow-y: auto;
+  background: #fbfaf8;
+  border-right: 1px solid #ebeae5;
+  display: flex; flex-direction: column;
   flex-shrink: 0;
+  position: relative;
+  min-width: 200px; max-width: 480px;
 }
 
-.sidebar-header { display: flex; flex-direction: column; gap: 8px; margin-bottom: 12px; }
-.sidebar-header input {
-  padding: 6px 8px; border: 1px solid #e9e9e7; border-radius: 4px; font-size: 14px;
-  background: #fff;
+.sidebar-collapsed {
+  width: 32px; flex-shrink: 0;
+  background: #fbfaf8;
+  border-right: 1px solid #ebeae5;
+  display: flex; align-items: flex-start; justify-content: center;
+  padding-top: 12px;
 }
-.sidebar-header button {
-  padding: 6px 12px; background: #2eaadc; color: #fff; border: none;
-  border-radius: 4px; cursor: pointer; font-size: 14px;
+.sidebar-collapsed-btn {
+  background: none; border: none; cursor: pointer;
+  color: #999; font-size: 16px; padding: 4px 6px; border-radius: 4px;
 }
-.sidebar-header button:hover { background: #2596be; }
+.sidebar-collapsed-btn:hover { background: #ebeae5; color: #37352f; }
 
+.sidebar-resize {
+  position: absolute; top: 0; right: -3px; width: 6px; height: 100%;
+  cursor: col-resize; z-index: 5;
+}
+.sidebar-resize:hover { background: linear-gradient(to right, transparent 2px, #d3d1cb 2px, #d3d1cb 4px, transparent 4px); }
+
+/* Sticky top section: search + filter */
+.sidebar-header {
+  position: sticky; top: 0; z-index: 2;
+  background: #fbfaf8;
+  padding: 10px 10px 6px;
+  display: flex; flex-direction: column; gap: 6px;
+  border-bottom: 1px solid transparent;
+}
+.sidebar-topbar { display: flex; gap: 4px; align-items: center; }
+.sidebar-icon-btn {
+  background: none; border: none; cursor: pointer;
+  color: #888; font-size: 14px; padding: 4px 6px; border-radius: 4px;
+}
+.sidebar-icon-btn:hover { background: #ebeae5; color: #37352f; }
+.sidebar-search {
+  flex: 1; display: flex; align-items: center; justify-content: space-between;
+  gap: 8px; padding: 6px 10px; border: none; background: #ebeae5;
+  border-radius: 6px; cursor: pointer; font-size: 13px; color: #6b6960;
+}
+.sidebar-search:hover { background: #e3e2dc; color: #37352f; }
+.sidebar-search kbd {
+  font-family: inherit; font-size: 11px; color: #999;
+  background: #fff; border: 1px solid #ddd; border-radius: 3px;
+  padding: 1px 5px;
+}
+.sidebar-filter {
+  padding: 5px 8px; border: 1px solid #e9e9e7; border-radius: 5px;
+  font-size: 12px; background: #fff; outline: none; color: #37352f;
+}
+.sidebar-filter:focus { border-color: #b8b6b1; }
+
+/* Scrolling tree */
+.sidebar-tree { flex: 1; overflow-y: auto; padding: 4px 6px 12px; }
+
+.sidebar-section-header {
+  font-size: 11px; font-weight: 600; text-transform: uppercase;
+  letter-spacing: 0.4px; color: #9b9a93;
+  padding: 6px 8px 2px;
+}
+.sidebar-section-header--gap { margin-top: 10px; }
+.sidebar-section { display: flex; flex-direction: column; gap: 0; }
+
+.sidebar-hint { padding: 12px; color: #aaa; font-size: 12px; }
+.sidebar-empty {
+  padding: 16px 12px; color: #999; font-size: 12px;
+  display: flex; flex-direction: column; gap: 8px; align-items: flex-start;
+}
+.sidebar-empty .sidebar-action-btn {
+  background: #2eaadc; color: #fff; border: none; padding: 4px 10px;
+  border-radius: 4px; cursor: pointer; font-size: 12px;
+}
+.sidebar-empty .sidebar-action-btn:hover { background: #2596be; }
+
+/* Footer (sticky) — new page + import */
+.sidebar-footer {
+  position: sticky; bottom: 0;
+  background: #fbfaf8;
+  padding: 6px 8px 10px;
+  display: flex; flex-direction: column; gap: 2px;
+  border-top: 1px solid #ebeae5;
+}
+.sidebar-footer-btn {
+  display: flex; align-items: center; gap: 8px;
+  background: none; border: none; cursor: pointer;
+  padding: 6px 10px; font-size: 13px; color: #6b6960;
+  border-radius: 4px; text-align: left;
+}
+.sidebar-footer-btn span:first-child { color: #9b9a93; font-size: 14px; width: 16px; text-align: center; }
+.sidebar-footer-btn:hover { background: #ebeae5; color: #37352f; }
+.sidebar-new-input {
+  padding: 6px 10px; border: 1px solid #2eaadc; border-radius: 4px;
+  font-size: 13px; background: #fff; outline: none;
+}
+
+/* Row */
 .page-node {
-  padding: 4px 8px; cursor: pointer; border-radius: 4px; font-size: 14px;
-  display: flex; align-items: center; gap: 6px;
+  position: relative;
+  padding: 3px 6px 3px 4px; cursor: pointer; border-radius: 4px;
+  font-size: 13.5px; color: #37352f;
+  display: flex; align-items: center; gap: 2px;
+  min-height: 26px;
 }
-.page-node:hover { background: #e9e9e7; }
-.page-node.selected { background: #d3e5ef; font-weight: 500; }
-.page-node .icon { font-size: 16px; }
+.page-node:hover { background: #ebeae5; }
+.page-node.selected { background: #e0dcd2; font-weight: 500; }
+.page-node.selected::before {
+  content: ""; position: absolute; left: -2px; top: 4px; bottom: 4px;
+  width: 2px; background: #2eaadc; border-radius: 1px;
+}
+.page-node .icon { font-size: 14px; line-height: 1; flex-shrink: 0; cursor: pointer; }
+.page-node-indent { position: relative; }
+.page-node-indent::before {
+  content: ""; position: absolute; left: 14px; top: 0; bottom: 0;
+  width: 1px; background: #ebeae5;
+}
 
 .main { flex: 1; padding: 40px 80px; overflow-y: auto; }
 .main.wide { padding: 20px 40px; }
@@ -489,17 +584,22 @@ body {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  width: 12px;
-  height: 12px;
+  width: 14px;
+  height: 14px;
   font-size: 8px;
-  color: #999;
+  color: #9b9a93;
   cursor: pointer;
   transition: transform 0.15s ease;
   flex-shrink: 0;
 }
 
 .page-node .page-node-chevron:hover {
-  color: #666;
+  color: #37352f;
+}
+
+.page-node .page-node-chevron--ghost {
+  visibility: hidden;
+  cursor: default;
 }
 
 .page-node .page-title-text {
@@ -1562,3 +1662,35 @@ body {
    by the browser when the chip's onclick fires; we just keep a subtle
    pointer when hovered on the chip so users discover the gesture. */
 .db-page-chip, .db-relation-chip { cursor: pointer; }
+
+/* ── Hover-only row actions + ⋯ menu ──────────────────────────────── */
+.page-node-actions {
+  position: relative;
+  display: flex; align-items: center; margin-left: auto;
+  opacity: 0; transition: opacity 0.1s;
+}
+.page-node:hover .page-node-actions,
+.page-node-actions:focus-within { opacity: 1; }
+
+.page-node-action {
+  background: none; border: none; cursor: pointer;
+  color: #9b9a93; padding: 0 4px; font-size: 14px; line-height: 1;
+  border-radius: 3px;
+}
+.page-node-action:hover { background: rgba(0,0,0,0.08); color: #37352f; }
+
+.page-node-menu {
+  position: absolute; right: 0; top: 100%; margin-top: 2px;
+  background: #fff; border: 1px solid #e9e9e7; border-radius: 6px;
+  box-shadow: 0 6px 18px rgba(0,0,0,0.12);
+  min-width: 180px; padding: 4px;
+  z-index: 100;
+}
+.page-node-menu button {
+  display: block; width: 100%; background: none; border: none;
+  text-align: left; padding: 6px 8px; font-size: 13px;
+  border-radius: 4px; cursor: pointer; color: #37352f;
+}
+.page-node-menu button:hover { background: #f5f5f5; }
+.page-node-menu .page-node-menu-danger { color: #c0392b; }
+.page-node-menu .page-node-menu-danger:hover { background: #fdecea; }

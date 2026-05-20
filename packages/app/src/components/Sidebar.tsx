@@ -55,6 +55,12 @@ const pointerPos = { x: 0, y: 0 };
 /** Starting position of the drag, set on drag start. */
 const dragStartPos = { x: 0, y: 0 };
 
+const SIDEBAR_WIDTH_KEY = "notion-alt:sidebarWidth";
+const SIDEBAR_COLLAPSED_KEY = "notion-alt:sidebarCollapsed";
+const MIN_WIDTH = 200;
+const MAX_WIDTH = 480;
+const DEFAULT_WIDTH = 260;
+
 export function Sidebar() {
   const { pages, currentPage, selectPage, createPage, deletePage, loadPages, movePage, reorderPages, loading, setPageIcon, toggleFavorite } =
     useStore();
@@ -63,6 +69,48 @@ export function Sidebar() {
   const [isCreating, setIsCreating] = useState(false);
   const [newPageTitle, setNewPageTitle] = useState("");
   const [showImport, setShowImport] = useState(false);
+
+  // Width + collapsed state, persisted across sessions.
+  const [width, setWidth] = useState<number>(() => {
+    const stored = Number(localStorage.getItem(SIDEBAR_WIDTH_KEY));
+    return stored >= MIN_WIDTH && stored <= MAX_WIDTH ? stored : DEFAULT_WIDTH;
+  });
+  const [collapsed, setCollapsed] = useState<boolean>(() => localStorage.getItem(SIDEBAR_COLLAPSED_KEY) === "1");
+  useEffect(() => { localStorage.setItem(SIDEBAR_WIDTH_KEY, String(width)); }, [width]);
+  useEffect(() => { localStorage.setItem(SIDEBAR_COLLAPSED_KEY, collapsed ? "1" : "0"); }, [collapsed]);
+
+  // Cmd+\ toggles collapse.
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      if ((e.metaKey || e.ctrlKey) && e.key === "\\") {
+        e.preventDefault();
+        setCollapsed((c) => !c);
+      }
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, []);
+
+  // Drag-to-resize the sidebar's right edge.
+  const startResize = (e: React.MouseEvent) => {
+    e.preventDefault();
+    const startX = e.clientX;
+    const startWidth = width;
+    const onMove = (ev: MouseEvent) => {
+      const next = Math.max(MIN_WIDTH, Math.min(MAX_WIDTH, startWidth + (ev.clientX - startX)));
+      setWidth(next);
+    };
+    const onUp = () => {
+      document.removeEventListener("mousemove", onMove);
+      document.removeEventListener("mouseup", onUp);
+      document.body.style.cursor = "";
+      document.body.style.userSelect = "";
+    };
+    document.body.style.cursor = "col-resize";
+    document.body.style.userSelect = "none";
+    document.addEventListener("mousemove", onMove);
+    document.addEventListener("mouseup", onUp);
+  };
 
   // Drag state
   const [activePageId, setActivePageId] = useState<string | null>(null);
@@ -248,6 +296,26 @@ export function Sidebar() {
     setIconPickerFor({ pageId, top: rect.bottom + 4, left: rect.left });
   };
 
+  if (collapsed) {
+    return (
+      <aside className="sidebar-collapsed" aria-label="Sidebar (collapsed)">
+        <button
+          className="sidebar-collapsed-btn"
+          title="Expand sidebar (⌘\\)"
+          onClick={() => setCollapsed(false)}
+        >
+          »
+        </button>
+      </aside>
+    );
+  }
+
+  const openSearch = () => {
+    window.dispatchEvent(new KeyboardEvent("keydown", {
+      key: "k", metaKey: true, ctrlKey: true, bubbles: true,
+    }));
+  };
+
   return (
     <DndContext
       sensors={sensors}
@@ -259,66 +327,70 @@ export function Sidebar() {
       onDragCancel={handleDragCancel}
     >
       <SortableContext items={treeOrder} strategy={verticalListSortingStrategy}>
-        <aside className="sidebar">
+        <aside className="sidebar" style={{ width }}>
           <div className="sidebar-header">
+            <div className="sidebar-topbar">
+              <button
+                className="sidebar-icon-btn"
+                title="Collapse sidebar (⌘\\)"
+                onClick={() => setCollapsed(true)}
+              >
+                «
+              </button>
+              <button
+                className="sidebar-search"
+                onClick={openSearch}
+                title="Open quick search"
+              >
+                <span>Search…</span>
+                <kbd>⌘K</kbd>
+              </button>
+            </div>
             <input
               type="text"
-              placeholder="Search pages..."
+              className="sidebar-filter"
+              placeholder="Filter visible pages"
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
             />
-            <div className="sidebar-actions">
-              <button className="sidebar-action-btn" onClick={() => setShowImport(true)} title="Import Notion export">
-                Import
-              </button>
-              {isCreating ? (
-                <input
-                  type="text"
-                  placeholder="Page title..."
-                  value={newPageTitle}
-                  onChange={(e) => setNewPageTitle(e.target.value)}
-                  onKeyDown={handleKeyDown}
-                  onBlur={handleCreateSubmit}
-                  autoFocus
-                />
-              ) : (
-                <button onClick={handleCreateClick}>+ New Page</button>
-              )}
-            </div>
           </div>
 
-          <nav>
+          <nav className="sidebar-tree">
             {favorites.length > 0 && (
-              <div className="sidebar-section">
-                <div className="sidebar-section-header">★ Favorites</div>
-                {favorites.map((page) => (
-                  <div
-                    key={"fav-" + page.id}
-                    className={`page-node ${currentPage?.id === page.id ? "selected" : ""}`}
-                    onClick={() => selectPage(page)}
-                    style={{ paddingLeft: 8 }}
-                  >
-                    <span style={{ width: 12, display: "inline-block" }} />
-                    <span className="icon">{page.icon || "📄"}</span>
-                    <span className="page-title-text">{page.title || "Untitled"}</span>
-                  </div>
-                ))}
-                <div className="sidebar-section-header" style={{ marginTop: 12 }}>Pages</div>
-              </div>
+              <>
+                <div className="sidebar-section-header">Favorites</div>
+                <div className="sidebar-section">
+                  {favorites.map((page) => (
+                    <div
+                      key={"fav-" + page.id}
+                      className={`page-node ${currentPage?.id === page.id ? "selected" : ""}`}
+                      onClick={() => selectPage(page)}
+                    >
+                      <span className="page-node-spacer" />
+                      <span className="icon">{page.icon || "📄"}</span>
+                      <span className="page-title-text">{page.title || "Untitled"}</span>
+                    </div>
+                  ))}
+                </div>
+                <div className="sidebar-section-header sidebar-section-header--gap">Pages</div>
+              </>
             )}
             {loading ? (
-              <div style={{ padding: 8, color: "#999", fontSize: 13 }}>Loading...</div>
+              <div className="sidebar-hint">Loading…</div>
             ) : roots.length === 0 ? (
-              <div style={{ padding: 8, color: "#999", fontSize: 13 }}>No pages yet</div>
+              <div className="sidebar-empty">
+                <div>No pages yet</div>
+                <button className="sidebar-action-btn" onClick={handleCreateClick}>+ New page</button>
+              </div>
             ) : (
               roots.map((page) => (
                 <PageNode
                   key={page.id}
                   page={page}
                   children={childrenOf(page.id)}
-                  isSelected={currentPage?.id === page.id}
-                  onSelect={() => selectPage(page)}
-                  onDelete={() => deletePage(page.id)}
+                  currentPageId={currentPage?.id ?? null}
+                  onSelect={selectPage}
+                  onDelete={deletePage}
                   onToggleFavorite={(pid) => toggleFavorite(pid)}
                   onIconClick={handleIconClick}
                   allPages={filtered}
@@ -329,6 +401,35 @@ export function Sidebar() {
               ))
             )}
           </nav>
+
+          <div className="sidebar-footer">
+            {isCreating ? (
+              <input
+                type="text"
+                className="sidebar-new-input"
+                placeholder="Page title…"
+                value={newPageTitle}
+                onChange={(e) => setNewPageTitle(e.target.value)}
+                onKeyDown={handleKeyDown}
+                onBlur={handleCreateSubmit}
+                autoFocus
+              />
+            ) : (
+              <button className="sidebar-footer-btn" onClick={handleCreateClick}>
+                <span>+</span> New page
+              </button>
+            )}
+            <button className="sidebar-footer-btn" onClick={() => setShowImport(true)} title="Import Notion export">
+              <span>⤓</span> Import
+            </button>
+          </div>
+
+          <div
+            className="sidebar-resize"
+            onMouseDown={startResize}
+            title="Drag to resize"
+            aria-label="Resize sidebar"
+          />
         </aside>
       </SortableContext>
       <EmojiPicker
@@ -362,7 +463,7 @@ export function Sidebar() {
 function PageNode({
   page,
   children,
-  isSelected,
+  currentPageId,
   onSelect,
   onDelete,
   onToggleFavorite,
@@ -374,9 +475,9 @@ function PageNode({
 }: {
   page: any;
   children: any[];
-  isSelected: boolean;
-  onSelect: () => void;
-  onDelete?: () => void;
+  currentPageId: string | null;
+  onSelect: (page: any) => void;
+  onDelete?: (pageId: string) => void;
   onToggleFavorite?: (pageId: string) => void;
   onIconClick?: (pageId: string, target: HTMLElement) => void;
   allPages: any[];
@@ -384,8 +485,10 @@ function PageNode({
   activePageId: string | null;
   depth: number;
 }) {
-  const [showDelete, setShowDelete] = useState(false);
+  const isSelected = currentPageId === page.id;
+  const [menuOpen, setMenuOpen] = useState(false);
   const [isExpanded, setIsExpanded] = useState(true);
+  const menuRef = useRef<HTMLDivElement>(null);
 
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({
     id: page.id,
@@ -394,21 +497,19 @@ function PageNode({
   const style: React.CSSProperties = {
     transform: CSS.Translate.toString(transform),
     transition,
-    paddingLeft: `${depth * 16 + 8}px`,
+    paddingLeft: depth === 0 ? 0 : depth * 14,
     position: "relative",
     opacity: isDragging ? 0.3 : 1,
   };
 
-  const handleContextMenu = (e: React.MouseEvent) => {
-    e.preventDefault();
-    setShowDelete(true);
-  };
-
-  const handleDelete = (e: React.MouseEvent) => {
-    e.stopPropagation();
-    onDelete?.();
-    setShowDelete(false);
-  };
+  useEffect(() => {
+    if (!menuOpen) return;
+    const onDown = (e: MouseEvent) => {
+      if (menuRef.current && !menuRef.current.contains(e.target as Node)) setMenuOpen(false);
+    };
+    document.addEventListener("mousedown", onDown);
+    return () => document.removeEventListener("mousedown", onDown);
+  }, [menuOpen]);
 
   const toggleExpand = (e: React.MouseEvent) => {
     e.stopPropagation();
@@ -424,62 +525,69 @@ function PageNode({
   const hasChildren = children.length > 0;
 
   return (
-    <div ref={setNodeRef} style={style}>
+    <div ref={setNodeRef} style={style} className={depth > 0 ? "page-node-indent" : undefined}>
       {showAboveIndicator && !isActive && <div className="sidebar-drop-indicator" />}
 
       <div
         className={`page-node ${isSelected ? "selected" : ""} ${isNestTarget ? "nest-target" : ""}`}
-        onClick={onSelect}
-        onContextMenu={handleContextMenu}
-        onMouseLeave={() => setShowDelete(false)}
+        onClick={() => onSelect(page)}
       >
-        {/* Expand/collapse chevron */}
-        {hasChildren && (
-          <span
-            className="page-node-chevron"
-            onClick={toggleExpand}
-            style={{ transform: isExpanded ? "rotate(90deg)" : "rotate(0deg)" }}
-          >
-            ▶
-          </span>
-        )}
-        {!hasChildren && <span style={{ width: 12, display: "inline-block" }} />}
-
-        {/* Drag handle */}
         <div
           className="page-drag-handle"
           onMouseDown={(e) => e.stopPropagation()}
           {...listeners}
           {...attributes}
+          title="Drag to move"
         >
           ⋮⋮
         </div>
 
         <span
+          className={`page-node-chevron ${hasChildren ? "" : "page-node-chevron--ghost"}`}
+          onClick={hasChildren ? toggleExpand : undefined}
+          style={{ transform: isExpanded ? "rotate(90deg)" : "rotate(0deg)" }}
+        >
+          ▶
+        </span>
+
+        <span
           className="icon"
           onClick={(e) => { e.stopPropagation(); onIconClick?.(page.id, e.currentTarget); }}
-          style={{ cursor: "pointer" }}
           title="Change icon"
         >
           {page.icon || "📄"}
         </span>
         <span className="page-title-text">{page.title || "Untitled"}</span>
-        <button
-          className="page-fav-mini"
-          onClick={(e) => { e.stopPropagation(); onToggleFavorite?.(page.id); }}
-          title={page.isFavorite ? "Unfavorite" : "Favorite"}
-        >
-          {page.isFavorite ? "★" : "☆"}
-        </button>
 
-        {showDelete && onDelete && (
-          <button
-            className="page-delete-btn"
-            onClick={handleDelete}
-          >
-            Delete
-          </button>
+        {page.isFavorite && (
+          <span className="page-fav-mini" data-active="true" aria-label="Favorited">★</span>
         )}
+
+        <div className="page-node-actions" ref={menuRef}>
+          <button
+            className="page-node-action"
+            onClick={(e) => { e.stopPropagation(); setMenuOpen((o) => !o); }}
+            title="More actions"
+          >
+            ⋯
+          </button>
+          {menuOpen && (
+            <div className="page-node-menu" onClick={(e) => e.stopPropagation()}>
+              <button onClick={() => { onToggleFavorite?.(page.id); setMenuOpen(false); }}>
+                {page.isFavorite ? "Remove from favorites" : "Add to favorites"}
+              </button>
+              <button onClick={(e) => {
+                setMenuOpen(false);
+                onIconClick?.(page.id, e.currentTarget as HTMLElement);
+              }}>Change icon</button>
+              {onDelete && (
+                <button className="page-node-menu-danger" onClick={() => { onDelete(page.id); setMenuOpen(false); }}>
+                  Delete
+                </button>
+              )}
+            </div>
+          )}
+        </div>
       </div>
 
       {showBelowIndicator && !isActive && <div className="sidebar-drop-indicator" />}
@@ -491,7 +599,7 @@ function PageNode({
             key={child.id}
             page={child}
             children={allPages.filter((p) => p.parentId === child.id)}
-            isSelected={activePageId === child.id}
+            currentPageId={currentPageId}
             onSelect={onSelect}
             onDelete={onDelete}
             onToggleFavorite={onToggleFavorite}
