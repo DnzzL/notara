@@ -20,8 +20,6 @@ services:
     build:
       context: .
       dockerfile: packages/app/Dockerfile
-    ports:
-      - "80:80"
     restart: unless-stopped
     depends_on:
       - server
