@@ -140,13 +140,13 @@ export const BlockNavigationExtension = Extension.create<{
         }
 
         // Paragraph / heading / quote / code: soft line break.
-        editor.chain().focus().setHardBreak().run();
+        (editor.chain().focus() as any).setHardBreak().run();
         return true;
       },
 
       // ── Shift+Enter: same as Enter for symmetry ─────────────────────
       "Shift-Enter": ({ editor }) => {
-        editor.chain().focus().setHardBreak().run();
+        (editor.chain().focus() as any).setHardBreak().run();
         return true;
       },
     };

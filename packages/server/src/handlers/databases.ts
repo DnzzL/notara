@@ -7,18 +7,33 @@ export const listDatabases = (pageId: string) =>
   Effect.gen(function* () {
     const sql = yield* SqlClient.SqlClient;
     const rows = yield* sql`
-      SELECT id, page_id as "pageId", name, is_deleted as "isDeleted", sort_order as "sortOrder"
+      SELECT id, page_id as "pageId", name, is_deleted as "isDeleted", sort_order as "sortOrder",
+             title_label as "titleLabel", title_hidden as "titleHidden"
       FROM databases WHERE page_id = ${pageId} AND is_deleted = 0
       ORDER BY sort_order ASC
     `;
     return rows.map(dbFromRow);
   });
 
+/** All non-deleted databases across every page. Used by the relation
+ *  field's target picker so users can link to a database on any page. */
+export const listAllDatabases = Effect.gen(function* () {
+  const sql = yield* SqlClient.SqlClient;
+  const rows = yield* sql`
+    SELECT id, page_id as "pageId", name, is_deleted as "isDeleted", sort_order as "sortOrder",
+           title_label as "titleLabel", title_hidden as "titleHidden"
+    FROM databases WHERE is_deleted = 0
+    ORDER BY sort_order ASC
+  `;
+  return rows.map(dbFromRow);
+});
+
 export const getDatabase = (id: string) =>
   Effect.gen(function* () {
     const sql = yield* SqlClient.SqlClient;
     const rows = yield* sql`
-      SELECT id, page_id as "pageId", name, is_deleted as "isDeleted", sort_order as "sortOrder"
+      SELECT id, page_id as "pageId", name, is_deleted as "isDeleted", sort_order as "sortOrder",
+             title_label as "titleLabel", title_hidden as "titleHidden"
       FROM databases WHERE id = ${id} AND is_deleted = 0
     `;
     if (rows.length === 0) return yield* Effect.fail(new Error(`Database ${id} not found`));
@@ -29,10 +44,15 @@ export const createDatabase = (req: { pageId: string; name: string }) =>
   Effect.gen(function* () {
     const sql = yield* SqlClient.SqlClient;
     const id = ulid();
+    // New databases hide the title column by default — users are expected
+    // to define their own columns (page links, custom properties, …). The
+    // title still exists under the hood and can be brought back from the
+    // toolbar's "Show <Label> column" button.
     const rows = yield* sql`
-      INSERT INTO databases (id, page_id, name)
-      VALUES (${id}, ${req.pageId}, ${req.name})
-      RETURNING id, page_id as "pageId", name, is_deleted as "isDeleted", sort_order as "sortOrder"
+      INSERT INTO databases (id, page_id, name, title_hidden)
+      VALUES (${id}, ${req.pageId}, ${req.name}, 1)
+      RETURNING id, page_id as "pageId", name, is_deleted as "isDeleted", sort_order as "sortOrder",
+                title_label as "titleLabel", title_hidden as "titleHidden"
     `;
     return dbFromRow(rows[0]);
   });
@@ -67,7 +87,7 @@ export const listRecords = (databaseId: string) =>
   Effect.gen(function* () {
     const sql = yield* SqlClient.SqlClient;
     const rows = yield* sql`
-      SELECT id, database_id as "databaseId", title,
+      SELECT id, database_id as "databaseId", title, description,
              is_deleted as "isDeleted", created_at as "createdAt"
       FROM database_records WHERE database_id = ${databaseId} AND is_deleted = 0
       ORDER BY sort_order ASC
@@ -81,7 +101,7 @@ export const listRecordsWithValues = (databaseId: string) =>
 
     // Fetch records
     const records = yield* sql`
-      SELECT id, database_id as "databaseId", title,
+      SELECT id, database_id as "databaseId", title, description,
              is_deleted as "isDeleted", created_at as "createdAt"
       FROM database_records WHERE database_id = ${databaseId} AND is_deleted = 0
       ORDER BY sort_order ASC
@@ -122,7 +142,7 @@ export const getRecordWithValues = (recordId: string) =>
     const sql = yield* SqlClient.SqlClient;
 
     const recordRows = yield* sql`
-      SELECT id, database_id as "databaseId", title,
+      SELECT id, database_id as "databaseId", title, description,
              is_deleted as "isDeleted", created_at as "createdAt"
       FROM database_records WHERE id = ${recordId}
     `;
@@ -157,7 +177,7 @@ export const createRecord = (req: { databaseId: string; title: string }) =>
     const rows = yield* sql`
       INSERT INTO database_records (id, database_id, title, created_at)
       VALUES (${id}, ${req.databaseId}, ${req.title}, ${now})
-      RETURNING id, database_id as "databaseId", title,
+      RETURNING id, database_id as "databaseId", title, description,
                 is_deleted as "isDeleted", created_at as "createdAt"
     `;
     return recordFromRow(rows[0]);
@@ -232,10 +252,19 @@ export const updateField = (req: { id: string; name?: string; type?: string; opt
     return fieldFromRow(rows[0]);
   });
 
-export const updateRecord = (req: { id: string; title: string }) =>
+export const updateRecord = (req: { id: string; title?: string; description?: string }) =>
   Effect.gen(function* () {
     const sql = yield* SqlClient.SqlClient;
-    yield* sql`UPDATE database_records SET title = ${req.title} WHERE id = ${req.id}`;
+    const sets: string[] = [];
+    const params: unknown[] = [];
+    if (req.title !== undefined) { sets.push("title = ?"); params.push(req.title); }
+    if (req.description !== undefined) { sets.push("description = ?"); params.push(req.description); }
+    if (sets.length === 0) return { updated: false };
+    params.push(req.id);
+    yield* sql.unsafe(
+      `UPDATE database_records SET ${sets.join(", ")} WHERE id = ?`,
+      params
+    );
     return { updated: true };
   });
 
@@ -249,10 +278,34 @@ export const deleteField = (id: string) =>
 export const renameDatabase = (req: { id: string; name: string }) =>
   Effect.gen(function* () {
     const sql = yield* SqlClient.SqlClient;
-    const rows = yield* sql`
+    yield* sql`
       UPDATE databases SET name = ${req.name}
       WHERE id = ${req.id} AND is_deleted = 0
-      RETURNING id, page_id as "pageId", name, is_deleted as "isDeleted", sort_order as "sortOrder"
+    `;
+    const rows = yield* sql`
+      SELECT id, page_id as "pageId", name, is_deleted as "isDeleted", sort_order as "sortOrder",
+             title_label as "titleLabel", title_hidden as "titleHidden"
+      FROM databases WHERE id = ${req.id}
+    `;
+    if (rows.length === 0) return yield* Effect.fail(new Error(`Database ${req.id} not found`));
+    return dbFromRow(rows[0]);
+  });
+
+export const updateDatabase = (req: { id: string; titleLabel?: string; titleHidden?: boolean }) =>
+  Effect.gen(function* () {
+    const sql = yield* SqlClient.SqlClient;
+    const sets: string[] = [];
+    const params: unknown[] = [];
+    if (req.titleLabel !== undefined) { sets.push("title_label = ?"); params.push(req.titleLabel); }
+    if (req.titleHidden !== undefined) { sets.push("title_hidden = ?"); params.push(req.titleHidden ? 1 : 0); }
+    if (sets.length > 0) {
+      params.push(req.id);
+      yield* sql.unsafe(`UPDATE databases SET ${sets.join(", ")} WHERE id = ?`, params);
+    }
+    const rows = yield* sql`
+      SELECT id, page_id as "pageId", name, is_deleted as "isDeleted", sort_order as "sortOrder",
+             title_label as "titleLabel", title_hidden as "titleHidden"
+      FROM databases WHERE id = ${req.id}
     `;
     if (rows.length === 0) return yield* Effect.fail(new Error(`Database ${req.id} not found`));
     return dbFromRow(rows[0]);

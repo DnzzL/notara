@@ -46,6 +46,8 @@ export function dbFromRow(r: unknown): Database {
     name: row.name as string,
     isDeleted: (row.isDeleted as number) === 1,
     sortOrder: Number(row.sortOrder ?? 0),
+    titleLabel: (row.titleLabel as string | null) ?? "Name",
+    titleHidden: (row.titleHidden as number) === 1,
   };
 }
 
@@ -71,6 +73,7 @@ export function recordFromRow(r: unknown): DatabaseRecord {
     id: row.id as string,
     databaseId: row.databaseId as string,
     title: row.title as string,
+    description: (row.description as string | null) ?? "",
     isDeleted: (row.isDeleted as number) === 1,
     createdAt: new Date(row.createdAt as string).toISOString(),
   };

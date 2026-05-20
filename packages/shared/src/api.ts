@@ -95,6 +95,7 @@ export const AppRpc = RpcGroup.make(
     payload: { pageId: Schema.String },
     success: Schema.Array(Database),
   }),
+  Rpc.make("listAllDatabases", { success: Schema.Array(Database) }),
   Rpc.make("getDatabase", {
     payload: { id: Schema.String },
     success: Database,
@@ -111,7 +112,7 @@ export const AppRpc = RpcGroup.make(
     payload: {
       databaseId: Schema.String,
       name: Schema.String,
-      type: Schema.Literal("text", "number", "select", "multiSelect", "date", "checkbox", "relation"),
+      type: Schema.Literal("text", "number", "select", "multiSelect", "date", "checkbox", "relation", "page"),
       options: Schema.NullOr(Schema.Array(Schema.String)),
       relationTargetDbId: Schema.NullOr(Schema.String),
     },
@@ -164,14 +165,18 @@ export const AppRpc = RpcGroup.make(
     payload: {
       id: Schema.String,
       name: Schema.optional(Schema.String),
-      type: Schema.optional(Schema.Literal("text", "number", "select", "multiSelect", "date", "checkbox", "relation")),
+      type: Schema.optional(Schema.Literal("text", "number", "select", "multiSelect", "date", "checkbox", "relation", "page")),
       options: Schema.optional(Schema.NullOr(Schema.Array(Schema.String))),
       relationTargetDbId: Schema.optional(Schema.NullOr(Schema.String)),
     },
     success: DatabaseField,
   }),
   Rpc.make("updateRecord", {
-    payload: { id: Schema.String, title: Schema.String },
+    payload: {
+      id: Schema.String,
+      title: Schema.optional(Schema.String),
+      description: Schema.optional(Schema.String),
+    },
     success: Schema.Struct({ updated: Schema.Boolean }),
   }),
   Rpc.make("reorderRecords", {
@@ -183,6 +188,14 @@ export const AppRpc = RpcGroup.make(
   }),
   Rpc.make("renameDatabase", {
     payload: { id: Schema.String, name: Schema.String },
+    success: Database,
+  }),
+  Rpc.make("updateDatabase", {
+    payload: {
+      id: Schema.String,
+      titleLabel: Schema.optional(Schema.String),
+      titleHidden: Schema.optional(Schema.Boolean),
+    },
     success: Database,
   }),
   Rpc.make("deleteField", {

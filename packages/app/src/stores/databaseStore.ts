@@ -25,7 +25,7 @@ export interface DatabaseState {
   deleteField: (id: string) => Promise<void>;
 
   loadDbRecords: (databaseId: string) => Promise<void>;
-  createDbRecord: (databaseId: string, title: string) => Promise<void>;
+  createDbRecord: (databaseId: string, title: string) => Promise<DatabaseRecord>;
   updateFieldValue: (recordId: string, fieldId: string, value: string) => Promise<void>;
   deleteRecord: (id: string) => Promise<void>;
   reorderRecords: (databaseId: string, recordIds: string[]) => Promise<void>;
@@ -111,6 +111,7 @@ export const useDatabaseStore = create<DatabaseState>((set, get) => ({
     set((s) => ({
       records: [...s.records, { record, values: {} }],
     }));
+    return record;
   },
 
   updateFieldValue: async (recordId, fieldId, value) => {

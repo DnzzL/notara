@@ -230,6 +230,7 @@ const rpcHandlersLayer = AppRpc.toLayer({
   getBacklinks: ({ pageId }) => Blocks.getBacklinks(pageId).pipe(Effect.orDie),
 
   listDatabases: ({ pageId }) => Databases.listDatabases(pageId).pipe(Effect.orDie),
+  listAllDatabases: () => Databases.listAllDatabases.pipe(Effect.orDie),
   getDatabase: ({ id }) => Databases.getDatabase(id).pipe(Effect.orDie),
   createDatabase: (req) => Databases.createDatabase(req).pipe(Effect.orDie),
   listFields: ({ databaseId }) => Databases.listFields(databaseId).pipe(Effect.orDie),
@@ -277,6 +278,7 @@ const rpcHandlersLayer = AppRpc.toLayer({
     id: req.id,
     name: req.name,
   }).pipe(Effect.orDie),
+  updateDatabase: (req) => Databases.updateDatabase(req).pipe(Effect.orDie),
   deleteField: ({ id }) => Databases.deleteField(id).pipe(Effect.orDie),
   reorderDatabases: (req) => Databases.reorderDatabases({
     pageId: req.pageId,

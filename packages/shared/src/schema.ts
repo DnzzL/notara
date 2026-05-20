@@ -45,13 +45,15 @@ export class Database extends Schema.Class<Database>("Database")({
   name: Schema.String,
   isDeleted: Schema.Boolean,
   sortOrder: Schema.Number,
+  titleLabel: Schema.String,
+  titleHidden: Schema.Boolean,
 }) {}
 
 export class DatabaseField extends Schema.Class<DatabaseField>("DatabaseField")({
   id: Schema.String,
   databaseId: Schema.String,
   name: Schema.String,
-  type: Schema.Literal("text", "number", "select", "multiSelect", "date", "checkbox", "relation"),
+  type: Schema.Literal("text", "number", "select", "multiSelect", "date", "checkbox", "relation", "page"),
   options: Schema.NullOr(Schema.Array(Schema.String)),
   relationTargetDbId: Schema.NullOr(Schema.String),
 }) {}
@@ -60,6 +62,7 @@ export class DatabaseRecord extends Schema.Class<DatabaseRecord>("DatabaseRecord
   id: Schema.String,
   databaseId: Schema.String,
   title: Schema.String,
+  description: Schema.String,
   isDeleted: Schema.Boolean,
   createdAt: Schema.String,
 }) {}

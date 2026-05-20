@@ -77,6 +77,7 @@ export const api = {
 
   // Databases
   listDatabases: (pageId: string) => rpcCall<Database[]>("listDatabases", { pageId }),
+  listAllDatabases: () => rpcCall<Database[]>("listAllDatabases", {}),
   getDatabase: (id: string) => rpcCall<Database>("getDatabase", { id }),
   createDatabase: (pageId: string, name: string) =>
     rpcCall<Database>("createDatabase", { pageId, name }),
@@ -98,14 +99,16 @@ export const api = {
     rpcCall<DatabaseView>("createView", req),
   updateField: (id: string, updates: { name?: string; type?: string; options?: string[] | null; relationTargetDbId?: string | null }) =>
     rpcCall<DatabaseField>("updateField", { id, ...updates }),
-  updateRecord: (id: string, title: string) =>
-    rpcCall<{ updated: boolean }>("updateRecord", { id, title }),
+  updateRecord: (id: string, patch: { title?: string; description?: string }) =>
+    rpcCall<{ updated: boolean }>("updateRecord", { id, ...patch }),
   reorderRecords: (databaseId: string, recordIds: string[]) =>
     rpcCall<{ reordered: boolean }>("reorderRecords", { databaseId, recordIds }),
   reorderDatabases: (pageId: string, databaseIds: string[]) =>
     rpcCall<{ reordered: boolean }>("reorderDatabases", { pageId, databaseIds }),
   renameDatabase: (id: string, name: string) =>
     rpcCall<Database>("renameDatabase", { id, name }),
+  updateDatabase: (id: string, patch: { titleLabel?: string; titleHidden?: boolean }) =>
+    rpcCall<Database>("updateDatabase", { id, ...patch }),
   deleteField: (id: string) => rpcCall<{ deleted: boolean }>("deleteField", { id }),
 
   // Backlinks

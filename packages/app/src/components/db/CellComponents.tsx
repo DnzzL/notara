@@ -1,4 +1,7 @@
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef, useLayoutEffect } from "react";
+import { createPortal } from "react-dom";
+import { api } from "../../rpc-client.js";
+import { usePageStore } from "../../stores/pageStore.js";
 
 // ── Shared constants ──────────────────────────────────────────────────────
 
@@ -94,6 +97,86 @@ export function Popover({
   );
 }
 
+// ── Cell-anchored Popover (escapes table overflow) ───────────────────────
+
+/**
+ * Portal-mounted popover that anchors itself below the nearest `.db-cell`
+ * (or `.record-panel-prop-value`) ancestor of its anchor element. Uses
+ * position:fixed so the table's overflow-x:auto wrapper can't clip it.
+ * Clamps to the viewport edges with a small margin.
+ */
+export function CellAnchoredPopover({
+  onClose, children, minWidth = 200,
+}: {
+  onClose: () => void;
+  children: React.ReactNode;
+  minWidth?: number;
+}) {
+  const anchorRef = useRef<HTMLSpanElement>(null);
+  const popRef = useRef<HTMLDivElement>(null);
+  const [pos, setPos] = useState<{ top: number; left: number } | null>(null);
+
+  useLayoutEffect(() => {
+    const anchor = anchorRef.current;
+    const pop = popRef.current;
+    if (!anchor || !pop) return;
+    const cell = anchor.closest(".db-cell, .record-panel-prop-value") as HTMLElement | null;
+    if (!cell) return;
+    const cellRect = cell.getBoundingClientRect();
+    const popRect = pop.getBoundingClientRect();
+    const margin = 6;
+    const vw = window.innerWidth;
+    const vh = window.innerHeight;
+    let top = cellRect.bottom + 2;
+    if (top + popRect.height > vh - margin) top = Math.max(margin, cellRect.top - popRect.height - 2);
+    let left = cellRect.left;
+    if (left + popRect.width > vw - margin) left = vw - margin - popRect.width;
+    if (left < margin) left = margin;
+    setPos({ top, left });
+  }, []);
+
+  useEffect(() => {
+    const onDown = (e: MouseEvent) => {
+      if (popRef.current && !popRef.current.contains(e.target as Node)) onClose();
+    };
+    const onKey = (e: KeyboardEvent) => { if (e.key === "Escape") onClose(); };
+    // Defer attaching click handler so the click that opened us doesn't close us
+    const id = window.setTimeout(() => {
+      document.addEventListener("mousedown", onDown);
+      document.addEventListener("keydown", onKey);
+    }, 0);
+    return () => {
+      window.clearTimeout(id);
+      document.removeEventListener("mousedown", onDown);
+      document.removeEventListener("keydown", onKey);
+    };
+  }, [onClose]);
+
+  return (
+    <>
+      <span ref={anchorRef} style={{ display: "none" }} />
+      {createPortal(
+        <div
+          ref={popRef}
+          className="db-cell-popover"
+          style={{
+            position: "fixed",
+            top: pos?.top ?? -9999,
+            left: pos?.left ?? -9999,
+            visibility: pos ? "visible" : "hidden",
+            minWidth,
+            zIndex: 10000,
+          }}
+          onMouseDown={(e) => e.stopPropagation()}
+        >
+          {children}
+        </div>,
+        document.body,
+      )}
+    </>
+  );
+}
+
 // ── Cell Display Components ───────────────────────────────────────────────
 
 export function SelectPill({ value, colorIdx }: { value: string; colorIdx: number }) {
@@ -164,28 +247,274 @@ export function CellDisplay({
     return <span style={{ fontSize: 13, color: "#37352f" }}>{Number(value).toLocaleString()}</span>;
   }
 
+  if (field.type === "page") {
+    let vals: string[] = [];
+    try { vals = Array.isArray(value) ? value : (typeof value === "string" ? (value.startsWith("[") ? JSON.parse(value) : [value]) : []); } catch { /* ignore */ }
+    if (!vals.length) return <span style={{ color: "#d3d1cb" }}>&nbsp;</span>;
+    return (
+      <div style={{ display: "flex", gap: 4, flexWrap: "wrap", padding: "2px 0" }}>
+        {vals.map((pageId) => <PageChip key={pageId} pageId={pageId} />)}
+      </div>
+    );
+  }
+
   if (field.type === "relation") {
     let vals: string[] = [];
     try { vals = Array.isArray(value) ? value : (typeof value === "string" ? JSON.parse(value) : []); } catch { /* ignore */ }
     if (!vals.length) return <span style={{ color: "#d3d1cb" }}>&nbsp;</span>;
     const targetDbId = field.relationTargetDbId;
-    const cachedRecords = targetDbId ? (allRecords[targetDbId] || []) : [];
-    const recordMap = new Map(cachedRecords.map((r) => [r.id, r.title]));
     return (
       <div style={{ display: "flex", gap: 4, flexWrap: "wrap", padding: "2px 0" }}>
-        {vals.map((id) => {
-          const title = recordMap.get(id) || id.slice(0, 8);
-          return (
-            <span key={id} style={{ display: "inline-block", background: "#fdecc8", borderRadius: 4, padding: "1px 7px", fontSize: 13 }}>
-              {title}
-            </span>
-          );
-        })}
+        {vals.map((id) => (
+          <RelationChip
+            key={id}
+            recordId={id}
+            targetDbId={targetDbId || null}
+            databases={databases}
+            allRecords={allRecords}
+          />
+        ))}
       </div>
     );
   }
 
   return <span style={{ fontSize: 13, color: "#37352f" }}>{String(value)}</span>;
+}
+
+/**
+ * Inline pill rendering a single page link.
+ * Reads from the page store; navigates when clicked.
+ */
+/**
+ * Navigate to a page via pushState — popstate listener in main.tsx will
+ * pick it up and load blocks/databases for that page.
+ */
+function navigateToPage(pageId: string) {
+  const url = new URL(window.location.href);
+  url.searchParams.set("page", pageId);
+  window.history.pushState({ pageId }, "", url);
+  window.dispatchEvent(new PopStateEvent("popstate"));
+}
+
+function isNavModifier(e: React.MouseEvent): boolean {
+  return e.metaKey || e.ctrlKey;
+}
+
+function PageChip({ pageId }: { pageId: string }) {
+  const pages = usePageStore((s) => s.pages);
+  const page = pages.find((p) => p.id === pageId);
+  const title = page?.title || pageId.slice(0, 8);
+  const icon = page?.icon || "📄";
+  const onClick = (e: React.MouseEvent) => {
+    if (isNavModifier(e)) {
+      e.preventDefault(); e.stopPropagation();
+      navigateToPage(pageId);
+    }
+    // No modifier: let the click bubble up so the cell opens the picker.
+  };
+  return (
+    <span
+      className="db-page-chip"
+      onClick={onClick}
+      title={`${title} — ${navigator.platform.includes("Mac") ? "⌘" : "Ctrl"}-click to open`}
+    >
+      <span className="db-page-chip-icon">{icon}</span>
+      <span>{title}</span>
+    </span>
+  );
+}
+
+/**
+ * Pill for a relation value. Cmd/Ctrl+click navigates to the host page of
+ * the target database (the database's pageId). Without a modifier, click
+ * bubbles up to the cell's edit handler so the picker opens.
+ */
+function RelationChip({
+  recordId, targetDbId, databases, allRecords,
+}: {
+  recordId: string;
+  targetDbId: string | null;
+  databases: any[];
+  allRecords: Record<string, any[]>;
+}) {
+  const cachedRecords = targetDbId ? (allRecords[targetDbId] || []) : [];
+  const record = cachedRecords.find((r: any) => r.id === recordId);
+  const title = record?.title || recordId.slice(0, 8);
+  const [remoteHostPageId, setRemoteHostPageId] = useState<string | null>(null);
+  const hostPageId = databases.find((d: any) => d.id === targetDbId)?.pageId ?? remoteHostPageId;
+
+  useEffect(() => {
+    if (!targetDbId || databases.some((d: any) => d.id === targetDbId)) return;
+    api.getDatabase(targetDbId).then((db) => setRemoteHostPageId(db.pageId)).catch(() => { /* ignore */ });
+  }, [targetDbId, databases]);
+
+  const onClick = (e: React.MouseEvent) => {
+    if (isNavModifier(e)) {
+      e.preventDefault(); e.stopPropagation();
+      if (hostPageId) {
+        navigateToPage(hostPageId);
+        // After the page loads, ask the host DatabaseView to open this record.
+        window.dispatchEvent(new CustomEvent("db-open-record", { detail: { recordId } }));
+      }
+    }
+  };
+
+  return (
+    <span
+      className="db-relation-chip"
+      onClick={onClick}
+      title={`${title} — ${navigator.platform.includes("Mac") ? "⌘" : "Ctrl"}-click to open`}
+    >
+      {title}
+    </span>
+  );
+}
+
+// ── Select / Multi-select Popover (with inline create) ───────────────────
+
+function SelectPopover({
+  field, value, onSave, onCancel,
+}: {
+  field: { id: string; name: string; type: string; options?: string[] | null };
+  value: any;
+  onSave: (val: string) => void;
+  onCancel: () => void;
+}) {
+  const [query, setQuery] = useState("");
+  const [options, setOptions] = useState<string[]>(field.options || []);
+  useEffect(() => { setOptions(field.options || []); }, [field.id, field.options]);
+
+  const currentArr: string[] = field.type === "multiSelect"
+    ? (Array.isArray(value) ? value : (typeof value === "string" ? (() => { try { return JSON.parse(value); } catch { return []; } })() : []))
+    : [value || ""];
+
+  const q = query.trim();
+  const filtered = q ? options.filter((o) => o.toLowerCase().includes(q.toLowerCase())) : options;
+  const exact = options.some((o) => o.toLowerCase() === q.toLowerCase());
+  const canCreate = q.length > 0 && !exact;
+
+  const choose = (opt: string) => {
+    if (field.type === "multiSelect") {
+      const next = currentArr.includes(opt) ? currentArr.filter((s) => s !== opt) : [...currentArr, opt];
+      onSave(JSON.stringify(next));
+    } else {
+      onSave(opt);
+    }
+    setQuery("");
+  };
+
+  const create = async () => {
+    const opt = q;
+    const next = [...options, opt];
+    setOptions(next);
+    await api.updateField(field.id, { options: next });
+    choose(opt);
+  };
+
+  return (
+    <CellAnchoredPopover onClose={onCancel}>
+      <input
+        autoFocus
+        className="db-cell-popover-search"
+        placeholder="Search or create…"
+        value={query}
+        onChange={(e) => setQuery(e.target.value)}
+        onKeyDown={(e) => {
+          if (e.key === "Escape") { e.preventDefault(); onCancel(); }
+          else if (e.key === "Enter") {
+            e.preventDefault();
+            if (filtered.length > 0) choose(filtered[0]);
+            else if (canCreate) create();
+          }
+        }}
+      />
+      <div className="db-cell-popover-list">
+        {filtered.map((opt) => {
+          const i = options.indexOf(opt);
+          const isSelected = field.type === "multiSelect" ? currentArr.includes(opt) : currentArr[0] === opt;
+          const c = optionColor(i);
+          return (
+            <div
+              key={opt}
+              className="db-cell-popover-item"
+              style={{ background: isSelected ? "rgba(0,0,0,0.05)" : undefined }}
+              onClick={() => choose(opt)}
+            >
+              <span style={{ display: "inline-block", background: c.bg, borderRadius: 3, width: 12, height: 12 }} />
+              <span style={{ fontSize: 13, flex: 1 }}>{opt}</span>
+              {isSelected && <span style={{ color: "#2eaadc", fontSize: 14 }}>✓</span>}
+            </div>
+          );
+        })}
+        {canCreate && (
+          <div className="db-cell-popover-item db-cell-popover-create" onClick={create}>
+            <span style={{ fontSize: 12, opacity: 0.6 }}>+</span>
+            <span style={{ fontSize: 13 }}>Create <strong>"{q}"</strong></span>
+          </div>
+        )}
+        {filtered.length === 0 && !canCreate && (
+          <div style={{ padding: "8px 12px", color: "#888", fontSize: 13 }}>No options</div>
+        )}
+      </div>
+    </CellAnchoredPopover>
+  );
+}
+
+// ── Page Picker ───────────────────────────────────────────────────────────
+
+function PagePicker({
+  value, onSave, onClose,
+}: {
+  value: string[];
+  onSave: (val: string) => void;
+  onClose: () => void;
+}) {
+  const pages = usePageStore((s) => s.pages);
+  const [query, setQuery] = useState("");
+  const q = query.trim().toLowerCase();
+  const visible = (q
+    ? pages.filter((p) => !p.isDeleted && (p.title || "").toLowerCase().includes(q))
+    : pages.filter((p) => !p.isDeleted)
+  ).slice(0, 50);
+
+  const toggle = (pageId: string) => {
+    const next = value.includes(pageId) ? value.filter((x) => x !== pageId) : [...value, pageId];
+    onSave(JSON.stringify(next));
+  };
+
+  return (
+    <CellAnchoredPopover onClose={onClose} minWidth={280}>
+      <input
+        autoFocus
+        className="db-cell-popover-search"
+        placeholder="Search pages…"
+        value={query}
+        onChange={(e) => setQuery(e.target.value)}
+        onKeyDown={(e) => { if (e.key === "Escape") { e.preventDefault(); onClose(); } }}
+      />
+      <div className="db-cell-popover-list">
+        {visible.length === 0 ? (
+          <div style={{ padding: "8px 12px", color: "#888", fontSize: 13 }}>No pages found</div>
+        ) : visible.map((p) => {
+          const selected = value.includes(p.id);
+          return (
+            <div
+              key={p.id}
+              className="db-cell-popover-item"
+              style={{ background: selected ? "rgba(0,0,0,0.05)" : undefined }}
+              onClick={() => toggle(p.id)}
+            >
+              <span style={{ width: 18 }}>{p.icon || "📄"}</span>
+              <span style={{ fontSize: 13, flex: 1, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                {p.title || "Untitled"}
+              </span>
+              {selected && <span style={{ color: "#2eaadc", fontSize: 14 }}>✓</span>}
+            </div>
+          );
+        })}
+      </div>
+    </CellAnchoredPopover>
+  );
 }
 
 // ── Relation Picker ───────────────────────────────────────────────────────
@@ -198,9 +527,16 @@ export function RelationPicker({
   databases: any[]; allRecords: Record<string, any[]>;
 }) {
   const targetDbId = field.relationTargetDbId;
-  const targetDb = databases.find((d) => d.id === targetDbId);
+  const [remoteTargetDb, setRemoteTargetDb] = useState<{ id: string; name: string } | null>(null);
+  const targetDb = databases.find((d) => d.id === targetDbId) ?? remoteTargetDb;
   const records = targetDbId ? (allRecords[targetDbId] || []) : [];
   const currentIds = Array.isArray(value) ? value : [];
+
+  // Cross-page target: fetch the database metadata so we can show its name.
+  useEffect(() => {
+    if (!targetDbId || databases.some((d) => d.id === targetDbId)) return;
+    api.getDatabase(targetDbId).then((db) => setRemoteTargetDb({ id: db.id, name: db.name })).catch(() => { /* ignore */ });
+  }, [targetDbId, databases]);
 
   const toggle = (id: string) => {
     const next = currentIds.includes(id) ? currentIds.filter((x) => x !== id) : [...currentIds, id];
@@ -208,7 +544,7 @@ export function RelationPicker({
   };
 
   return (
-    <div className="db-cell-popover" style={{ minWidth: 260 }} onMouseDown={(e) => e.stopPropagation()}>
+    <CellAnchoredPopover onClose={onClose} minWidth={260}>
       {!targetDb ? (
         <div style={{ padding: "8px 12px", color: "#888", fontSize: 13 }}>
           {targetDbId ? "Loading related records..." : "No relation target set. Edit this property to choose a target database."}
@@ -249,7 +585,7 @@ export function RelationPicker({
           </div>
         </>
       )}
-    </div>
+    </CellAnchoredPopover>
   );
 }
 
@@ -294,38 +630,13 @@ export function InlineCellEditor({
   }
 
   if (field.type === "select" || field.type === "multiSelect") {
-    const options = field.options || [];
-    const currentArr = field.type === "multiSelect"
-      ? (Array.isArray(value) ? value : (typeof value === "string" ? (() => { try { return JSON.parse(value); } catch { return []; } })() : []))
-      : [value || ""];
-
     return (
-      <div className="db-cell-popover" onMouseDown={(e) => e.stopPropagation()}>
-        {options.length === 0 ? (
-          <div style={{ padding: "8px 12px", color: "#888", fontSize: 13 }}>No options yet. Edit this property to add options.</div>
-        ) : options.map((opt, i) => {
-          const isSelected = field.type === "multiSelect" ? currentArr.includes(opt) : currentArr[0] === opt;
-          const c = optionColor(i);
-          return (
-            <div key={opt} style={{
-              padding: "4px 8px", borderRadius: 4, cursor: "pointer", display: "flex",
-              alignItems: "center", gap: 8, background: isSelected ? "rgba(0,0,0,0.05)" : "transparent",
-            }} onClick={() => {
-              if (field.type === "multiSelect") {
-                const next = isSelected ? currentArr.filter((s: string) => s !== opt) : [...currentArr, opt];
-                onSave(JSON.stringify(next));
-              } else { onSave(opt); }
-            }}>
-              <span style={{ display: "inline-block", background: c.bg, borderRadius: 3, width: 12, height: 12 }} />
-              <span style={{ fontSize: 13, flex: 1 }}>{opt}</span>
-              {isSelected && <span style={{ color: "#2eaadc", fontSize: 14 }}>✓</span>}
-            </div>
-          );
-        })}
-        <div style={{ padding: "4px 8px", color: "#888", fontSize: 12, cursor: "pointer", borderTop: "1px solid #f0f0f0", marginTop: 4, paddingTop: 4 }} onClick={onCancel}>
-          Done
-        </div>
-      </div>
+      <SelectPopover
+        field={field}
+        value={value}
+        onSave={onSave}
+        onCancel={onCancel}
+      />
     );
   }
 
@@ -342,6 +653,16 @@ export function InlineCellEditor({
       <input ref={inputRef} type="number" defaultValue={value || ""}
         onBlur={handleBlur} onKeyDown={handleKeyDown}
         style={{ width: "100%", border: "1px solid #2eaadc", borderRadius: 4, padding: "2px 4px", fontSize: 13, outline: "none" }} />
+    );
+  }
+
+  if (field.type === "page") {
+    return (
+      <PagePicker
+        value={typeof value === "string" ? (() => { try { return value.startsWith("[") ? JSON.parse(value) : (value ? [value] : []); } catch { return []; } })() : (Array.isArray(value) ? value : [])}
+        onSave={onSave}
+        onClose={onCancel}
+      />
     );
   }
 

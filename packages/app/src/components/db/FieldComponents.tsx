@@ -1,7 +1,9 @@
 import { useState, useEffect, useRef } from "react";
 import { Popover, optionColor } from "./CellComponents.js";
+import { api } from "../../rpc-client.js";
+import { usePageStore } from "../../stores/pageStore.js";
 
-export type FieldType = "text" | "number" | "select" | "multiSelect" | "date" | "checkbox" | "relation";
+export type FieldType = "text" | "number" | "select" | "multiSelect" | "date" | "checkbox" | "relation" | "page";
 
 interface FieldTypeInfo {
   type: FieldType;
@@ -16,19 +18,24 @@ export const FIELD_TYPES: FieldTypeInfo[] = [
   { type: "multiSelect", label: "Multi-select", icon: "◆◆" },
   { type: "date", label: "Date", icon: "📅" },
   { type: "checkbox", label: "Checkbox", icon: "☑" },
+  { type: "page", label: "Page link", icon: "📄" },
   { type: "relation", label: "Relation", icon: "🔗" },
 ];
 
 // ── Column Header with Menu ───────────────────────────────────────────────
 
 export function ColumnHeader({
-  field, onRename, onDelete, onOptions, onChangeType, isTitle, width, onResize,
+  field, onRename, onDelete, onOptions, onChangeType, onSortAsc, onSortDesc, onFilter,
+  isTitle, width, onResize,
 }: {
   field: { id: string; name: string; type: string };
   onRename: (name: string) => void;
   onDelete: () => void;
   onOptions?: () => void;
   onChangeType?: (type: FieldType) => void;
+  onSortAsc?: () => void;
+  onSortDesc?: () => void;
+  onFilter?: () => void;
   isTitle?: boolean;
   width?: number;
   onResize?: (fieldId: string, delta: number) => void;
@@ -43,12 +50,14 @@ export function ColumnHeader({
 
   useEffect(() => { if (editing) setName(field.name); }, [editing, field.name]);
 
+  const handleMenuClose = () => { setShowMenu(false); setEditing(false); setChangingType(false); };
+
   if (isTitle) {
     return (
       <th className="db-col-header" data-field-id="__title__" style={{ minWidth: width || 200, width: width || undefined }}>
-        <div className="db-col-header-content">
+        <div ref={triggerRef} className="db-col-header-content" onClick={() => setShowMenu(!showMenu)}>
           <span style={{ opacity: 0.7, fontSize: 14 }}>🌐</span>
-          <span style={{ fontWeight: 500 }}>Name</span>
+          <span style={{ fontWeight: 500, overflow: "hidden", textOverflow: "ellipsis" }}>{field.name}</span>
         </div>
         {onResize && (
           <div className="db-col-resize-handle" onMouseDown={(e) => {
@@ -59,11 +68,24 @@ export function ColumnHeader({
             document.addEventListener("mousemove", onMove); document.addEventListener("mouseup", onUp);
           }} />
         )}
+        <Popover triggerRect={showMenu ? triggerRef.current?.getBoundingClientRect() ?? null : null} onClose={handleMenuClose} minWidth={200}>
+          {editing ? (
+            <div style={{ padding: 4 }}>
+              <input value={name} onChange={(e) => setName(e.target.value)}
+                onKeyDown={(e) => { if (e.key === "Enter") { if (name.trim()) onRename(name); handleMenuClose(); } if (e.key === "Escape") handleMenuClose(); }}
+                onBlur={() => { if (name.trim()) onRename(name); handleMenuClose(); }} autoFocus
+                style={{ width: "100%", border: "1px solid #2eaadc", borderRadius: 4, padding: "4px 8px", fontSize: 13, outline: "none" }} />
+            </div>
+          ) : (
+            <div>
+              <div className="db-menu-item" onClick={() => setEditing(true)}>Rename column</div>
+              <div className="db-menu-item" onClick={() => { onDelete(); handleMenuClose(); }}>Hide column</div>
+            </div>
+          )}
+        </Popover>
       </th>
     );
   }
-
-  const handleMenuClose = () => { setShowMenu(false); setEditing(false); setChangingType(false); };
 
   return (
     <th className="db-col-header" data-field-id={field.id} style={{ minWidth: width || 150, width: width || undefined }}>
@@ -120,6 +142,22 @@ export function ColumnHeader({
             </div>
             <div style={{ borderTop: "1px solid #f0f0f0", margin: "4px 0" }} />
 
+            {onSortAsc && (
+              <div className="db-menu-item" onClick={() => { onSortAsc(); handleMenuClose(); }}>
+                <span style={{ opacity: 0.5 }}>↑</span> Sort ascending
+              </div>
+            )}
+            {onSortDesc && (
+              <div className="db-menu-item" onClick={() => { onSortDesc(); handleMenuClose(); }}>
+                <span style={{ opacity: 0.5 }}>↓</span> Sort descending
+              </div>
+            )}
+            {onFilter && (
+              <div className="db-menu-item" onClick={() => { onFilter(); handleMenuClose(); }}>
+                <span style={{ opacity: 0.5 }}>⚲</span> Filter by this property
+              </div>
+            )}
+            {(onSortAsc || onSortDesc || onFilter) && <div style={{ borderTop: "1px solid #f0f0f0", margin: "4px 0" }} />}
             {onOptions && (field.type === "select" || field.type === "multiSelect") && (
               <div className="db-menu-item" onClick={() => { handleMenuClose(); onOptions(); }}>Edit options</div>
             )}
@@ -195,21 +233,29 @@ export function OptionsEditor({
 // ── Add Field Popover ─────────────────────────────────────────────────────
 
 export function AddFieldPopover({
-  triggerRect, onClose, onAdd, databases,
+  triggerRect, onClose, onAdd,
 }: {
   triggerRect: DOMRect | null;
   onClose: () => void;
   onAdd: (name: string, type: FieldType, options?: string[], relationTargetDbId?: string | null) => void;
-  databases: any[];
 }) {
   const [name, setName] = useState("");
   const [type, setType] = useState<FieldType>("text");
   const [options, setOptions] = useState<string[]>([]);
   const [optionInput, setOptionInput] = useState("");
   const [relationTarget, setRelationTarget] = useState<string | null>(null);
+  const [allDbs, setAllDbs] = useState<Array<{ id: string; name: string; pageId: string }>>([]);
+  const pages = usePageStore((s) => s.pages);
   const nameRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => { if (nameRef.current) setTimeout(() => nameRef.current?.focus(), 50); }, []);
+
+  // Lazy-load every database in the workspace the first time the relation
+  // type is chosen, so the target picker isn't limited to the current page.
+  useEffect(() => {
+    if (type !== "relation" || allDbs.length > 0) return;
+    api.listAllDatabases().then((dbs) => setAllDbs(dbs as any));
+  }, [type, allDbs.length]);
 
   const handleAddOption = () => {
     const opt = optionInput.trim();
@@ -277,8 +323,16 @@ export function AddFieldPopover({
             <div style={{ fontSize: 11, color: "#999", marginBottom: 6, fontWeight: 500 }}>RELATE TO</div>
             <select value={relationTarget || ""} onChange={(e) => setRelationTarget(e.target.value || null)}
               style={{ width: "100%", border: "1px solid #e9e9e7", borderRadius: 4, padding: "6px 8px", fontSize: 13, boxSizing: "border-box" }}>
-              <option value="">Select a database...</option>
-              {databases.map((db) => (<option key={db.id} value={db.id}>{db.name}</option>))}
+              <option value="">Select a database…</option>
+              {allDbs.map((db) => {
+                const page = pages.find((p) => p.id === db.pageId);
+                const pageTitle = page?.title || "Untitled page";
+                return (
+                  <option key={db.id} value={db.id}>
+                    {db.name} — {pageTitle}
+                  </option>
+                );
+              })}
             </select>
           </div>
         )}

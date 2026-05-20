@@ -10,6 +10,7 @@ import { api } from "../rpc-client.js";
 import { CellDisplay, InlineCellEditor, Popover } from "./db/CellComponents.js";
 import { ColumnHeader, AddFieldPopover, OptionsEditor, type FieldType } from "./db/FieldComponents.js";
 import { BoardView } from "./db/BoardView.js";
+import { RecordPanel } from "./db/RecordPanel.js";
 
 // ── Filter Bar ────────────────────────────────────────────────────────────
 
@@ -96,9 +97,9 @@ function SortBar({
 // ── Sortable Row ──────────────────────────────────────────────────────────
 
 function SortableRow({
-  id, children, isDragging, onDelete,
+  id, children, isDragging, onDelete, onOpen,
 }: {
-  id: string; children: React.ReactNode; isDragging: boolean; onDelete: () => void;
+  id: string; children: React.ReactNode; isDragging: boolean; onDelete: () => void; onOpen: () => void;
 }) {
   const { attributes, listeners, setNodeRef, transform, transition, isDragging: sortableDragging } = useSortable({ id });
   const [hovered, setHovered] = useState(false);
@@ -117,6 +118,12 @@ function SortableRow({
             <circle cx="5" cy="13" r="1.5" /><circle cx="11" cy="13" r="1.5" />
           </svg>
         </div>
+        <button
+          className="db-row-open-btn"
+          style={{ opacity: hovered ? 1 : 0 }}
+          onClick={onOpen}
+          title="Open record"
+        >↗</button>
         <button className="db-delete-btn" style={{ opacity: hovered ? 1 : 0 }} onClick={onDelete} title="Delete record">×</button>
       </td>
       {children}
@@ -157,7 +164,7 @@ function TitleCell({ recordId, title, onSave }: { recordId: string; title: strin
 export function DatabaseView({ database, isNew }: { database: any; isNew?: boolean }) {
   const {
     dbFields, records, loadDbFields, loadDbRecords, createDbRecord, updateFieldValue,
-    createField, deleteField, deleteRecord, databases, renameDatabase,
+    createField, deleteField, deleteRecord, databases, renameDatabase, loadDatabases,
     activeFilters, activeSorts, setFilter, setSort, addFilter, removeFilter, addSort, removeSort,
   } = useStore();
 
@@ -169,6 +176,7 @@ export function DatabaseView({ database, isNew }: { database: any; isNew?: boole
   const [isEditingName, setIsEditingName] = useState(isNew);
   const [dbName, setDbName] = useState(database.name || "Untitled");
   const [activeRowId, setActiveRowId] = useState<string | null>(null);
+  const [openRecordId, setOpenRecordId] = useState<string | null>(null);
   const [columnWidths, setColumnWidths] = useState<Record<string, number>>({});
   const [dbRecordCache, setDbRecordCache] = useState<Record<string, any[]>>({});
   const addFieldBtnRef = useRef<HTMLButtonElement>(null);
@@ -185,6 +193,30 @@ export function DatabaseView({ database, isNew }: { database: any; isNew?: boole
       }
     });
   }, [database.id]);
+
+  // Cross-page Cmd-click on a relation chip dispatches `db-open-record`
+  // after navigating. If the record belongs to this database, open the
+  // side panel for it.
+  useEffect(() => {
+    const onEvent = (e: Event) => {
+      const id = (e as CustomEvent).detail?.recordId as string | undefined;
+      if (id && records.some((r: any) => r.record.id === id)) setOpenRecordId(id);
+    };
+    window.addEventListener("db-open-record", onEvent);
+    return () => window.removeEventListener("db-open-record", onEvent);
+  }, [records]);
+
+  // Lazy-load records for any cross-page relation target so chips show the
+  // related record's title instead of a hash.
+  useEffect(() => {
+    for (const f of dbFields) {
+      const targetId = (f as any).relationTargetDbId as string | null;
+      if (!targetId || dbRecordCache[targetId]) continue;
+      api.listRecords(targetId).then((recs) =>
+        setDbRecordCache((prev) => ({ ...prev, [targetId]: recs })),
+      ).catch(() => { /* ignore */ });
+    }
+  }, [dbFields, dbRecordCache]);
 
   const filteredRecords = useMemo(() => {
     let result = [...records];
@@ -328,6 +360,15 @@ export function DatabaseView({ database, isNew }: { database: any; isNew?: boole
           </div>
 
           <span style={{ marginLeft: "auto", fontSize: 13, color: "#666", display: "flex", alignItems: "center", gap: 8 }}>
+            {database.titleHidden && (
+              <button
+                className="db-filter-btn"
+                title="Show the title column"
+                onClick={async () => { await api.updateDatabase(database.id, { titleHidden: false }); await loadDatabases(database.pageId); }}
+              >
+                Show {database.titleLabel || "Name"} column
+              </button>
+            )}
             {isEditingName ? (
               <input type="text" value={dbName} onChange={(e) => setDbName(e.target.value)} onBlur={handleNameSave}
                 onKeyDown={handleNameKeyDown} autoFocus style={{ fontSize: 13, padding: "2px 6px", border: "1px solid #2eaadc", borderRadius: 4, width: 140, outline: "none" }} />
@@ -341,11 +382,23 @@ export function DatabaseView({ database, isNew }: { database: any; isNew?: boole
             <thead>
               <tr>
                 <th className="db-drag-header" />
-                <ColumnHeader field={{ id: "title", name: "Name", type: "text" }} onRename={() => {}} onDelete={() => {}} isTitle width={columnWidths["__title__"]} onResize={handleColumnResize} />
+                {!database.titleHidden && (
+                  <ColumnHeader
+                    field={{ id: "title", name: database.titleLabel || "Name", type: "text" }}
+                    onRename={async (label) => { await api.updateDatabase(database.id, { titleLabel: label }); await loadDatabases(database.pageId); }}
+                    onDelete={async () => { await api.updateDatabase(database.id, { titleHidden: true }); await loadDatabases(database.pageId); }}
+                    isTitle
+                    width={columnWidths["__title__"]}
+                    onResize={handleColumnResize}
+                  />
+                )}
                 {dbFields.map((f: any) => (
                   <ColumnHeader key={f.id} field={f} onRename={(name) => handleRenameField(f.id, name)} onDelete={() => handleDeleteField(f.id)}
                     onOptions={() => setShowOptionsFor(showOptionsFor === f.id ? null : f.id)}
                     onChangeType={async (type) => { await api.updateField(f.id, { type }); await loadDbFields(database.id); await loadDbRecords(database.id); }}
+                    onSortAsc={() => addSort({ fieldId: f.id, direction: "asc" })}
+                    onSortDesc={() => addSort({ fieldId: f.id, direction: "desc" })}
+                    onFilter={() => addFilter({ fieldId: f.id, operator: "contains", value: "" })}
                     width={columnWidths[f.id]} onResize={handleColumnResize} />
                 ))}
                 <th style={{ width: 40 }}>
@@ -355,18 +408,29 @@ export function DatabaseView({ database, isNew }: { database: any; isNew?: boole
             </thead>
             <SortableContext items={sortedRecords.map((r: any) => r.record.id)} strategy={verticalListSortingStrategy}>
               <tbody>
-                {sortedRecords.map(({ record, values }: any) => (
-                  <SortableRow key={record.id} id={record.id} isDragging={activeRowId === record.id} onDelete={() => handleDeleteRecord(record.id)}>
-                    <td className="db-cell db-title-cell" style={columnWidths["__title__"] ? { minWidth: columnWidths["__title__"], width: columnWidths["__title__"] } : undefined}>
-                      <TitleCell
-                        recordId={record.id}
-                        title={record.title}
-                        onSave={async (newTitle) => {
-                          await api.updateRecord(record.id, newTitle);
-                          await loadDbRecords(database.id);
-                        }}
-                      />
+                {sortedRecords.length === 0 && (
+                  <tr>
+                    <td colSpan={dbFields.length + (database.titleHidden ? 2 : 3)} className="db-empty-row">
+                      {dbFields.length === 0
+                        ? "Empty database — add a property from the column ‘+’, or just press New below."
+                        : "No records yet. Press New below to create one."}
                     </td>
+                  </tr>
+                )}
+                {sortedRecords.map(({ record, values }: any) => (
+                  <SortableRow key={record.id} id={record.id} isDragging={activeRowId === record.id} onDelete={() => handleDeleteRecord(record.id)} onOpen={() => setOpenRecordId(record.id)}>
+                    {!database.titleHidden && (
+                      <td className="db-cell db-title-cell" style={columnWidths["__title__"] ? { minWidth: columnWidths["__title__"], width: columnWidths["__title__"] } : undefined}>
+                        <TitleCell
+                          recordId={record.id}
+                          title={record.title}
+                          onSave={async (newTitle) => {
+                            await api.updateRecord(record.id, { title: newTitle });
+                            await loadDbRecords(database.id);
+                          }}
+                        />
+                      </td>
+                    )}
                     {dbFields.map((field: any) => {
                       const val = values[field.name] ?? "";
                       const isEditing = editingCell?.recordId === record.id && editingCell?.fieldId === field.id;
@@ -387,9 +451,18 @@ export function DatabaseView({ database, isNew }: { database: any; isNew?: boole
                   </SortableRow>
                 ))}
                 <tr className="db-add-row">
-                  <td colSpan={dbFields.length + 2}>
-                    <input value={newTitle} onChange={(e) => setNewTitle(e.target.value)} onKeyDown={(e) => { if (e.key === "Enter") handleAddRecord(); if (e.key === "Escape") setNewTitle(""); }}
-                      onBlur={handleAddRecord} placeholder="+ New" className="db-new-record-input" />
+                  <td colSpan={dbFields.length + (database.titleHidden ? 2 : 3)}>
+                    <button
+                      type="button"
+                      className="db-new-record-btn"
+                      onClick={async () => {
+                        const rec = await createDbRecord(database.id, "");
+                        await loadDbRecords(database.id);
+                        if (rec?.id) setOpenRecordId(rec.id);
+                      }}
+                    >
+                      + New record
+                    </button>
                   </td>
                 </tr>
               </tbody>
@@ -397,7 +470,7 @@ export function DatabaseView({ database, isNew }: { database: any; isNew?: boole
           </table>
         </div>
 
-        {showAddField && (<AddFieldPopover triggerRect={addFieldBtnRef.current?.getBoundingClientRect() ?? null} onClose={() => setShowAddField(false)} onAdd={handleAddField} databases={databases} />)}
+        {showAddField && (<AddFieldPopover triggerRect={addFieldBtnRef.current?.getBoundingClientRect() ?? null} onClose={() => setShowAddField(false)} onAdd={handleAddField} />)}
 
         {showOptionsFor && (() => {
           const f = dbFields.find((x: any) => x.id === showOptionsFor);
@@ -414,6 +487,23 @@ export function DatabaseView({ database, isNew }: { database: any; isNew?: boole
             {sortedRecords.find((r) => r.record.id === activeRowId)?.record.title || "Record"}
           </div>) : null}
         </DragOverlay>
+
+        {openRecordId && (() => {
+          const entry = sortedRecords.find((r: any) => r.record.id === openRecordId);
+          if (!entry) return null;
+          return (
+            <RecordPanel
+              databaseId={database.id}
+              record={entry.record}
+              values={entry.values}
+              fields={dbFields as any}
+              databases={databases}
+              allRecords={dbRecordCache}
+              onClose={() => setOpenRecordId(null)}
+              onChanged={() => loadDbRecords(database.id)}
+            />
+          );
+        })()}
       </div>
     </DndContext>
   );
