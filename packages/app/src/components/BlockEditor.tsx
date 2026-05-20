@@ -11,7 +11,7 @@ import { DetailsNode, DetailsSummary, DetailsContent } from "./DetailsExtension.
 import { BlockNavigationExtension, type BlockNavigationCallbacks } from "./BlockNavigationExtension.js";
 import { PageReferenceNode, PageReferenceExtension, createPageReferenceRender } from "./PageReferenceExtension.js";
 import { api } from "../rpc-client.js";
-import { useStore } from "../store.js";
+import { useStore, usePageStore } from "../store.js";
 import { DatabaseView } from "./DatabaseView.js";
 import { SlashMenu } from "./SlashMenu.js";
 import { DndContext, type DragEndEvent, type DragStartEvent, type DragOverEvent, DragOverlay, PointerSensor, useSensor, useSensors } from "@dnd-kit/core";
@@ -312,6 +312,93 @@ function DropIndicator({ active }: { active: boolean }) {
   return <div className="drop-indicator" />;
 }
 
+/**
+ * Block-level link to another page. Two states:
+ *   - targetPageId set → render a clickable card; click navigates.
+ *   - targetPageId empty (just-inserted from /page slash command) → open
+ *     a small inline picker so the user immediately chooses a page; the
+ *     selection is persisted as the block's content.
+ */
+function PageLinkBlock({
+  blockId, targetPageId, onPick,
+}: {
+  blockId: string;
+  targetPageId: string;
+  onPick: (pageId: string) => void | Promise<void>;
+}) {
+  const pages = usePageStore((s) => s.pages);
+  const page = pages.find((p) => p.id === targetPageId);
+  const [pickerOpen, setPickerOpen] = useState(targetPageId === "");
+  const [query, setQuery] = useState("");
+
+  const navigate = (e: React.MouseEvent) => {
+    if (!targetPageId) return;
+    e.stopPropagation();
+    const url = new URL(window.location.href);
+    url.searchParams.set("page", targetPageId);
+    window.history.pushState({ pageId: targetPageId }, "", url);
+    window.dispatchEvent(new PopStateEvent("popstate"));
+  };
+
+  if (!targetPageId || pickerOpen) {
+    const q = query.trim().toLowerCase();
+    const visible = (q
+      ? pages.filter((p) => !p.isDeleted && (p.title || "").toLowerCase().includes(q))
+      : pages.filter((p) => !p.isDeleted)
+    ).slice(0, 20);
+    return (
+      <div className="page-link-picker" onMouseDown={(e) => e.stopPropagation()}>
+        <input
+          autoFocus
+          className="page-link-picker-input"
+          placeholder="Link to page…"
+          value={query}
+          onChange={(e) => setQuery(e.target.value)}
+          onKeyDown={(e) => {
+            if (e.key === "Escape") { e.preventDefault(); setPickerOpen(false); }
+            else if (e.key === "Enter" && visible[0]) {
+              e.preventDefault();
+              setPickerOpen(false);
+              onPick(visible[0].id);
+            }
+          }}
+        />
+        <div className="page-link-picker-list">
+          {visible.length === 0 ? (
+            <div className="page-link-picker-empty">No pages</div>
+          ) : visible.map((p) => (
+            <button
+              key={p.id}
+              className="page-link-picker-item"
+              onClick={() => { setPickerOpen(false); onPick(p.id); }}
+            >
+              <span>{p.icon || "📄"}</span>
+              <span style={{ flex: 1, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                {p.title || "Untitled"}
+              </span>
+            </button>
+          ))}
+        </div>
+      </div>
+    );
+  }
+
+  if (!page) {
+    return (
+      <div className="page-link-block page-link-block--missing" data-block-id={blockId}>
+        Page no longer exists
+      </div>
+    );
+  }
+  return (
+    <a className="page-link-block" href={`?page=${targetPageId}`} onClick={navigate}>
+      <span className="page-link-block-icon">{page.icon || "📄"}</span>
+      <span className="page-link-block-title">{page.title || "Untitled"}</span>
+      <span className="page-link-block-arrow">↗</span>
+    </a>
+  );
+}
+
 /** Sortable wrapper for a single block with drag handle. */
 function SortableBlock({
   id,
@@ -416,10 +503,15 @@ export function BlockEditor() {
     }),
   );
 
-  // Sorted blocks (filter out database blocks - they render separately)
-  const sortedBlocks = [...blocks]
-    .filter((b) => b.type !== "database")
-    .sort((a, b) => a.index - b.index);
+  // Sorted blocks. Keep `database`-typed blocks so they render at their
+  // inline position; the block's `content` is the dbId of the database to
+  // show there. Databases attached to the page that aren't pointed at by
+  // any inline block fall through to the orphan list further down so the
+  // user can still see them.
+  const sortedBlocks = [...blocks].sort((a, b) => a.index - b.index);
+  const inlineDbIds = new Set(
+    blocks.filter((b) => b.type === "database").map((b) => b.content)
+  );
 
   // ── Inter-block operations ────────────────────────────────────────
 
@@ -570,6 +662,16 @@ export function BlockEditor() {
       await updateBlock(currentBlock.id, "<pre><code></code></pre>");
     } else if (command === "image") {
       fileInputRef.current?.click();
+    } else if (command === "pageLink") {
+      // Insert an empty pageLink block; PageLinkBlock auto-opens a picker
+      // for blocks with no target yet, and persists the selected pageId.
+      await createBlock({
+        pageId: currentPage.id,
+        type: "pageLink",
+        content: "",
+        index: currentBlock.index + 1,
+        parentId: null,
+      });
     }
   }, [currentPage, sortedBlocks, updateBlock, createBlock, createDatabase, loadDatabases]);
 
@@ -662,11 +764,14 @@ export function BlockEditor() {
     }
   };
 
-  // Build combined items list (blocks + databases) for drag-drop
-  const allItems = [...sortedBlocks, ...databases.map((db) => ({
+  // Build combined items list. Databases already pointed at by an inline
+  // `database` block are skipped here so we don't double-render them
+  // (once inline, once at the bottom). Anything left over is appended.
+  const orphanDatabases = databases.filter((db) => !inlineDbIds.has(db.id));
+  const allItems = [...sortedBlocks, ...orphanDatabases.map((db) => ({
     id: `db-${db.id}`,
     type: "database" as const,
-    index: databases.indexOf(db) + sortedBlocks.length,
+    index: orphanDatabases.indexOf(db) + sortedBlocks.length,
   }))];
 
   if (!currentPage) {
@@ -785,6 +890,48 @@ export function BlockEditor() {
 
               const block = sortedBlocks.find((b) => b.id === item.id);
               if (!block) return null;
+
+              // Inline database block: block.content holds the dbId, look up
+              // the database and render it at this position in the body.
+              if (block.type === "database") {
+                const db = databases.find((d) => d.id === block.content);
+                if (!db) return null;
+                return (
+                  <SortableBlock
+                    key={block.id}
+                    id={block.id}
+                    showDropIndicator={dropIndicatorIndex === index}
+                    isDragging={activeBlockId === block.id}
+                    onDragStart={() => setActiveBlockId(block.id)}
+                    blockType="database"
+                  >
+                    <DatabaseView database={db} isNew={db.id === newDbId} />
+                  </SortableBlock>
+                );
+              }
+
+              // Page-link block: block.content is the target pageId. Renders
+              // as a clickable row (icon + title) that navigates on click.
+              if (block.type === "pageLink") {
+                return (
+                  <SortableBlock
+                    key={block.id}
+                    id={block.id}
+                    showDropIndicator={dropIndicatorIndex === index}
+                    isDragging={activeBlockId === block.id}
+                    onDragStart={() => setActiveBlockId(block.id)}
+                    onInsertBelow={() => insertBlockAfter(sortedBlocks.indexOf(block))}
+                    blockType="pageLink"
+                  >
+                    <PageLinkBlock
+                      blockId={block.id}
+                      targetPageId={block.content}
+                      onPick={(pid) => updateBlock(block.id, pid)}
+                    />
+                  </SortableBlock>
+                );
+              }
+
               const blockIndex = sortedBlocks.indexOf(block);
               const callbacks: BlockNavigationCallbacks = {
                 navigateToBlock: (targetIdx, cursorPos) => navigateToBlock(targetIdx, cursorPos),
@@ -884,4 +1031,5 @@ const slashCommands = [
   { id: "numbered", name: "Numbered List", icon: "1.", shortcut: "1." },
   { id: "code", name: "Code Block", icon: "</>", shortcut: "```" },
   { id: "database", name: "Database", icon: "🗃️", shortcut: "/database" },
+  { id: "pageLink", name: "Link to page", icon: "🔗", shortcut: "/page" },
 ];

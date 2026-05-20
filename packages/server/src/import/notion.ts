@@ -1,8 +1,59 @@
 import { Effect } from "effect";
 import { SqlClient } from "@effect/sql";
 import { ulid } from "ulidx";
-import { readFile, readdir } from "node:fs/promises";
+import { readFile, readdir, copyFile, mkdir } from "node:fs/promises";
 import path from "node:path";
+import { fileURLToPath } from "node:url";
+
+// Resolve the attachments dir the same way packages/server/src/handlers/upload.ts
+// does so imported images land in the same place uploads do.
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
+const ROOT_DIR = path.join(__dirname, "../../../..");
+const ATTACHMENTS_DIR = process.env.DATA_DIR
+  ? path.join(process.env.DATA_DIR, "attachments")
+  : path.join(ROOT_DIR, ".data", "attachments");
+
+const IMAGE_EXT_MIME: Record<string, string> = {
+  ".png": "image/png", ".jpg": "image/jpeg", ".jpeg": "image/jpeg",
+  ".gif": "image/gif", ".webp": "image/webp", ".svg": "image/svg+xml",
+  ".pdf": "application/pdf",
+};
+
+/**
+ * Resolve `src` (as written in an imported block) to an absolute path
+ * inside `exportDir`, accounting for the source file's location and
+ * URL-encoded filenames Notion produces. Returns null if `src` is an
+ * absolute URL (http/https/data:) or can't be resolved.
+ */
+function resolveImportedAsset(exportDir: string, sourceFileRel: string, src: string): string | null {
+  if (/^(https?:|data:|\/)/i.test(src)) return null;
+  const decoded = decodeURIComponent(src);
+  const fromDir = path.dirname(path.join(exportDir, sourceFileRel));
+  const abs = path.resolve(fromDir, decoded);
+  // Guard against path traversal — must stay within exportDir.
+  if (!abs.startsWith(path.resolve(exportDir))) return null;
+  return abs;
+}
+
+/**
+ * Copy a file from the export tree into the attachments dir under a fresh
+ * ulid name, and return its public URL. Returns null if the source
+ * doesn't exist (broken link in the export).
+ */
+async function copyAssetToAttachments(absPath: string): Promise<string | null> {
+  try {
+    const ext = path.extname(absPath).toLowerCase();
+    if (!IMAGE_EXT_MIME[ext]) return null;
+    await mkdir(ATTACHMENTS_DIR, { recursive: true });
+    const id = ulid();
+    const dest = path.join(ATTACHMENTS_DIR, `${id}${ext}`);
+    await copyFile(absPath, dest);
+    return `/attachments/${id}${ext}`;
+  } catch {
+    return null;
+  }
+}
 
 export interface ParsedBlock {
   type: string;
@@ -58,7 +109,34 @@ export function markdownToBlocks(md: string): ParsedBlock[] {
     } else if (line.trim() === "") {
       continue;
     } else {
-      blocks.push({ type: "paragraph", content: line });
+      // Image: standalone line like `![alt](path/to/img.png)`. Notion
+      // exports images this way. The path is left relative; the importer
+      // will resolve + copy + rewrite afterwards.
+      const trimmed = line.trim();
+      const imgMatch = trimmed.match(/^!\[([^\]]*)\]\(([^)]+)\)$/);
+      const linkMatch = trimmed.match(/^\[([^\]]*)\]\(([^)]+\.md)\)$/);
+      if (imgMatch) {
+        const src = imgMatch[2];
+        const fileName = decodeURIComponent(src.split("/").pop() ?? "image");
+        blocks.push({ type: "image", content: JSON.stringify({ src, fileName }) });
+      } else if (linkMatch) {
+        // Standalone link to another .md file = Notion sub-page reference.
+        // Emit a pageLink placeholder; the post-import pass resolves the
+        // GUID to an actual pageId.
+        const href = decodeURIComponent(linkMatch[2]);
+        const guids = [...href.matchAll(/[a-f0-9]{32}/gi)].map((mm) => mm[0]);
+        const targetGuid = guids[guids.length - 1] ?? null;
+        if (targetGuid) {
+          blocks.push({
+            type: "pageLink",
+            content: JSON.stringify({ __pageRef: targetGuid }),
+          });
+        } else {
+          blocks.push({ type: "paragraph", content: line });
+        }
+      } else {
+        blocks.push({ type: "paragraph", content: line });
+      }
     }
   }
 
@@ -69,101 +147,433 @@ export function markdownToBlocks(md: string): ParsedBlock[] {
   return blocks;
 }
 
-export function parsePageTitle(md: string, fallbackFilename: string = ""): string {
-  const match = md.match(/^# (.+)$/m);
-  if (match) return match[1].trim();
+/**
+ * Pull the page title out of Notion's HTML export.
+ * Order of preference: `<title>` tag → first `<h1>` → filename without GUID.
+ */
+/** Strip Notion's trailing GUID/UUID from a title — both `Title (32hex)`
+ *  and `Title 32hex` forms appear depending on which export was used. */
+function stripTrailingGuid(s: string): string {
+  return s.replace(/\s*\(?[a-f0-9]{32}\)?\s*$/i, "").trim();
+}
+
+export function parseHtmlTitle(html: string, fallbackFilename: string = ""): string {
+  const titleMatch = html.match(/<title>([^<]+)<\/title>/i);
+  if (titleMatch) return stripTrailingGuid(decodeHtmlEntities(titleMatch[1]).trim());
+  const h1Match = html.match(/<h1[^>]*>([\s\S]+?)<\/h1>/i);
+  if (h1Match) return stripTrailingGuid(decodeHtmlEntities(h1Match[1].replace(/<[^>]+>/g, "")).trim());
   if (fallbackFilename) {
-    return path.basename(fallbackFilename, ".md").replace(/\s*\([a-f0-9]{32}\)$/, "").trim();
+    return stripTrailingGuid(
+      path.basename(fallbackFilename, path.extname(fallbackFilename))
+    );
   }
   return "Untitled";
 }
 
-export function determineParent(
-  filePath: string,
-  pageMap: Map<string, string>
-): string | null {
-  const folderMatch = filePath.match(/\((\w{32})\)\//);
-  if (!folderMatch) return null;
-  const parentGuid = folderMatch[1];
-  return pageMap.get(parentGuid) || null;
+/**
+ * Convert Notion's HTML export to a flat list of blocks. Lightweight
+ * tag-walk that pulls out the article body (between the first `<h1>` —
+ * which is the title, skipped — and end of `<body>`/`<article>`) and
+ * splits on the structural tags we render: headings, lists, blockquotes,
+ * code, hr, and paragraphs.
+ */
+export function htmlToBlocks(html: string): ParsedBlock[] {
+  // Strip head + everything before/after the body so we don't pick up
+  // stylesheet content as "paragraphs".
+  const bodyMatch = html.match(/<body[^>]*>([\s\S]*?)<\/body>/i);
+  let body = bodyMatch ? bodyMatch[1] : html;
+
+  // Notion HTML wraps everything in <article>; the page title lives in
+  // a header at the top. Drop the first <h1> if present.
+  body = body.replace(/<header[\s\S]*?<\/header>/gi, "");
+  body = body.replace(/<div[^>]*class="[^"]*\bpage-header\b[^"]*"[^>]*>[\s\S]*?<\/div>/gi, "");
+  body = body.replace(/<h1[^>]*>[\s\S]+?<\/h1>/i, "");
+
+  // Notion sticks the page icon + cover image at the top of the body and
+  // also inline at the start of callouts. Without dropping them,
+  // htmlToBlocks turns each into an oversized standalone image block.
+  body = body.replace(/<img[^>]*class="[^"]*\b(icon|page-cover-image|page-header-icon|callout-emoji|callout-icon)\b[^"]*"[^>]*\/?>/gi, "");
+  body = body.replace(/<span[^>]*class="[^"]*\bicon\b[^"]*"[^>]*>[\s\S]*?<\/span>/gi, "");
+  body = body.replace(/<div[^>]*class="[^"]*\b(page-header-icon|page-cover|callout-icon|page-title-icon)\b[^"]*"[^>]*>[\s\S]*?<\/div>/gi, "");
+  body = body.replace(/<figure[^>]*class="[^"]*\b(page-cover|page-header-icon)\b[^"]*"[^>]*>[\s\S]*?<\/figure>/gi, "");
+
+  // Inline databases: Notion renders these as <table class="collection-content">
+  // and includes a sibling <a href="DBName guid.csv"> link to the data. We
+  // pair them in document order — N-th <table> ↔ N-th CSV link — so the
+  // resulting database block at the table's position knows which CSV's
+  // data to point at.
+  const csvHrefs: string[] = [];
+  const csvHrefRegex = /<a[^>]*href="([^"]+\.csv)"[^>]*>[\s\S]*?<\/a>/gi;
+  let hrefMatch: RegExpExecArray | null;
+  while ((hrefMatch = csvHrefRegex.exec(body)) !== null) {
+    csvHrefs.push(decodeURIComponent(hrefMatch[1].split("/").pop() ?? ""));
+  }
+  // Strip the anchors now that we've recorded them — otherwise they'd
+  // show up as stray "View source" link text in the body.
+  body = body.replace(csvHrefRegex, "");
+
+  const blocks: ParsedBlock[] = [];
+  let tableIdx = 0;
+  const blockRegex = /<(h[1-3]|p|ul|ol|blockquote|pre|hr|figure|table)([^>]*)>([\s\S]*?)<\/\1>|<hr[^>]*\/?>/gi;
+  let m: RegExpExecArray | null;
+  while ((m = blockRegex.exec(body)) !== null) {
+    const tag = (m[1] || "hr").toLowerCase();
+    const inner = (m[3] ?? "").trim();
+    if (tag === "h1" || tag === "h2" || tag === "h3") {
+      const text = decodeHtmlEntities(inner.replace(/<[^>]+>/g, "")).trim();
+      if (text) blocks.push({ type: `heading${tag[1]}`, content: text });
+    } else if (tag === "p") {
+      // Paragraphs whose ENTIRE content is a single <a href="…html"> link
+      // are sub-page references in Notion exports — promote those to a
+      // standalone pageLink block. Inline links within mixed text are
+      // left as text.
+      const trimmedInner = inner.trim();
+      const standaloneLink = trimmedInner.match(/^<a[^>]+href="([^"]+\.html?)"[^>]*>[\s\S]*?<\/a>$/i);
+      if (standaloneLink) {
+        const href = decodeURIComponent(standaloneLink[1]);
+        const guids = findAllGuids(href);
+        const targetGuid = guids[guids.length - 1] ?? null;
+        if (targetGuid) {
+          blocks.push({
+            type: "pageLink",
+            content: JSON.stringify({ __pageRef: targetGuid }),
+          });
+          continue;
+        }
+      }
+      const text = trimmedInner.replace(/<br\s*\/?>/gi, "\n").replace(/<[^>]+>/g, "").trim();
+      const decoded = decodeHtmlEntities(text);
+      if (decoded) blocks.push({ type: "paragraph", content: decoded });
+    } else if (tag === "ul" || tag === "ol") {
+      const items = [...inner.matchAll(/<li[^>]*>([\s\S]*?)<\/li>/gi)].map((li) =>
+        decodeHtmlEntities(li[1].replace(/<[^>]+>/g, "").trim())
+      ).filter(Boolean);
+      const type = tag === "ol" ? "numberedList" : "bulletList";
+      for (const item of items) blocks.push({ type, content: item });
+    } else if (tag === "blockquote") {
+      const text = decodeHtmlEntities(inner.replace(/<[^>]+>/g, "")).trim();
+      if (text) blocks.push({ type: "blockquote", content: text });
+    } else if (tag === "pre") {
+      const codeMatch = inner.match(/<code[^>]*>([\s\S]*?)<\/code>/i);
+      const text = decodeHtmlEntities((codeMatch ? codeMatch[1] : inner).replace(/<[^>]+>/g, ""));
+      blocks.push({ type: "code", content: text });
+    } else if (tag === "hr") {
+      blocks.push({ type: "divider", content: "" });
+    } else if (tag === "figure") {
+      // Notion's block-level "link to page" subpage marker:
+      //   <figure class="link-to-page"><a href="…html">Title</a></figure>
+      // The href points to another exported HTML file. Emit a placeholder;
+      // we resolve target page id after all pages are created.
+      const m2 = m[2] ?? "";
+      const isPageLink = /class="[^"]*\blink-to-page\b[^"]*"/i.test(m2);
+      const linkMatch = isPageLink ? inner.match(/<a[^>]+href="([^"]+\.html?)"/i) : null;
+      if (linkMatch) {
+        const href = decodeURIComponent(linkMatch[1]);
+        const guids = findAllGuids(href);
+        const targetGuid = guids[guids.length - 1] ?? null;
+        if (targetGuid) {
+          blocks.push({
+            type: "pageLink",
+            content: JSON.stringify({ __pageRef: targetGuid }),
+          });
+        }
+        continue;
+      }
+      const imgMatch = inner.match(/<img[^>]+src=["']([^"']+)["']/i);
+      if (imgMatch) {
+        blocks.push({
+          type: "image",
+          content: JSON.stringify({ src: imgMatch[1], fileName: imgMatch[1].split("/").pop() ?? "image" }),
+        });
+      }
+    } else if (tag === "table") {
+      // Inline database. Pair this <table> with the N-th csv link in
+      // document order — that's the CSV whose data we want shown here.
+      // Emits a placeholder block; the CSV importer resolves it to a
+      // real database id via a post-import UPDATE pass.
+      const csvHref = csvHrefs[tableIdx++];
+      if (csvHref) {
+        const guids = findAllGuids(csvHref);
+        const csvGuid = guids[guids.length - 1] ?? null;
+        if (csvGuid) {
+          blocks.push({
+            type: "database",
+            content: JSON.stringify({ __dbRef: csvGuid }),
+          });
+        }
+      }
+    }
+  }
+  return blocks;
 }
 
+function decodeHtmlEntities(s: string): string {
+  return s
+    .replace(/&nbsp;/g, " ")
+    .replace(/&amp;/g, "&")
+    .replace(/&lt;/g, "<")
+    .replace(/&gt;/g, ">")
+    .replace(/&quot;/g, '"')
+    .replace(/&#39;/g, "'")
+    .replace(/&#(\d+);/g, (_, n) => String.fromCharCode(Number(n)));
+}
+
+export function parsePageTitle(md: string, fallbackFilename: string = ""): string {
+  const match = md.match(/^# (.+)$/m);
+  if (match) return stripTrailingGuid(match[1].trim());
+  if (fallbackFilename) {
+    return stripTrailingGuid(path.basename(fallbackFilename, ".md"));
+  }
+  return "Untitled";
+}
+
+/**
+ * Find any 32-hex Notion GUIDs inside a path segment.
+ *
+ * Notion's two export formats use DIFFERENT separators around the GUID:
+ *   Markdown export:  `Project (a1a2…32hex).md`     ← parens
+ *   HTML/CSV export:  `Project a1a2…32hex.html`     ← preceding space, no parens
+ * The previous regex only handled the parens form, so HTML/CSV exports
+ * never resolved a parent and everything attached to the wrapper.
+ *
+ * Plain `[a-f0-9]{32}` anywhere in the string handles both safely — file
+ * paths don't contain incidental 32-hex runs.
+ */
+function findAllGuids(s: string): string[] {
+  return [...s.matchAll(/[a-f0-9]{32}/gi)].map((m) => m[0]);
+}
+
+/**
+ * For an imported page file, return the path(s) of its sub-content folder
+ * in the export tree. Notion's two formats name this folder differently:
+ *
+ *   Markdown export:  `Parent (parentGuid)/Title (titleGuid).md`
+ *                     sub-content folder → `Parent (parentGuid)/Title (titleGuid)`
+ *
+ *   HTML export:      `Parent guid/Title titleGuid.html`
+ *                     sub-content folder → `Parent guid/Title`       ← no guid!
+ *
+ * We register both candidate folder paths (with and without trailing guid)
+ * against the page's id, so child lookups by their literal dirname find
+ * the parent regardless of which export format produced the archive.
+ */
+function contentFolderKeys(pageFilePath: string): string[] {
+  const noExt = pageFilePath.replace(/\.(md|html)$/i, "");
+  const stripped = noExt
+    .replace(/\s*\([a-f0-9]{32}\)$/i, "")  // MD form
+    .replace(/\s+[a-f0-9]{32}$/i, "");      // HTML form
+  return noExt === stripped ? [noExt] : [noExt, stripped];
+}
+
+/**
+ * Pull this file's own GUID out of its basename, ignoring any parent
+ * folder GUIDs that appear earlier in the path. Handles both Notion
+ * export formats (parens or space-separated). Used to register the
+ * imported page in pageMap so children can find it as their parent.
+ */
 export function extractGuid(filename: string): string | null {
-  const match = filename.match(/\(([a-f0-9]{32})\)/i);
-  return match ? match[1] : null;
+  const base = filename.split("/").pop() ?? filename;
+  const guids = findAllGuids(base);
+  return guids.length > 0 ? guids[guids.length - 1] : null;
 }
 
 export function importNotionExport(exportDir: string) {
   return Effect.gen(function* () {
     const sql = yield* SqlClient.SqlClient;
 
-    const allFiles = yield* Effect.promise(() =>
-      readdirRecursive(exportDir)
-    );
-
-    const mdFiles = allFiles
-      .filter((f) => f.endsWith(".md"))
+    const allFiles = yield* Effect.promise(() => readdirRecursive(exportDir));
+    const mdFiles = allFiles.filter((f) => f.endsWith(".md")).map((f) => path.relative(exportDir, f));
+    // Notion exports as either Markdown OR HTML. When users picked HTML we
+    // need to fall through to it; otherwise the import would silently
+    // create just a wrapper page with nothing inside.
+    const htmlFiles = allFiles
+      .filter((f) => f.toLowerCase().endsWith(".html"))
       .map((f) => path.relative(exportDir, f));
+    const csvFiles = allFiles.filter((f) => f.endsWith(".csv")).map((f) => path.relative(exportDir, f));
 
-    const csvFiles = allFiles
-      .filter((f) => f.endsWith(".csv"))
-      .map((f) => path.relative(exportDir, f));
+    // Prefer MD when present (richer block fidelity), otherwise fall back
+    // to HTML. Each entry is { relPath, blocks, title }.
+    const useHtml = mdFiles.length === 0 && htmlFiles.length > 0;
+    let sourceFiles = useHtml ? htmlFiles : mdFiles;
 
-    const guidToFilePath = new Map<string, string>();
-    const fileContentMap = new Map<string, string>();
-
-    for (const relPath of mdFiles) {
-      const content = yield* Effect.promise(() =>
-        readFile(path.join(exportDir, relPath), "utf-8")
-      );
-      fileContentMap.set(relPath, content);
-
-      const guid = extractGuid(relPath);
-      if (guid) {
-        guidToFilePath.set(guid, relPath);
-      }
+    // Notion HTML/MD exports include a *stub* page file for every inline
+    // database alongside the CSV (same GUID, e.g. `To do 3723….html` next
+    // to `To do 3723….csv`). The stub's body is just the database table
+    // we strip below — so importing it produces an empty "Untitled"
+    // duplicate at the same level as the real DB. Filter those stubs out
+    // by GUID before we create any pages.
+    const csvGuids = new Set(csvFiles.map((p) => extractGuid(p)).filter((g): g is string => g !== null));
+    if (csvGuids.size > 0) {
+      sourceFiles = sourceFiles.filter((p) => {
+        const guid = extractGuid(p);
+        return !guid || !csvGuids.has(guid);
+      });
     }
 
+    if (sourceFiles.length === 0 && csvFiles.length === 0) {
+      // Nothing to import — bail before creating an empty wrapper page.
+      return yield* Effect.fail(new Error(
+        `No importable content found in the archive. Expected .md, .html, or .csv files. ` +
+        `Inspected ${allFiles.length} file(s).`
+      ));
+    }
+
+    const fileContentMap = new Map<string, string>();
+    for (const relPath of sourceFiles) {
+      const content = yield* Effect.promise(() => readFile(path.join(exportDir, relPath), "utf-8"));
+      fileContentMap.set(relPath, content);
+    }
+
+    // Single root wrapper page so the import doesn't pollute the sidebar.
+    // Created only after we know there is content to put inside.
+    const now = new Date().toISOString();
+    const rootId = ulid();
+    const stamp = new Date().toLocaleString("en-US", {
+      month: "short", day: "numeric", year: "numeric", hour: "numeric", minute: "2-digit",
+    });
+    yield* sql`
+      INSERT INTO pages (id, title, parent_id, icon, created_at, updated_at)
+      VALUES (${rootId}, ${`Imported · ${stamp}`}, NULL, ${"📥"}, ${now}, ${now})
+    `;
+
+    // Two parallel indexes:
+    //   pageMap  — keyed by Notion GUID (used by CSV importer for cross-refs).
+    //   folderMap — keyed by the literal directory path of a child (e.g.
+    //               "Private & Shared/Let's get married"). Children look up
+    //               their dirname here to find their parent page id. Lets us
+    //               handle both export formats without depending on whether
+    //               the folder name carries a GUID.
     const pageMap = new Map<string, string>();
-    const sortedFiles = [...mdFiles].sort((a, b) => a.length - b.length);
+    const folderMap = new Map<string, string>();
+    // CSV GUIDs that some imported page references inline via a <table>.
+    // Populated during the block-insert loop below, consumed by the CSV
+    // import phase to decide between "inline" and "isolated".
+    const inlineCsvGuids = new Set<string>();
+    const sortedFiles = [...sourceFiles].sort((a, b) => a.length - b.length);
 
     for (const relPath of sortedFiles) {
       const content = fileContentMap.get(relPath)!;
-      const title = parsePageTitle(content, relPath);
+      const title = useHtml ? parseHtmlTitle(content, relPath) : parsePageTitle(content, relPath);
       const guid = extractGuid(relPath);
-      const parentId = determineParent(relPath, pageMap);
+      const dir = path.dirname(relPath);
+      const parentId = (dir && dir !== "." ? folderMap.get(dir) : null) ?? rootId;
 
       const pageId = ulid();
-      const now = new Date().toISOString();
-
+      const pageNow = new Date().toISOString();
       yield* sql`
         INSERT INTO pages (id, title, parent_id, created_at, updated_at)
-        VALUES (${pageId}, ${title}, ${parentId}, ${now}, ${now})
+        VALUES (${pageId}, ${title}, ${parentId}, ${pageNow}, ${pageNow})
       `;
 
-      const blocks = markdownToBlocks(content);
+      const blocks = useHtml ? htmlToBlocks(content) : markdownToBlocks(content);
+
+      // Image blocks reference files relative to this MD/HTML file inside
+      // the export. Copy each into the attachments dir under a ulid name
+      // and rewrite the block's src to the public /attachments/<id> URL
+      // before we persist it — otherwise the renderer hits a 404.
       for (let i = 0; i < blocks.length; i++) {
-        const blockId = ulid();
-      yield* sql`
-        INSERT INTO blocks (id, page_id, type, content, "index")
-        VALUES (${blockId}, ${pageId}, ${blocks[i].type},
-                ${blocks[i].content}, ${i})
-      `;
+        const block = blocks[i];
+        if ((block.type === "image" || block.type === "pdf") && block.content.startsWith("{")) {
+          try {
+            const data = JSON.parse(block.content);
+            const abs = data?.src ? resolveImportedAsset(exportDir, relPath, data.src) : null;
+            if (abs) {
+              const newUrl = yield* Effect.promise(() => copyAssetToAttachments(abs));
+              if (newUrl) {
+                blocks[i] = { ...block, content: JSON.stringify({ ...data, src: newUrl }) };
+              }
+            }
+          } catch { /* leave block untouched if anything goes wrong */ }
+        }
       }
 
-      if (guid) {
-        pageMap.set(guid, pageId);
+      for (let i = 0; i < blocks.length; i++) {
+        const blockId = ulid();
+        yield* sql`
+          INSERT INTO blocks (id, page_id, type, content, "index")
+          VALUES (${blockId}, ${pageId}, ${blocks[i].type}, ${blocks[i].content}, ${i})
+        `;
+        // Track which CSV GUIDs were referenced inline. The CSV importer
+        // uses this set to decide whether a CSV is "inline" (database
+        // attaches to the parent page) or "isolated" (database gets its
+        // own brand-new page).
+        if (blocks[i].type === "database") {
+          try {
+            const data = JSON.parse(blocks[i].content);
+            if (data?.__dbRef) inlineCsvGuids.add(data.__dbRef);
+          } catch { /* ignore malformed placeholder */ }
+        }
+      }
+
+      if (guid) pageMap.set(guid, pageId);
+      // Register every candidate sub-content folder path so descendants
+      // (sub-pages, sibling CSVs) find this page as their parent.
+      for (const key of contentFolderKeys(relPath)) {
+        folderMap.set(key, pageId);
       }
     }
 
-    const importedDbs = yield* Effect.all(
-      csvFiles.map((csvPath) => importCsvDatabase(exportDir, csvPath, pageMap))
-    );
+    // Import each CSV. Branch on whether the CSV was referenced inline by
+    // some page (→ database lives on that parent) or is isolated (→ a
+    // new dedicated page is created to hold the database).
+    const csvGuidToDbId = new Map<string, string>();
+    let importedDbCount = 0;
+    for (const csvPath of csvFiles) {
+      const guid = extractGuid(csvPath);
+      const isInline = guid !== null && inlineCsvGuids.has(guid);
+      const result = yield* importCsvDatabase(exportDir, csvPath, folderMap, rootId, isInline);
+      if (result) {
+        importedDbCount += 1;
+        if (guid) csvGuidToDbId.set(guid, result.dbId);
+      }
+    }
+
+    // Resolve every inline-database placeholder block: swap its
+    // `{ __dbRef: csvGuid }` content for the actual database id.
+    // Anything we couldn't resolve (missing CSV) gets deleted so the
+    // user doesn't see a broken empty block.
+    const placeholders = yield* sql<{ id: string; content: string }>`
+      SELECT id, content FROM blocks WHERE type = 'database' AND content LIKE '%__dbRef%'
+    `;
+    for (const ph of placeholders) {
+      try {
+        const data = JSON.parse(ph.content);
+        const dbId = data?.__dbRef ? csvGuidToDbId.get(data.__dbRef) : null;
+        if (dbId) {
+          yield* sql`UPDATE blocks SET content = ${dbId} WHERE id = ${ph.id}`;
+        } else {
+          yield* sql`DELETE FROM blocks WHERE id = ${ph.id}`;
+        }
+      } catch {
+        yield* sql`DELETE FROM blocks WHERE id = ${ph.id}`;
+      }
+    }
+
+    // Same pass for pageLink placeholders: swap `{ __pageRef: guid }` for
+    // the actual pageId looked up in pageMap (populated as we created
+    // each imported page). Unresolvable refs are removed.
+    const pagePlaceholders = yield* sql<{ id: string; content: string }>`
+      SELECT id, content FROM blocks WHERE type = 'pageLink' AND content LIKE '%__pageRef%'
+    `;
+    for (const ph of pagePlaceholders) {
+      try {
+        const data = JSON.parse(ph.content);
+        const pageId = data?.__pageRef ? pageMap.get(data.__pageRef) : null;
+        if (pageId) {
+          yield* sql`UPDATE blocks SET content = ${pageId} WHERE id = ${ph.id}`;
+        } else {
+          yield* sql`DELETE FROM blocks WHERE id = ${ph.id}`;
+        }
+      } catch {
+        yield* sql`DELETE FROM blocks WHERE id = ${ph.id}`;
+      }
+    }
 
     return {
-      pagesImported: mdFiles.length,
-      databasesImported: importedDbs.filter(Boolean).length,
+      pagesImported: sourceFiles.length,
+      databasesImported: importedDbCount,
       pageMap,
+      rootPageId: rootId,
     };
   });
 }
@@ -171,7 +581,9 @@ export function importNotionExport(exportDir: string) {
 function importCsvDatabase(
   exportDir: string,
   csvPath: string,
-  pageMap: Map<string, string>
+  folderMap: Map<string, string>,
+  fallbackParentId: string,
+  isInline: boolean,
 ) {
   return Effect.gen(function* () {
     const sql = yield* SqlClient.SqlClient;
@@ -179,63 +591,172 @@ function importCsvDatabase(
       readFile(path.join(exportDir, csvPath), "utf-8")
     );
 
-    const lines = csvContent.split("\n").filter((l) => l.trim());
-    if (lines.length < 2) return null;
+    const rows = parseCsvDocument(csvContent);
+    if (rows.length < 2) return null;
 
-    const headers = parseCsvLine(lines[0]);
+    const headers = rows[0];
+    const dataRows = rows.slice(1);
+    const titleHeader = headers[0] ?? "Name";
     const fieldHeaders = headers.slice(1);
 
-    const parentGuid = extractGuidFromPath(csvPath);
-    const parentId = parentGuid ? pageMap.get(parentGuid) : null;
-
-    if (!parentId) {
-      console.warn(`[import] Cannot find parent for database: ${csvPath}`);
-      return null;
-    }
-
-    const dbName = path.basename(csvPath, ".csv").replace(/\s*\([a-f0-9]{32}\)$/, "");
-    const dbId = ulid();
+    const dbName = stripTrailingGuid(path.basename(csvPath, ".csv"));
     const now = new Date().toISOString();
 
+    // Two parent strategies based on how the CSV was referenced:
+    //   inline   → the database lives on the page that referenced it
+    //              (an inline DB block in that page's body points back to
+    //              this database id via the placeholder-resolution pass).
+    //   isolated → there's no inline reference, so we create a dedicated
+    //              page that holds the database (otherwise the user has
+    //              no way to find or navigate to it).
+    let parentId: string;
+    if (isInline) {
+      const dir = path.dirname(csvPath);
+      parentId = (dir && dir !== "." ? folderMap.get(dir) : null) ?? fallbackParentId;
+    } else {
+      const folderParentId =
+        (path.dirname(csvPath) && path.dirname(csvPath) !== "." ? folderMap.get(path.dirname(csvPath)) : null) ?? fallbackParentId;
+      const newPageId = ulid();
+      yield* sql`
+        INSERT INTO pages (id, title, parent_id, icon, created_at, updated_at)
+        VALUES (${newPageId}, ${dbName}, ${folderParentId}, ${"🗃️"}, ${now}, ${now})
+      `;
+      parentId = newPageId;
+    }
+
+    const dbId = ulid();
+
+    // Imported DBs keep the title column visible and rename it to whatever
+    // Notion used (e.g. "Project", "Task"). Without this the user's column
+    // names from Notion would be lost on every import.
     yield* sql`
-      INSERT INTO databases (id, page_id, name)
-      VALUES (${dbId}, ${parentId}, ${dbName})
+      INSERT INTO databases (id, page_id, name, title_label, title_hidden)
+      VALUES (${dbId}, ${parentId}, ${dbName}, ${titleHeader}, 0)
     `;
 
+    // Scan each column to decide whether to promote it to a select/
+    // multiSelect (small set of repeated values) or keep it as the inferred
+    // type. Notion's "Status"/"Tag" exports come through as comma-joined
+    // strings — split into multiSelect when we detect that.
     const fieldMap = new Map<string, string>();
-    for (const header of fieldHeaders) {
+    for (let col = 0; col < fieldHeaders.length; col++) {
+      const header = fieldHeaders[col];
+      const values = dataRows.map((r) => (r[col + 1] ?? "").trim()).filter(Boolean);
+      const { type, options } = inferFieldFromValues(header, values);
+
       const fieldId = ulid();
-      const fieldType = inferFieldType(header);
+      const optionsJson = options ? JSON.stringify(options) : null;
       yield* sql`
-        INSERT INTO database_fields (id, database_id, name, type)
-        VALUES (${fieldId}, ${dbId}, ${header}, ${fieldType})
+        INSERT INTO database_fields (id, database_id, name, type, options)
+        VALUES (${fieldId}, ${dbId}, ${header}, ${type}, ${optionsJson})
       `;
       fieldMap.set(header, fieldId);
     }
 
-    for (let i = 1; i < lines.length; i++) {
-      const values = parseCsvLine(lines[i]);
-      const recordTitle = values[0] || "Untitled";
+    for (const row of dataRows) {
+      const recordTitle = row[0] || "Untitled";
       const recordId = ulid();
-
       yield* sql`
         INSERT INTO database_records (id, database_id, title, created_at)
         VALUES (${recordId}, ${dbId}, ${recordTitle}, ${now})
       `;
 
-      for (let j = 1; j < values.length && j - 1 < fieldHeaders.length; j++) {
-        const fieldId = fieldMap.get(fieldHeaders[j - 1]);
-        if (fieldId && values[j]) {
-          yield* sql`
-            INSERT INTO record_field_values (id, record_id, field_id, value)
-            VALUES (${ulid()}, ${recordId}, ${fieldId}, ${values[j]})
-          `;
+      for (let j = 0; j < fieldHeaders.length; j++) {
+        const fieldId = fieldMap.get(fieldHeaders[j]);
+        const raw = (row[j + 1] ?? "").trim();
+        if (!fieldId || !raw) continue;
+
+        // Match what the frontend expects per type:
+        //   multiSelect → JSON array of strings
+        //   checkbox    → "true"/"false"
+        //   number      → numeric string
+        //   everything else → raw string
+        let stored = raw;
+        // Pull the type back out to re-encode multiSelect values.
+        const fieldType = inferFieldFromValues(fieldHeaders[j], dataRows.map((r) => (r[j + 1] ?? "").trim()).filter(Boolean)).type;
+        if (fieldType === "multiSelect") {
+          stored = JSON.stringify(raw.split(",").map((s) => s.trim()).filter(Boolean));
+        } else if (fieldType === "checkbox") {
+          stored = /^(yes|true|1|on|✓|x|done)$/i.test(raw) ? "true" : "false";
         }
+
+        yield* sql`
+          INSERT INTO record_field_values (id, record_id, field_id, value)
+          VALUES (${ulid()}, ${recordId}, ${fieldId}, ${stored})
+        `;
       }
     }
 
-    return { dbId, dbName, recordCount: lines.length - 1 };
+    return { dbId, dbName, recordCount: dataRows.length };
   });
+}
+
+/**
+ * Parse a full CSV document (handles quoted cells and newlines inside
+ * quotes). Returns rows of cells.
+ */
+function parseCsvDocument(text: string): string[][] {
+  const rows: string[][] = [];
+  let cur = "";
+  let row: string[] = [];
+  let inQuotes = false;
+  for (let i = 0; i < text.length; i++) {
+    const c = text[i];
+    if (inQuotes) {
+      if (c === '"' && text[i + 1] === '"') { cur += '"'; i++; }
+      else if (c === '"') inQuotes = false;
+      else cur += c;
+    } else {
+      if (c === '"') inQuotes = true;
+      else if (c === ",") { row.push(cur); cur = ""; }
+      else if (c === "\n" || c === "\r") {
+        if (cur !== "" || row.length > 0) { row.push(cur); rows.push(row); }
+        cur = ""; row = [];
+        if (c === "\r" && text[i + 1] === "\n") i++;
+      } else cur += c;
+    }
+  }
+  if (cur !== "" || row.length > 0) { row.push(cur); rows.push(row); }
+  return rows;
+}
+
+/**
+ * Decide a column's field type from its header and values.
+ * - small set of repeated single tokens → select
+ * - values containing commas with small overall vocabulary → multiSelect
+ * - numeric-looking → number
+ * - "yes/no" / "true/false" → checkbox
+ * - date-shaped → date
+ * - fallback → text
+ */
+function inferFieldFromValues(
+  header: string, values: string[],
+): { type: string; options: string[] | null } {
+  if (values.length === 0) return { type: inferFieldType(header), options: null };
+
+  // Boolean-ish?
+  const boolLike = values.every((v) => /^(yes|no|true|false|0|1|on|off|✓|x|done|todo)$/i.test(v));
+  if (boolLike) return { type: "checkbox", options: null };
+
+  // Number-ish?
+  const numericLike = values.every((v) => v === "" || /^-?\d+(\.\d+)?$/.test(v.replace(/,/g, "")));
+  if (numericLike) return { type: "number", options: null };
+
+  // Date-ish? (ISO or "Mon DD, YYYY")
+  const dateLike = values.every((v) => !isNaN(Date.parse(v)));
+  if (dateLike && values.length > 0) return { type: "date", options: null };
+
+  // Comma-joined values → multiSelect if the overall vocabulary is small
+  const hasCommas = values.some((v) => v.includes(","));
+  const tokens = hasCommas
+    ? values.flatMap((v) => v.split(",").map((s) => s.trim()).filter(Boolean))
+    : values;
+  const unique = Array.from(new Set(tokens));
+  if (unique.length > 0 && unique.length <= Math.max(12, values.length / 2)) {
+    return { type: hasCommas ? "multiSelect" : "select", options: unique };
+  }
+
+  return { type: inferFieldType(header), options: null };
 }
 
 function parseCsvLine(line: string): string[] {
@@ -281,10 +802,6 @@ function inferFieldType(header: string): string {
   return "text";
 }
 
-function extractGuidFromPath(filePath: string): string | null {
-  const match = filePath.match(/\(([a-f0-9]{32})\)/i);
-  return match ? match[1] : null;
-}
 
 async function readdirRecursive(dir: string): Promise<string[]> {
   const entries = await readdir(dir, { withFileTypes: true });

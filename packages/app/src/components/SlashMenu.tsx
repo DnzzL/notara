@@ -18,7 +18,8 @@ interface SlashMenuProps {
 export function SlashMenu({ commands, query, onSelect, onClose, position }: SlashMenuProps) {
   const [selectedIndex, setSelectedIndex] = useState(0);
   const containerRef = useRef<HTMLDivElement>(null);
-  
+  const itemRefs = useRef<Array<HTMLButtonElement | null>>([]);
+
   const filteredCommands = commands.filter((cmd) =>
     cmd.name.toLowerCase().includes(query.toLowerCase()) ||
     cmd.id.toLowerCase().includes(query.toLowerCase())
@@ -28,6 +29,16 @@ export function SlashMenu({ commands, query, onSelect, onClose, position }: Slas
   useEffect(() => {
     setSelectedIndex(0);
   }, [query]);
+
+  // Keep the highlighted item inside the menu's scroll viewport when the
+  // user arrows past the visible window — without this, the selection
+  // marker would disappear off-screen.
+  useEffect(() => {
+    const el = itemRefs.current[selectedIndex];
+    if (el && typeof el.scrollIntoView === "function") {
+      el.scrollIntoView({ block: "nearest" });
+    }
+  }, [selectedIndex]);
 
   // Handle keyboard navigation. Uses capture phase so it intercepts before
   // TipTap (whose Enter handler would otherwise split the block).
@@ -93,6 +104,7 @@ export function SlashMenu({ commands, query, onSelect, onClose, position }: Slas
       {filteredCommands.map((cmd, index) => (
         <button
           key={cmd.id}
+          ref={(el) => { itemRefs.current[index] = el; }}
           className={`slash-menu-item ${index === selectedIndex ? "selected" : ""}`}
           onClick={() => onSelect(cmd.id)}
           onMouseEnter={() => setSelectedIndex(index)}

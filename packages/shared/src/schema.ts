@@ -31,6 +31,7 @@ export class Block extends Schema.Class<Block>("Block")({
     "image",
     "pdf",
     "database",
+    "pageLink",
     "toggle",
     "callout",
   ),

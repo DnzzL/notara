@@ -494,10 +494,17 @@ function PageNode({
     id: page.id,
   });
 
+  // Indent shrinks at deep levels so the title still has room to breathe.
+  // Up to depth 6, we use a 12px step; beyond that we cap the visual indent
+  // and rely on the vertical guide line plus title content to suggest depth.
+  const INDENT_STEP = 12;
+  const MAX_VISUAL_DEPTH = 6;
+  const visualDepth = Math.min(depth, MAX_VISUAL_DEPTH);
+  const overflowDepth = Math.max(0, depth - MAX_VISUAL_DEPTH);
   const style: React.CSSProperties = {
     transform: CSS.Translate.toString(transform),
     transition,
-    paddingLeft: depth === 0 ? 0 : depth * 14,
+    paddingLeft: visualDepth * INDENT_STEP + overflowDepth * 2,
     position: "relative",
     opacity: isDragging ? 0.3 : 1,
   };
