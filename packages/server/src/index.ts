@@ -317,7 +317,7 @@ const AppLive = Layer.mergeAll(
 
 // Serve the app with HTTP server
 const ServerLive = HttpLayerRouter.serve(AppLive).pipe(
-  Layer.provide(NodeHttpServer.layer(createServer, { port: 3000, host: "127.0.0.1" })),
+  Layer.provide(NodeHttpServer.layer(createServer, { port: 3000, host: "0.0.0.0" })),
 );
 
 // Run migrations then start server
