@@ -1,8 +1,11 @@
-import { createFileRoute, useNavigate } from "@tanstack/react-router";
+import { createRoute, useNavigate } from "@tanstack/react-router";
+import { Route as rootRoute } from "./__root.js";
 import { useState } from "react";
 import { signIn, signUp } from "../auth-client.js";
 
-export const Route = createFileRoute("/login")({
+export const Route = createRoute({
+  getParentRoute: () => rootRoute,
+  path: "/login",
   component: LoginPage,
 });
 

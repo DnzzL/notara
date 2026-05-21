@@ -1,8 +1,11 @@
-import { createFileRoute, redirect } from "@tanstack/react-router";
+import { createRoute, redirect } from "@tanstack/react-router";
+import { Route as rootRoute } from "./__root.js";
 import { createAuthClient } from "better-auth/react";
 import { api } from "../rpc-client.js";
 
-export const Route = createFileRoute("/join/$token")({
+export const Route = createRoute({
+  getParentRoute: () => rootRoute,
+  path: "/join/$token",
   beforeLoad: async ({ params }) => {
     const client = createAuthClient({ baseURL: window.location.origin });
     const session = await client.getSession();

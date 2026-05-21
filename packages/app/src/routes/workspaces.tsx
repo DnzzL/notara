@@ -1,14 +1,16 @@
-import { createFileRoute, useNavigate, redirect } from "@tanstack/react-router";
+import { createRoute, useNavigate, redirect } from "@tanstack/react-router";
+import { Route as rootRoute } from "./__root.js";
 import { useState, useEffect } from "react";
-import { useSession } from "../auth-client.js";
+import { authClient, useSession } from "../auth-client.js";
 import { api } from "../rpc-client.js";
 import type { Workspace } from "@notion-alt/shared";
 
-export const Route = createFileRoute("/workspaces")({
-  beforeLoad: async ({ context }) => {
-    // Redirect to login if no session
-    const session = (context as any)?.session;
-    if (session === null) {
+export const Route = createRoute({
+  getParentRoute: () => rootRoute,
+  path: "/workspaces",
+  beforeLoad: async () => {
+    const session = await authClient.getSession();
+    if (!session?.data) {
       throw redirect({ to: "/login" });
     }
   },

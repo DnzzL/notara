@@ -1,6 +1,6 @@
-import { createFileRoute, redirect, Outlet } from "@tanstack/react-router";
+import { createRoute, redirect } from "@tanstack/react-router";
+import { Route as rootRoute } from "./__root.js";
 import { useEffect } from "react";
-import { useSession } from "../auth-client.js";
 import { setCurrentWorkspaceId } from "../rpc-client.js";
 import { api } from "../rpc-client.js";
 import { Sidebar } from "../components/Sidebar.js";
@@ -9,7 +9,9 @@ import { SearchModal } from "../components/SearchModal.js";
 import { KeyboardShortcuts } from "../components/KeyboardShortcuts.js";
 import { useStore } from "../store.js";
 
-export const Route = createFileRoute("/$workspaceSlug")({
+export const Route = createRoute({
+  getParentRoute: () => rootRoute,
+  path: "/$workspaceSlug",
   beforeLoad: async ({ params }) => {
     // Verify session exists
     const { createAuthClient } = await import("better-auth/react");
