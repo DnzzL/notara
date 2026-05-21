@@ -2,14 +2,12 @@ import { useState, useEffect, useRef } from "react";
 import { useNavigate, useParams } from "@tanstack/react-router";
 import { api, setCurrentWorkspaceId } from "../rpc-client.js";
 import { signOut } from "../auth-client.js";
-import { WorkspaceSettingsModal } from "./WorkspaceSettingsModal.js";
 import type { Workspace } from "@notion-alt/shared";
 
 export function WorkspaceSwitcher() {
   const navigate = useNavigate();
   const params = useParams({ strict: false }) as { workspaceSlug?: string };
   const [open, setOpen] = useState(false);
-  const [settingsOpen, setSettingsOpen] = useState(false);
   const [workspaces, setWorkspaces] = useState<Workspace[]>([]);
   const [current, setCurrent] = useState<Workspace | null>(null);
   const ref = useRef<HTMLDivElement>(null);
@@ -76,7 +74,7 @@ export function WorkspaceSwitcher() {
             {current && (
               <button
                 className="workspace-switcher-item"
-                onClick={() => { setOpen(false); setSettingsOpen(true); }}
+                onClick={() => { setOpen(false); navigate({ to: "/settings/$workspaceSlug", params: { workspaceSlug: current.slug } }); }}
               >
                 Workspace settings
               </button>
@@ -93,6 +91,12 @@ export function WorkspaceSwitcher() {
             >
               Join with invite
             </button>
+            <button
+              className="workspace-switcher-item"
+              onClick={() => { setOpen(false); navigate({ to: "/admin" }); }}
+            >
+              Admin panel
+            </button>
             <button className="workspace-switcher-item workspace-signout" onClick={handleSignOut}>
               Sign out
             </button>
@@ -100,12 +104,6 @@ export function WorkspaceSwitcher() {
         </div>
       )}
 
-      {settingsOpen && current && (
-        <WorkspaceSettingsModal
-          workspace={current}
-          onClose={() => setSettingsOpen(false)}
-        />
-      )}
     </div>
   );
 }

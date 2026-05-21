@@ -2,6 +2,7 @@ import { createRoute, redirect, useNavigate } from "@tanstack/react-router";
 import { Route as rootRoute } from "./__root.js";
 import { createAuthClient } from "better-auth/react";
 import { useState, useEffect } from "react";
+import { api } from "../rpc-client.js";
 
 export const Route = createRoute({
   getParentRoute: () => rootRoute,
@@ -25,6 +26,18 @@ function AdminPage() {
   const [workspaces, setWorkspaces] = useState<AdminWorkspace[]>([]);
   const [loading, setLoading] = useState(true);
   const [forbidden, setForbidden] = useState(false);
+  const [backSlug, setBackSlug] = useState<string | null>(null);
+
+  useEffect(() => {
+    api.getMyWorkspaces().then((ws) => {
+      if (ws.length > 0) setBackSlug(ws[0].slug);
+    }).catch(() => {});
+  }, []);
+
+  const goBack = () => {
+    if (backSlug) navigate({ to: "/$workspaceSlug", params: { workspaceSlug: backSlug } });
+    else navigate({ to: "/" });
+  };
 
   const fetchData = async () => {
     setLoading(true);
@@ -51,7 +64,7 @@ function AdminPage() {
       <div className="admin-forbidden">
         <h2>Access denied</h2>
         <p>Your account is not configured as an admin. Set <code>ADMIN_EMAILS</code> on the server.</p>
-        <button onClick={() => navigate({ to: "/" })} className="auth-toggle">Go home</button>
+        <button onClick={goBack} className="auth-toggle">Go home</button>
       </div>
     );
   }
@@ -69,7 +82,7 @@ function AdminPage() {
             </svg>
             <span>Notara Admin</span>
           </div>
-          <button onClick={() => navigate({ to: "/" })} className="admin-back-btn">← Back to app</button>
+          <button onClick={goBack} className="admin-back-btn">← Back to app</button>
         </div>
       </header>
 

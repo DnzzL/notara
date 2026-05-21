@@ -753,8 +753,6 @@ export function BlockEditor() {
           </p>
           <div className="empty-state-hints">
             <span className="empty-state-hint"><kbd>⌘</kbd><kbd>K</kbd> to search</span>
-            <span className="empty-state-hint-sep">·</span>
-            <span className="empty-state-hint"><kbd>N</kbd> new page</span>
           </div>
         </div>
       </div>

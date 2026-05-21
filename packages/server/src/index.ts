@@ -21,7 +21,7 @@ import { triggerBackup } from "./handlers/backup.js";
 import { AppRpc, RecordFieldValue } from "@notion-alt/shared";
 import { registerV1Routes } from "./api-v1/routes.js";
 import { auth } from "./auth.js";
-import { PlatformDbLive, PlatformDb } from "./platform-db.js";
+import { PlatformDbLive, platformDb } from "./platform-db.js";
 import { resolveWorkspaceContext, getSessionUser, WorkspaceContext, AuthError } from "./workspace-context.js";
 import { createServer } from "node:http";
 import * as path from "node:path";
@@ -230,8 +230,7 @@ const staticFilesRoute = Effect.gen(function* () {
     });
 
   yield* router.add("GET", "/api/admin/users", requireAdmin(Effect.gen(function* () {
-    const db = yield* PlatformDb;
-    const users = db
+    const users = platformDb
       .prepare(
         `SELECT u.id, u.name, u.email, u.createdAt,
                 COUNT(DISTINCT wm.workspace_id) as workspace_count
@@ -247,8 +246,7 @@ const staticFilesRoute = Effect.gen(function* () {
   })));
 
   yield* router.add("GET", "/api/admin/workspaces", requireAdmin(Effect.gen(function* () {
-    const dbService = yield* PlatformDb;
-    const workspaces = (dbService as any)
+    const workspaces = platformDb
       .prepare(
         `SELECT w.id, w.name, w.slug, w.created_at,
                 COUNT(wm.user_id) as member_count
@@ -271,9 +269,8 @@ const staticFilesRoute = Effect.gen(function* () {
         status: 400, headers: { "Content-Type": "application/json", ...corsHeaders },
       });
     }
-    const db = yield* PlatformDb;
-    db.prepare("DELETE FROM workspace_members WHERE user_id = ?").run(userId);
-    db.prepare(`DELETE FROM "user" WHERE id = ?`).run(userId);
+    platformDb.prepare("DELETE FROM workspace_members WHERE user_id = ?").run(userId);
+    platformDb.prepare(`DELETE FROM "user" WHERE id = ?`).run(userId);
     return HttpServerResponse.text(JSON.stringify({ deleted: true }), {
       headers: { "Content-Type": "application/json", ...corsHeaders },
     });

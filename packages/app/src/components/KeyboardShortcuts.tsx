@@ -3,7 +3,6 @@ import { useStore } from "../store.js";
 
 /**
  * Global keyboard shortcuts:
- *   Cmd+Shift+N — new page
  *   Cmd+[ / Cmd+] — history back / forward
  *   Cmd+D — duplicate focused block
  *   Cmd+Shift+↑ / Cmd+Shift+↓ — move focused block up/down
@@ -12,7 +11,7 @@ import { useStore } from "../store.js";
  * carrying data-block-index on .block-node.
  */
 export function KeyboardShortcuts() {
-  const { currentPage, blocks, createPage, selectPage, createBlock, reorderBlocks } = useStore();
+  const { currentPage, blocks, createBlock, reorderBlocks } = useStore();
 
   useEffect(() => {
     const focusedBlockIndex = (): number | null => {
@@ -27,14 +26,6 @@ export function KeyboardShortcuts() {
     const handler = async (e: KeyboardEvent) => {
       const mod = e.metaKey || e.ctrlKey;
       if (!mod) return;
-
-      // Cmd+Shift+N — new page
-      if (e.shiftKey && (e.key === "N" || e.key === "n")) {
-        e.preventDefault();
-        const page = await createPage("Untitled");
-        selectPage(page);
-        return;
-      }
 
       // Cmd+[ — back, Cmd+] — forward
       if (!e.shiftKey && e.key === "[") {
@@ -85,7 +76,7 @@ export function KeyboardShortcuts() {
 
     window.addEventListener("keydown", handler);
     return () => window.removeEventListener("keydown", handler);
-  }, [currentPage, blocks, createPage, selectPage, createBlock, reorderBlocks]);
+  }, [currentPage, blocks, createBlock, reorderBlocks]);
 
   return null;
 }
