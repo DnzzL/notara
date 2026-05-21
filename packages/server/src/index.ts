@@ -158,6 +158,7 @@ const corsHeaders = {
 // Static file handler + import upload route as an Effect
 const staticFilesRoute = Effect.gen(function* () {
   const router = yield* HttpLayerRouter.HttpRouter;
+  const wdb = yield* WorkspaceDb;
 
   // Better Auth handler — mount before RPC (handles GET and POST)
   const authHandlerInner = Effect.gen(function* () {
@@ -335,7 +336,6 @@ const staticFilesRoute = Effect.gen(function* () {
     const fileName = filenameMatch ? filenameMatch[1] : "notion-export.zip";
 
     const workspaceId = request.headers["x-workspace-id"] as string | undefined;
-    const wdb = yield* WorkspaceDb;
     const dbLayer = workspaceId ? wdb.getLayer(workspaceId) : SqliteLive;
 
     const result = yield* ImportExport.importNotionZip(buffer, fileName).pipe(
@@ -383,9 +383,8 @@ const staticFilesRoute = Effect.gen(function* () {
       );
     }
 
-    const wdbUpload = yield* WorkspaceDb;
     const uploadWorkspaceId = request.headers["x-workspace-id"] as string | undefined;
-    const uploadDbLayer = uploadWorkspaceId ? wdbUpload.getLayer(uploadWorkspaceId) : SqliteLive;
+    const uploadDbLayer = uploadWorkspaceId ? wdb.getLayer(uploadWorkspaceId) : SqliteLive;
 
     const result = yield* Upload.uploadFile({ pageId, fileName, mimeType, fileBuffer }).pipe(
       Effect.provide(uploadDbLayer)

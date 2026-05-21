@@ -1,4 +1,5 @@
 import { useState, useRef, useEffect, useCallback } from "react";
+import { getCurrentWorkspaceId } from "../rpc-client.js";
 import {
   DialogRoot,
   DialogBackdrop,
@@ -50,12 +51,15 @@ export function ImportModal({ open, onClose }: ImportModalProps) {
     setMessage("Uploading and importing…");
 
     try {
+      const workspaceId = getCurrentWorkspaceId();
+      const importHeaders: Record<string, string> = {
+        "Content-Type": "application/zip",
+        "Content-Disposition": `attachment; filename="${file.name}"`,
+      };
+      if (workspaceId) importHeaders["X-Workspace-Id"] = workspaceId;
       const resp = await fetch("/import-notion", {
         method: "POST",
-        headers: {
-          "Content-Type": "application/zip",
-          "Content-Disposition": `attachment; filename="${file.name}"`,
-        },
+        headers: importHeaders,
         body: file,
       });
       const data = await resp.json();

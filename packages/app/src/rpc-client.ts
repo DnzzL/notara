@@ -31,6 +31,10 @@ export function setCurrentWorkspaceId(id: string | null) {
   currentWorkspaceId = id;
 }
 
+export function getCurrentWorkspaceId(): string | null {
+  return currentWorkspaceId;
+}
+
 async function rpcCall<T>(method: string, payload: Record<string, unknown> = {}): Promise<T> {
   const id = String(nextId++);
   const headers: Record<string, string> = { "Content-Type": "application/json" };
