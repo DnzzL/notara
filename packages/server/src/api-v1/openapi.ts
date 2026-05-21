@@ -436,35 +436,38 @@ Each block stores a \`content\` JSON object whose shape depends on the block typ
   },
 };
 
-// ── Swagger UI HTML ───────────────────────────────────────────────────────────
+// ── Scalar API Reference HTML ─────────────────────────────────────────────────
 
 export const swaggerHtml = `<!DOCTYPE html>
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>Notara API Docs</title>
-  <link rel="stylesheet" href="https://unpkg.com/swagger-ui-dist@5/swagger-ui.css" />
+  <title>Notara API Reference</title>
   <style>
-    body { margin: 0; background: #fafafa; }
-    .topbar { display: none; }
-    .swagger-ui .info .title { font-family: system-ui, sans-serif; }
+    body { margin: 0; }
+    :root {
+      --scalar-color-1: #0f1220;
+      --scalar-color-2: #3d4063;
+      --scalar-color-3: #6b6f8f;
+      --scalar-color-accent: #5B5EF4;
+      --scalar-background-1: #ffffff;
+      --scalar-background-2: #f5f6fa;
+      --scalar-background-3: #eeeffe;
+      --scalar-border-color: #e2e4ef;
+      --scalar-sidebar-background-1: #f9f9fc;
+    }
   </style>
 </head>
 <body>
-  <div id="swagger-ui"></div>
-  <script src="https://unpkg.com/swagger-ui-dist@5/swagger-ui-bundle.js"></script>
-  <script>
-    SwaggerUIBundle({
-      url: "/api/v1/openapi.json",
-      dom_id: "#swagger-ui",
-      presets: [SwaggerUIBundle.presets.apis, SwaggerUIBundle.SwaggerUIStandalonePreset],
-      layout: "BaseLayout",
-      deepLinking: true,
-      displayRequestDuration: true,
-      tryItOutEnabled: true,
-      persistAuthorization: true,
-    });
+  <script id="api-reference" data-url="/api/v1/openapi.json" data-configuration='${JSON.stringify({
+    theme: "none",
+    layout: "modern",
+    defaultHttpClient: { targetKey: "shell", clientKey: "curl" },
+    authentication: { preferredSecurityScheme: "BearerAuth" },
+    favicon: "data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 32 32%22><rect width=%2232%22 height=%2232%22 rx=%228%22 fill=%22%235B5EF4%22/><rect x=%228%22 y=%2210%22 width=%2216%22 height=%222.5%22 rx=%221.25%22 fill=%22white%22/><rect x=%228%22 y=%2215%22 width=%2212%22 height=%222%22 rx=%221%22 fill=%22white%22 opacity=%220.7%22/><rect x=%228%22 y=%2219.5%22 width=%2214%22 height=%222%22 rx=%221%22 fill=%22white%22 opacity=%220.5%22/></svg>",
+  })}'>
   </script>
+  <script src="https://cdn.jsdelivr.net/npm/@scalar/api-reference"></script>
 </body>
 </html>`;

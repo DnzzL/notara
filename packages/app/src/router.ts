@@ -10,6 +10,7 @@ import { Route as resetPasswordRoute } from "./routes/reset-password.js";
 import { Route as adminRoute } from "./routes/admin.js";
 import { Route as pricingRoute } from "./routes/pricing.js";
 import { Route as workspaceSettingsRoute } from "./routes/settings.$workspaceSlug.js";
+import { Route as docsRoute } from "./routes/docs.js";
 
 const routeTree = rootRoute.addChildren([
   indexRoute,
@@ -22,6 +23,7 @@ const routeTree = rootRoute.addChildren([
   adminRoute,
   pricingRoute,
   workspaceSettingsRoute,
+  docsRoute,
 ]);
 
 export const router = createRouter({ routeTree });

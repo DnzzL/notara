@@ -67,6 +67,7 @@ export function WorkspaceSettingsModal({ workspace, onClose }: Props) {
           <button className="modal-close" onClick={onClose}>✕</button>
         </div>
 
+        <div className="modal-body">
         {isOwner && (
           <section className="settings-section">
             <h3>Invite members</h3>
@@ -119,6 +120,7 @@ export function WorkspaceSettingsModal({ workspace, onClose }: Props) {
             ))}
           </ul>
         </section>
+        </div>
       </div>
     </div>
   );
