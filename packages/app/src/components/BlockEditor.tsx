@@ -777,7 +777,28 @@ export function BlockEditor() {
   if (!currentPage) {
     return (
       <div className="empty-state">
-        <div><h2>Welcome</h2><p>Select a page from the sidebar or create a new one</p></div>
+        <div className="empty-state-inner">
+          <div className="empty-state-illustration" aria-hidden="true">
+            <svg width="64" height="64" viewBox="0 0 64 64" fill="none">
+              <rect x="8" y="6" width="38" height="50" rx="4" fill="#E8EAF0" stroke="#D0D3DE" strokeWidth="1.5"/>
+              <rect x="14" y="6" width="38" height="50" rx="4" fill="#EEF0F5" stroke="#D8DBE6" strokeWidth="1.5"/>
+              <rect x="20" y="6" width="38" height="50" rx="4" fill="white" stroke="#CDD0DC" strokeWidth="1.5"/>
+              <rect x="28" y="18" width="22" height="2.5" rx="1.25" fill="#C8CAD8"/>
+              <rect x="28" y="24" width="18" height="2" rx="1" fill="#DCDFE8"/>
+              <rect x="28" y="29" width="20" height="2" rx="1" fill="#DCDFE8"/>
+              <rect x="28" y="34" width="15" height="2" rx="1" fill="#DCDFE8"/>
+            </svg>
+          </div>
+          <h2 className="empty-state-title">Start somewhere</h2>
+          <p className="empty-state-body">
+            Open a page from the sidebar, or create a new one to begin writing.
+          </p>
+          <div className="empty-state-hints">
+            <span className="empty-state-hint"><kbd>⌘</kbd><kbd>K</kbd> to search</span>
+            <span className="empty-state-hint-sep">·</span>
+            <span className="empty-state-hint"><kbd>N</kbd> new page</span>
+          </div>
+        </div>
       </div>
     );
   }
