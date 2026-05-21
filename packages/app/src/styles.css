@@ -1193,7 +1193,11 @@ body {
 .board::-webkit-scrollbar { height: 5px; }
 .board::-webkit-scrollbar-track { background: transparent; }
 .board::-webkit-scrollbar-thumb { background: var(--surface-4); border-radius: 3px; }
-.board-column { min-width: 268px; max-width: 300px; background: #F2F3F7; border: 1px solid var(--border); border-radius: 12px; padding: 12px 10px; display: flex; flex-direction: column; max-height: 62vh; transition: background var(--t) var(--ease), border-color var(--t) var(--ease); }
+.board-column { min-width: 268px; max-width: 300px; background: #F2F3F7; border: 1px solid var(--border); border-radius: 12px; padding: 12px 10px; display: flex; flex-direction: column; max-height: 62vh; transition: background var(--t) var(--ease), border-color var(--t) var(--ease); position: relative; }
+.board-column-drag-handle { position: absolute; top: 10px; right: 8px; opacity: 0; transition: opacity var(--t) var(--ease); cursor: grab; padding: 3px; border-radius: 3px; color: var(--text-3); display: flex; align-items: center; }
+.board-column:hover .board-column-drag-handle { opacity: 1; }
+.board-column-drag-handle:hover { background: var(--surface-3); color: var(--text-2); opacity: 1; }
+.board-column-overlay { min-width: 268px; max-width: 300px; background: var(--surface); border: 1.5px dashed var(--border-mid); border-radius: 12px; padding: 12px 10px; box-shadow: var(--shadow-xl); }
 .board-column-over { background: #E8EAEF; border-color: var(--border-mid); }
 .board-column-header { font-size: 11px; color: var(--text-3); margin: 0 0 10px 2px; font-weight: 700; letter-spacing: 0.07em; text-transform: uppercase; display: flex; align-items: center; gap: 6px; }
 .board-cards-container { display: flex; flex-direction: column; gap: 7px; flex: 1; overflow-y: auto; min-height: 40px; padding: 2px 0; }
@@ -1211,6 +1215,13 @@ body {
 .board-add-card { width: 100%; background: none; border: 1.5px dashed var(--border-mid); border-radius: 8px; padding: 7px 12px; font-size: 13px; color: var(--text-3); cursor: pointer; font-family: var(--font-ui); transition: border-color var(--t) var(--ease), color var(--t) var(--ease); }
 .board-add-card:hover { border-color: var(--accent); color: var(--accent); }
 .board-drop-indicator { height: 2px; background: var(--accent); border-radius: 1px; margin: 4px 0; box-shadow: 0 0 5px var(--accent-glow); }
+.board-card-field { display: flex; align-items: baseline; gap: 5px; font-size: 12px; }
+.board-card-field-name { font-weight: 500; color: var(--text-3); flex-shrink: 0; }
+.board-fields-picker { position: absolute; top: calc(100% + 6px); left: 0; z-index: 200; background: var(--surface); border: 1px solid var(--border-mid); border-radius: 10px; padding: 10px 12px; min-width: 200px; box-shadow: var(--shadow-lg); }
+.board-fields-picker-title { font-size: 11px; font-weight: 700; color: var(--text-3); text-transform: uppercase; letter-spacing: 0.07em; margin-bottom: 8px; }
+.board-fields-picker-row { display: flex; align-items: center; gap: 8px; padding: 5px 0; cursor: pointer; font-size: 13px; color: var(--text); border-radius: 5px; }
+.board-fields-picker-row input[type="checkbox"] { cursor: pointer; accent-color: var(--accent); }
+.board-fields-picker-type { margin-left: auto; font-size: 11px; color: var(--text-3); background: var(--surface-3); padding: 1px 6px; border-radius: 4px; }
 .board-new-column { display: flex; flex-direction: column; align-items: center; justify-content: center; min-height: 120px; border: 2px dashed var(--border-mid); background: transparent; border-radius: 12px; transition: all var(--t) var(--ease); }
 .board-new-column-zone { width: 100%; height: 100%; min-height: 80px; border-radius: 6px; transition: background var(--t) var(--ease); }
 

@@ -14,6 +14,7 @@ export interface DatabaseState {
   activeFilters: Filter[];
   activeSorts: Sort[];
   boardGroupByFieldId: string | null;
+  boardHiddenFieldIds: string[];
 
   loadDatabases: (pageId: string) => Promise<void>;
   createDatabase: (pageId: string, name: string) => Promise<any>;
@@ -34,6 +35,7 @@ export interface DatabaseState {
   loadDbViews: (databaseId: string) => Promise<void>;
 
   setBoardGroupBy: (fieldId: string | null) => void;
+  toggleBoardField: (fieldId: string) => void;
   addFilter: (filter: Filter) => void;
   setFilter: (index: number, filter: Filter) => void;
   removeFilter: (index: number) => void;
@@ -53,6 +55,7 @@ export const useDatabaseStore = create<DatabaseState>((set, get) => ({
   activeFilters: [],
   activeSorts: [],
   boardGroupByFieldId: null,
+  boardHiddenFieldIds: [],
 
   loadDatabases: async (pageId) => {
     const databases = await api.listDatabases(pageId);
@@ -139,6 +142,11 @@ export const useDatabaseStore = create<DatabaseState>((set, get) => ({
 
   // View state mutators
   setBoardGroupBy: (fieldId) => set({ boardGroupByFieldId: fieldId }),
+  toggleBoardField: (fieldId) => set((s) => ({
+    boardHiddenFieldIds: s.boardHiddenFieldIds.includes(fieldId)
+      ? s.boardHiddenFieldIds.filter((id) => id !== fieldId)
+      : [...s.boardHiddenFieldIds, fieldId],
+  })),
   addFilter: (filter) => set((s) => ({ activeFilters: [...s.activeFilters, filter] })),
   setFilter: (index, filter) => set((s) => {
     const newFilters = [...s.activeFilters];
