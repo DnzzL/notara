@@ -4,6 +4,7 @@ import { useState, useEffect } from "react";
 import { authClient, useSession } from "../auth-client.js";
 import { api } from "../rpc-client.js";
 import type { Workspace } from "@notion-alt/shared";
+import { toaster } from "../toaster.js";
 
 export const Route = createRoute({
   getParentRoute: () => rootRoute,
@@ -27,7 +28,6 @@ function WorkspacesPage() {
   const [newName, setNewName] = useState("");
   const [newSlug, setNewSlug] = useState("");
   const [joinToken, setJoinToken] = useState("");
-  const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
     if (!session) return;
@@ -39,23 +39,21 @@ function WorkspacesPage() {
 
   const handleCreate = async (e: React.FormEvent) => {
     e.preventDefault();
-    setError(null);
     try {
       const ws = await api.createWorkspace(newName, newSlug);
       navigate({ to: "/$workspaceSlug", params: { workspaceSlug: ws.slug } });
     } catch (err: any) {
-      setError(err.message ?? "Failed to create workspace");
+      toaster.create({ title: "Failed to create workspace", description: err.message ?? "Something went wrong.", type: "error" });
     }
   };
 
   const handleJoin = async (e: React.FormEvent) => {
     e.preventDefault();
-    setError(null);
     try {
       const ws = await api.joinWorkspaceByToken(joinToken);
       navigate({ to: "/$workspaceSlug", params: { workspaceSlug: ws.slug } });
     } catch (err: any) {
-      setError(err.message ?? "Invalid invite link");
+      toaster.create({ title: "Invalid invite link", description: err.message ?? "This invite link may have expired.", type: "error" });
     }
   };
 
@@ -107,7 +105,6 @@ function WorkspacesPage() {
               pattern="[a-z0-9-]+"
               required
             />
-            {error && <p className="auth-error">{error}</p>}
             <div className="form-row">
               <button type="submit">Create</button>
               <button type="button" onClick={() => setCreating(false)}>Cancel</button>
@@ -122,7 +119,6 @@ function WorkspacesPage() {
               onChange={(e) => setJoinToken(e.target.value)}
               required
             />
-            {error && <p className="auth-error">{error}</p>}
             <div className="form-row">
               <button type="submit">Join</button>
               <button type="button" onClick={() => setJoining(false)}>Cancel</button>

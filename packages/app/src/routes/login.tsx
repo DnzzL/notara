@@ -2,6 +2,7 @@ import { createRoute, useNavigate, Link } from "@tanstack/react-router";
 import { Route as rootRoute } from "./__root.js";
 import { useState } from "react";
 import { signIn, signUp } from "../auth-client.js";
+import { toaster } from "../toaster.js";
 
 export const Route = createRoute({
   getParentRoute: () => rootRoute,
@@ -26,22 +27,30 @@ function LoginPage() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [name, setName] = useState("");
-  const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    setError(null);
     setLoading(true);
     try {
-      if (mode === "login") {
-        await signIn.email({ email, password });
-      } else {
-        await signUp.email({ email, password, name });
+      const result = mode === "login"
+        ? await signIn.email({ email, password })
+        : await signUp.email({ email, password, name });
+      if (result.error) {
+        toaster.create({
+          title: mode === "login" ? "Sign in failed" : "Registration failed",
+          description: result.error.message ?? "Something went wrong.",
+          type: "error",
+        });
+        return;
       }
       navigate({ to: "/workspaces" });
     } catch (err: any) {
-      setError(err.message ?? "Something went wrong");
+      toaster.create({
+        title: mode === "login" ? "Sign in failed" : "Registration failed",
+        description: err.message ?? "Something went wrong.",
+        type: "error",
+      });
     } finally {
       setLoading(false);
     }
@@ -133,13 +142,6 @@ function LoginPage() {
             />
           </div>
 
-          {error && (
-            <div className="auth-error-box">
-              <span className="auth-error-icon">⚠</span>
-              {error}
-            </div>
-          )}
-
           <button type="submit" className="auth-submit" disabled={loading}>
             {loading ? (
               <span className="auth-spinner" />
@@ -156,7 +158,7 @@ function LoginPage() {
           <button
             type="button"
             className="auth-toggle"
-            onClick={() => { setMode(isLogin ? "register" : "login"); setError(null); }}
+            onClick={() => setMode(isLogin ? "register" : "login")}
           >
             {isLogin ? "Create an account" : "Sign in"}
           </button>

@@ -2,6 +2,7 @@ import { createRoute, Link } from "@tanstack/react-router";
 import { Route as rootRoute } from "./__root.js";
 import { useState } from "react";
 import { authClient } from "../auth-client.js";
+import { toaster } from "../toaster.js";
 
 export const Route = createRoute({
   getParentRoute: () => rootRoute,
@@ -13,17 +14,19 @@ function ForgotPasswordPage() {
   const [email, setEmail] = useState("");
   const [sent, setSent] = useState(false);
   const [loading, setLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    setError(null);
     setLoading(true);
     try {
-      await authClient.forgetPassword({ email, redirectTo: "/reset-password" });
+      const result = await authClient.forgetPassword({ email, redirectTo: "/reset-password" });
+      if (result.error) {
+        toaster.create({ title: "Request failed", description: result.error.message ?? "Something went wrong.", type: "error" });
+        return;
+      }
       setSent(true);
     } catch (err: any) {
-      setError(err.message ?? "Something went wrong");
+      toaster.create({ title: "Request failed", description: err.message ?? "Something went wrong.", type: "error" });
     } finally {
       setLoading(false);
     }
@@ -67,12 +70,6 @@ function ForgotPasswordPage() {
                 autoComplete="email"
               />
             </div>
-            {error && (
-              <div className="auth-error-box">
-                <span className="auth-error-icon">⚠</span>
-                {error}
-              </div>
-            )}
             <button type="submit" className="auth-submit" disabled={loading}>
               {loading ? <span className="auth-spinner" /> : "Send reset link"}
             </button>

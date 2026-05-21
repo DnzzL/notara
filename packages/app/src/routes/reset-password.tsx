@@ -2,6 +2,7 @@ import { createRoute, useNavigate, useSearch } from "@tanstack/react-router";
 import { Route as rootRoute } from "./__root.js";
 import { useState } from "react";
 import { authClient } from "../auth-client.js";
+import { toaster } from "../toaster.js";
 
 export const Route = createRoute({
   getParentRoute: () => rootRoute,
@@ -18,21 +19,29 @@ function ResetPasswordPage() {
   const [password, setPassword] = useState("");
   const [confirm, setConfirm] = useState("");
   const [loading, setLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
   const [done, setDone] = useState(false);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    setError(null);
-    if (password !== confirm) { setError("Passwords don't match"); return; }
-    if (password.length < 8) { setError("Password must be at least 8 characters"); return; }
+    if (password !== confirm) {
+      toaster.create({ title: "Passwords don't match", description: "Make sure both fields are identical.", type: "error" });
+      return;
+    }
+    if (password.length < 8) {
+      toaster.create({ title: "Password too short", description: "Your password must be at least 8 characters.", type: "error" });
+      return;
+    }
     setLoading(true);
     try {
-      await authClient.resetPassword({ newPassword: password, token });
+      const result = await authClient.resetPassword({ newPassword: password, token });
+      if (result.error) {
+        toaster.create({ title: "Reset failed", description: result.error.message ?? "Something went wrong.", type: "error" });
+        return;
+      }
       setDone(true);
       setTimeout(() => navigate({ to: "/login" }), 2000);
     } catch (err: any) {
-      setError(err.message ?? "Something went wrong");
+      toaster.create({ title: "Reset failed", description: err.message ?? "Something went wrong.", type: "error" });
     } finally {
       setLoading(false);
     }
@@ -99,12 +108,6 @@ function ResetPasswordPage() {
                 autoComplete="new-password"
               />
             </div>
-            {error && (
-              <div className="auth-error-box">
-                <span className="auth-error-icon">⚠</span>
-                {error}
-              </div>
-            )}
             <button type="submit" className="auth-submit" disabled={loading}>
               {loading ? <span className="auth-spinner" /> : "Update password"}
             </button>

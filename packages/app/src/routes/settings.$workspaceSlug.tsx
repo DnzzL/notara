@@ -5,6 +5,7 @@ import { useState, useEffect } from "react";
 import { api } from "../rpc-client.js";
 import { useSession } from "../auth-client.js";
 import type { Workspace, WorkspaceMember } from "@notion-alt/shared";
+import { toaster } from "../toaster.js";
 
 export const Route = createRoute({
   getParentRoute: () => rootRoute,
@@ -28,7 +29,6 @@ function WorkspaceSettingsPage() {
   const [inviteEmail, setInviteEmail] = useState("");
   const [inviteSending, setInviteSending] = useState(false);
   const [inviteSent, setInviteSent] = useState(false);
-  const [inviteError, setInviteError] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [notFound, setNotFound] = useState(false);
 
@@ -67,7 +67,6 @@ function WorkspaceSettingsPage() {
   const handleEmailInvite = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!workspace || !inviteEmail) return;
-    setInviteError(null);
     setInviteSending(true);
     try {
       await api.inviteMemberByEmail(workspace.id, inviteEmail);
@@ -75,7 +74,7 @@ function WorkspaceSettingsPage() {
       setInviteEmail("");
       setTimeout(() => setInviteSent(false), 3000);
     } catch (err: any) {
-      setInviteError(err.message ?? "Failed to send invite");
+      toaster.create({ title: "Invite failed", description: err.message ?? "Failed to send invite.", type: "error" });
     } finally {
       setInviteSending(false);
     }
@@ -130,7 +129,6 @@ function WorkspaceSettingsPage() {
                     {inviteSending ? "Sending…" : inviteSent ? "Sent!" : "Send invite"}
                   </button>
                 </form>
-                {inviteError && <p className="invite-error">{inviteError}</p>}
                 <div className="settings-subsection">
                   <h4>Or share invite link</h4>
                   <div className="invite-link-row">
