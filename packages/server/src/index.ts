@@ -112,11 +112,47 @@ const mimeTypes: Record<string, string> = {
   ".woff2": "font/woff2",
 };
 
-// CORS headers
+// ── Env validation ────────────────────────────────────────────────────────────
+const REQUIRED_ENV: Array<{ key: string; hint: string }> = [
+  { key: "BETTER_AUTH_SECRET", hint: "generate with: openssl rand -hex 32" },
+];
+
+function validateEnv(): void {
+  const missing = REQUIRED_ENV.filter(({ key }) => !process.env[key]?.trim());
+  if (missing.length === 0) return;
+  console.error("\n[startup] Missing required environment variables:\n");
+  for (const { key, hint } of missing) {
+    console.error(`  ${key}  (${hint})`);
+  }
+  console.error("\nSet these in your .env file or environment before starting the server.\n");
+  process.exit(1);
+}
+
+validateEnv();
+
+// ── Security + CORS headers ───────────────────────────────────────────────────
+// CORS origin: lock down to BASE_URL / TRUSTED_ORIGINS in production; allow * otherwise.
+const _allowedOrigin = (() => {
+  const base = process.env.BASE_URL?.trim();
+  if (base) return base;
+  const trusted = (process.env.TRUSTED_ORIGINS ?? "").split(",").map(s => s.trim()).filter(Boolean);
+  return trusted.length > 0 ? trusted[0] : "*";
+})();
+
+const securityHeaders = {
+  "X-Content-Type-Options": "nosniff",
+  "X-Frame-Options": "SAMEORIGIN",
+  "Referrer-Policy": "strict-origin-when-cross-origin",
+  "X-XSS-Protection": "0",
+  "Permissions-Policy": "camera=(), microphone=(), geolocation=()",
+};
+
 const corsHeaders = {
-  "Access-Control-Allow-Origin": "*",
+  "Access-Control-Allow-Origin": _allowedOrigin,
   "Access-Control-Allow-Methods": "GET, POST, PUT, DELETE, OPTIONS",
-  "Access-Control-Allow-Headers": "Content-Type",
+  "Access-Control-Allow-Headers": "Content-Type, Authorization",
+  "Vary": "Origin",
+  ...securityHeaders,
 };
 
 // Static file handler + import upload route as an Effect

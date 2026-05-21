@@ -29,13 +29,26 @@ const defaults: AppSettings = {
   s3Schedule: "manual",
 };
 
+// Env var overrides — take precedence over settings.json values.
+function envOverrides(): Partial<AppSettings> {
+  const o: Partial<AppSettings> = {};
+  if (process.env.S3_BUCKET)      { o.s3Bucket = process.env.S3_BUCKET; o.s3Enabled = true; }
+  if (process.env.S3_REGION)        o.s3Region = process.env.S3_REGION;
+  if (process.env.S3_ENDPOINT)      o.s3Endpoint = process.env.S3_ENDPOINT;
+  if (process.env.S3_ACCESS_KEY)    o.s3AccessKeyId = process.env.S3_ACCESS_KEY;
+  if (process.env.S3_SECRET_KEY)    o.s3SecretAccessKey = process.env.S3_SECRET_KEY;
+  if (process.env.S3_PREFIX)        o.s3Prefix = process.env.S3_PREFIX;
+  if (process.env.S3_SCHEDULE)      o.s3Schedule = process.env.S3_SCHEDULE as BackupSchedule;
+  return o;
+}
+
 export function loadSettings(): AppSettings {
   try {
     if (fs.existsSync(settingsPath)) {
-      return { ...defaults, ...JSON.parse(fs.readFileSync(settingsPath, "utf-8")) };
+      return { ...defaults, ...JSON.parse(fs.readFileSync(settingsPath, "utf-8")), ...envOverrides() };
     }
   } catch {}
-  return { ...defaults };
+  return { ...defaults, ...envOverrides() };
 }
 
 export function saveSettings(settings: AppSettings): void {

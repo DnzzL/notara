@@ -20,11 +20,22 @@ export async function triggerBackup(): Promise<BackupResult> {
 
   const dataDir = process.env.DATA_DIR ?? path.join(process.cwd(), ".data");
   const zip = new AdmZip();
-  const dbPath = path.join(dataDir, "notes.db");
-  const attachmentsDir = path.join(dataDir, "attachments");
 
-  if (fs.existsSync(dbPath)) zip.addLocalFile(dbPath);
+  // platform.db — users, workspaces, auth
+  const platformDbPath = path.join(dataDir, "platform.db");
+  if (fs.existsSync(platformDbPath)) zip.addLocalFile(platformDbPath);
+
+  // workspaces/ — one .db file per workspace
+  const workspacesDir = path.join(dataDir, "workspaces");
+  if (fs.existsSync(workspacesDir)) zip.addLocalFolder(workspacesDir, "workspaces");
+
+  // attachments/
+  const attachmentsDir = path.join(dataDir, "attachments");
   if (fs.existsSync(attachmentsDir)) zip.addLocalFolder(attachmentsDir, "attachments");
+
+  // legacy notes.db — include if present for older installs
+  const legacyDbPath = path.join(dataDir, "notes.db");
+  if (fs.existsSync(legacyDbPath)) zip.addLocalFile(legacyDbPath);
 
   const zipBuffer = zip.toBuffer();
   const timestamp = new Date().toISOString().replace(/[:.]/g, "-");

@@ -1384,6 +1384,8 @@ body {
 .settings-field input { border: 1px solid var(--border); border-radius: 6px; padding: 7px 10px; font-size: 13px; color: var(--text); background: var(--surface-2); outline: none; font-family: var(--font-ui); transition: border-color var(--t) var(--ease), box-shadow var(--t) var(--ease); }
 .settings-field input:focus { border-color: var(--accent); box-shadow: 0 0 0 3px var(--accent-dim); background: var(--surface); }
 .settings-field input:disabled { opacity: 0.4; cursor: not-allowed; }
+.settings-field-hint { font-size: 11px; color: var(--text-3); line-height: 1.4; }
+.settings-field-hint code { background: var(--surface-3); border-radius: 3px; padding: 1px 4px; font-family: var(--font-mono); font-size: 11px; color: var(--text-2); }
 .settings-backup-status { min-height: 20px; }
 .settings-backup-msg { font-size: 13px; color: var(--text-2); }
 .settings-backup-msg.success { color: var(--success); }

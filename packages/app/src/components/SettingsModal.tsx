@@ -186,13 +186,16 @@ export function SettingsModal({ open, onClose }: SettingsModalProps) {
                     </label>
 
                     <label className="settings-field">
-                      <span>Prefix (optional)</span>
+                      <span>Key prefix</span>
                       <input
                         type="text"
                         placeholder="backups"
                         value={settings.s3Prefix}
                         onChange={(e) => set("s3Prefix", e.target.value)}
                       />
+                      <span className="settings-field-hint">
+                        Saved as <code>{(settings.s3Prefix ? settings.s3Prefix.replace(/\/$/, "") + "/" : "") + "backup-<timestamp>.zip"}</code>
+                      </span>
                     </label>
 
                     <label className="settings-field">
