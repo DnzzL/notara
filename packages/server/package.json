@@ -19,7 +19,9 @@
     "@notion-alt/shared": "workspace:*",
     "@types/adm-zip": "^0.5.8",
     "adm-zip": "^0.5.17",
+    "better-auth": "^1.6.11",
     "effect": "^3.15.0",
+    "kysely-bun-sqlite": "^0.4.0",
     "ulidx": "^2.3.0"
   },
   "devDependencies": {

@@ -7,16 +7,20 @@ import * as HttpServerRequest from "@effect/platform/HttpServerRequest";
 import { NodeHttpServer, NodeRuntime } from "@effect/platform-node";
 import * as RpcServer from "@effect/rpc/RpcServer";
 import * as RpcSerialization from "@effect/rpc/RpcSerialization";
-import { SqliteLive, runMigrations } from "./db.js";
+import { SqliteLive, runMigrations, WorkspaceDb, WorkspaceDbLive } from "./db.js";
 import * as Pages from "./handlers/pages.js";
 import * as Blocks from "./handlers/blocks.js";
 import * as Databases from "./handlers/databases.js";
 import * as Search from "./handlers/search.js";
 import * as ImportExport from "./handlers/importExport.js";
 import * as Upload from "./handlers/upload.js";
+import * as Workspaces from "./handlers/workspaces.js";
 import { loadSettings, saveSettings } from "./handlers/settings.js";
 import { triggerBackup } from "./handlers/backup.js";
 import { AppRpc, RecordFieldValue } from "@notion-alt/shared";
+import { auth } from "./auth.js";
+import { PlatformDbLive } from "./platform-db.js";
+import { resolveWorkspaceContext, getSessionUser, WorkspaceContext, AuthError } from "./workspace-context.js";
 import { createServer } from "node:http";
 import * as path from "node:path";
 import * as fs from "node:fs";
@@ -71,6 +75,38 @@ const corsHeaders = {
 // Static file handler + import upload route as an Effect
 const staticFilesRoute = Effect.gen(function* () {
   const router = yield* HttpLayerRouter.HttpRouter;
+
+  // Better Auth handler — mount before RPC (handles GET and POST)
+  const authHandler = Effect.gen(function* () {
+    const request = yield* HttpServerRequest.HttpServerRequest;
+    const url = new URL(request.url, "http://localhost");
+    const bodyBuffer = request.method !== "GET" && request.method !== "HEAD"
+      ? Buffer.from(yield* request.arrayBuffer)
+      : undefined;
+    const fetchRequest = new Request(url.toString(), {
+      method: request.method,
+      headers: request.headers as HeadersInit,
+      body: bodyBuffer,
+    });
+    const response = yield* Effect.promise(() => auth.handler(fetchRequest));
+    const body = yield* Effect.promise(() => response.arrayBuffer());
+    return HttpServerResponse.uint8Array(new Uint8Array(body), {
+      status: response.status,
+      headers: {
+        ...Object.fromEntries(response.headers.entries()),
+        ...corsHeaders,
+      },
+    });
+  }).pipe(
+    Effect.catchAllCause((cause) => {
+      const msg = cause._tag === "Fail" ? String(cause.error) : cause.toString();
+      return HttpServerResponse.text(JSON.stringify({ error: msg }), {
+        status: 500, headers: { "Content-Type": "application/json", ...corsHeaders },
+      });
+    })
+  );
+  yield* router.add("GET", "/api/auth/*", authHandler);
+  yield* router.add("POST", "/api/auth/*", authHandler);
 
   // Health check
   yield* router.add("GET", "/health", Effect.succeed(
@@ -140,8 +176,12 @@ const staticFilesRoute = Effect.gen(function* () {
     const filenameMatch = cd.match(/filename="([^"]+)"/);
     const fileName = filenameMatch ? filenameMatch[1] : "notion-export.zip";
 
+    const workspaceId = request.headers["x-workspace-id"] as string | undefined;
+    const wdb = yield* WorkspaceDb;
+    const dbLayer = workspaceId ? wdb.getLayer(workspaceId) : SqliteLive;
+
     const result = yield* ImportExport.importNotionZip(buffer, fileName).pipe(
-      Effect.provide(SqliteLive)
+      Effect.provide(dbLayer)
     );
 
     return HttpServerResponse.text(JSON.stringify({
@@ -185,8 +225,12 @@ const staticFilesRoute = Effect.gen(function* () {
       );
     }
 
+    const wdbUpload = yield* WorkspaceDb;
+    const uploadWorkspaceId = request.headers["x-workspace-id"] as string | undefined;
+    const uploadDbLayer = uploadWorkspaceId ? wdbUpload.getLayer(uploadWorkspaceId) : SqliteLive;
+
     const result = yield* Upload.uploadFile({ pageId, fileName, mimeType, fileBuffer }).pipe(
-      Effect.provide(SqliteLive)
+      Effect.provide(uploadDbLayer)
     );
 
     return HttpServerResponse.text(JSON.stringify(result), {
@@ -259,86 +303,119 @@ const staticFilesRoute = Effect.gen(function* () {
 // Layer that adds static file routes + import upload
 const StaticFilesLive = Layer.effectDiscard(staticFilesRoute);
 
+// Helper: authenticate user + resolve workspace DB from X-Workspace-Id header
+const withWorkspaceDb = <A, E>(
+  inner: Effect.Effect<A, E, import("@effect/sql").SqlClient.SqlClient>,
+) =>
+  Effect.gen(function* () {
+    const request = yield* HttpServerRequest.HttpServerRequest;
+    const workspaceId = request.headers["x-workspace-id"] as string | undefined;
+    if (!workspaceId) return yield* Effect.die(new Error("Missing X-Workspace-Id header"));
+
+    const wdb = yield* WorkspaceDb;
+    const dbLayer = wdb.getLayer(workspaceId);
+    return yield* inner.pipe(Effect.provide(dbLayer));
+  });
+
 // RPC handlers layer
 const rpcHandlersLayer = AppRpc.toLayer({
-  listPages: () => Pages.listPages.pipe(Effect.orDie),
-  getPage: ({ id }) => Pages.getPage(id).pipe(Effect.orDie),
-  createPage: (req) => Pages.createPage(req).pipe(Effect.orDie),
-  updatePage: (req) => Pages.updatePage(req).pipe(Effect.orDie),
-  deletePage: ({ id }) => Pages.deletePage(id).pipe(Effect.orDie),
-  globalSearch: ({ query }) => Search.globalSearch(query).pipe(Effect.orDie),
-  movePage: (req) => Pages.movePage(req).pipe(Effect.orDie),
-  reorderPages: ({ parentId, pageIds }) => Pages.reorderPages({ parentId, pageIds: [...pageIds] }).pipe(Effect.orDie),
+  listPages: () => withWorkspaceDb(Pages.listPages).pipe(Effect.orDie),
+  getPage: ({ id }) => withWorkspaceDb(Pages.getPage(id)).pipe(Effect.orDie),
+  createPage: (req) => withWorkspaceDb(Pages.createPage(req)).pipe(Effect.orDie),
+  updatePage: (req) => withWorkspaceDb(Pages.updatePage(req)).pipe(Effect.orDie),
+  deletePage: ({ id }) => withWorkspaceDb(Pages.deletePage(id)).pipe(Effect.orDie),
+  globalSearch: ({ query }) => withWorkspaceDb(Search.globalSearch(query)).pipe(Effect.orDie),
+  movePage: (req) => withWorkspaceDb(Pages.movePage(req)).pipe(Effect.orDie),
+  reorderPages: ({ parentId, pageIds }) => withWorkspaceDb(Pages.reorderPages({ parentId, pageIds: [...pageIds] })).pipe(Effect.orDie),
 
-  listBlocks: ({ pageId }) => Blocks.listBlocks(pageId).pipe(Effect.orDie),
-  createBlock: (req) => Blocks.createBlock(req).pipe(Effect.orDie),
-  updateBlock: (req) => Blocks.updateBlock(req).pipe(Effect.orDie),
-  deleteBlock: ({ id }) => Blocks.deleteBlock(id).pipe(Effect.orDie),
-  reorderBlocks: ({ pageId, blockIds }) => Blocks.reorderBlocks(pageId, [...blockIds]).pipe(Effect.orDie),
-  getBacklinks: ({ pageId }) => Blocks.getBacklinks(pageId).pipe(Effect.orDie),
+  listBlocks: ({ pageId }) => withWorkspaceDb(Blocks.listBlocks(pageId)).pipe(Effect.orDie),
+  createBlock: (req) => withWorkspaceDb(Blocks.createBlock(req)).pipe(Effect.orDie),
+  updateBlock: (req) => withWorkspaceDb(Blocks.updateBlock(req)).pipe(Effect.orDie),
+  deleteBlock: ({ id }) => withWorkspaceDb(Blocks.deleteBlock(id)).pipe(Effect.orDie),
+  reorderBlocks: ({ pageId, blockIds }) => withWorkspaceDb(Blocks.reorderBlocks(pageId, [...blockIds])).pipe(Effect.orDie),
+  getBacklinks: ({ pageId }) => withWorkspaceDb(Blocks.getBacklinks(pageId)).pipe(Effect.orDie),
 
-  listDatabases: ({ pageId }) => Databases.listDatabases(pageId).pipe(Effect.orDie),
-  listAllDatabases: () => Databases.listAllDatabases.pipe(Effect.orDie),
-  getDatabase: ({ id }) => Databases.getDatabase(id).pipe(Effect.orDie),
-  createDatabase: (req) => Databases.createDatabase(req).pipe(Effect.orDie),
-  listFields: ({ databaseId }) => Databases.listFields(databaseId).pipe(Effect.orDie),
-  createField: (req) => Databases.createField({
+  listDatabases: ({ pageId }) => withWorkspaceDb(Databases.listDatabases(pageId)).pipe(Effect.orDie),
+  listAllDatabases: () => withWorkspaceDb(Databases.listAllDatabases).pipe(Effect.orDie),
+  getDatabase: ({ id }) => withWorkspaceDb(Databases.getDatabase(id)).pipe(Effect.orDie),
+  createDatabase: (req) => withWorkspaceDb(Databases.createDatabase(req)).pipe(Effect.orDie),
+  listFields: ({ databaseId }) => withWorkspaceDb(Databases.listFields(databaseId)).pipe(Effect.orDie),
+  createField: (req) => withWorkspaceDb(Databases.createField({
     databaseId: req.databaseId,
     name: req.name,
     type: req.type,
     options: req.options ? [...req.options] : null,
     relationTargetDbId: req.relationTargetDbId,
-  }).pipe(Effect.orDie),
-  listRecords: ({ databaseId }) => Databases.listRecords(databaseId).pipe(Effect.orDie),
-  listRecordsWithValues: ({ databaseId }) => Databases.listRecordsWithValues(databaseId).pipe(Effect.orDie),
-  getRecordWithValues: ({ recordId }) => Databases.getRecordWithValues(recordId).pipe(Effect.orDie),
-  createRecord: (req) => Databases.createRecord(req).pipe(Effect.orDie),
-  updateFieldValue: (req) => Databases.updateFieldValue(req).pipe(
+  })).pipe(Effect.orDie),
+  listRecords: ({ databaseId }) => withWorkspaceDb(Databases.listRecords(databaseId)).pipe(Effect.orDie),
+  listRecordsWithValues: ({ databaseId }) => withWorkspaceDb(Databases.listRecordsWithValues(databaseId)).pipe(Effect.orDie),
+  getRecordWithValues: ({ recordId }) => withWorkspaceDb(Databases.getRecordWithValues(recordId)).pipe(Effect.orDie),
+  createRecord: (req) => withWorkspaceDb(Databases.createRecord(req)).pipe(Effect.orDie),
+  updateFieldValue: (req) => withWorkspaceDb(Databases.updateFieldValue(req).pipe(
     Effect.map((row) => new RecordFieldValue({
       id: row.id as string,
       recordId: row.recordId as string,
       fieldId: row.fieldId as string,
       value: row.value as string,
     })),
-    Effect.orDie,
-  ),
-  deleteRecord: ({ id }) => Databases.deleteRecord(id).pipe(Effect.orDie),
-  listViews: ({ databaseId }) => Databases.listViews(databaseId).pipe(Effect.orDie),
-  createView: (req) => Databases.createView({
+  )).pipe(Effect.orDie),
+  deleteRecord: ({ id }) => withWorkspaceDb(Databases.deleteRecord(id)).pipe(Effect.orDie),
+  listViews: ({ databaseId }) => withWorkspaceDb(Databases.listViews(databaseId)).pipe(Effect.orDie),
+  createView: (req) => withWorkspaceDb(Databases.createView({
     databaseId: req.databaseId,
     name: req.name,
     type: req.type,
     groupByFieldId: req.groupByFieldId,
-  }).pipe(Effect.orDie),
-  updateField: (req) => Databases.updateField({
+  })).pipe(Effect.orDie),
+  updateField: (req) => withWorkspaceDb(Databases.updateField({
     id: req.id,
     name: req.name,
     type: req.type,
     options: req.options === undefined ? undefined : (req.options ? [...req.options] : null),
     relationTargetDbId: req.relationTargetDbId,
-  }).pipe(Effect.orDie),
-  updateRecord: (req) => Databases.updateRecord(req).pipe(Effect.orDie),
-  reorderRecords: ({ databaseId, recordIds }) => Databases.reorderRecords({
+  })).pipe(Effect.orDie),
+  updateRecord: (req) => withWorkspaceDb(Databases.updateRecord(req)).pipe(Effect.orDie),
+  reorderRecords: ({ databaseId, recordIds }) => withWorkspaceDb(Databases.reorderRecords({
     databaseId,
     recordIds: [...recordIds],
-  }).pipe(Effect.orDie),
-  renameDatabase: (req) => Databases.renameDatabase({
+  })).pipe(Effect.orDie),
+  renameDatabase: (req) => withWorkspaceDb(Databases.renameDatabase({
     id: req.id,
     name: req.name,
-  }).pipe(Effect.orDie),
-  updateDatabase: (req) => Databases.updateDatabase(req).pipe(Effect.orDie),
-  deleteField: ({ id }) => Databases.deleteField(id).pipe(Effect.orDie),
-  reorderDatabases: (req) => Databases.reorderDatabases({
+  })).pipe(Effect.orDie),
+  updateDatabase: (req) => withWorkspaceDb(Databases.updateDatabase(req)).pipe(Effect.orDie),
+  deleteField: ({ id }) => withWorkspaceDb(Databases.deleteField(id)).pipe(Effect.orDie),
+  reorderDatabases: (req) => withWorkspaceDb(Databases.reorderDatabases({
     pageId: req.pageId,
     databaseIds: [...req.databaseIds],
+  })).pipe(Effect.orDie),
+
+  // Workspaces (use PlatformDb, session-based)
+  getMyWorkspaces: () => Effect.gen(function* () {
+    const user = yield* getSessionUser;
+    return yield* Workspaces.getMyWorkspaces(user.id);
   }).pipe(Effect.orDie),
+  createWorkspace: ({ name, slug }) => Effect.gen(function* () {
+    const user = yield* getSessionUser;
+    return yield* Workspaces.createWorkspace({ userId: user.id, name, slug });
+  }).pipe(Effect.orDie),
+  joinWorkspaceByToken: ({ inviteToken }) => Effect.gen(function* () {
+    const user = yield* getSessionUser;
+    return yield* Workspaces.joinWorkspaceByToken({ userId: user.id, inviteToken });
+  }).pipe(Effect.orDie),
+  getWorkspaceMembers: ({ workspaceId }) =>
+    Workspaces.getWorkspaceMembers(workspaceId).pipe(Effect.orDie),
+  removeMember: ({ workspaceId, userId }) =>
+    Workspaces.removeMember({ workspaceId, userId }).pipe(Effect.orDie),
+  regenerateInviteLink: ({ workspaceId }) =>
+    Workspaces.regenerateInviteLink(workspaceId).pipe(Effect.orDie),
 
   // Import/Export
-  importNotion: ({ directory }) => ImportExport.importNotion(directory).pipe(Effect.orDie),
+  importNotion: ({ directory }) => withWorkspaceDb(ImportExport.importNotion(directory)).pipe(Effect.orDie),
   exportPage: ({ pageId, includeDatabases }) =>
-    ImportExport.exportPage(pageId, includeDatabases).pipe(Effect.orDie),
-  exportDatabase: ({ dbId }) => ImportExport.exportDatabase(dbId).pipe(Effect.orDie),
-  exportAll: ({ outputDir }) => ImportExport.exportAll(outputDir).pipe(Effect.orDie),
+    withWorkspaceDb(ImportExport.exportPage(pageId, includeDatabases)).pipe(Effect.orDie),
+  exportDatabase: ({ dbId }) => withWorkspaceDb(ImportExport.exportDatabase(dbId)).pipe(Effect.orDie),
+  exportAll: ({ outputDir }) => withWorkspaceDb(ImportExport.exportAll(outputDir)).pipe(Effect.orDie),
 });
 
 // Create RPC router layer
@@ -356,6 +433,8 @@ const AppLive = Layer.mergeAll(
   Layer.provide(rpcHandlersLayer),
   Layer.provide(RpcSerialization.layerJson),
   Layer.provide(SqliteLive),
+  Layer.provide(WorkspaceDbLive),
+  Layer.provide(PlatformDbLive),
 );
 
 // Serve the app with HTTP server

@@ -1,0 +1,19 @@
+import { createFileRoute, redirect } from "@tanstack/react-router";
+import { createAuthClient } from "better-auth/react";
+import { api } from "../rpc-client.js";
+
+export const Route = createFileRoute("/")({
+  beforeLoad: async () => {
+    const client = createAuthClient({ baseURL: window.location.origin });
+    const session = await client.getSession();
+    if (!session?.data) {
+      throw redirect({ to: "/login" });
+    }
+    const workspaces = await api.getMyWorkspaces();
+    if (workspaces.length > 0) {
+      throw redirect({ to: "/$workspaceSlug", params: { workspaceSlug: workspaces[0].slug } });
+    }
+    throw redirect({ to: "/workspaces" });
+  },
+  component: () => null,
+});

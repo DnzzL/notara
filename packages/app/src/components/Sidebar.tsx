@@ -1,5 +1,6 @@
 import { useEffect, useState, useCallback, useRef, useMemo } from "react";
 import { useStore } from "../store.js";
+import { WorkspaceSwitcher } from "./WorkspaceSwitcher.js";
 import { ImportModal } from "./ImportModal.js";
 import { SettingsModal } from "./SettingsModal.js";
 import { EmojiPicker } from "./EmojiPicker.js";
@@ -343,6 +344,7 @@ export function Sidebar() {
     >
       <SortableContext items={treeOrder} strategy={verticalListSortingStrategy}>
         <aside className="sidebar" style={{ width }}>
+          <WorkspaceSwitcher />
           <div className="sidebar-header">
             <div className="sidebar-topbar">
               <button

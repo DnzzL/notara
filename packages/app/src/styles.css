@@ -1880,3 +1880,112 @@ body {
 }
 .settings-backup-row .settings-backup-msg,
 .settings-backup-row .settings-last-backup { flex: 1; }
+
+/* ====== Auth pages ====== */
+.auth-page {
+  display: flex; align-items: center; justify-content: center;
+  min-height: 100vh; background: #f7f7f5;
+}
+.auth-card {
+  background: #fff; border-radius: 8px; padding: 36px 40px;
+  width: 360px; box-shadow: 0 2px 16px rgba(0,0,0,0.08);
+  display: flex; flex-direction: column; gap: 12px;
+}
+.auth-card h1 { font-size: 22px; font-weight: 600; margin: 0 0 4px; }
+.auth-card input {
+  width: 100%; padding: 8px 10px; border: 1px solid #ddd; border-radius: 6px;
+  font-size: 14px; outline: none; box-sizing: border-box;
+}
+.auth-card input:focus { border-color: #2eaadc; }
+.auth-card button[type="submit"] {
+  background: #2eaadc; color: #fff; border: none; border-radius: 6px;
+  padding: 9px; font-size: 14px; cursor: pointer; font-weight: 500;
+}
+.auth-card button[type="submit"]:disabled { opacity: 0.6; cursor: not-allowed; }
+.auth-error { color: #e03e3e; font-size: 13px; margin: 0; }
+.oauth-btn {
+  background: #fff; border: 1px solid #ddd; border-radius: 6px;
+  padding: 9px; font-size: 14px; cursor: pointer; font-weight: 500;
+}
+.oauth-btn:hover { background: #f5f5f5; }
+.auth-divider { text-align: center; color: #aaa; font-size: 12px; }
+.auth-toggle { background: none; border: none; color: #2eaadc; font-size: 13px; cursor: pointer; padding: 0; }
+
+/* ====== Workspaces page ====== */
+.workspaces-page {
+  max-width: 540px; margin: 64px auto; padding: 0 24px;
+}
+.workspaces-page h1 { font-size: 24px; margin-bottom: 24px; }
+.workspace-list { display: flex; flex-direction: column; gap: 8px; margin-bottom: 32px; }
+.workspace-card {
+  display: flex; align-items: center; gap: 14px;
+  padding: 14px 16px; border: 1px solid #e9e9e7; border-radius: 8px;
+  background: #fff; cursor: pointer; text-align: left; width: 100%;
+}
+.workspace-card:hover { background: #f5f5f5; }
+.workspace-avatar {
+  width: 40px; height: 40px; border-radius: 8px;
+  background: #2eaadc; color: #fff; font-size: 18px; font-weight: 600;
+  display: flex; align-items: center; justify-content: center; flex-shrink: 0;
+}
+.workspace-name { font-weight: 500; font-size: 15px; margin: 0; }
+.workspace-role { color: #888; font-size: 12px; text-transform: capitalize; margin: 0; }
+.workspace-form { display: flex; flex-direction: column; gap: 8px; padding: 16px; border: 1px solid #e9e9e7; border-radius: 8px; }
+.workspace-form h2 { margin: 0 0 4px; font-size: 16px; }
+.workspace-form input { padding: 8px 10px; border: 1px solid #ddd; border-radius: 6px; font-size: 14px; outline: none; }
+.workspace-form input:focus { border-color: #2eaadc; }
+.workspace-actions { margin-top: 8px; }
+.form-row { display: flex; gap: 8px; }
+.form-row button {
+  padding: 8px 16px; border: 1px solid #ddd; border-radius: 6px;
+  font-size: 14px; cursor: pointer; background: #fff;
+}
+.form-row button:first-child { background: #2eaadc; color: #fff; border-color: #2eaadc; }
+
+/* ====== Workspace switcher ====== */
+.workspace-switcher { position: relative; padding: 8px 12px; border-bottom: 1px solid #e9e9e7; }
+.workspace-switcher-trigger {
+  display: flex; align-items: center; gap: 8px; width: 100%;
+  background: none; border: none; cursor: pointer; padding: 6px 8px;
+  border-radius: 6px; font-size: 14px; color: #37352f;
+}
+.workspace-switcher-trigger:hover { background: #f0f0ee; }
+.workspace-avatar-sm {
+  width: 26px; height: 26px; border-radius: 5px;
+  background: #2eaadc; color: #fff; font-size: 13px; font-weight: 600;
+  display: flex; align-items: center; justify-content: center; flex-shrink: 0;
+}
+.workspace-switcher-name { flex: 1; text-align: left; font-weight: 500; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.workspace-switcher-chevron { color: #aaa; font-size: 11px; }
+.workspace-switcher-dropdown {
+  position: absolute; top: calc(100% - 4px); left: 8px; right: 8px;
+  background: #fff; border: 1px solid #e9e9e7; border-radius: 8px;
+  box-shadow: 0 4px 16px rgba(0,0,0,0.12); z-index: 200; overflow: hidden;
+}
+.workspace-switcher-section { padding: 4px 0; border-bottom: 1px solid #f0f0ee; }
+.workspace-switcher-section:last-child { border-bottom: none; }
+.workspace-switcher-item {
+  display: flex; align-items: center; gap: 8px; width: 100%;
+  padding: 7px 12px; background: none; border: none; cursor: pointer;
+  font-size: 13px; color: #37352f; text-align: left;
+}
+.workspace-switcher-item:hover { background: #f5f5f5; }
+.workspace-switcher-item.active { font-weight: 500; }
+.workspace-check { margin-left: auto; color: #2eaadc; }
+.workspace-signout { color: #e03e3e; }
+
+/* ====== Workspace settings modal ====== */
+.settings-section { margin-bottom: 20px; }
+.settings-section h3 { font-size: 14px; font-weight: 600; margin: 0 0 10px; color: #888; text-transform: uppercase; letter-spacing: 0.05em; }
+.invite-link-row { display: flex; gap: 6px; }
+.invite-link-input { flex: 1; padding: 7px 10px; border: 1px solid #ddd; border-radius: 6px; font-size: 12px; font-family: monospace; }
+.invite-link-row button { padding: 7px 12px; border: 1px solid #ddd; border-radius: 6px; font-size: 13px; cursor: pointer; background: #fff; white-space: nowrap; }
+.invite-link-row button:first-of-type { background: #2eaadc; color: #fff; border-color: #2eaadc; }
+.members-list { list-style: none; padding: 0; margin: 0; display: flex; flex-direction: column; gap: 4px; }
+.member-row { display: flex; align-items: center; gap: 10px; padding: 6px 4px; }
+.member-avatar { width: 30px; height: 30px; border-radius: 50%; background: #eee; display: flex; align-items: center; justify-content: center; font-size: 13px; font-weight: 600; flex-shrink: 0; }
+.member-info { flex: 1; }
+.member-name { font-size: 14px; font-weight: 500; display: block; }
+.member-role { font-size: 12px; color: #888; text-transform: capitalize; }
+.member-remove { background: none; border: none; color: #aaa; cursor: pointer; font-size: 12px; padding: 4px; border-radius: 4px; }
+.member-remove:hover { color: #e03e3e; background: #fff0f0; }

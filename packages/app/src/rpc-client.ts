@@ -16,16 +16,28 @@ import {
   DatabaseView,
   Backlink,
   SearchResult,
+  Workspace,
+  WorkspaceMember,
 } from "@notion-alt/shared";
 
 const API_URL = "/api";
 let nextId = 1;
 
+let currentWorkspaceId: string | null = null;
+
+export function setCurrentWorkspaceId(id: string | null) {
+  currentWorkspaceId = id;
+}
+
 async function rpcCall<T>(method: string, payload: Record<string, unknown> = {}): Promise<T> {
   const id = String(nextId++);
+  const headers: Record<string, string> = { "Content-Type": "application/json" };
+  if (currentWorkspaceId) {
+    headers["X-Workspace-Id"] = currentWorkspaceId;
+  }
   const response = await fetch(API_URL, {
     method: "POST",
-    headers: { "Content-Type": "application/json" },
+    headers,
     body: JSON.stringify({
       _tag: "Request",
       id,
@@ -123,4 +135,17 @@ export const api = {
     rpcCall<{ dbId: string; name: string; csv: string }>("exportDatabase", { dbId }),
   exportAll: (outputDir: string) =>
     rpcCall<{ pagesExported: number; databasesExported: number; outputDir: string }>("exportAll", { outputDir }),
+
+  // Workspaces
+  getMyWorkspaces: () => rpcCall<Workspace[]>("getMyWorkspaces", {}),
+  createWorkspace: (name: string, slug: string) =>
+    rpcCall<Workspace>("createWorkspace", { name, slug }),
+  joinWorkspaceByToken: (inviteToken: string) =>
+    rpcCall<Workspace>("joinWorkspaceByToken", { inviteToken }),
+  getWorkspaceMembers: (workspaceId: string) =>
+    rpcCall<WorkspaceMember[]>("getWorkspaceMembers", { workspaceId }),
+  removeMember: (workspaceId: string, userId: string) =>
+    rpcCall<void>("removeMember", { workspaceId, userId }),
+  regenerateInviteLink: (workspaceId: string) =>
+    rpcCall<{ inviteToken: string }>("regenerateInviteLink", { workspaceId }),
 };

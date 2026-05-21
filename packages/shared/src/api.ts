@@ -14,6 +14,8 @@ import {
   DatabaseCsvExport,
   ImportResult,
   ExportAllResult,
+  Workspace,
+  WorkspaceMember,
 } from "./schema.js";
 
 // Combined RPC group — all requests
@@ -205,6 +207,29 @@ export const AppRpc = RpcGroup.make(
   Rpc.make("reorderDatabases", {
     payload: { pageId: Schema.String, databaseIds: Schema.Array(Schema.String) },
     success: Schema.Struct({ reordered: Schema.Boolean }),
+  }),
+
+  // Workspaces
+  Rpc.make("getMyWorkspaces", { success: Schema.Array(Workspace) }),
+  Rpc.make("createWorkspace", {
+    payload: { name: Schema.String, slug: Schema.String },
+    success: Workspace,
+  }),
+  Rpc.make("joinWorkspaceByToken", {
+    payload: { inviteToken: Schema.String },
+    success: Workspace,
+  }),
+  Rpc.make("getWorkspaceMembers", {
+    payload: { workspaceId: Schema.String },
+    success: Schema.Array(WorkspaceMember),
+  }),
+  Rpc.make("removeMember", {
+    payload: { workspaceId: Schema.String, userId: Schema.String },
+    success: Schema.Void,
+  }),
+  Rpc.make("regenerateInviteLink", {
+    payload: { workspaceId: Schema.String },
+    success: Schema.Struct({ inviteToken: Schema.String }),
   }),
 
   // Import/Export

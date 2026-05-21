@@ -129,3 +129,18 @@ export class ExportAllResult extends Schema.Class<ExportAllResult>("ExportAllRes
   databasesExported: Schema.Number,
   outputDir: Schema.String,
 }) {}
+
+export class Workspace extends Schema.Class<Workspace>("Workspace")({
+  id: Schema.String,
+  name: Schema.String,
+  slug: Schema.String,
+  role: Schema.Literal("owner", "member"),
+  inviteToken: Schema.NullOr(Schema.String),
+}) {}
+
+export class WorkspaceMember extends Schema.Class<WorkspaceMember>("WorkspaceMember")({
+  userId: Schema.String,
+  name: Schema.String,
+  email: Schema.String,
+  role: Schema.Literal("owner", "member"),
+}) {}
