@@ -1,6 +1,7 @@
 import { useState, useEffect } from "react";
 import { useApiKeyStore } from "../store.js";
 import type { ApiKeyCreated } from "@notion-alt/shared";
+import { toaster } from "../toaster.js";
 
 interface Props {
   onClose: () => void;
@@ -11,7 +12,6 @@ export function ApiKeysModal({ onClose }: Props) {
   const [newKeyName, setNewKeyName] = useState("");
   const [creating, setCreating] = useState(false);
   const [created, setCreated] = useState<ApiKeyCreated | null>(null);
-  const [error, setError] = useState<string | null>(null);
   const [copied, setCopied] = useState(false);
 
   useEffect(() => { loadApiKeys(); }, []);
@@ -19,14 +19,13 @@ export function ApiKeysModal({ onClose }: Props) {
   const handleCreate = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!newKeyName.trim()) return;
-    setError(null);
     setCreating(true);
     try {
       const key = await createApiKey(newKeyName.trim());
       setCreated(key);
       setNewKeyName("");
     } catch (err: any) {
-      setError(err.message ?? "Failed to create key");
+      toaster.create({ title: "Failed to create key", description: err.message ?? "Something went wrong.", type: "error" });
     } finally {
       setCreating(false);
     }
@@ -96,7 +95,6 @@ export function ApiKeysModal({ onClose }: Props) {
                 {creating ? "Creating…" : "Create"}
               </button>
             </form>
-            {error && <p className="invite-error">{error}</p>}
           </section>
 
           {/* Key list */}

@@ -1,4 +1,5 @@
 import { useState, useEffect } from "react";
+import { toaster } from "../toaster.js";
 import {
   DialogRoot,
   DialogBackdrop,
@@ -78,9 +79,9 @@ export function SettingsModal({ open, onClose }: SettingsModalProps) {
       if (!resp.ok) throw new Error(await resp.text());
       setSaveStatus("saved");
       setTimeout(() => setSaveStatus("idle"), 2000);
-    } catch {
-      setSaveStatus("error");
-      setTimeout(() => setSaveStatus("idle"), 3000);
+    } catch (err) {
+      setSaveStatus("idle");
+      toaster.create({ title: "Failed to save settings", description: err instanceof Error ? err.message : "Something went wrong.", type: "error" });
     }
   };
 
@@ -96,9 +97,12 @@ export function SettingsModal({ open, onClose }: SettingsModalProps) {
       setLastBackup(ts);
       setBackupStatus("success");
       setBackupMessage(`Backed up to ${data.key} (${(data.size / 1024).toFixed(0)} KB)`);
+      toaster.create({ title: "Backup complete", description: `Saved to ${data.key}`, type: "success" });
     } catch (err) {
-      setBackupStatus("error");
-      setBackupMessage(err instanceof Error ? err.message : "Backup failed");
+      const msg = err instanceof Error ? err.message : "Backup failed";
+      setBackupStatus("idle");
+      setBackupMessage("");
+      toaster.create({ title: "Backup failed", description: msg, type: "error" });
     }
   };
 
@@ -215,9 +219,6 @@ export function SettingsModal({ open, onClose }: SettingsModalProps) {
                   <div className="settings-backup-row">
                     {backupStatus === "success" && (
                       <span className="settings-backup-msg success">{backupMessage}</span>
-                    )}
-                    {backupStatus === "error" && (
-                      <span className="settings-backup-msg error">{backupMessage}</span>
                     )}
                     {backupStatus === "running" && (
                       <span className="settings-backup-msg">{backupMessage}</span>

@@ -1,5 +1,6 @@
 import { useState, useRef, useEffect, useCallback } from "react";
 import { getCurrentWorkspaceId } from "../rpc-client.js";
+import { toaster } from "../toaster.js";
 import {
   DialogRoot,
   DialogBackdrop,
@@ -71,11 +72,18 @@ export function ImportModal({ open, onClose }: ImportModalProps) {
       }
       setStatus("success");
       setMessage(`Imported ${data.pagesImported} page(s) and ${data.databasesImported} database(s).`);
+      toaster.create({
+        title: "Import complete",
+        description: `Imported ${data.pagesImported} page(s) and ${data.databasesImported} database(s).`,
+        type: "success",
+      });
       // Refresh so the new pages show up in the sidebar.
       setTimeout(() => window.location.reload(), 500);
     } catch (err) {
-      setStatus("error");
-      setMessage(err instanceof Error ? err.message : "Import failed.");
+      const message = err instanceof Error ? err.message : "Import failed.";
+      setStatus("idle");
+      setMessage("");
+      toaster.create({ title: "Import failed", description: message, type: "error" });
     }
   };
 
