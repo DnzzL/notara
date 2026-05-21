@@ -3,6 +3,7 @@ import { useStore } from "../store.js";
 import { WorkspaceSwitcher } from "./WorkspaceSwitcher.js";
 import { ImportModal } from "./ImportModal.js";
 import { SettingsModal } from "./SettingsModal.js";
+import { ApiKeysModal } from "./ApiKeysModal.js";
 import { EmojiPicker } from "./EmojiPicker.js";
 import { createTreeCollection, TreeView } from "@ark-ui/react/tree-view";
 import { Menu } from "@ark-ui/react/menu";
@@ -77,7 +78,12 @@ const MIN_WIDTH = 200;
 const MAX_WIDTH = 480;
 const DEFAULT_WIDTH = 260;
 
-export function Sidebar() {
+interface SidebarProps {
+  className?: string;
+  onNavigate?: () => void;
+}
+
+export function Sidebar({ className, onNavigate }: SidebarProps = {}) {
   const { pages, currentPage, selectPage, createPage, deletePage, loadPages, movePage, reorderPages, loading, setPageIcon, toggleFavorite } =
     useStore();
   const [iconPickerFor, setIconPickerFor] = useState<{ pageId: string; top: number; left: number } | null>(null);
@@ -86,6 +92,7 @@ export function Sidebar() {
   const [newPageTitle, setNewPageTitle] = useState("");
   const [showImport, setShowImport] = useState(false);
   const [showSettings, setShowSettings] = useState(false);
+  const [showApiKeys, setShowApiKeys] = useState(false);
 
   const [width, setWidth] = useState<number>(() => {
     const stored = Number(localStorage.getItem(SIDEBAR_WIDTH_KEY));
@@ -343,7 +350,7 @@ export function Sidebar() {
       onDragCancel={handleDragCancel}
     >
       <SortableContext items={treeOrder} strategy={verticalListSortingStrategy}>
-        <aside className="sidebar" style={{ width }}>
+        <aside className={`sidebar${className ? ` ${className}` : ""}`} style={{ width }}>
           <WorkspaceSwitcher />
           <div className="sidebar-header">
             <div className="sidebar-topbar">
@@ -377,7 +384,7 @@ export function Sidebar() {
                     <div
                       key={"fav-" + page.id}
                       className={`page-node ${currentPage?.id === page.id ? "selected" : ""}`}
-                      onClick={() => selectPage(page)}
+                      onClick={() => { selectPage(page); onNavigate?.(); }}
                     >
                       <span className="page-node-spacer" />
                       <span className="icon">{page.icon || "📄"}</span>
@@ -407,7 +414,7 @@ export function Sidebar() {
                   const id = val[0];
                   if (id) {
                     const page = pageMap.get(id);
-                    if (page) selectPage(page);
+                    if (page) { selectPage(page); onNavigate?.(); }
                   }
                 }}
               >
@@ -454,6 +461,9 @@ export function Sidebar() {
             <button className="sidebar-footer-btn" onClick={() => setShowSettings(true)} title="Settings">
               <span>⚙</span> Settings
             </button>
+            <button className="sidebar-footer-btn" onClick={() => setShowApiKeys(true)} title="API keys">
+              <span>⌁</span> API keys
+            </button>
           </div>
 
           <div
@@ -491,6 +501,7 @@ export function Sidebar() {
 
       <ImportModal open={showImport} onClose={() => setShowImport(false)} />
       <SettingsModal open={showSettings} onClose={() => setShowSettings(false)} />
+      {showApiKeys && <ApiKeysModal onClose={() => setShowApiKeys(false)} />}
     </DndContext>
   );
 }

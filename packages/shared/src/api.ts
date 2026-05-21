@@ -16,6 +16,8 @@ import {
   ExportAllResult,
   Workspace,
   WorkspaceMember,
+  ApiKey,
+  ApiKeyCreated,
 } from "./schema.js";
 
 // Combined RPC group — all requests
@@ -230,6 +232,21 @@ export const AppRpc = RpcGroup.make(
   Rpc.make("regenerateInviteLink", {
     payload: { workspaceId: Schema.String },
     success: Schema.Struct({ inviteToken: Schema.String }),
+  }),
+  Rpc.make("inviteMemberByEmail", {
+    payload: { workspaceId: Schema.String, email: Schema.String },
+    success: Schema.Void,
+  }),
+
+  // API keys
+  Rpc.make("listApiKeys", { success: Schema.Array(ApiKey) }),
+  Rpc.make("createApiKey", {
+    payload: { name: Schema.String },
+    success: ApiKeyCreated,
+  }),
+  Rpc.make("revokeApiKey", {
+    payload: { id: Schema.String },
+    success: Schema.Void,
   }),
 
   // Import/Export

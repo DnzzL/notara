@@ -15,11 +15,13 @@ import * as Search from "./handlers/search.js";
 import * as ImportExport from "./handlers/importExport.js";
 import * as Upload from "./handlers/upload.js";
 import * as Workspaces from "./handlers/workspaces.js";
+import * as ApiKeys from "./handlers/api-keys.js";
 import { loadSettings, saveSettings } from "./handlers/settings.js";
 import { triggerBackup } from "./handlers/backup.js";
 import { AppRpc, RecordFieldValue } from "@notion-alt/shared";
+import { registerV1Routes } from "./api-v1/routes.js";
 import { auth } from "./auth.js";
-import { PlatformDbLive } from "./platform-db.js";
+import { PlatformDbLive, PlatformDb } from "./platform-db.js";
 import { resolveWorkspaceContext, getSessionUser, WorkspaceContext, AuthError } from "./workspace-context.js";
 import { createServer } from "node:http";
 import * as path from "node:path";
@@ -30,6 +32,51 @@ import { dirname } from "node:path";
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
 const rootDir = path.join(__dirname, "../..");
+
+// ── Rate limiter ───────────────────────────────────────────────────────────
+const RATE_WINDOW_MS = 60_000;
+const rateLimits = new Map<string, { count: number; resetAt: number }>();
+function setInterval_unref(fn: () => void, ms: number) {
+  const t = setInterval(fn, ms);
+  if (typeof t === "object" && "unref" in t) (t as NodeJS.Timeout).unref();
+}
+setInterval_unref(() => {
+  const now = Date.now();
+  for (const [k, v] of rateLimits) if (v.resetAt < now) rateLimits.delete(k);
+}, 60_000);
+
+function checkRateLimit(ip: string, limit: number): boolean {
+  const now = Date.now();
+  let entry = rateLimits.get(ip);
+  if (!entry || entry.resetAt < now) {
+    entry = { count: 0, resetAt: now + RATE_WINDOW_MS };
+    rateLimits.set(ip, entry);
+  }
+  entry.count++;
+  return entry.count <= limit;
+}
+
+function getIp(req: import("@effect/platform/HttpServerRequest").HttpServerRequest): string {
+  const h = req.headers;
+  return (h["x-forwarded-for"] as string)?.split(",")[0]?.trim()
+    ?? (h["x-real-ip"] as string)
+    ?? "unknown";
+}
+
+const tooManyRequests = (retryAfter: number) =>
+  HttpServerResponse.text("Too Many Requests", {
+    status: 429,
+    headers: { "Retry-After": String(retryAfter), ...corsHeaders },
+  });
+
+// Wraps an effect with IP-based rate limiting
+const withRateLimit = <A>(limit: number, inner: Effect.Effect<A, unknown, any>) =>
+  Effect.gen(function* () {
+    const req = yield* HttpServerRequest.HttpServerRequest;
+    const ip = getIp(req);
+    if (!checkRateLimit(`${ip}:${limit}`, limit)) return tooManyRequests(60) as unknown as A;
+    return yield* inner;
+  });
 
 // Static file paths
 const possibleDistPaths = [
@@ -77,7 +124,7 @@ const staticFilesRoute = Effect.gen(function* () {
   const router = yield* HttpLayerRouter.HttpRouter;
 
   // Better Auth handler — mount before RPC (handles GET and POST)
-  const authHandler = Effect.gen(function* () {
+  const authHandlerInner = Effect.gen(function* () {
     const request = yield* HttpServerRequest.HttpServerRequest;
     const url = new URL(request.url, "http://localhost");
     const bodyBuffer = request.method !== "GET" && request.method !== "HEAD"
@@ -105,8 +152,15 @@ const staticFilesRoute = Effect.gen(function* () {
       });
     })
   );
-  yield* router.add("GET", "/api/auth/*", authHandler);
-  yield* router.add("POST", "/api/auth/*", authHandler);
+  // Auth mutation endpoints get a stricter rate limit (10 req/min per IP)
+  const authHandlerStrict = Effect.gen(function* () {
+    const req = yield* HttpServerRequest.HttpServerRequest;
+    const isAuthMutation = /\/(sign-in|sign-up|forget-password|reset-password)/.test(req.url);
+    if (isAuthMutation && !checkRateLimit(`${getIp(req)}:auth`, 10)) return tooManyRequests(60);
+    return yield* authHandlerInner;
+  });
+  yield* router.add("GET", "/api/auth/*", authHandlerInner);
+  yield* router.add("POST", "/api/auth/*", authHandlerStrict);
 
   // Health check
   yield* router.add("GET", "/health", Effect.succeed(
@@ -153,6 +207,77 @@ const staticFilesRoute = Effect.gen(function* () {
       });
     })
   ));
+
+  // ── Admin routes ──────────────────────────────────────────────────────────
+  const adminEmails = (process.env.ADMIN_EMAILS ?? "").split(",").map((e) => e.trim()).filter(Boolean);
+
+  const requireAdmin = <A>(inner: Effect.Effect<A, unknown, any>) =>
+    Effect.gen(function* () {
+      if (adminEmails.length === 0) {
+        return HttpServerResponse.text(JSON.stringify({ error: "Admin not configured" }), {
+          status: 403, headers: { "Content-Type": "application/json", ...corsHeaders },
+        }) as unknown as A;
+      }
+      const req = yield* HttpServerRequest.HttpServerRequest;
+      const headers = new Headers(req.headers as Record<string, string>);
+      const session = yield* Effect.promise(() => auth.api.getSession({ headers }));
+      if (!session || !adminEmails.includes(session.user.email)) {
+        return HttpServerResponse.text(JSON.stringify({ error: "Forbidden" }), {
+          status: 403, headers: { "Content-Type": "application/json", ...corsHeaders },
+        }) as unknown as A;
+      }
+      return yield* inner;
+    });
+
+  yield* router.add("GET", "/api/admin/users", requireAdmin(Effect.gen(function* () {
+    const db = yield* PlatformDb;
+    const users = db
+      .prepare(
+        `SELECT u.id, u.name, u.email, u.createdAt,
+                COUNT(DISTINCT wm.workspace_id) as workspace_count
+         FROM "user" u
+         LEFT JOIN workspace_members wm ON wm.user_id = u.id
+         GROUP BY u.id
+         ORDER BY u.createdAt DESC`,
+      )
+      .all() as any[];
+    return HttpServerResponse.text(JSON.stringify(users), {
+      headers: { "Content-Type": "application/json", ...corsHeaders },
+    });
+  })));
+
+  yield* router.add("GET", "/api/admin/workspaces", requireAdmin(Effect.gen(function* () {
+    const dbService = yield* PlatformDb;
+    const workspaces = (dbService as any)
+      .prepare(
+        `SELECT w.id, w.name, w.slug, w.created_at,
+                COUNT(wm.user_id) as member_count
+         FROM workspaces w
+         LEFT JOIN workspace_members wm ON wm.workspace_id = w.id
+         GROUP BY w.id
+         ORDER BY w.created_at DESC`,
+      )
+      .all() as any[];
+    return HttpServerResponse.text(JSON.stringify(workspaces), {
+      headers: { "Content-Type": "application/json", ...corsHeaders },
+    });
+  })));
+
+  yield* router.add("DELETE", "/api/admin/users/:userId", requireAdmin(Effect.gen(function* () {
+    const params = yield* HttpRouter.params;
+    const userId = params["userId"] as string | undefined;
+    if (!userId) {
+      return HttpServerResponse.text(JSON.stringify({ error: "Missing userId" }), {
+        status: 400, headers: { "Content-Type": "application/json", ...corsHeaders },
+      });
+    }
+    const db = yield* PlatformDb;
+    db.prepare("DELETE FROM workspace_members WHERE user_id = ?").run(userId);
+    db.prepare(`DELETE FROM "user" WHERE id = ?`).run(userId);
+    return HttpServerResponse.text(JSON.stringify({ deleted: true }), {
+      headers: { "Content-Type": "application/json", ...corsHeaders },
+    });
+  })));
 
   // Handle CORS preflight
   yield* router.add("OPTIONS", "/*", Effect.succeed(
@@ -303,6 +428,9 @@ const staticFilesRoute = Effect.gen(function* () {
 // Layer that adds static file routes + import upload
 const StaticFilesLive = Layer.effectDiscard(staticFilesRoute);
 
+// Layer that adds the /api/v1 REST routes + /api/docs
+const ApiV1Live = Layer.effectDiscard(registerV1Routes);
+
 // Helper: authenticate user + resolve workspace DB from X-Workspace-Id header
 const withWorkspaceDb = <A, E>(
   inner: Effect.Effect<A, E, import("@effect/sql").SqlClient.SqlClient>,
@@ -409,6 +537,24 @@ const rpcHandlersLayer = AppRpc.toLayer({
     Workspaces.removeMember({ workspaceId, userId }).pipe(Effect.orDie),
   regenerateInviteLink: ({ workspaceId }) =>
     Workspaces.regenerateInviteLink(workspaceId).pipe(Effect.orDie),
+  inviteMemberByEmail: ({ workspaceId, email }) => Effect.gen(function* () {
+    yield* getSessionUser;
+    return yield* Workspaces.inviteMemberByEmail({ workspaceId, email });
+  }).pipe(Effect.orDie),
+
+  // API keys
+  listApiKeys: () => Effect.gen(function* () {
+    const user = yield* getSessionUser;
+    return yield* ApiKeys.listApiKeys(user.id);
+  }).pipe(Effect.orDie),
+  createApiKey: ({ name }) => Effect.gen(function* () {
+    const user = yield* getSessionUser;
+    return yield* ApiKeys.createApiKey({ userId: user.id, name });
+  }).pipe(Effect.orDie),
+  revokeApiKey: ({ id }) => Effect.gen(function* () {
+    const user = yield* getSessionUser;
+    return yield* ApiKeys.revokeApiKey({ userId: user.id, id });
+  }).pipe(Effect.orDie),
 
   // Import/Export
   importNotion: ({ directory }) => withWorkspaceDb(ImportExport.importNotion(directory)).pipe(Effect.orDie),
@@ -429,6 +575,7 @@ const RpcRouterLive = RpcServer.layerHttpRouter({
 const AppLive = Layer.mergeAll(
   RpcRouterLive,
   StaticFilesLive,
+  ApiV1Live,
 ).pipe(
   Layer.provide(rpcHandlersLayer),
   Layer.provide(RpcSerialization.layerJson),
@@ -439,7 +586,7 @@ const AppLive = Layer.mergeAll(
 
 // Serve the app with HTTP server
 const ServerLive = HttpLayerRouter.serve(AppLive).pipe(
-  Layer.provide(NodeHttpServer.layer(createServer, { port: 3000, host: "0.0.0.0" })),
+  Layer.provide(NodeHttpServer.layer(createServer, { port: Number(process.env.PORT ?? 3000), host: "0.0.0.0" })),
 );
 
 const SCHEDULE_INTERVALS: Record<string, number | null> = {
@@ -478,7 +625,7 @@ function startBackupScheduler() {
 const program = Effect.gen(function* () {
   yield* runMigrations;
   startBackupScheduler();
-  yield* Effect.logInfo("Server running on http://localhost:3000");
+  yield* Effect.logInfo(`Server running on http://localhost:${process.env.PORT ?? 3000}`);
   // Keep the server running
   yield* Effect.never;
 });

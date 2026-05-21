@@ -5,6 +5,10 @@ import { Route as loginRoute } from "./routes/login.js";
 import { Route as workspacesRoute } from "./routes/workspaces.js";
 import { Route as workspaceSlugRoute } from "./routes/$workspaceSlug.js";
 import { Route as joinTokenRoute } from "./routes/join.$token.js";
+import { Route as forgotPasswordRoute } from "./routes/forgot-password.js";
+import { Route as resetPasswordRoute } from "./routes/reset-password.js";
+import { Route as adminRoute } from "./routes/admin.js";
+import { Route as pricingRoute } from "./routes/pricing.js";
 
 const routeTree = rootRoute.addChildren([
   indexRoute,
@@ -12,6 +16,10 @@ const routeTree = rootRoute.addChildren([
   workspacesRoute,
   workspaceSlugRoute,
   joinTokenRoute,
+  forgotPasswordRoute,
+  resetPasswordRoute,
+  adminRoute,
+  pricingRoute,
 ]);
 
 export const router = createRouter({ routeTree });

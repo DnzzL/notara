@@ -1,4 +1,4 @@
-import { createRoute, useNavigate } from "@tanstack/react-router";
+import { createRoute, useNavigate, Link } from "@tanstack/react-router";
 import { Route as rootRoute } from "./__root.js";
 import { useState } from "react";
 import { signIn, signUp } from "../auth-client.js";
@@ -116,7 +116,12 @@ function LoginPage() {
             />
           </div>
           <div className="auth-field">
-            <label htmlFor="auth-password">Password</label>
+            <div className="auth-field-header">
+              <label htmlFor="auth-password">Password</label>
+              {isLogin && (
+                <Link to="/forgot-password" className="auth-forgot-link">Forgot password?</Link>
+              )}
+            </div>
             <input
               id="auth-password"
               type="password"

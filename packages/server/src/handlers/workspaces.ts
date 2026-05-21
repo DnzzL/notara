@@ -2,6 +2,7 @@ import { Effect } from "effect";
 import { ulid } from "ulidx";
 import { Workspace, WorkspaceMember } from "@notion-alt/shared";
 import { PlatformDb } from "../platform-db.js";
+import { sendEmail, BASE_URL } from "../email.js";
 
 type WorkspaceRow = {
   id: string;
@@ -139,4 +140,26 @@ export const regenerateInviteLink = (workspaceId: string) =>
     const newToken = ulid();
     db.prepare("UPDATE workspaces SET invite_token = ? WHERE id = ?").run(newToken, workspaceId);
     return { inviteToken: newToken };
+  });
+
+export const inviteMemberByEmail = (req: { workspaceId: string; email: string }) =>
+  Effect.gen(function* () {
+    const db = yield* PlatformDb;
+    const ws = db
+      .prepare("SELECT * FROM workspaces WHERE id = ?")
+      .get(req.workspaceId) as WorkspaceRow | null;
+
+    if (!ws) return yield* Effect.fail(new Error("Workspace not found"));
+
+    const joinUrl = `${BASE_URL}/join/${ws.invite_token}`;
+    yield* Effect.promise(() =>
+      sendEmail(
+        req.email,
+        `You're invited to join "${ws.name}" on Notara`,
+        `<p>You've been invited to collaborate on <strong>${ws.name}</strong>.</p>
+<p><a href="${joinUrl}" style="background:#5B5EF4;color:#fff;padding:10px 20px;border-radius:6px;text-decoration:none;display:inline-block;">Accept invitation</a></p>
+<p>Or copy this link: <a href="${joinUrl}">${joinUrl}</a></p>
+<p>— The Notara team</p>`,
+      ),
+    );
   });

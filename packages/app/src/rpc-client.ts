@@ -18,6 +18,8 @@ import {
   SearchResult,
   Workspace,
   WorkspaceMember,
+  ApiKey,
+  ApiKeyCreated,
 } from "@notion-alt/shared";
 
 const API_URL = "/api";
@@ -148,4 +150,12 @@ export const api = {
     rpcCall<void>("removeMember", { workspaceId, userId }),
   regenerateInviteLink: (workspaceId: string) =>
     rpcCall<{ inviteToken: string }>("regenerateInviteLink", { workspaceId }),
+  inviteMemberByEmail: (workspaceId: string, email: string) =>
+    rpcCall<void>("inviteMemberByEmail", { workspaceId, email }),
+  listApiKeys: () =>
+    rpcCall<ApiKey[]>("listApiKeys", {}),
+  createApiKey: (name: string) =>
+    rpcCall<ApiKeyCreated>("createApiKey", { name }),
+  revokeApiKey: (id: string) =>
+    rpcCall<void>("revokeApiKey", { id }),
 };

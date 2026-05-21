@@ -144,3 +144,20 @@ export class WorkspaceMember extends Schema.Class<WorkspaceMember>("WorkspaceMem
   email: Schema.String,
   role: Schema.Literal("owner", "member"),
 }) {}
+
+export class ApiKey extends Schema.Class<ApiKey>("ApiKey")({
+  id: Schema.String,
+  name: Schema.String,
+  keyPrefix: Schema.String,
+  createdAt: Schema.String,
+  lastUsedAt: Schema.NullOr(Schema.String),
+}) {}
+
+/** Returned only once at creation — includes the raw key. */
+export class ApiKeyCreated extends Schema.Class<ApiKeyCreated>("ApiKeyCreated")({
+  id: Schema.String,
+  name: Schema.String,
+  keyPrefix: Schema.String,
+  rawKey: Schema.String,
+  createdAt: Schema.String,
+}) {}

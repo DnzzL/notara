@@ -13,6 +13,10 @@ export function WorkspaceSettingsModal({ workspace, onClose }: Props) {
   const [members, setMembers] = useState<WorkspaceMember[]>([]);
   const [inviteToken, setInviteToken] = useState(workspace.inviteToken ?? "");
   const [copied, setCopied] = useState(false);
+  const [inviteEmail, setInviteEmail] = useState("");
+  const [inviteSending, setInviteSending] = useState(false);
+  const [inviteSent, setInviteSent] = useState(false);
+  const [inviteError, setInviteError] = useState<string | null>(null);
 
   useEffect(() => {
     api.getWorkspaceMembers(workspace.id).then(setMembers);
@@ -36,6 +40,23 @@ export function WorkspaceSettingsModal({ workspace, onClose }: Props) {
     setMembers((prev) => prev.filter((m) => m.userId !== userId));
   };
 
+  const handleEmailInvite = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!inviteEmail) return;
+    setInviteError(null);
+    setInviteSending(true);
+    try {
+      await api.inviteMemberByEmail(workspace.id, inviteEmail);
+      setInviteSent(true);
+      setInviteEmail("");
+      setTimeout(() => setInviteSent(false), 3000);
+    } catch (err: any) {
+      setInviteError(err.message ?? "Failed to send invite");
+    } finally {
+      setInviteSending(false);
+    }
+  };
+
   const isOwner = workspace.role === "owner";
 
   return (
@@ -48,13 +69,29 @@ export function WorkspaceSettingsModal({ workspace, onClose }: Props) {
 
         {isOwner && (
           <section className="settings-section">
-            <h3>Invite link</h3>
-            <div className="invite-link-row">
-              <input readOnly value={inviteUrl} className="invite-link-input" />
-              <button onClick={handleCopy}>{copied ? "Copied!" : "Copy"}</button>
-              <button onClick={handleRegenerate} title="Generate a new link (old link will stop working)">
-                Regenerate
+            <h3>Invite members</h3>
+            <form className="invite-email-form" onSubmit={handleEmailInvite}>
+              <input
+                type="email"
+                placeholder="colleague@example.com"
+                value={inviteEmail}
+                onChange={(e) => setInviteEmail(e.target.value)}
+                className="invite-link-input"
+              />
+              <button type="submit" disabled={inviteSending}>
+                {inviteSending ? "Sending…" : inviteSent ? "Sent!" : "Send invite"}
               </button>
+            </form>
+            {inviteError && <p className="invite-error">{inviteError}</p>}
+            <div className="settings-subsection">
+              <h4>Or share invite link</h4>
+              <div className="invite-link-row">
+                <input readOnly value={inviteUrl} className="invite-link-input" />
+                <button onClick={handleCopy}>{copied ? "Copied!" : "Copy"}</button>
+                <button onClick={handleRegenerate} title="Generate a new link (old link will stop working)">
+                  Regenerate
+                </button>
+              </div>
             </div>
           </section>
         )}

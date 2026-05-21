@@ -4,6 +4,7 @@ import { Database } from "bun:sqlite";
 import path from "node:path";
 import fs from "node:fs";
 import { fileURLToPath } from "node:url";
+import { sendEmail, BASE_URL } from "./email.js";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
@@ -25,6 +26,17 @@ export const auth = betterAuth({
   },
   emailAndPassword: {
     enabled: true,
+    sendResetPassword: async ({ user, url }) => {
+      await sendEmail(
+        user.email,
+        "Reset your Notara password",
+        `<p>Hi ${user.name || user.email},</p>
+<p>Click the link below to reset your password. This link expires in 1 hour.</p>
+<p><a href="${url}" style="background:#5B5EF4;color:#fff;padding:10px 20px;border-radius:6px;text-decoration:none;display:inline-block;">Reset password</a></p>
+<p>If you didn't request this, you can safely ignore this email.</p>
+<p>— The Notara team</p>`,
+      );
+    },
   },
   socialProviders: {
     google: {
