@@ -42,10 +42,16 @@ export async function triggerBackup(): Promise<BackupResult> {
   const prefix = settings.s3Prefix ? settings.s3Prefix.replace(/\/$/, "") + "/" : "";
   const key = `${prefix}backup-${timestamp}.zip`;
 
+  const endpoint = settings.s3Endpoint
+    ? /^https?:\/\//i.test(settings.s3Endpoint)
+      ? settings.s3Endpoint
+      : `https://${settings.s3Endpoint}`
+    : undefined;
+
   const client = new S3Client({
     region: settings.s3Region || "us-east-1",
-    endpoint: settings.s3Endpoint || undefined,
-    forcePathStyle: !!settings.s3Endpoint,
+    endpoint,
+    forcePathStyle: !!endpoint,
     credentials: {
       accessKeyId: settings.s3AccessKeyId,
       secretAccessKey: settings.s3SecretAccessKey,
