@@ -6,6 +6,7 @@ import { Database } from "bun:sqlite";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import fs from "node:fs";
+import { applyMigrations } from "./platform-db.js";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
@@ -33,24 +34,6 @@ const workspacesDir = process.env.DATA_DIR
 
 const connectionCache = new Map<string, Layer.Layer<SqlClientType.SqlClient>>();
 
-const runWorkspaceMigrations = (db: Database, migrationsDir: string): void => {
-  const files = fs
-    .readdirSync(migrationsDir)
-    .filter((f) => f.endsWith(".sql"))
-    .sort();
-  for (const file of files) {
-    const sql = fs.readFileSync(path.join(migrationsDir, file), "utf-8");
-    try {
-      db.exec(sql);
-    } catch (e: any) {
-      if (e.message?.includes("already exists") || e.message?.includes("duplicate column")) {
-        // already applied
-      } else {
-        throw e;
-      }
-    }
-  }
-};
 
 type WorkspaceLayer = Layer.Layer<SqlClientType.SqlClient, ConfigError>;
 
@@ -76,7 +59,7 @@ export const WorkspaceDbLive = Layer.succeed(
       // Run migrations on first open
       const migrationsDir = path.join(__dirname, "../migrations");
       const db = new Database(filename);
-      runWorkspaceMigrations(db, migrationsDir);
+      applyMigrations(db, migrationsDir);
       db.close();
 
       const layer = makeSqliteLayer(filename) as WorkspaceLayer;

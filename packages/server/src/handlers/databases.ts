@@ -1,15 +1,13 @@
 import { Effect } from "effect";
 import { SqlClient } from "@effect/sql";
 import { ulid } from "ulidx";
-import { dbFromRow, fieldFromRow, recordFromRow, viewFromRow } from "../mappers.js";
+import { DB_COLS, dbFromRow, FIELD_COLS, fieldFromRow, RECORD_COLS, recordFromRow, VIEW_COLS, viewFromRow } from "../mappers.js";
 
 export const listDatabases = (pageId: string) =>
   Effect.gen(function* () {
     const sql = yield* SqlClient.SqlClient;
     const rows = yield* sql`
-      SELECT id, page_id as "pageId", name, is_deleted as "isDeleted", sort_order as "sortOrder",
-             title_label as "titleLabel", title_hidden as "titleHidden"
-      FROM databases WHERE page_id = ${pageId} AND is_deleted = 0
+      SELECT ${sql.unsafe(DB_COLS)} FROM databases WHERE page_id = ${pageId} AND is_deleted = 0
       ORDER BY sort_order ASC
     `;
     return rows.map(dbFromRow);
@@ -20,9 +18,7 @@ export const listDatabases = (pageId: string) =>
 export const listAllDatabases = Effect.gen(function* () {
   const sql = yield* SqlClient.SqlClient;
   const rows = yield* sql`
-    SELECT id, page_id as "pageId", name, is_deleted as "isDeleted", sort_order as "sortOrder",
-           title_label as "titleLabel", title_hidden as "titleHidden"
-    FROM databases WHERE is_deleted = 0
+    SELECT ${sql.unsafe(DB_COLS)} FROM databases WHERE is_deleted = 0
     ORDER BY sort_order ASC
   `;
   return rows.map(dbFromRow);
@@ -32,9 +28,7 @@ export const getDatabase = (id: string) =>
   Effect.gen(function* () {
     const sql = yield* SqlClient.SqlClient;
     const rows = yield* sql`
-      SELECT id, page_id as "pageId", name, is_deleted as "isDeleted", sort_order as "sortOrder",
-             title_label as "titleLabel", title_hidden as "titleHidden"
-      FROM databases WHERE id = ${id} AND is_deleted = 0
+      SELECT ${sql.unsafe(DB_COLS)} FROM databases WHERE id = ${id} AND is_deleted = 0
     `;
     if (rows.length === 0) return yield* Effect.fail(new Error(`Database ${id} not found`));
     return dbFromRow(rows[0]);
@@ -51,8 +45,7 @@ export const createDatabase = (req: { pageId: string; name: string }) =>
     const rows = yield* sql`
       INSERT INTO databases (id, page_id, name, title_hidden)
       VALUES (${id}, ${req.pageId}, ${req.name}, 1)
-      RETURNING id, page_id as "pageId", name, is_deleted as "isDeleted", sort_order as "sortOrder",
-                title_label as "titleLabel", title_hidden as "titleHidden"
+      RETURNING ${sql.unsafe(DB_COLS)}
     `;
     return dbFromRow(rows[0]);
   });
@@ -61,9 +54,7 @@ export const listFields = (databaseId: string) =>
   Effect.gen(function* () {
     const sql = yield* SqlClient.SqlClient;
     const rows = yield* sql`
-      SELECT id, database_id as "databaseId", name, type,
-             options, relation_target_db_id as "relationTargetDbId"
-      FROM database_fields WHERE database_id = ${databaseId}
+      SELECT ${sql.unsafe(FIELD_COLS)} FROM database_fields WHERE database_id = ${databaseId}
     `;
     return rows.map(fieldFromRow);
   });
@@ -78,7 +69,7 @@ export const createField = (req: {
   const rows = yield* sql`
     INSERT INTO database_fields (id, database_id, name, type, options, relation_target_db_id)
     VALUES (${id}, ${req.databaseId}, ${req.name}, ${req.type}, ${options}, ${req.relationTargetDbId})
-    RETURNING id, database_id as "databaseId", name, type, options, relation_target_db_id as "relationTargetDbId"
+    RETURNING ${sql.unsafe(FIELD_COLS)}
   `;
   return fieldFromRow(rows[0]);
 });
@@ -87,9 +78,8 @@ export const listRecords = (databaseId: string) =>
   Effect.gen(function* () {
     const sql = yield* SqlClient.SqlClient;
     const rows = yield* sql`
-      SELECT id, database_id as "databaseId", title, description,
-             is_deleted as "isDeleted", created_at as "createdAt"
-      FROM database_records WHERE database_id = ${databaseId} AND is_deleted = 0
+      SELECT ${sql.unsafe(RECORD_COLS)} FROM database_records
+      WHERE database_id = ${databaseId} AND is_deleted = 0
       ORDER BY sort_order ASC
     `;
     return rows.map(recordFromRow);
@@ -101,9 +91,8 @@ export const listRecordsWithValues = (databaseId: string) =>
 
     // Fetch records
     const records = yield* sql`
-      SELECT id, database_id as "databaseId", title, description,
-             is_deleted as "isDeleted", created_at as "createdAt"
-      FROM database_records WHERE database_id = ${databaseId} AND is_deleted = 0
+      SELECT ${sql.unsafe(RECORD_COLS)} FROM database_records
+      WHERE database_id = ${databaseId} AND is_deleted = 0
       ORDER BY sort_order ASC
     `;
 
@@ -142,9 +131,7 @@ export const getRecordWithValues = (recordId: string) =>
     const sql = yield* SqlClient.SqlClient;
 
     const recordRows = yield* sql`
-      SELECT id, database_id as "databaseId", title, description,
-             is_deleted as "isDeleted", created_at as "createdAt"
-      FROM database_records WHERE id = ${recordId}
+      SELECT ${sql.unsafe(RECORD_COLS)} FROM database_records WHERE id = ${recordId}
     `;
     if (recordRows.length === 0) return yield* Effect.fail(new Error(`Record ${recordId} not found`));
     const record = recordFromRow(recordRows[0]);
@@ -177,8 +164,7 @@ export const createRecord = (req: { databaseId: string; title: string }) =>
     const rows = yield* sql`
       INSERT INTO database_records (id, database_id, title, created_at)
       VALUES (${id}, ${req.databaseId}, ${req.title}, ${now})
-      RETURNING id, database_id as "databaseId", title, description,
-                is_deleted as "isDeleted", created_at as "createdAt"
+      RETURNING ${sql.unsafe(RECORD_COLS)}
     `;
     return recordFromRow(rows[0]);
   });
@@ -218,11 +204,7 @@ export const listViews = (databaseId: string) =>
   Effect.gen(function* () {
     const sql = yield* SqlClient.SqlClient;
     const rows = yield* sql`
-      SELECT id, database_id as "databaseId", name, type,
-             group_by_field_id as "groupByFieldId",
-             sort_field_id as "sortFieldId",
-             sort_order as "sortOrder"
-      FROM database_views WHERE database_id = ${databaseId}
+      SELECT ${sql.unsafe(VIEW_COLS)} FROM database_views WHERE database_id = ${databaseId}
     `;
     return rows.map(viewFromRow);
   });
@@ -247,7 +229,7 @@ export const updateField = (req: { id: string; name?: string; type?: string; opt
       UPDATE database_fields
       SET name = ${newName}, type = ${newType}, options = ${newOptions}, relation_target_db_id = ${newRelationTargetDbId}
       WHERE id = ${req.id}
-      RETURNING id, database_id as "databaseId", name, type, options, relation_target_db_id as "relationTargetDbId"
+      RETURNING ${sql.unsafe(FIELD_COLS)}
     `;
     return fieldFromRow(rows[0]);
   });
@@ -283,9 +265,7 @@ export const renameDatabase = (req: { id: string; name: string }) =>
       WHERE id = ${req.id} AND is_deleted = 0
     `;
     const rows = yield* sql`
-      SELECT id, page_id as "pageId", name, is_deleted as "isDeleted", sort_order as "sortOrder",
-             title_label as "titleLabel", title_hidden as "titleHidden"
-      FROM databases WHERE id = ${req.id}
+      SELECT ${sql.unsafe(DB_COLS)} FROM databases WHERE id = ${req.id}
     `;
     if (rows.length === 0) return yield* Effect.fail(new Error(`Database ${req.id} not found`));
     return dbFromRow(rows[0]);
@@ -303,9 +283,7 @@ export const updateDatabase = (req: { id: string; titleLabel?: string; titleHidd
       yield* sql.unsafe(`UPDATE databases SET ${sets.join(", ")} WHERE id = ?`, params);
     }
     const rows = yield* sql`
-      SELECT id, page_id as "pageId", name, is_deleted as "isDeleted", sort_order as "sortOrder",
-             title_label as "titleLabel", title_hidden as "titleHidden"
-      FROM databases WHERE id = ${req.id}
+      SELECT ${sql.unsafe(DB_COLS)} FROM databases WHERE id = ${req.id}
     `;
     if (rows.length === 0) return yield* Effect.fail(new Error(`Database ${req.id} not found`));
     return dbFromRow(rows[0]);
@@ -342,10 +320,7 @@ export const createView = (req: {
   const rows = yield* sql`
     INSERT INTO database_views (id, database_id, name, type, group_by_field_id, sort_order)
     VALUES (${id}, ${req.databaseId}, ${req.name}, ${req.type}, ${req.groupByFieldId}, 'asc')
-    RETURNING id, database_id as "databaseId", name, type,
-              group_by_field_id as "groupByFieldId",
-              sort_field_id as "sortFieldId",
-              sort_order as "sortOrder"
+    RETURNING ${sql.unsafe(VIEW_COLS)}
   `;
   return viewFromRow(rows[0]);
 });

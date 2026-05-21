@@ -19,6 +19,7 @@ import { SortableContext, useSortable, verticalListSortingStrategy } from "@dnd-
 import { CSS } from "@dnd-kit/utilities";
 import { DragHandle } from "./DragHandle.js";
 import { BacklinksPanel } from "./BacklinksPanel.js";
+import { BLOCK_TYPE_CONFIG, SLASH_COMMANDS } from "./blockTypes.js";
 import { EmojiPicker } from "./EmojiPicker.js";
 import { PageMenu } from "./PageMenu.js";
 import { uploadFile as apiUploadFile, isUploadable } from "../uploader.js";
@@ -26,17 +27,7 @@ import { useBlockStore } from "../stores/blockStore.js";
 
 /** Placeholder text shown on empty blocks, keyed by block type. */
 function placeholderForType(blockType: string): string {
-  switch (blockType) {
-    case "heading1": return "Heading 1";
-    case "heading2": return "Heading 2";
-    case "heading3": return "Heading 3";
-    case "blockquote": return "Quote";
-    case "code": return "Code";
-    case "todo": return "To-do";
-    case "bulletList":
-    case "numberedList": return "List";
-    default: return "Type '/' for commands";
-  }
+  return BLOCK_TYPE_CONFIG[blockType]?.placeholder ?? "Type '/' for commands";
 }
 
 /** Shared TipTap extensions — same set for every block editor. */
@@ -60,17 +51,7 @@ function sharedExtensions(blockType: string) {
 
 /** Map a block type to its default HTML content when empty. */
 function defaultContentForType(type: string): string {
-  switch (type) {
-    case "heading1": return "<h1></h1>";
-    case "heading2": return "<h2></h2>";
-    case "heading3": return "<h3></h3>";
-    case "bulletList": return "<ul><li></li></ul>";
-    case "numberedList": return "<ol><li></li></ol>";
-    case "todo": return '<ul class="task-list"><li data-checked="false"></li></ul>';
-    case "code": return "<pre><code></code></pre>";
-    case "blockquote": return "<blockquote></blockquote>";
-    default: return "<p></p>";
-  }
+  return BLOCK_TYPE_CONFIG[type]?.defaultContent ?? "<p></p>";
 }
 
 /** Content to render for the block. */
@@ -632,46 +613,23 @@ export function BlockEditor() {
       detail: { blockId: currentBlock.id },
     }));
 
-    if (command === "database") {
+    const def = SLASH_COMMANDS.find(c => c.id === command);
+
+    if (def?.defaultContent !== null && def?.defaultContent !== undefined) {
+      // Standard commands: update current block content in place.
+      await updateBlock(currentBlock.id, def.defaultContent);
+    } else if (command === "database") {
       const db = await createDatabase(currentPage.id, "Untitled");
       await loadDatabases(currentPage.id);
       setNewDbId(db.id);
-    } else if (command === "heading1") {
-      await updateBlock(currentBlock.id, "<h1></h1>");
-    } else if (command === "heading2") {
-      await updateBlock(currentBlock.id, "<h2></h2>");
-    } else if (command === "heading3") {
-      await updateBlock(currentBlock.id, "<h3></h3>");
-    } else if (command === "quote") {
-      await updateBlock(currentBlock.id, "<blockquote></blockquote>");
-    } else if (command === "callout") {
-      await updateBlock(currentBlock.id, '<details open=""><summary>Toggle</summary><div data-details-content=""><p></p></div></details>');
-    } else if (command === "divider") {
-      await createBlock({
-        pageId: currentPage.id, type: "divider", content: "", index: currentBlock.index + 1, parentId: null,
-      });
-    } else if (command === "todo") {
-      await updateBlock(currentBlock.id, '<ul class="task-list"><li data-checked="false"></li></ul>');
-    } else if (command === "toggle") {
-      await updateBlock(currentBlock.id, '<details open=""><summary>Toggle</summary><div data-details-content=""><p></p></div></details>');
-    } else if (command === "bullet") {
-      await updateBlock(currentBlock.id, "<ul><li></li></ul>");
-    } else if (command === "numbered") {
-      await updateBlock(currentBlock.id, "<ol><li></li></ol>");
-    } else if (command === "code") {
-      await updateBlock(currentBlock.id, "<pre><code></code></pre>");
     } else if (command === "image") {
       fileInputRef.current?.click();
+    } else if (command === "divider") {
+      await createBlock({ pageId: currentPage.id, type: "divider", content: "", index: currentBlock.index + 1, parentId: null });
     } else if (command === "pageLink") {
       // Insert an empty pageLink block; PageLinkBlock auto-opens a picker
       // for blocks with no target yet, and persists the selected pageId.
-      await createBlock({
-        pageId: currentPage.id,
-        type: "pageLink",
-        content: "",
-        index: currentBlock.index + 1,
-        parentId: null,
-      });
+      await createBlock({ pageId: currentPage.id, type: "pageLink", content: "", index: currentBlock.index + 1, parentId: null });
     }
   }, [currentPage, sortedBlocks, updateBlock, createBlock, createDatabase, loadDatabases]);
 
@@ -1038,19 +996,4 @@ export function BlockEditor() {
   );
 }
 
-const slashCommands = [
-  { id: "image", name: "Image", icon: "🖼️", shortcut: "/image" },
-  { id: "heading1", name: "Heading 1", icon: "H1", shortcut: "#" },
-  { id: "heading2", name: "Heading 2", icon: "H2", shortcut: "##" },
-  { id: "heading3", name: "Heading 3", icon: "H3", shortcut: "###" },
-  { id: "quote", name: "Quote", icon: "\" ", shortcut: "\"" },
-  { id: "callout", name: "Callout", icon: "💡", shortcut: "/callout" },
-  { id: "divider", name: "Divider", icon: "—", shortcut: "---" },
-  { id: "todo", name: "Todo List", icon: "☐", shortcut: "[]" },
-  { id: "toggle", name: "Toggle", icon: "▶", shortcut: "/toggle" },
-  { id: "bullet", name: "Bullet List", icon: "•", shortcut: "-" },
-  { id: "numbered", name: "Numbered List", icon: "1.", shortcut: "1." },
-  { id: "code", name: "Code Block", icon: "</>", shortcut: "```" },
-  { id: "database", name: "Database", icon: "🗃️", shortcut: "/database" },
-  { id: "pageLink", name: "Link to page", icon: "🔗", shortcut: "/page" },
-];
+const slashCommands = SLASH_COMMANDS.map(c => ({ id: c.id, name: c.name, icon: c.icon, shortcut: c.shortcut }));

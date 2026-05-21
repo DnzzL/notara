@@ -1,16 +1,6 @@
-import { useState, useEffect, useRef, useCallback } from "react";
-import { useStore } from "../store.js";
-import { api } from "../rpc-client.js";
+import { useState, useEffect, useRef } from "react";
+import { useStore, usePageStore } from "../store.js";
 import type { SearchResult, Page } from "@notion-alt/shared";
-
-/** Get recently viewed page IDs from localStorage. */
-function getRecentPageIds(): string[] {
-  try {
-    return JSON.parse(localStorage.getItem("notion-alt:recentPages") || "[]");
-  } catch {
-    return [];
-  }
-}
 
 /** Highlight matched text segments in a string. */
 function highlightText(text: string, query: string): React.ReactNode {
@@ -27,37 +17,16 @@ function highlightText(text: string, query: string): React.ReactNode {
 }
 
 export function SearchModal() {
-  const { pages, globalSearch, searchResults, selectPageById, loading } = useStore();
+  const { globalSearch, searchResults, selectPageById } = useStore();
+  const recentPages = usePageStore(s => s.recentPages);
+  const loadRecentPages = usePageStore(s => s.loadRecentPages);
   const [isOpen, setIsOpen] = useState(false);
   const [query, setQuery] = useState("");
   const [selectedIndex, setSelectedIndex] = useState(0);
-  const [recentPages, setRecentPages] = useState<Page[]>([]);
   const [isSearching, setIsSearching] = useState(false);
   const inputRef = useRef<HTMLInputElement>(null);
   const modalRef = useRef<HTMLDivElement>(null);
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-
-  // Load recent pages when modal opens with empty query
-  const loadRecentPages = useCallback(async () => {
-    console.log("[SearchModal] loadRecentPages called");
-    const ids = getRecentPageIds();
-    console.log("[SearchModal] Recent page IDs:", ids);
-    if (ids.length === 0) {
-      setRecentPages([]);
-      return;
-    }
-    const results: Page[] = [];
-    for (const id of ids) {
-      try {
-        const page = await api.getPage(id);
-        if (page && !page.isDeleted) results.push(page);
-      } catch {
-        // skip missing pages
-      }
-    }
-    console.log("[SearchModal] Recent pages loaded:", results);
-    setRecentPages(results);
-  }, []);
 
   // Debounced search
   useEffect(() => {

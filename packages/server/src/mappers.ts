@@ -1,18 +1,23 @@
 import type { Page, Block, Database, DatabaseField, DatabaseRecord, RecordFieldValue, DatabaseView } from "@notion-alt/shared";
 
 /**
- * Row mappers -- pure functions that coerce SQLite rows into typed domain objects.
+ * Row mappers and their companion SELECT column constants.
  *
- * Each mapper handles: boolean coercion (0/1 -> true/false), date formatting,
- * JSON parsing for options, and null defaults. The SELECT column aliasing
- * (e.g. `parent_id as "parentId"`) lives here as a shared string constant.
+ * Keeping column aliases co-located with their mapper means the contract is
+ * self-contained: a handler that imports both PAGE_COLS and pageFromRow cannot
+ * silently produce undefined fields due to a forgotten alias.
  *
  * The deletion test confirms depth: removing these functions would force every
- * handler to reimplement the same coercion logic (complexity reappears across
- * 7+ callers).
+ * handler to reimplement boolean coercion, date formatting, and JSON parsing
+ * across 7+ callers.
  */
 
-// ── Page Mapper ──────────────────────────────────────────────────────────────
+// ── Page ─────────────────────────────────────────────────────────────────────
+
+export const PAGE_COLS = `id, title, parent_id as "parentId", icon,
+  cover_url as "coverUrl", sort_order as "sortOrder",
+  is_deleted as "isDeleted", is_favorite as "isFavorite",
+  created_at as "createdAt", updated_at as "updatedAt"`;
 
 export function pageFromRow(r: unknown): Page {
   const row = r as Record<string, unknown>;
@@ -30,13 +35,28 @@ export function pageFromRow(r: unknown): Page {
   };
 }
 
-// ── Block Mapper ─────────────────────────────────────────────────────────────
+// ── Block ─────────────────────────────────────────────────────────────────────
+
+export const BLOCK_COLS = `id, page_id as "pageId", type, content,
+  parent_id as "parentId", "index"`;
 
 export function blockFromRow(r: unknown): Block {
-  return r as Block;
+  const row = r as Record<string, unknown>;
+  return {
+    id: row.id as string,
+    pageId: row.pageId as string,
+    type: row.type as Block["type"],
+    content: (row.content as string) ?? "",
+    parentId: (row.parentId as string | null) ?? null,
+    index: Number(row.index ?? 0),
+  };
 }
 
-// ── Database Mapper ──────────────────────────────────────────────────────────
+// ── Database ─────────────────────────────────────────────────────────────────
+
+export const DB_COLS = `id, page_id as "pageId", name,
+  is_deleted as "isDeleted", sort_order as "sortOrder",
+  title_label as "titleLabel", title_hidden as "titleHidden"`;
 
 export function dbFromRow(r: unknown): Database {
   const row = r as Record<string, unknown>;
@@ -51,7 +71,10 @@ export function dbFromRow(r: unknown): Database {
   };
 }
 
-// ── DatabaseField Mapper ─────────────────────────────────────────────────────
+// ── DatabaseField ─────────────────────────────────────────────────────────────
+
+export const FIELD_COLS = `id, database_id as "databaseId", name, type,
+  options, relation_target_db_id as "relationTargetDbId"`;
 
 export function fieldFromRow(r: unknown): DatabaseField {
   const row = r as Record<string, unknown>;
@@ -65,7 +88,10 @@ export function fieldFromRow(r: unknown): DatabaseField {
   };
 }
 
-// ── DatabaseRecord Mapper ────────────────────────────────────────────────────
+// ── DatabaseRecord ────────────────────────────────────────────────────────────
+
+export const RECORD_COLS = `id, database_id as "databaseId", title, description,
+  is_deleted as "isDeleted", created_at as "createdAt"`;
 
 export function recordFromRow(r: unknown): DatabaseRecord {
   const row = r as Record<string, unknown>;
@@ -79,13 +105,24 @@ export function recordFromRow(r: unknown): DatabaseRecord {
   };
 }
 
-// ── RecordFieldValue Mapper ──────────────────────────────────────────────────
+// ── RecordFieldValue ──────────────────────────────────────────────────────────
 
 export function valueFromRow(r: unknown): RecordFieldValue {
-  return r as RecordFieldValue;
+  const row = r as Record<string, unknown>;
+  return {
+    id: row.id as string,
+    recordId: row.recordId as string,
+    fieldId: row.fieldId as string,
+    value: row.value as string,
+  };
 }
 
-// ── DatabaseView Mapper ──────────────────────────────────────────────────────
+// ── DatabaseView ──────────────────────────────────────────────────────────────
+
+export const VIEW_COLS = `id, database_id as "databaseId", name, type,
+  group_by_field_id as "groupByFieldId",
+  sort_field_id as "sortFieldId",
+  sort_order as "sortOrder"`;
 
 export function viewFromRow(r: unknown): DatabaseView {
   const row = r as Record<string, unknown>;

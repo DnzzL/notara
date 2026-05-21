@@ -2,17 +2,15 @@ import { Effect } from "effect";
 import { SqlClient } from "@effect/sql";
 import { Block, Backlink } from "@notion-alt/shared";
 import { ulid } from "ulidx";
-import { blockFromRow } from "../mappers.js";
+import { BLOCK_COLS, blockFromRow } from "../mappers.js";
 
 export const listBlocks = (pageId: string) =>
   Effect.gen(function* () {
     const sql = yield* SqlClient.SqlClient;
-    return yield* sql`
-      SELECT id, page_id as "pageId", type, content,
-             parent_id as "parentId", "index"
-      FROM blocks WHERE page_id = ${pageId}
-      ORDER BY "index" ASC
-    `.pipe(Effect.map(rows => rows.map(blockFromRow)));
+    return yield* sql.unsafe(
+      `SELECT ${BLOCK_COLS} FROM blocks WHERE page_id = ? ORDER BY "index" ASC`,
+      [pageId]
+    ).pipe(Effect.map(rows => rows.map(blockFromRow)));
   });
 
 export const createBlock = (req: {
@@ -32,8 +30,7 @@ export const createBlock = (req: {
   const rows = yield* sql`
     INSERT INTO blocks (id, page_id, type, content, "index", parent_id)
     VALUES (${id}, ${req.pageId}, ${req.type}, ${req.content}, ${req.index}, ${req.parentId})
-    RETURNING id, page_id as "pageId", type, content,
-              parent_id as "parentId", "index"
+    RETURNING ${sql.unsafe(BLOCK_COLS)}
   `;
   return blockFromRow(rows[0]);
 });
@@ -43,8 +40,7 @@ export const updateBlock = (req: { id: string; content: string }) =>
     const sql = yield* SqlClient.SqlClient;
     const rows = yield* sql`
       UPDATE blocks SET content = ${req.content} WHERE id = ${req.id}
-      RETURNING id, page_id as "pageId", type, content,
-                parent_id as "parentId", "index"
+      RETURNING ${sql.unsafe(BLOCK_COLS)}
     `;
     if (rows.length === 0) return yield* Effect.fail(new Error(`Block ${req.id} not found`));
     return blockFromRow(rows[0]);
@@ -62,11 +58,10 @@ export const reorderBlocks = (pageId: string, blockIds: string[]) =>
     for (let i = 0; i < blockIds.length; i++) {
       yield* sql`UPDATE blocks SET "index" = ${i} WHERE id = ${blockIds[i]} AND page_id = ${pageId}`;
     }
-    const rows = yield* sql`
-      SELECT id, page_id as "pageId", type, content,
-             parent_id as "parentId", "index"
-      FROM blocks WHERE page_id = ${pageId} ORDER BY "index" ASC
-    `;
+    const rows = yield* sql.unsafe(
+      `SELECT ${BLOCK_COLS} FROM blocks WHERE page_id = ? ORDER BY "index" ASC`,
+      [pageId]
+    );
     return rows.map(blockFromRow);
   });
 

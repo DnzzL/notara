@@ -1,44 +1,22 @@
 import { useEffect, useState } from "react";
-import { api } from "../rpc-client.js";
-import { useStore } from "../store.js";
-
-interface Backlink {
-  blockId: string;
-  pageId: string;
-  pageTitle: string;
-  content: string;
-}
+import { usePageStore } from "../store.js";
+import type { Backlink } from "@notion-alt/shared";
 
 export function BacklinksPanel() {
-  const currentPage = useStore((s) => s.currentPage);
-  const currentPageId = currentPage?.id ?? null;
-  const [backlinks, setBacklinks] = useState<Backlink[]>([]);
+  const currentPage = usePageStore(s => s.currentPage);
+  const backlinks = usePageStore(s => s.backlinks);
+  const backlinksLoading = usePageStore(s => s.backlinksLoading);
+  const loadBacklinks = usePageStore(s => s.loadBacklinks);
+  const selectPageById = usePageStore(s => s.selectPageByIdWithCascade);
   const [isExpanded, setIsExpanded] = useState(false);
-  const [loading, setLoading] = useState(false);
 
   useEffect(() => {
-    if (!currentPageId) {
-      setBacklinks([]);
-      return;
+    if (currentPage?.id) {
+      loadBacklinks(currentPage.id);
     }
+  }, [currentPage?.id]);
 
-    const fetchBacklinks = async () => {
-      setLoading(true);
-      try {
-        const results = await api.getBacklinks(currentPageId);
-        setBacklinks(results);
-      } catch (error) {
-        console.error("Failed to fetch backlinks:", error);
-        setBacklinks([]);
-      } finally {
-        setLoading(false);
-      }
-    };
-
-    fetchBacklinks();
-  }, [currentPageId]);
-
-  if (!currentPageId) return null;
+  if (!currentPage) return null;
 
   const count = backlinks.length;
 
@@ -56,34 +34,30 @@ export function BacklinksPanel() {
       >
         <span className="backlinks-icon">{isExpanded ? "▼" : "▶"}</span>
         <span className="backlinks-label">
-          {loading ? "Loading..." : `${count} backlink${count !== 1 ? "s" : ""}`}
+          {backlinksLoading ? "Loading..." : `${count} backlink${count !== 1 ? "s" : ""}`}
         </span>
       </button>
 
       {isExpanded && (
         <div className="backlinks-list" style={{ padding: "4px 0", maxHeight: "200px", overflowY: "auto" }}>
-          {loading && (<div style={{ padding: "8px 12px", color: "#6b7280" }}>Loading backlinks...</div>)}
-          {!loading && backlinks.length === 0 && (<div style={{ padding: "8px 12px", color: "#6b7280" }}>No pages reference this page</div>)}
-          {!loading && backlinks.map((link) => (<BacklinkItem key={link.blockId} backlink={link} />))}
+          {backlinksLoading && (<div style={{ padding: "8px 12px", color: "#6b7280" }}>Loading backlinks...</div>)}
+          {!backlinksLoading && backlinks.length === 0 && (<div style={{ padding: "8px 12px", color: "#6b7280" }}>No pages reference this page</div>)}
+          {!backlinksLoading && backlinks.map((link) => (
+            <BacklinkItem key={link.blockId} backlink={link} onNavigate={selectPageById} />
+          ))}
         </div>
       )}
     </div>
   );
 }
 
-function BacklinkItem({ backlink }: { backlink: Backlink }) {
-  const selectPageById = useStore((s) => s.selectPageById);
-
-  const handleClick = () => {
-    selectPageById(backlink.pageId);
-  };
-
+function BacklinkItem({ backlink, onNavigate }: { backlink: Backlink; onNavigate: (id: string) => void }) {
   const snippet = backlink.content.length > 100
     ? backlink.content.slice(0, 100) + "..."
     : backlink.content;
 
   return (
-    <button className="backlink-item" onClick={handleClick}
+    <button className="backlink-item" onClick={() => onNavigate(backlink.pageId)}
       style={{ display: "block", width: "100%", padding: "8px 16px", background: "transparent", border: "none", cursor: "pointer", textAlign: "left", fontSize: "13px" }}>
       <div className="backlink-page-title" style={{ fontWeight: "500", marginBottom: "4px", color: "#37352f" }}>
         📄 {backlink.pageTitle}

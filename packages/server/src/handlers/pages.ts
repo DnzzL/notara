@@ -2,14 +2,7 @@ import { Effect } from "effect";
 import { SqlClient } from "@effect/sql";
 import { Page } from "@notion-alt/shared";
 import { ulid } from "ulidx";
-import { pageFromRow } from "../mappers.js";
-
-const PAGE_COLS = `id, title, parent_id as "parentId", icon,
-             cover_url as "coverUrl",
-             sort_order as "sortOrder",
-             is_deleted as "isDeleted",
-             is_favorite as "isFavorite",
-             created_at as "createdAt", updated_at as "updatedAt"`;
+import { PAGE_COLS, pageFromRow } from "../mappers.js";
 
 export const listPages = Effect.gen(function* () {
   const sql = yield* SqlClient.SqlClient;

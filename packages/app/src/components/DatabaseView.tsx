@@ -7,6 +7,7 @@ import { SortableContext, useSortable, verticalListSortingStrategy } from "@dnd-
 import { CSS } from "@dnd-kit/utilities";
 import { useStore } from "../store.js";
 import { api } from "../rpc-client.js";
+import { applyFiltersAndSorts, type Filter, type Sort, type FilterOperator } from "../lib/filterEngine.js";
 import { CellDisplay, InlineCellEditor, Popover } from "./db/CellComponents.js";
 import { ColumnHeader, AddFieldPopover, OptionsEditor, type FieldType } from "./db/FieldComponents.js";
 import { BoardView } from "./db/BoardView.js";
@@ -17,9 +18,9 @@ import { RecordPanel } from "./db/RecordPanel.js";
 function FilterBar({
   fields, filters, onAdd, onRemove, onChange,
 }: {
-  fields: any[]; filters: Array<{ fieldId: string; operator: string; value: string }>;
+  fields: any[]; filters: Filter[];
   onAdd: () => void; onRemove: (index: number) => void;
-  onChange: (index: number, updates: Partial<{ fieldId: string; operator: string; value: string }>) => void;
+  onChange: (index: number, updates: Partial<Filter>) => void;
 }) {
   if (filters.length === 0) {
     return (<button onClick={onAdd} className="db-filter-btn">
@@ -37,7 +38,7 @@ function FilterBar({
             <option value="">Field</option>
             {fields.map((f) => (<option key={f.id} value={f.id}>{f.name}</option>))}
           </select>
-          <select value={filter.operator} onChange={(e) => onChange(idx, { operator: e.target.value })}
+          <select value={filter.operator} onChange={(e) => onChange(idx, { operator: e.target.value as FilterOperator })}
             style={{ border: "1px solid #e9e9e7", borderRadius: 4, padding: "2px 4px", fontSize: 12, background: "#fff" }}>
             <option value="contains">Contains</option>
             <option value="does_not_contain">Does not contain</option>
@@ -61,9 +62,9 @@ function FilterBar({
 function SortBar({
   fields, sorts, onAdd, onRemove, onChange,
 }: {
-  fields: any[]; sorts: Array<{ fieldId: string; direction: "asc" | "desc" }>;
+  fields: any[]; sorts: Sort[];
   onAdd: () => void; onRemove: (index: number) => void;
-  onChange: (index: number, updates: Partial<{ fieldId: string; direction: "asc" | "desc" }>) => void;
+  onChange: (index: number, updates: Partial<Sort>) => void;
 }) {
   if (sorts.length === 0) {
     return (<button onClick={onAdd} className="db-filter-btn">
@@ -218,43 +219,10 @@ export function DatabaseView({ database, isNew }: { database: any; isNew?: boole
     }
   }, [dbFields, dbRecordCache]);
 
-  const filteredRecords = useMemo(() => {
-    let result = [...records];
-    for (const filter of activeFilters) {
-      const field = dbFields.find((f) => f.id === filter.fieldId);
-      if (!field) continue;
-      result = result.filter(({ values }: any) => {
-        const val = values[field.name];
-        const fv = filter.value.toLowerCase();
-        switch (filter.operator) {
-          case "contains": return String(val || "").toLowerCase().includes(fv);
-          case "does_not_contain": return !String(val || "").toLowerCase().includes(fv);
-          case "is": return String(val || "").toLowerCase() === fv;
-          case "is_not": return String(val || "").toLowerCase() !== fv;
-          case "is_empty": return !val || val === "" || val === "[]" || val === "null";
-          case "is_not_empty": return val && val !== "" && val !== "[]" && val !== "null";
-          default: return true;
-        }
-      });
-    }
-    return result;
-  }, [records, activeFilters, dbFields]);
-
-  const sortedRecords = useMemo(() => {
-    const result = [...filteredRecords];
-    for (let i = activeSorts.length - 1; i >= 0; i--) {
-      const sort = activeSorts[i];
-      const field = dbFields.find((f) => f.id === sort.fieldId);
-      if (!field) continue;
-      result.sort((a: any, b: any) => {
-        const aV = a.values[field.name] ?? "";
-        const bV = b.values[field.name] ?? "";
-        let cmp = field.type === "number" ? Number(aV) - Number(bV) : String(aV).localeCompare(String(bV));
-        return sort.direction === "desc" ? -cmp : cmp;
-      });
-    }
-    return result;
-  }, [filteredRecords, activeSorts, dbFields]);
+  const sortedRecords = useMemo(
+    () => applyFiltersAndSorts(records, dbFields, activeFilters, activeSorts),
+    [records, dbFields, activeFilters, activeSorts],
+  );
 
   const handleAddRecord = async () => {
     if (!newTitle.trim()) return;

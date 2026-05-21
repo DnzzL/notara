@@ -1,23 +1,20 @@
 import { useState, useEffect } from "react";
-import { api } from "../rpc-client.js";
-import type { ApiKey, ApiKeyCreated } from "@notion-alt/shared";
+import { useApiKeyStore } from "../store.js";
+import type { ApiKeyCreated } from "@notion-alt/shared";
 
 interface Props {
   onClose: () => void;
 }
 
 export function ApiKeysModal({ onClose }: Props) {
-  const [keys, setKeys] = useState<ApiKey[]>([]);
-  const [loading, setLoading] = useState(true);
+  const { apiKeys, apiKeysLoading, loadApiKeys, createApiKey, revokeApiKey } = useApiKeyStore();
   const [newKeyName, setNewKeyName] = useState("");
   const [creating, setCreating] = useState(false);
   const [created, setCreated] = useState<ApiKeyCreated | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [copied, setCopied] = useState(false);
 
-  useEffect(() => {
-    api.listApiKeys().then(setKeys).finally(() => setLoading(false));
-  }, []);
+  useEffect(() => { loadApiKeys(); }, []);
 
   const handleCreate = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -25,12 +22,8 @@ export function ApiKeysModal({ onClose }: Props) {
     setError(null);
     setCreating(true);
     try {
-      const key = await api.createApiKey(newKeyName.trim());
+      const key = await createApiKey(newKeyName.trim());
       setCreated(key);
-      setKeys((prev) => [
-        { id: key.id, name: key.name, keyPrefix: key.keyPrefix, createdAt: key.createdAt, lastUsedAt: null },
-        ...prev,
-      ]);
       setNewKeyName("");
     } catch (err: any) {
       setError(err.message ?? "Failed to create key");
@@ -41,8 +34,7 @@ export function ApiKeysModal({ onClose }: Props) {
 
   const handleRevoke = async (id: string, name: string) => {
     if (!confirm(`Revoke "${name}"? Any scripts using it will stop working.`)) return;
-    await api.revokeApiKey(id);
-    setKeys((prev) => prev.filter((k) => k.id !== id));
+    await revokeApiKey(id);
   };
 
   const handleCopy = () => {
@@ -109,13 +101,13 @@ export function ApiKeysModal({ onClose }: Props) {
         {/* Key list */}
         <section className="settings-section">
           <h3>Active keys</h3>
-          {loading ? (
+          {apiKeysLoading ? (
             <p className="apikeys-empty">Loading…</p>
-          ) : keys.length === 0 ? (
+          ) : apiKeys.length === 0 ? (
             <p className="apikeys-empty">No keys yet.</p>
           ) : (
             <ul className="apikeys-list">
-              {keys.map((k) => (
+              {apiKeys.map((k) => (
                 <li key={k.id} className="apikeys-row">
                   <div className="apikeys-row-main">
                     <span className="apikeys-name">{k.name}</span>

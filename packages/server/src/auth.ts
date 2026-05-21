@@ -1,27 +1,11 @@
 import { betterAuth } from "better-auth";
 import { BunSqliteDialect } from "kysely-bun-sqlite";
-import { Database } from "bun:sqlite";
-import path from "node:path";
-import fs from "node:fs";
-import { fileURLToPath } from "node:url";
+import { platformDb } from "./platform-db.js";
 import { sendEmail, BASE_URL } from "./email.js";
-
-const __dirname = path.dirname(fileURLToPath(import.meta.url));
-
-const platformDbPath = process.env.DATA_DIR
-  ? path.join(process.env.DATA_DIR, "platform.db")
-  : path.join(__dirname, "../../../.data", "platform.db");
-
-const dataDir = path.dirname(platformDbPath);
-if (!fs.existsSync(dataDir)) {
-  fs.mkdirSync(dataDir, { recursive: true });
-}
-
-const db = new Database(platformDbPath);
 
 export const auth = betterAuth({
   database: {
-    dialect: new BunSqliteDialect({ database: db }),
+    dialect: new BunSqliteDialect({ database: platformDb }),
     type: "sqlite",
   },
   emailAndPassword: {

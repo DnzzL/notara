@@ -1,4 +1,5 @@
 import { Extension } from "@tiptap/core";
+import { BLOCK_TYPE_CONFIG } from "./blockTypes.js";
 
 /** Callback invoked when the editor requests an inter-block operation. */
 export interface BlockNavigationCallbacks {
@@ -118,9 +119,9 @@ export const BlockNavigationExtension = Extension.create<{
         const docSize = state.doc.content.size;
         const isEmpty = editor.isEmpty;
 
-        // Lists: empty/end-of-item → exit list to a new paragraph block.
-        // In the middle → split into another list item within same block.
-        if (blockType === "bulletList" || blockType === "numberedList") {
+        const splitBehavior = BLOCK_TYPE_CONFIG[blockType]?.splitBehavior ?? "normal";
+
+        if (splitBehavior === "list") {
           if (isEmpty || pos >= docSize - 1) {
             splitBlock?.(editor.getHTML(), "", "paragraph");
             return true;
@@ -129,7 +130,7 @@ export const BlockNavigationExtension = Extension.create<{
           splitBlock?.(splitResult.before, splitResult.after, blockType);
           return true;
         }
-        if (blockType === "todo") {
+        if (splitBehavior === "todo") {
           if (isEmpty || pos >= docSize - 1) {
             splitBlock?.(editor.getHTML(), "", "paragraph");
             return true;
@@ -139,7 +140,7 @@ export const BlockNavigationExtension = Extension.create<{
           return true;
         }
 
-        // Paragraph / heading / quote / code: soft line break.
+        // Paragraph / heading / quote / code / normal: soft line break.
         (editor.chain().focus() as any).setHardBreak().run();
         return true;
       },

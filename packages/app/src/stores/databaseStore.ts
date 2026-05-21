@@ -1,6 +1,7 @@
 import { create } from "zustand";
 import { api } from "../rpc-client.js";
 import type { Database, DatabaseField, DatabaseRecord, DatabaseView } from "@notion-alt/shared";
+import type { Filter, Sort } from "../lib/filterEngine.js";
 
 export interface DatabaseState {
   databases: Database[];
@@ -10,8 +11,8 @@ export interface DatabaseState {
   dbViews: DatabaseView[];
 
   // View state
-  activeFilters: Array<{ fieldId: string; operator: string; value: string }>;
-  activeSorts: Array<{ fieldId: string; direction: "asc" | "desc" }>;
+  activeFilters: Filter[];
+  activeSorts: Sort[];
   boardGroupByFieldId: string | null;
 
   loadDatabases: (pageId: string) => Promise<void>;
@@ -33,11 +34,11 @@ export interface DatabaseState {
   loadDbViews: (databaseId: string) => Promise<void>;
 
   setBoardGroupBy: (fieldId: string | null) => void;
-  addFilter: (filter: { fieldId: string; operator: string; value: string }) => void;
-  setFilter: (index: number, filter: { fieldId: string; operator: string; value: string }) => void;
+  addFilter: (filter: Filter) => void;
+  setFilter: (index: number, filter: Filter) => void;
   removeFilter: (index: number) => void;
-  addSort: (sort: { fieldId: string; direction: "asc" | "desc" }) => void;
-  setSort: (index: number, sort: { fieldId: string; direction: "asc" | "desc" }) => void;
+  addSort: (sort: Sort) => void;
+  setSort: (index: number, sort: Sort) => void;
   removeSort: (index: number) => void;
   clearFilters: () => void;
   clearSorts: () => void;

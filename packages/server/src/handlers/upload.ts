@@ -3,6 +3,7 @@ import { SqlClient } from "@effect/sql";
 import { ulid } from "ulidx";
 import { mkdir, writeFile } from "node:fs/promises";
 import { join } from "node:path";
+import { BLOCK_COLS } from "../mappers.js";
 import { fileURLToPath } from "node:url";
 import { dirname } from "node:path";
 
@@ -91,8 +92,7 @@ export const uploadFile = (req: {
     const blockRows = yield* sql`
       INSERT INTO blocks (id, page_id, type, content, "index", parent_id)
       VALUES (${blockId}, ${req.pageId}, ${blockType}, ${content}, ${index}, NULL)
-      RETURNING id, page_id as "pageId", type, content,
-                parent_id as "parentId", "index"
+      RETURNING ${sql.unsafe(BLOCK_COLS)}
     `;
 
     const fileUrl = `/attachments/${fileName}`;

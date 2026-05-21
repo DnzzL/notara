@@ -90,3 +90,4 @@ export function useStore() {
 export { usePageStore } from "./stores/pageStore.js";
 export { useBlockStore } from "./stores/blockStore.js";
 export { useDatabaseStore } from "./stores/databaseStore.js";
+export { useApiKeyStore } from "./stores/apiKeyStore.js";

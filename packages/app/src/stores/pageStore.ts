@@ -1,6 +1,6 @@
 import { create } from "zustand";
 import { api } from "../rpc-client.js";
-import type { Page, SearchResult } from "@notion-alt/shared";
+import type { Page, SearchResult, Backlink } from "@notion-alt/shared";
 import { useBlockStore } from "./blockStore.js";
 import { useDatabaseStore } from "./databaseStore.js";
 
@@ -9,6 +9,9 @@ export interface PageState {
   currentPage: Page | null;
   loading: boolean;
   searchResults: SearchResult[];
+  backlinks: Backlink[];
+  backlinksLoading: boolean;
+  recentPages: Page[];
 
   loadPages: () => Promise<void>;
   /** Set currentPage and update URL. Does NOT load blocks/databases — use the composition hook for that. */
@@ -23,6 +26,8 @@ export interface PageState {
   movePage: (id: string, parentId: string | null) => Promise<void>;
   reorderPages: (parentId: string | null, pageIds: string[]) => Promise<void>;
   globalSearch: (query: string) => Promise<void>;
+  loadBacklinks: (pageId: string) => Promise<void>;
+  loadRecentPages: () => Promise<void>;
 
   /** Cascade version: selects page AND loads blocks + databases. */
   selectPageWithCascade: (page: Page) => Promise<void>;
@@ -36,6 +41,9 @@ export const usePageStore = create<PageState>((set, get) => ({
   currentPage: null,
   loading: false,
   searchResults: [],
+  backlinks: [],
+  backlinksLoading: false,
+  recentPages: [],
 
   loadPages: async () => {
     set({ loading: true });
@@ -159,6 +167,37 @@ export const usePageStore = create<PageState>((set, get) => ({
     const results = await api.globalSearch(query);
     console.log("[pageStore] Search results:", results);
     set({ searchResults: results });
+  },
+
+  loadBacklinks: async (pageId) => {
+    set({ backlinksLoading: true });
+    try {
+      const backlinks = await api.getBacklinks(pageId);
+      set({ backlinks });
+    } catch {
+      set({ backlinks: [] });
+    } finally {
+      set({ backlinksLoading: false });
+    }
+  },
+
+  loadRecentPages: async () => {
+    const ids: string[] = (() => {
+      try { return JSON.parse(localStorage.getItem("notion-alt:recentPages") || "[]"); }
+      catch { return []; }
+    })();
+    if (ids.length === 0) { set({ recentPages: [] }); return; }
+    const known = get().pages;
+    const results: Page[] = [];
+    for (const id of ids) {
+      const found = known.find(p => p.id === id);
+      if (found && !found.isDeleted) { results.push(found); continue; }
+      try {
+        const page = await api.getPage(id);
+        if (page && !page.isDeleted) results.push(page);
+      } catch { /* skip missing pages */ }
+    }
+    set({ recentPages: results });
   },
 
   importNotion: async (directory) => {
