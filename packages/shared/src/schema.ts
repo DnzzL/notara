@@ -161,3 +161,11 @@ export class ApiKeyCreated extends Schema.Class<ApiKeyCreated>("ApiKeyCreated")(
   rawKey: Schema.String,
   createdAt: Schema.String,
 }) {}
+
+export const AclRelation = Schema.Literal("owner", "editor", "viewer");
+
+/** A single ACL entry on a resource. Subject is e.g. "user:<id>" or "workspace:<id>#member". */
+export class AclEntry extends Schema.Class<AclEntry>("AclEntry")({
+  relation: AclRelation,
+  subject: Schema.String,
+}) {}

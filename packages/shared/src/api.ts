@@ -18,6 +18,8 @@ import {
   WorkspaceMember,
   ApiKey,
   ApiKeyCreated,
+  AclEntry,
+  AclRelation,
 } from "./schema.js";
 
 // Combined RPC group — all requests
@@ -246,6 +248,20 @@ export const AppRpc = RpcGroup.make(
   }),
   Rpc.make("revokeApiKey", {
     payload: { id: Schema.String },
+    success: Schema.Void,
+  }),
+
+  // Page ACL
+  Rpc.make("getPagePermissions", {
+    payload: { pageId: Schema.String },
+    success: Schema.Array(AclEntry),
+  }),
+  Rpc.make("setPagePermission", {
+    payload: { pageId: Schema.String, subject: Schema.String, relation: AclRelation },
+    success: Schema.Void,
+  }),
+  Rpc.make("removePagePermission", {
+    payload: { pageId: Schema.String, subject: Schema.String, relation: AclRelation },
     success: Schema.Void,
   }),
 

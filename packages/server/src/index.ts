@@ -644,6 +644,29 @@ const rpcHandlersLayer = AppRpc.toLayer({
     return yield* ApiKeys.revokeApiKey({ userId: user.id, id });
   }).pipe(Effect.orDie),
 
+  // Page ACL
+  getPagePermissions: ({ pageId }) =>
+    withAuthedWorkspace(({ userId, workspaceId }) =>
+      Effect.gen(function* () {
+        yield* Permissions.checkPagePermission(userId, workspaceId, pageId, "viewer");
+        return yield* Permissions.listPageAcl(pageId);
+      }),
+    ).pipe(Effect.orDie),
+  setPagePermission: ({ pageId, subject, relation }) =>
+    withAuthedWorkspace(({ userId, workspaceId }) =>
+      Effect.gen(function* () {
+        yield* Permissions.checkPagePermission(userId, workspaceId, pageId, "owner");
+        yield* Permissions.setPageAcl(pageId, subject, relation);
+      }),
+    ).pipe(Effect.orDie),
+  removePagePermission: ({ pageId, subject, relation }) =>
+    withAuthedWorkspace(({ userId, workspaceId }) =>
+      Effect.gen(function* () {
+        yield* Permissions.checkPagePermission(userId, workspaceId, pageId, "owner");
+        yield* Permissions.removePageAcl(pageId, subject, relation);
+      }),
+    ).pipe(Effect.orDie),
+
   // Import/Export
   importNotion: ({ directory }) => withWorkspaceDb(ImportExport.importNotion(directory)).pipe(Effect.orDie),
   exportPage: ({ pageId, includeDatabases }) =>
