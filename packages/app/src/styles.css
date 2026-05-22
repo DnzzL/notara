@@ -1957,6 +1957,13 @@ select, input, textarea, button { font-family: var(--font-ui); }
 
   /* Increase tap targets */
   .sb-item, .sb-action-btn, .sb-icon-btn { min-height: 44px; }
+
+  /* Reduce main content padding so databases have room to breathe */
+  .main { padding: 20px 14px; }
+  .main.wide { padding: 16px 10px; }
+
+  /* Hide block gutters (drag handles) on mobile — no hover state anyway */
+  .block-gutter { display: none; }
 }
 
 /* Hide mobile topbar on desktop */
