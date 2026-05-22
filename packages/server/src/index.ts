@@ -534,7 +534,16 @@ const rpcHandlersLayer = AppRpc.toLayer({
         return yield* Pages.deletePage(id);
       }),
     ).pipe(Effect.orDie),
-  globalSearch: ({ query }) => withWorkspaceDb(Search.globalSearch(query)).pipe(Effect.orDie),
+  globalSearch: ({ query }) =>
+    withAuthedWorkspace(({ userId, workspaceId, role }) =>
+      Effect.gen(function* () {
+        const results = yield* Search.globalSearch(query);
+        const allPages = yield* Pages.listPages;
+        const visible = yield* Permissions.filterPagesByPermission(userId, workspaceId, role, allPages);
+        const visibleIds = new Set(visible.map((p) => p.id));
+        return results.filter((r) => visibleIds.has(r.type === "page" ? r.id : r.pageId));
+      }),
+    ).pipe(Effect.orDie),
   movePage: (req) =>
     withAuthedWorkspace(({ userId, workspaceId }) =>
       Effect.gen(function* () {
@@ -544,12 +553,52 @@ const rpcHandlersLayer = AppRpc.toLayer({
     ).pipe(Effect.orDie),
   reorderPages: ({ parentId, pageIds }) => withWorkspaceDb(Pages.reorderPages({ parentId, pageIds: [...pageIds] })).pipe(Effect.orDie),
 
-  listBlocks: ({ pageId }) => withWorkspaceDb(Blocks.listBlocks(pageId)).pipe(Effect.orDie),
-  createBlock: (req) => withWorkspaceDb(Blocks.createBlock(req)).pipe(Effect.orDie),
-  updateBlock: (req) => withWorkspaceDb(Blocks.updateBlock(req)).pipe(Effect.orDie),
-  deleteBlock: ({ id }) => withWorkspaceDb(Blocks.deleteBlock(id)).pipe(Effect.orDie),
-  reorderBlocks: ({ pageId, blockIds }) => withWorkspaceDb(Blocks.reorderBlocks(pageId, [...blockIds])).pipe(Effect.orDie),
-  getBacklinks: ({ pageId }) => withWorkspaceDb(Blocks.getBacklinks(pageId)).pipe(Effect.orDie),
+  listBlocks: ({ pageId }) =>
+    withAuthedWorkspace(({ userId, workspaceId }) =>
+      Effect.gen(function* () {
+        yield* Permissions.checkPagePermission(userId, workspaceId, pageId, "viewer");
+        return yield* Blocks.listBlocks(pageId);
+      }),
+    ).pipe(Effect.orDie),
+  createBlock: (req) =>
+    withAuthedWorkspace(({ userId, workspaceId }) =>
+      Effect.gen(function* () {
+        yield* Permissions.checkPagePermission(userId, workspaceId, req.pageId, "editor");
+        return yield* Blocks.createBlock(req);
+      }),
+    ).pipe(Effect.orDie),
+  updateBlock: (req) =>
+    withAuthedWorkspace(({ userId, workspaceId }) =>
+      Effect.gen(function* () {
+        yield* Permissions.checkBlockPermission(userId, workspaceId, req.id, "editor");
+        return yield* Blocks.updateBlock(req);
+      }),
+    ).pipe(Effect.orDie),
+  deleteBlock: ({ id }) =>
+    withAuthedWorkspace(({ userId, workspaceId }) =>
+      Effect.gen(function* () {
+        yield* Permissions.checkBlockPermission(userId, workspaceId, id, "editor");
+        return yield* Blocks.deleteBlock(id);
+      }),
+    ).pipe(Effect.orDie),
+  reorderBlocks: ({ pageId, blockIds }) =>
+    withAuthedWorkspace(({ userId, workspaceId }) =>
+      Effect.gen(function* () {
+        yield* Permissions.checkPagePermission(userId, workspaceId, pageId, "editor");
+        return yield* Blocks.reorderBlocks(pageId, [...blockIds]);
+      }),
+    ).pipe(Effect.orDie),
+  getBacklinks: ({ pageId }) =>
+    withAuthedWorkspace(({ userId, workspaceId, role }) =>
+      Effect.gen(function* () {
+        yield* Permissions.checkPagePermission(userId, workspaceId, pageId, "viewer");
+        const all = yield* Blocks.getBacklinks(pageId);
+        const allPages = yield* Pages.listPages;
+        const visible = yield* Permissions.filterPagesByPermission(userId, workspaceId, role, allPages);
+        const visibleIds = new Set(visible.map((p) => p.id));
+        return all.filter((b) => visibleIds.has(b.pageId));
+      }),
+    ).pipe(Effect.orDie),
 
   listDatabases: ({ pageId }) => withWorkspaceDb(Databases.listDatabases(pageId)).pipe(Effect.orDie),
   listAllDatabases: () => withWorkspaceDb(Databases.listAllDatabases).pipe(Effect.orDie),

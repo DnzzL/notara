@@ -247,7 +247,10 @@ export const registerV1Routes = Effect.gen(function* () {
       const p = yield* HttpRouter.params;
       const workspaceId = yield* requireParam(p, "workspaceId");
       const blockId = yield* requireParam(p, "blockId");
-      yield* requireWorkspaceMember(workspaceId, userId);
+      yield* withWorkspace(
+        workspaceId,
+        Permissions.checkBlockPermission(userId, workspaceId, blockId, "editor"),
+      );
       const body = yield* parseBody;
       const b = body as Record<string, unknown>;
       if (!("content" in b)) {
@@ -273,7 +276,10 @@ export const registerV1Routes = Effect.gen(function* () {
       const p = yield* HttpRouter.params;
       const workspaceId = yield* requireParam(p, "workspaceId");
       const blockId = yield* requireParam(p, "blockId");
-      yield* requireWorkspaceMember(workspaceId, userId);
+      yield* withWorkspace(
+        workspaceId,
+        Permissions.checkBlockPermission(userId, workspaceId, blockId, "editor"),
+      );
       yield* withWorkspace(workspaceId, Blocks.deleteBlock(blockId));
       return noContent();
     })),
@@ -330,12 +336,21 @@ export const registerV1Routes = Effect.gen(function* () {
       const { userId } = yield* resolveApiUser;
       const p = yield* HttpRouter.params;
       const workspaceId = yield* requireParam(p, "workspaceId");
-      yield* requireWorkspaceMember(workspaceId, userId);
+      const role = yield* requireWorkspaceMember(workspaceId, userId);
       const q = yield* queryParam("q");
       if (!q?.trim()) {
         return yield* Effect.fail(new ApiError({ status: 422, message: 'Query parameter "q" is required' }));
       }
-      const results = yield* withWorkspace(workspaceId, Search.globalSearch(q));
+      const results = yield* withWorkspace(
+        workspaceId,
+        Effect.gen(function* () {
+          const hits = yield* Search.globalSearch(q);
+          const allPages = yield* Pages.listPages;
+          const visible = yield* Permissions.filterPagesByPermission(userId, workspaceId, role, allPages);
+          const visibleIds = new Set(visible.map((p) => p.id));
+          return hits.filter((r) => visibleIds.has(r.type === "page" ? r.id : r.pageId));
+        }),
+      );
       return ok(results);
     })),
   );

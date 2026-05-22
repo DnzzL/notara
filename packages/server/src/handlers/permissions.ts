@@ -164,6 +164,30 @@ export const removePageAcl = (pageId: string, subject: string, relation: AclRela
     );
   });
 
+/** Resolves the page_id that owns a given block. Returns null if not found. */
+export const getBlockPageId = (blockId: string) =>
+  Effect.gen(function* () {
+    const sql = yield* SqlClient.SqlClient;
+    const rows = yield* sql.unsafe(`SELECT page_id FROM blocks WHERE id = ?`, [blockId]);
+    const list = rows as unknown as { page_id: string }[];
+    return list.length > 0 ? list[0].page_id : null;
+  });
+
+/** Checks page permission for the page that owns the given block. */
+export const checkBlockPermission = (
+  userId: string,
+  workspaceId: string,
+  blockId: string,
+  requiredRelation: AclRelation,
+) =>
+  Effect.gen(function* () {
+    const pageId = yield* getBlockPageId(blockId);
+    if (!pageId) {
+      return yield* Effect.fail(new ApiError({ status: 404, message: `Block ${blockId} not found` }));
+    }
+    yield* checkPagePermission(userId, workspaceId, pageId, requiredRelation);
+  });
+
 export const listPageAcl = (pageId: string) =>
   Effect.gen(function* () {
     const sql = yield* SqlClient.SqlClient;
