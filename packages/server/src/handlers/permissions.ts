@@ -50,16 +50,20 @@ export const checkPagePermission = (
 
     let currentId: string | null = pageId;
     while (currentId !== null) {
-      const rows = yield* sql.unsafe(
-        `SELECT relation, subject FROM acl_tuples WHERE resource_type = 'page' AND resource_id = ?`,
-        [currentId],
-      );
+      const rows: ReadonlyArray<{ relation: string; subject: string }> = yield* sql
+        .unsafe(
+          `SELECT relation, subject FROM acl_tuples WHERE resource_type = 'page' AND resource_id = ?`,
+          [currentId],
+        )
+        .pipe(Effect.orDie) as Effect.Effect<
+          ReadonlyArray<{ relation: string; subject: string }>,
+          never,
+          never
+        >;
 
       if (rows.length > 0) {
         const userSubjects = [`user:${userId}`, `workspace:${workspaceId}#member`];
-        const userRows = (rows as { relation: string; subject: string }[]).filter((r) =>
-          userSubjects.includes(r.subject),
-        );
+        const userRows = rows.filter((r) => userSubjects.includes(r.subject));
 
         const best = userRows.reduce<AclRelation | null>((acc, r) => {
           const rel = r.relation as AclRelation;
@@ -74,13 +78,14 @@ export const checkPagePermission = (
         return;
       }
 
-      const parentRows = yield* sql.unsafe(`SELECT parent_id FROM pages WHERE id = ?`, [
-        currentId,
-      ]);
-      currentId =
-        parentRows.length > 0
-          ? ((parentRows[0] as { parent_id: string | null }).parent_id ?? null)
-          : null;
+      const parentRows: ReadonlyArray<{ parent_id: string | null }> = yield* sql
+        .unsafe(`SELECT parent_id FROM pages WHERE id = ?`, [currentId])
+        .pipe(Effect.orDie) as Effect.Effect<
+          ReadonlyArray<{ parent_id: string | null }>,
+          never,
+          never
+        >;
+      currentId = parentRows.length > 0 ? (parentRows[0].parent_id ?? null) : null;
     }
 
     const wsRelation = workspaceRoleToRelation(member.role);
@@ -102,7 +107,7 @@ export const filterPagesByPermission = <P extends { id: string; parentId: string
   workspaceId: string,
   workspaceRole: "owner" | "member",
   allPages: readonly P[],
-): Effect.Effect<P[], never, SqlClient.SqlClient> =>
+) =>
   Effect.gen(function* () {
     if (workspaceRole === "owner") return [...allPages];
 
@@ -112,7 +117,7 @@ export const filterPagesByPermission = <P extends { id: string; parentId: string
       `SELECT DISTINCT resource_id FROM acl_tuples WHERE resource_type = 'page'`,
     );
     const lockedIds = new Set<string>(
-      (lockedRows as { resource_id: string }[]).map((r) => r.resource_id),
+      (lockedRows as unknown as { resource_id: string }[]).map((r) => r.resource_id),
     );
 
     if (lockedIds.size === 0) return [...allPages];
@@ -125,7 +130,7 @@ export const filterPagesByPermission = <P extends { id: string; parentId: string
       userSubjects,
     );
     const accessibleIds = new Set<string>(
-      (accessRows as { resource_id: string }[]).map((r) => r.resource_id),
+      (accessRows as unknown as { resource_id: string }[]).map((r) => r.resource_id),
     );
 
     const parentMap = new Map<string, string | null>(allPages.map((p) => [p.id, p.parentId]));
@@ -140,11 +145,7 @@ export const filterPagesByPermission = <P extends { id: string; parentId: string
     });
   });
 
-export const setPageAcl = (
-  pageId: string,
-  subject: string,
-  relation: AclRelation,
-): Effect.Effect<void, never, SqlClient.SqlClient> =>
+export const setPageAcl = (pageId: string, subject: string, relation: AclRelation) =>
   Effect.gen(function* () {
     const sql = yield* SqlClient.SqlClient;
     yield* sql.unsafe(
@@ -154,11 +155,7 @@ export const setPageAcl = (
     );
   });
 
-export const removePageAcl = (
-  pageId: string,
-  subject: string,
-  relation: AclRelation,
-): Effect.Effect<void, never, SqlClient.SqlClient> =>
+export const removePageAcl = (pageId: string, subject: string, relation: AclRelation) =>
   Effect.gen(function* () {
     const sql = yield* SqlClient.SqlClient;
     yield* sql.unsafe(
@@ -167,16 +164,14 @@ export const removePageAcl = (
     );
   });
 
-export const listPageAcl = (
-  pageId: string,
-): Effect.Effect<{ relation: AclRelation; subject: string }[], never, SqlClient.SqlClient> =>
+export const listPageAcl = (pageId: string) =>
   Effect.gen(function* () {
     const sql = yield* SqlClient.SqlClient;
     const rows = yield* sql.unsafe(
       `SELECT relation, subject FROM acl_tuples WHERE resource_type = 'page' AND resource_id = ?`,
       [pageId],
     );
-    return (rows as { relation: string; subject: string }[]).map((r) => ({
+    return (rows as unknown as { relation: string; subject: string }[]).map((r) => ({
       relation: r.relation as AclRelation,
       subject: r.subject,
     }));

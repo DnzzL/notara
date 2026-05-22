@@ -8,6 +8,7 @@ import * as Blocks from "../handlers/blocks.js";
 import * as Search from "../handlers/search.js";
 import * as Databases from "../handlers/databases.js";
 import * as Workspaces from "../handlers/workspaces.js";
+import * as Permissions from "../handlers/permissions.js";
 import { resolveApiUser, requireWorkspaceMember, ApiError } from "./auth.js";
 import {
   ok, created, noContent, apiError, parseBody,
@@ -18,9 +19,9 @@ import { spec as openApiSpec, swaggerHtml } from "./openapi.js";
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
 /** Run a workspace-scoped handler with the correct per-workspace SQLite layer. */
-const withWorkspace = <A>(
+const withWorkspace = <A, E, R>(
   workspaceId: string,
-  inner: Effect.Effect<A, unknown, import("@effect/sql").SqlClient.SqlClient>,
+  inner: Effect.Effect<A, E, R>,
 ) =>
   Effect.gen(function* () {
     const wdb = yield* WorkspaceDb;
@@ -87,8 +88,14 @@ export const registerV1Routes = Effect.gen(function* () {
       const { userId } = yield* resolveApiUser;
       const p = yield* HttpRouter.params;
       const workspaceId = yield* requireParam(p, "workspaceId");
-      yield* requireWorkspaceMember(workspaceId, userId);
-      const pages = yield* withWorkspace(workspaceId, Pages.listPages);
+      const role = yield* requireWorkspaceMember(workspaceId, userId);
+      const pages = yield* withWorkspace(
+        workspaceId,
+        Effect.gen(function* () {
+          const all = yield* Pages.listPages;
+          return yield* Permissions.filterPagesByPermission(userId, workspaceId, role, all);
+        }),
+      );
       return ok(pages);
     })),
   );
@@ -121,7 +128,10 @@ export const registerV1Routes = Effect.gen(function* () {
       const p = yield* HttpRouter.params;
       const workspaceId = yield* requireParam(p, "workspaceId");
       const pageId = yield* requireParam(p, "pageId");
-      yield* requireWorkspaceMember(workspaceId, userId);
+      yield* withWorkspace(
+        workspaceId,
+        Permissions.checkPagePermission(userId, workspaceId, pageId, "viewer"),
+      );
       const page = yield* withWorkspace(workspaceId, Pages.getPage(pageId)).pipe(
         Effect.mapError(() => new ApiError({ status: 404, message: `Page ${pageId} not found` })),
       );
@@ -139,7 +149,10 @@ export const registerV1Routes = Effect.gen(function* () {
       const p = yield* HttpRouter.params;
       const workspaceId = yield* requireParam(p, "workspaceId");
       const pageId = yield* requireParam(p, "pageId");
-      yield* requireWorkspaceMember(workspaceId, userId);
+      yield* withWorkspace(
+        workspaceId,
+        Permissions.checkPagePermission(userId, workspaceId, pageId, "editor"),
+      );
       const body = yield* parseBody;
       const b = body as Record<string, unknown>;
       const page = yield* withWorkspace(
@@ -168,7 +181,10 @@ export const registerV1Routes = Effect.gen(function* () {
       const p = yield* HttpRouter.params;
       const workspaceId = yield* requireParam(p, "workspaceId");
       const pageId = yield* requireParam(p, "pageId");
-      yield* requireWorkspaceMember(workspaceId, userId);
+      yield* withWorkspace(
+        workspaceId,
+        Permissions.checkPagePermission(userId, workspaceId, pageId, "editor"),
+      );
       yield* withWorkspace(workspaceId, Pages.deletePage(pageId));
       return noContent();
     })),
@@ -184,7 +200,10 @@ export const registerV1Routes = Effect.gen(function* () {
       const p = yield* HttpRouter.params;
       const workspaceId = yield* requireParam(p, "workspaceId");
       const pageId = yield* requireParam(p, "pageId");
-      yield* requireWorkspaceMember(workspaceId, userId);
+      yield* withWorkspace(
+        workspaceId,
+        Permissions.checkPagePermission(userId, workspaceId, pageId, "viewer"),
+      );
       const blocks = yield* withWorkspace(workspaceId, Blocks.listBlocks(pageId));
       return ok(blocks.map(parseBlockContent));
     })),
@@ -200,7 +219,10 @@ export const registerV1Routes = Effect.gen(function* () {
       const p = yield* HttpRouter.params;
       const workspaceId = yield* requireParam(p, "workspaceId");
       const pageId = yield* requireParam(p, "pageId");
-      yield* requireWorkspaceMember(workspaceId, userId);
+      yield* withWorkspace(
+        workspaceId,
+        Permissions.checkPagePermission(userId, workspaceId, pageId, "editor"),
+      );
       const body = yield* parseBody;
       const b = body as Record<string, unknown>;
       const type = yield* requireField(body, "type");
