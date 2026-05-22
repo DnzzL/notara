@@ -75,6 +75,8 @@ export function useStore() {
     activeSorts: dbState.activeSorts,
     boardGroupByFieldId: dbState.boardGroupByFieldId,
     setBoardGroupBy: dbState.setBoardGroupBy,
+    boardHiddenFieldIds: dbState.boardHiddenFieldIds,
+    toggleBoardField: dbState.toggleBoardField,
     addFilter: dbState.addFilter,
     setFilter: dbState.setFilter,
     removeFilter: dbState.removeFilter,
