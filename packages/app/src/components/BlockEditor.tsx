@@ -84,8 +84,8 @@ function SingleBlockEditor({
   callbacks: BlockNavigationCallbacks;
   onSlashMenuOpen: (data: { query: string; top: number; left: number }) => void;
 }) {
-  const savingRef = useRef(false);
   const debounceRef = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
+  const isPendingRef = useRef(false);
   const contentRef = useRef(block.content);
   contentRef.current = block.content;
 
@@ -118,15 +118,14 @@ function SingleBlockEditor({
     editorProps: {},
     onUpdate: ({ editor: ed }) => {
       detectSlashCommand(ed);
-      if (savingRef.current) return;
-      savingRef.current = true;
       clearTimeout(debounceRef.current);
+      isPendingRef.current = true;
       debounceRef.current = setTimeout(async () => {
         const html = ed.getHTML();
         if (html !== contentRef.current) {
-          callbacks.updateBlock?.(block.id, html);
+          await callbacks.updateBlock?.(block.id, html);
         }
-        savingRef.current = false;
+        isPendingRef.current = false;
       }, 500);
     },
     onSelectionUpdate: ({ editor: ed }) => {
@@ -205,9 +204,11 @@ function SingleBlockEditor({
     };
   }, [block.id, blockIndex, editor]);
 
-  // Sync content when block changes externally (merge/split)
+  // Sync content when block changes externally (merge/split).
+  // Skip when there's a pending debounced save — the editor has newer content.
   useEffect(() => {
     if (!editor) return;
+    if (isPendingRef.current) return;
     const expected = blockContent(block);
     const current = editor.getHTML();
     if (current !== expected) {
