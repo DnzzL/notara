@@ -600,60 +600,179 @@ const rpcHandlersLayer = AppRpc.toLayer({
       }),
     ).pipe(Effect.orDie),
 
-  listDatabases: ({ pageId }) => withWorkspaceDb(Databases.listDatabases(pageId)).pipe(Effect.orDie),
-  listAllDatabases: () => withWorkspaceDb(Databases.listAllDatabases).pipe(Effect.orDie),
-  getDatabase: ({ id }) => withWorkspaceDb(Databases.getDatabase(id)).pipe(Effect.orDie),
-  createDatabase: (req) => withWorkspaceDb(Databases.createDatabase(req)).pipe(Effect.orDie),
-  listFields: ({ databaseId }) => withWorkspaceDb(Databases.listFields(databaseId)).pipe(Effect.orDie),
-  createField: (req) => withWorkspaceDb(Databases.createField({
-    databaseId: req.databaseId,
-    name: req.name,
-    type: req.type,
-    options: req.options ? [...req.options] : null,
-    relationTargetDbId: req.relationTargetDbId,
-  })).pipe(Effect.orDie),
-  listRecords: ({ databaseId }) => withWorkspaceDb(Databases.listRecords(databaseId)).pipe(Effect.orDie),
-  listRecordsWithValues: ({ databaseId }) => withWorkspaceDb(Databases.listRecordsWithValues(databaseId)).pipe(Effect.orDie),
-  getRecordWithValues: ({ recordId }) => withWorkspaceDb(Databases.getRecordWithValues(recordId)).pipe(Effect.orDie),
-  createRecord: (req) => withWorkspaceDb(Databases.createRecord(req)).pipe(Effect.orDie),
-  updateFieldValue: (req) => withWorkspaceDb(Databases.updateFieldValue(req).pipe(
-    Effect.map((row) => new RecordFieldValue({
-      id: row.id as string,
-      recordId: row.recordId as string,
-      fieldId: row.fieldId as string,
-      value: row.value as string,
-    })),
-  )).pipe(Effect.orDie),
-  deleteRecord: ({ id }) => withWorkspaceDb(Databases.deleteRecord(id)).pipe(Effect.orDie),
-  listViews: ({ databaseId }) => withWorkspaceDb(Databases.listViews(databaseId)).pipe(Effect.orDie),
-  createView: (req) => withWorkspaceDb(Databases.createView({
-    databaseId: req.databaseId,
-    name: req.name,
-    type: req.type,
-    groupByFieldId: req.groupByFieldId,
-  })).pipe(Effect.orDie),
-  updateField: (req) => withWorkspaceDb(Databases.updateField({
-    id: req.id,
-    name: req.name,
-    type: req.type,
-    options: req.options === undefined ? undefined : (req.options ? [...req.options] : null),
-    relationTargetDbId: req.relationTargetDbId,
-  })).pipe(Effect.orDie),
-  updateRecord: (req) => withWorkspaceDb(Databases.updateRecord(req)).pipe(Effect.orDie),
-  reorderRecords: ({ databaseId, recordIds }) => withWorkspaceDb(Databases.reorderRecords({
-    databaseId,
-    recordIds: [...recordIds],
-  })).pipe(Effect.orDie),
-  renameDatabase: (req) => withWorkspaceDb(Databases.renameDatabase({
-    id: req.id,
-    name: req.name,
-  })).pipe(Effect.orDie),
-  updateDatabase: (req) => withWorkspaceDb(Databases.updateDatabase(req)).pipe(Effect.orDie),
-  deleteField: ({ id }) => withWorkspaceDb(Databases.deleteField(id)).pipe(Effect.orDie),
-  reorderDatabases: (req) => withWorkspaceDb(Databases.reorderDatabases({
-    pageId: req.pageId,
-    databaseIds: [...req.databaseIds],
-  })).pipe(Effect.orDie),
+  listDatabases: ({ pageId }) =>
+    withAuthedWorkspace(({ userId, workspaceId }) =>
+      Effect.gen(function* () {
+        yield* Permissions.checkPagePermission(userId, workspaceId, pageId, "viewer");
+        return yield* Databases.listDatabases(pageId);
+      }),
+    ).pipe(Effect.orDie),
+  listAllDatabases: () =>
+    withAuthedWorkspace(({ userId, workspaceId, role }) =>
+      Effect.gen(function* () {
+        const all = yield* Databases.listAllDatabases;
+        const allPages = yield* Pages.listPages;
+        const visible = yield* Permissions.filterPagesByPermission(userId, workspaceId, role, allPages);
+        const visibleIds = new Set(visible.map((p) => p.id));
+        return all.filter((db) => visibleIds.has(db.pageId));
+      }),
+    ).pipe(Effect.orDie),
+  getDatabase: ({ id }) =>
+    withAuthedWorkspace(({ userId, workspaceId }) =>
+      Effect.gen(function* () {
+        yield* Permissions.checkDatabasePermission(userId, workspaceId, id, "viewer");
+        return yield* Databases.getDatabase(id);
+      }),
+    ).pipe(Effect.orDie),
+  createDatabase: (req) =>
+    withAuthedWorkspace(({ userId, workspaceId }) =>
+      Effect.gen(function* () {
+        yield* Permissions.checkPagePermission(userId, workspaceId, req.pageId, "editor");
+        return yield* Databases.createDatabase(req);
+      }),
+    ).pipe(Effect.orDie),
+  listFields: ({ databaseId }) =>
+    withAuthedWorkspace(({ userId, workspaceId }) =>
+      Effect.gen(function* () {
+        yield* Permissions.checkDatabasePermission(userId, workspaceId, databaseId, "viewer");
+        return yield* Databases.listFields(databaseId);
+      }),
+    ).pipe(Effect.orDie),
+  createField: (req) =>
+    withAuthedWorkspace(({ userId, workspaceId }) =>
+      Effect.gen(function* () {
+        yield* Permissions.checkDatabasePermission(userId, workspaceId, req.databaseId, "editor");
+        return yield* Databases.createField({
+          databaseId: req.databaseId,
+          name: req.name,
+          type: req.type,
+          options: req.options ? [...req.options] : null,
+          relationTargetDbId: req.relationTargetDbId,
+        });
+      }),
+    ).pipe(Effect.orDie),
+  listRecords: ({ databaseId }) =>
+    withAuthedWorkspace(({ userId, workspaceId }) =>
+      Effect.gen(function* () {
+        yield* Permissions.checkDatabasePermission(userId, workspaceId, databaseId, "viewer");
+        return yield* Databases.listRecords(databaseId);
+      }),
+    ).pipe(Effect.orDie),
+  listRecordsWithValues: ({ databaseId }) =>
+    withAuthedWorkspace(({ userId, workspaceId }) =>
+      Effect.gen(function* () {
+        yield* Permissions.checkDatabasePermission(userId, workspaceId, databaseId, "viewer");
+        return yield* Databases.listRecordsWithValues(databaseId);
+      }),
+    ).pipe(Effect.orDie),
+  getRecordWithValues: ({ recordId }) =>
+    withAuthedWorkspace(({ userId, workspaceId }) =>
+      Effect.gen(function* () {
+        yield* Permissions.checkRecordPermission(userId, workspaceId, recordId, "viewer");
+        return yield* Databases.getRecordWithValues(recordId);
+      }),
+    ).pipe(Effect.orDie),
+  createRecord: (req) =>
+    withAuthedWorkspace(({ userId, workspaceId }) =>
+      Effect.gen(function* () {
+        yield* Permissions.checkDatabasePermission(userId, workspaceId, req.databaseId, "editor");
+        return yield* Databases.createRecord(req);
+      }),
+    ).pipe(Effect.orDie),
+  updateFieldValue: (req) =>
+    withAuthedWorkspace(({ userId, workspaceId }) =>
+      Effect.gen(function* () {
+        yield* Permissions.checkRecordPermission(userId, workspaceId, req.recordId, "editor");
+        const row = yield* Databases.updateFieldValue(req);
+        return new RecordFieldValue({
+          id: row.id as string,
+          recordId: row.recordId as string,
+          fieldId: row.fieldId as string,
+          value: row.value as string,
+        });
+      }),
+    ).pipe(Effect.orDie),
+  deleteRecord: ({ id }) =>
+    withAuthedWorkspace(({ userId, workspaceId }) =>
+      Effect.gen(function* () {
+        yield* Permissions.checkRecordPermission(userId, workspaceId, id, "editor");
+        return yield* Databases.deleteRecord(id);
+      }),
+    ).pipe(Effect.orDie),
+  listViews: ({ databaseId }) =>
+    withAuthedWorkspace(({ userId, workspaceId }) =>
+      Effect.gen(function* () {
+        yield* Permissions.checkDatabasePermission(userId, workspaceId, databaseId, "viewer");
+        return yield* Databases.listViews(databaseId);
+      }),
+    ).pipe(Effect.orDie),
+  createView: (req) =>
+    withAuthedWorkspace(({ userId, workspaceId }) =>
+      Effect.gen(function* () {
+        yield* Permissions.checkDatabasePermission(userId, workspaceId, req.databaseId, "editor");
+        return yield* Databases.createView({
+          databaseId: req.databaseId,
+          name: req.name,
+          type: req.type,
+          groupByFieldId: req.groupByFieldId,
+        });
+      }),
+    ).pipe(Effect.orDie),
+  updateField: (req) =>
+    withAuthedWorkspace(({ userId, workspaceId }) =>
+      Effect.gen(function* () {
+        yield* Permissions.checkFieldPermission(userId, workspaceId, req.id, "editor");
+        return yield* Databases.updateField({
+          id: req.id,
+          name: req.name,
+          type: req.type,
+          options: req.options === undefined ? undefined : (req.options ? [...req.options] : null),
+          relationTargetDbId: req.relationTargetDbId,
+        });
+      }),
+    ).pipe(Effect.orDie),
+  updateRecord: (req) =>
+    withAuthedWorkspace(({ userId, workspaceId }) =>
+      Effect.gen(function* () {
+        yield* Permissions.checkRecordPermission(userId, workspaceId, req.id, "editor");
+        return yield* Databases.updateRecord(req);
+      }),
+    ).pipe(Effect.orDie),
+  reorderRecords: ({ databaseId, recordIds }) =>
+    withAuthedWorkspace(({ userId, workspaceId }) =>
+      Effect.gen(function* () {
+        yield* Permissions.checkDatabasePermission(userId, workspaceId, databaseId, "editor");
+        return yield* Databases.reorderRecords({ databaseId, recordIds: [...recordIds] });
+      }),
+    ).pipe(Effect.orDie),
+  renameDatabase: (req) =>
+    withAuthedWorkspace(({ userId, workspaceId }) =>
+      Effect.gen(function* () {
+        yield* Permissions.checkDatabasePermission(userId, workspaceId, req.id, "editor");
+        return yield* Databases.renameDatabase({ id: req.id, name: req.name });
+      }),
+    ).pipe(Effect.orDie),
+  updateDatabase: (req) =>
+    withAuthedWorkspace(({ userId, workspaceId }) =>
+      Effect.gen(function* () {
+        yield* Permissions.checkDatabasePermission(userId, workspaceId, req.id, "editor");
+        return yield* Databases.updateDatabase(req);
+      }),
+    ).pipe(Effect.orDie),
+  deleteField: ({ id }) =>
+    withAuthedWorkspace(({ userId, workspaceId }) =>
+      Effect.gen(function* () {
+        yield* Permissions.checkFieldPermission(userId, workspaceId, id, "editor");
+        return yield* Databases.deleteField(id);
+      }),
+    ).pipe(Effect.orDie),
+  reorderDatabases: (req) =>
+    withAuthedWorkspace(({ userId, workspaceId }) =>
+      Effect.gen(function* () {
+        yield* Permissions.checkPagePermission(userId, workspaceId, req.pageId, "editor");
+        return yield* Databases.reorderDatabases({ pageId: req.pageId, databaseIds: [...req.databaseIds] });
+      }),
+    ).pipe(Effect.orDie),
 
   // Workspaces (use PlatformDb, session-based)
   getMyWorkspaces: () => Effect.gen(function* () {

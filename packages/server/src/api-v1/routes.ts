@@ -294,8 +294,17 @@ export const registerV1Routes = Effect.gen(function* () {
       const { userId } = yield* resolveApiUser;
       const p = yield* HttpRouter.params;
       const workspaceId = yield* requireParam(p, "workspaceId");
-      yield* requireWorkspaceMember(workspaceId, userId);
-      const dbs = yield* withWorkspace(workspaceId, Databases.listAllDatabases);
+      const role = yield* requireWorkspaceMember(workspaceId, userId);
+      const dbs = yield* withWorkspace(
+        workspaceId,
+        Effect.gen(function* () {
+          const all = yield* Databases.listAllDatabases;
+          const allPages = yield* Pages.listPages;
+          const visible = yield* Permissions.filterPagesByPermission(userId, workspaceId, role, allPages);
+          const visibleIds = new Set(visible.map((p) => p.id));
+          return all.filter((db) => visibleIds.has(db.pageId));
+        }),
+      );
       return ok(dbs);
     })),
   );
@@ -310,7 +319,10 @@ export const registerV1Routes = Effect.gen(function* () {
       const p = yield* HttpRouter.params;
       const workspaceId = yield* requireParam(p, "workspaceId");
       const dbId = yield* requireParam(p, "dbId");
-      yield* requireWorkspaceMember(workspaceId, userId);
+      yield* withWorkspace(
+        workspaceId,
+        Permissions.checkDatabasePermission(userId, workspaceId, dbId, "viewer"),
+      );
       const raw = yield* withWorkspace(workspaceId, Databases.listRecordsWithValues(dbId));
       const records = (raw as any[]).map((r) => ({
         id:          r.id,

@@ -173,20 +173,57 @@ export const getBlockPageId = (blockId: string) =>
     return list.length > 0 ? list[0].page_id : null;
   });
 
-/** Checks page permission for the page that owns the given block. */
-export const checkBlockPermission = (
-  userId: string,
-  workspaceId: string,
-  blockId: string,
-  requiredRelation: AclRelation,
-) =>
+/** Resolves the page_id that owns a given database. Returns null if not found. */
+export const getDatabasePageId = (databaseId: string) =>
   Effect.gen(function* () {
-    const pageId = yield* getBlockPageId(blockId);
-    if (!pageId) {
-      return yield* Effect.fail(new ApiError({ status: 404, message: `Block ${blockId} not found` }));
-    }
-    yield* checkPagePermission(userId, workspaceId, pageId, requiredRelation);
+    const sql = yield* SqlClient.SqlClient;
+    const rows = yield* sql.unsafe(`SELECT page_id FROM databases WHERE id = ?`, [databaseId]);
+    const list = rows as unknown as { page_id: string }[];
+    return list.length > 0 ? list[0].page_id : null;
   });
+
+/** Resolves the page_id that owns a given record (via its database). */
+export const getRecordPageId = (recordId: string) =>
+  Effect.gen(function* () {
+    const sql = yield* SqlClient.SqlClient;
+    const rows = yield* sql.unsafe(
+      `SELECT d.page_id FROM database_records r JOIN databases d ON d.id = r.database_id WHERE r.id = ?`,
+      [recordId],
+    );
+    const list = rows as unknown as { page_id: string }[];
+    return list.length > 0 ? list[0].page_id : null;
+  });
+
+/** Resolves the page_id that owns a given field (via its database). */
+export const getFieldPageId = (fieldId: string) =>
+  Effect.gen(function* () {
+    const sql = yield* SqlClient.SqlClient;
+    const rows = yield* sql.unsafe(
+      `SELECT d.page_id FROM database_fields f JOIN databases d ON d.id = f.database_id WHERE f.id = ?`,
+      [fieldId],
+    );
+    const list = rows as unknown as { page_id: string }[];
+    return list.length > 0 ? list[0].page_id : null;
+  });
+
+const checkVia =
+  <E>(
+    lookup: (id: string) => Effect.Effect<string | null, E, SqlClient.SqlClient>,
+    kind: string,
+  ) =>
+  (userId: string, workspaceId: string, id: string, requiredRelation: AclRelation) =>
+    Effect.gen(function* () {
+      const pageId = yield* lookup(id);
+      if (!pageId) {
+        return yield* Effect.fail(new ApiError({ status: 404, message: `${kind} ${id} not found` }));
+      }
+      yield* checkPagePermission(userId, workspaceId, pageId, requiredRelation);
+    });
+
+export const checkBlockPermission = checkVia(getBlockPageId, "Block");
+export const checkDatabasePermission = checkVia(getDatabasePageId, "Database");
+export const checkRecordPermission = checkVia(getRecordPageId, "Record");
+export const checkFieldPermission = checkVia(getFieldPageId, "Field");
 
 export const listPageAcl = (pageId: string) =>
   Effect.gen(function* () {
