@@ -2,6 +2,7 @@ import { describe, it, expect, beforeEach, afterEach } from "bun:test";
 import { Effect, Layer } from "effect";
 import { Database } from "bun:sqlite";
 import { SqliteClient } from "@effect/sql-sqlite-bun";
+import { SqlClient } from "@effect/sql";
 import fs from "node:fs";
 import path from "node:path";
 import os from "node:os";
@@ -283,5 +284,117 @@ describe("Permissions.checkPagePermission", () => {
       workspaceLayer,
     );
     expect(exit._tag).toBe("Failure");
+  });
+});
+
+// ── filterPagesByPermission ───────────────────────────────────────────────────
+
+function makePage(id: string, parentId: string | null) {
+  return { id, parentId, title: "", icon: null, coverUrl: null, sortOrder: 0, isDeleted: false, isFavorite: false, createdAt: "", updatedAt: "" };
+}
+
+function runWorkspace<A>(
+  eff: Effect.Effect<A, unknown, SqlClient.SqlClient>,
+  workspaceLayer: ReturnType<typeof makeWorkspaceLayer>,
+) {
+  return Effect.runPromise(eff.pipe(Effect.provide(workspaceLayer)));
+}
+
+describe("Permissions.filterPagesByPermission", () => {
+  let tmpDir: string;
+  let workspaceLayer: ReturnType<typeof makeWorkspaceLayer>;
+
+  beforeEach(() => {
+    tmpDir = makeTempDir();
+    workspaceLayer = makeWorkspaceLayer(tmpDir);
+
+    const wsDb = new Database(path.join(tmpDir, "workspace.db"));
+    // PAGE = root, open
+    wsDb.prepare("INSERT INTO pages (id, parent_id) VALUES (?, ?)").run(PAGE, null);
+    // CHILD = under PAGE, also open
+    wsDb.prepare("INSERT INTO pages (id, parent_id) VALUES (?, ?)").run(CHILD, PAGE);
+    // GRANDCHILD = under CHILD, open
+    wsDb.prepare("INSERT INTO pages (id, parent_id) VALUES (?, ?)").run(GRANDCHILD, CHILD);
+    wsDb.close();
+  });
+
+  afterEach(() => {
+    fs.rmSync(tmpDir, { recursive: true, force: true });
+  });
+
+  const pages = () => [
+    makePage(PAGE, null),
+    makePage(CHILD, PAGE),
+    makePage(GRANDCHILD, CHILD),
+  ];
+
+  it("returns all pages when no pages are locked (workspace member)", async () => {
+    const visible = await runWorkspace(
+      Permissions.filterPagesByPermission(MEMBER, WS, "member", pages()),
+      workspaceLayer,
+    );
+    expect(visible.map((p) => p.id).sort()).toEqual([GRANDCHILD, CHILD, PAGE].sort());
+  });
+
+  it("returns all pages for workspace owner regardless of locks", async () => {
+    const wsDb = new Database(path.join(tmpDir, "workspace.db"));
+    wsDb
+      .prepare("INSERT INTO acl_tuples (resource_type, resource_id, relation, subject) VALUES ('page', ?, 'viewer', ?)")
+      .run(PAGE, "user:someone-else");
+    wsDb.close();
+
+    const visible = await runWorkspace(
+      Permissions.filterPagesByPermission(OWNER, WS, "owner", pages()),
+      workspaceLayer,
+    );
+    expect(visible.length).toBe(3);
+  });
+
+  it("excludes a locked page the member has no access to", async () => {
+    const wsDb = new Database(path.join(tmpDir, "workspace.db"));
+    wsDb
+      .prepare("INSERT INTO acl_tuples (resource_type, resource_id, relation, subject) VALUES ('page', ?, 'editor', ?)")
+      .run(PAGE, "user:someone-else");
+    wsDb.close();
+
+    const visible = await runWorkspace(
+      Permissions.filterPagesByPermission(MEMBER, WS, "member", pages()),
+      workspaceLayer,
+    );
+    // PAGE is locked, CHILD and GRANDCHILD inherit lock → all excluded
+    expect(visible.map((p) => p.id)).toEqual([]);
+  });
+
+  it("includes a locked page the member has explicit access to, plus its children", async () => {
+    const wsDb = new Database(path.join(tmpDir, "workspace.db"));
+    wsDb
+      .prepare("INSERT INTO acl_tuples (resource_type, resource_id, relation, subject) VALUES ('page', ?, 'editor', ?)")
+      .run(PAGE, `user:${MEMBER}`);
+    wsDb.close();
+
+    const visible = await runWorkspace(
+      Permissions.filterPagesByPermission(MEMBER, WS, "member", pages()),
+      workspaceLayer,
+    );
+    expect(visible.map((p) => p.id).sort()).toEqual([GRANDCHILD, CHILD, PAGE].sort());
+  });
+
+  it("excludes children of a locked page the member cannot access", async () => {
+    const extraPage = "extra-root";
+    const wsDb = new Database(path.join(tmpDir, "workspace.db"));
+    // Lock PAGE (member excluded), but extraPage is open
+    wsDb.prepare("INSERT INTO pages (id, parent_id) VALUES (?, ?)").run(extraPage, null);
+    wsDb
+      .prepare("INSERT INTO acl_tuples (resource_type, resource_id, relation, subject) VALUES ('page', ?, 'editor', ?)")
+      .run(PAGE, "user:someone-else");
+    wsDb.close();
+
+    const allPages = [...pages(), makePage(extraPage, null)];
+    const visible = await runWorkspace(
+      Permissions.filterPagesByPermission(MEMBER, WS, "member", allPages),
+      workspaceLayer,
+    );
+    // Only extraPage is visible — PAGE/CHILD/GRANDCHILD are locked to someone-else
+    expect(visible.map((p) => p.id)).toEqual([extraPage]);
   });
 });

@@ -91,6 +91,55 @@ export const checkPagePermission = (
     }
   });
 
+/**
+ * Filters a list of pages to only those visible to `userId`.
+ * Workspace owners see everything. For members, pages with a locked ancestor
+ * are only visible if the user has an ACL entry on that ancestor.
+ * Uses 2 SQL queries regardless of page count.
+ */
+export const filterPagesByPermission = <P extends { id: string; parentId: string | null }>(
+  userId: string,
+  workspaceId: string,
+  workspaceRole: "owner" | "member",
+  allPages: readonly P[],
+): Effect.Effect<P[], never, SqlClient.SqlClient> =>
+  Effect.gen(function* () {
+    if (workspaceRole === "owner") return [...allPages];
+
+    const sql = yield* SqlClient.SqlClient;
+
+    const lockedRows = yield* sql.unsafe(
+      `SELECT DISTINCT resource_id FROM acl_tuples WHERE resource_type = 'page'`,
+    );
+    const lockedIds = new Set<string>(
+      (lockedRows as { resource_id: string }[]).map((r) => r.resource_id),
+    );
+
+    if (lockedIds.size === 0) return [...allPages];
+
+    const userSubjects = [`user:${userId}`, `workspace:${workspaceId}#member`];
+    const placeholders = userSubjects.map(() => "?").join(", ");
+    const accessRows = yield* sql.unsafe(
+      `SELECT DISTINCT resource_id FROM acl_tuples
+       WHERE resource_type = 'page' AND subject IN (${placeholders})`,
+      userSubjects,
+    );
+    const accessibleIds = new Set<string>(
+      (accessRows as { resource_id: string }[]).map((r) => r.resource_id),
+    );
+
+    const parentMap = new Map<string, string | null>(allPages.map((p) => [p.id, p.parentId]));
+
+    return allPages.filter((page) => {
+      let current: string | null = page.id;
+      while (current !== null) {
+        if (lockedIds.has(current)) return accessibleIds.has(current);
+        current = parentMap.get(current) ?? null;
+      }
+      return true;
+    });
+  });
+
 export const setPageAcl = (
   pageId: string,
   subject: string,
