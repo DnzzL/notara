@@ -21,7 +21,8 @@ import { triggerBackup } from "./handlers/backup.js";
 import { AppRpc, RecordFieldValue } from "@notion-alt/shared";
 import { registerV1Routes } from "./api-v1/routes.js";
 import { auth } from "./auth.js";
-import { PlatformDbLive, platformDb } from "./platform-db.js";
+import { PlatformDbLive, PlatformDb, platformDb } from "./platform-db.js";
+import * as Permissions from "./handlers/permissions.js";
 import { resolveWorkspaceContext, getSessionUser, WorkspaceContext, AuthError } from "./workspace-context.js";
 import { createServer } from "node:http";
 import * as path from "node:path";
@@ -463,10 +464,8 @@ const StaticFilesLive = Layer.effectDiscard(staticFilesRoute);
 // Layer that adds the /api/v1 REST routes + /api/docs
 const ApiV1Live = Layer.effectDiscard(registerV1Routes);
 
-// Helper: authenticate user + resolve workspace DB from X-Workspace-Id header
-const withWorkspaceDb = <A, E>(
-  inner: Effect.Effect<A, E, import("@effect/sql").SqlClient.SqlClient>,
-) =>
+// Helper: resolve workspace DB from X-Workspace-Id header
+const withWorkspaceDb = <A, E, R>(inner: Effect.Effect<A, E, R>) =>
   Effect.gen(function* () {
     const request = yield* HttpServerRequest.HttpServerRequest;
     const workspaceId = request.headers["x-workspace-id"] as string | undefined;
@@ -477,15 +476,72 @@ const withWorkspaceDb = <A, E>(
     return yield* inner.pipe(Effect.provide(dbLayer));
   });
 
+// Helper: authenticated user + workspace context. Yields { userId, workspaceId, role }
+// to the inner builder, runs it with the per-workspace SqlClient layer applied.
+const withAuthedWorkspace = <A, E, R>(
+  build: (ctx: {
+    userId: string;
+    workspaceId: string;
+    role: "owner" | "member";
+  }) => Effect.Effect<A, E, R>,
+) =>
+  Effect.gen(function* () {
+    const user = yield* getSessionUser;
+    const request = yield* HttpServerRequest.HttpServerRequest;
+    const workspaceId = request.headers["x-workspace-id"] as string | undefined;
+    if (!workspaceId) return yield* Effect.die(new Error("Missing X-Workspace-Id header"));
+    const db = yield* PlatformDb;
+    const memberRow = db
+      .prepare("SELECT role FROM workspace_members WHERE workspace_id = ? AND user_id = ?")
+      .get(workspaceId, user.id) as { role: "owner" | "member" } | null;
+    if (!memberRow) {
+      return yield* Effect.fail(new AuthError(403, "Not a workspace member"));
+    }
+    const wdb = yield* WorkspaceDb;
+    return yield* build({ userId: user.id, workspaceId, role: memberRow.role }).pipe(
+      Effect.provide(wdb.getLayer(workspaceId)),
+    );
+  });
+
 // RPC handlers layer
 const rpcHandlersLayer = AppRpc.toLayer({
-  listPages: () => withWorkspaceDb(Pages.listPages).pipe(Effect.orDie),
-  getPage: ({ id }) => withWorkspaceDb(Pages.getPage(id)).pipe(Effect.orDie),
+  listPages: () =>
+    withAuthedWorkspace(({ userId, workspaceId, role }) =>
+      Effect.gen(function* () {
+        const all = yield* Pages.listPages;
+        return yield* Permissions.filterPagesByPermission(userId, workspaceId, role, all);
+      }),
+    ).pipe(Effect.orDie),
+  getPage: ({ id }) =>
+    withAuthedWorkspace(({ userId, workspaceId }) =>
+      Effect.gen(function* () {
+        yield* Permissions.checkPagePermission(userId, workspaceId, id, "viewer");
+        return yield* Pages.getPage(id);
+      }),
+    ).pipe(Effect.orDie),
   createPage: (req) => withWorkspaceDb(Pages.createPage(req)).pipe(Effect.orDie),
-  updatePage: (req) => withWorkspaceDb(Pages.updatePage(req)).pipe(Effect.orDie),
-  deletePage: ({ id }) => withWorkspaceDb(Pages.deletePage(id)).pipe(Effect.orDie),
+  updatePage: (req) =>
+    withAuthedWorkspace(({ userId, workspaceId }) =>
+      Effect.gen(function* () {
+        yield* Permissions.checkPagePermission(userId, workspaceId, req.id, "editor");
+        return yield* Pages.updatePage(req);
+      }),
+    ).pipe(Effect.orDie),
+  deletePage: ({ id }) =>
+    withAuthedWorkspace(({ userId, workspaceId }) =>
+      Effect.gen(function* () {
+        yield* Permissions.checkPagePermission(userId, workspaceId, id, "editor");
+        return yield* Pages.deletePage(id);
+      }),
+    ).pipe(Effect.orDie),
   globalSearch: ({ query }) => withWorkspaceDb(Search.globalSearch(query)).pipe(Effect.orDie),
-  movePage: (req) => withWorkspaceDb(Pages.movePage(req)).pipe(Effect.orDie),
+  movePage: (req) =>
+    withAuthedWorkspace(({ userId, workspaceId }) =>
+      Effect.gen(function* () {
+        yield* Permissions.checkPagePermission(userId, workspaceId, req.id, "editor");
+        return yield* Pages.movePage(req);
+      }),
+    ).pipe(Effect.orDie),
   reorderPages: ({ parentId, pageIds }) => withWorkspaceDb(Pages.reorderPages({ parentId, pageIds: [...pageIds] })).pipe(Effect.orDie),
 
   listBlocks: ({ pageId }) => withWorkspaceDb(Blocks.listBlocks(pageId)).pipe(Effect.orDie),
