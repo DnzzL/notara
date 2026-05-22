@@ -19,7 +19,7 @@ function ForgotPasswordPage() {
     e.preventDefault();
     setLoading(true);
     try {
-      const result = await authClient.forgetPassword({ email, redirectTo: "/reset-password" });
+      const result = await authClient.requestPasswordReset({ email, redirectTo: "/reset-password" });
       if (result.error) {
         toaster.create({ title: "Request failed", description: result.error.message ?? "Something went wrong.", type: "error" });
         return;

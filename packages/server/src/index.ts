@@ -192,7 +192,7 @@ const staticFilesRoute = Effect.gen(function* () {
   // Auth mutation endpoints get a stricter rate limit (10 req/min per IP)
   const authHandlerStrict = Effect.gen(function* () {
     const req = yield* HttpServerRequest.HttpServerRequest;
-    const isAuthMutation = /\/(sign-in|sign-up|forget-password|reset-password)/.test(req.url);
+    const isAuthMutation = /\/(sign-in|sign-up|request-password-reset|reset-password)/.test(req.url);
     if (isAuthMutation && !checkRateLimit(`${getIp(req)}:auth`, 10)) return tooManyRequests(60);
     return yield* authHandlerInner;
   });
