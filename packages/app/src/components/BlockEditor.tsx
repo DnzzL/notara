@@ -22,6 +22,7 @@ import { BacklinksPanel } from "./BacklinksPanel.js";
 import { BLOCK_TYPE_CONFIG, SLASH_COMMANDS } from "./blockTypes.js";
 import { EmojiPicker } from "./EmojiPicker.js";
 import { PageMenu } from "./PageMenu.js";
+import { getCurrentWorkspaceId } from "../rpc-client.js";
 import { uploadFile as apiUploadFile, isUploadable } from "../uploader.js";
 import { useBlockStore } from "../stores/blockStore.js";
 
@@ -837,7 +838,7 @@ export function BlockEditor() {
             >
               {currentPage.isFavorite ? "★" : "☆"}
             </button>
-            <PageMenu pageId={currentPage.id} />
+            <PageMenu pageId={currentPage.id} workspaceId={getCurrentWorkspaceId()} />
           </div>
           <EmojiPicker
             open={iconPickerAnchor !== null}

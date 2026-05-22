@@ -2128,3 +2128,19 @@ select, input, textarea, button { font-family: var(--font-ui); }
 @media (max-width: 600px) {
   .toast-group { right: 12px; bottom: 12px; left: 12px; width: auto; }
 }
+
+/* Share page modal */
+.share-status { padding: 10px 12px; background: var(--surface-2); border: 1px solid var(--border); border-radius: 6px; }
+.share-status-text { margin: 0; font-size: 13px; color: var(--text-2); }
+.share-add-row { display: flex; justify-content: space-between; align-items: center; }
+.share-add-row h3 { margin-bottom: 0; }
+.share-add-row button { padding: 5px 10px; border: 1px solid var(--border); border-radius: 6px; font-size: 12px; cursor: pointer; background: var(--surface-2); color: var(--text-2); }
+.share-picker { margin-top: 8px; border: 1px solid var(--border); border-radius: 6px; padding: 6px; max-height: 240px; overflow-y: auto; background: var(--surface); }
+.share-picker-row { display: flex; align-items: center; gap: 10px; padding: 6px 4px; }
+.share-picker-actions { display: flex; gap: 4px; margin-left: auto; }
+.share-picker-actions button { padding: 4px 8px; border: 1px solid var(--border); border-radius: 4px; font-size: 11px; cursor: pointer; background: var(--surface-2); color: var(--text-2); }
+.share-picker-actions button:hover { background: var(--surface-3, var(--surface-2)); }
+.share-workspace-toggle { display: flex; align-items: center; gap: 8px; font-size: 13px; color: var(--text-2); cursor: pointer; }
+.share-help-text { margin: 8px 0 0; font-size: 12px; color: var(--text-3); }
+.member-row select { padding: 4px 6px; border: 1px solid var(--border); border-radius: 4px; font-size: 12px; background: var(--surface-2); color: var(--text-2); margin-left: auto; }
+.member-row-empty { padding: 8px 4px; font-size: 12px; color: var(--text-3); list-style: none; }

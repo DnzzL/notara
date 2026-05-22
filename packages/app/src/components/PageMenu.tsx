@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { api } from "../rpc-client.js";
+import { SharePageModal } from "./SharePageModal.js";
 
 function download(filename: string, content: string, mime: string) {
   const blob = new Blob([content], { type: mime });
@@ -13,8 +14,9 @@ function download(filename: string, content: string, mime: string) {
   URL.revokeObjectURL(url);
 }
 
-export function PageMenu({ pageId }: { pageId: string }) {
+export function PageMenu({ pageId, workspaceId }: { pageId: string; workspaceId: string | null }) {
   const [open, setOpen] = useState(false);
+  const [shareOpen, setShareOpen] = useState(false);
   const ref = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -39,16 +41,28 @@ export function PageMenu({ pageId }: { pageId: string }) {
   };
 
   return (
-    <div ref={ref} className="page-menu-wrap">
-      <button className="page-menu-btn" title="More actions" onClick={() => setOpen((o) => !o)}>
-        ⋯
-      </button>
-      {open && (
-        <div className="page-menu">
-          <button onClick={exportMarkdown}>Export as Markdown</button>
-          <button onClick={exportFullMarkdown}>Export with databases</button>
-        </div>
+    <>
+      <div ref={ref} className="page-menu-wrap">
+        <button className="page-menu-btn" title="More actions" onClick={() => setOpen((o) => !o)}>
+          ⋯
+        </button>
+        {open && (
+          <div className="page-menu">
+            {workspaceId && (
+              <button onClick={() => { setShareOpen(true); setOpen(false); }}>Share…</button>
+            )}
+            <button onClick={exportMarkdown}>Export as Markdown</button>
+            <button onClick={exportFullMarkdown}>Export with databases</button>
+          </div>
+        )}
+      </div>
+      {shareOpen && workspaceId && (
+        <SharePageModal
+          pageId={pageId}
+          workspaceId={workspaceId}
+          onClose={() => setShareOpen(false)}
+        />
       )}
-    </div>
+    </>
   );
 }

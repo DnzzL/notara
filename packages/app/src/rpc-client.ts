@@ -20,7 +20,10 @@ import {
   WorkspaceMember,
   ApiKey,
   ApiKeyCreated,
+  AclEntry,
 } from "@notion-alt/shared";
+
+export type AclRelation = "owner" | "editor" | "viewer";
 
 const API_URL = "/api";
 let nextId = 1;
@@ -156,6 +159,15 @@ export const api = {
     rpcCall<{ inviteToken: string }>("regenerateInviteLink", { workspaceId }),
   inviteMemberByEmail: (workspaceId: string, email: string) =>
     rpcCall<void>("inviteMemberByEmail", { workspaceId, email }),
+
+  // Page permissions (ReBAC)
+  getPagePermissions: (pageId: string) =>
+    rpcCall<AclEntry[]>("getPagePermissions", { pageId }),
+  setPagePermission: (pageId: string, subject: string, relation: AclRelation) =>
+    rpcCall<void>("setPagePermission", { pageId, subject, relation }),
+  removePagePermission: (pageId: string, subject: string, relation: AclRelation) =>
+    rpcCall<void>("removePagePermission", { pageId, subject, relation }),
+
   listApiKeys: () =>
     rpcCall<ApiKey[]>("listApiKeys", {}),
   createApiKey: (name: string) =>
