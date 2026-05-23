@@ -377,6 +377,23 @@ export function extractGuid(filename: string): string | null {
   return guids.length > 0 ? guids[guids.length - 1] : null;
 }
 
+/**
+ * Resolve a Notion-export child file's parent by looking up the parent folder's
+ * GUID against a known map. Returns the mapped page id, or null if the parent
+ * folder has no GUID or the GUID isn't in the map (e.g. root-level files).
+ */
+export function determineParent(
+  filePath: string,
+  guidMap: Map<string, string>,
+): string | null {
+  const parts = filePath.split("/");
+  if (parts.length < 2) return null;
+  const parentDir = parts[parts.length - 2];
+  const guid = extractGuid(parentDir);
+  if (!guid) return null;
+  return guidMap.get(guid) ?? null;
+}
+
 export function importNotionExport(exportDir: string) {
   return Effect.gen(function* () {
     const sql = yield* SqlClient.SqlClient;
@@ -411,11 +428,8 @@ export function importNotionExport(exportDir: string) {
     }
 
     if (sourceFiles.length === 0 && csvFiles.length === 0) {
-      // Nothing to import — bail before creating an empty wrapper page.
-      return yield* Effect.fail(new Error(
-        `No importable content found in the archive. Expected .md, .html, or .csv files. ` +
-        `Inspected ${allFiles.length} file(s).`
-      ));
+      // Nothing to import — return zero counts rather than creating an empty wrapper page.
+      return { pagesImported: 0, databasesImported: 0 };
     }
 
     const fileContentMap = new Map<string, string>();

@@ -50,6 +50,11 @@ export const applyMigrations = (db: Database, dir: string): void => {
   }
 };
 
+/** Apply the platform-DB migrations to a given Database (used by tests). */
+export const runPlatformMigrations = (db: Database): void => {
+  applyMigrations(db, platformMigrationsDir);
+};
+
 /** Single shared Database instance for platform.db (users, workspaces, auth). */
 export const platformDb = new Database(platformDbPath);
 applyMigrations(platformDb, platformMigrationsDir);

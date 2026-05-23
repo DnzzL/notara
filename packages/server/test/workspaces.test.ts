@@ -12,13 +12,6 @@ function makeTestPlatformDb() {
   const filename = path.join(tmpDir, "platform.db");
   const db = new Database(filename);
   runPlatformMigrations(db);
-  // Minimal Better Auth user table for JOIN tests
-  db.exec(`CREATE TABLE IF NOT EXISTS "user" (
-    id TEXT PRIMARY KEY,
-    name TEXT NOT NULL DEFAULT '',
-    email TEXT NOT NULL DEFAULT '',
-    created_at TEXT NOT NULL DEFAULT (datetime('now'))
-  )`);
   return { db, tmpDir };
 }
 
@@ -146,8 +139,9 @@ describe("Workspaces", () => {
   });
 
   test("getWorkspaceMembers returns all members", async () => {
-    db.prepare("INSERT INTO \"user\" (id, name, email) VALUES (?, ?, ?)").run("owner-1", "Owner", "owner@test.com");
-    db.prepare("INSERT INTO \"user\" (id, name, email) VALUES (?, ?, ?)").run("member-1", "Member", "member@test.com");
+    const now = new Date().toISOString();
+    db.prepare("INSERT INTO \"user\" (id, name, email, \"createdAt\", \"updatedAt\") VALUES (?, ?, ?, ?, ?)").run("owner-1", "Owner", "owner@test.com", now, now);
+    db.prepare("INSERT INTO \"user\" (id, name, email, \"createdAt\", \"updatedAt\") VALUES (?, ?, ?, ?, ?)").run("member-1", "Member", "member@test.com", now, now);
 
     const ws = await Workspaces.createWorkspace({
       userId: "owner-1",
@@ -172,8 +166,9 @@ describe("Workspaces", () => {
   });
 
   test("removeMember removes a member (owner cannot be removed)", async () => {
-    db.prepare("INSERT INTO \"user\" (id, name, email) VALUES (?, ?, ?)").run("owner-1", "Owner", "owner@test.com");
-    db.prepare("INSERT INTO \"user\" (id, name, email) VALUES (?, ?, ?)").run("member-1", "Member", "member@test.com");
+    const now = new Date().toISOString();
+    db.prepare("INSERT INTO \"user\" (id, name, email, \"createdAt\", \"updatedAt\") VALUES (?, ?, ?, ?, ?)").run("owner-1", "Owner", "owner@test.com", now, now);
+    db.prepare("INSERT INTO \"user\" (id, name, email, \"createdAt\", \"updatedAt\") VALUES (?, ?, ?, ?, ?)").run("member-1", "Member", "member@test.com", now, now);
 
     const ws = await Workspaces.createWorkspace({
       userId: "owner-1",
