@@ -1,4 +1,4 @@
-import { createRoute, redirect } from "@tanstack/react-router";
+import { createRoute, redirect, useParams } from "@tanstack/react-router";
 import { Route as rootRoute } from "./__root.js";
 import { useEffect, useState } from "react";
 import { setCurrentWorkspaceId } from "../rpc-client.js";
@@ -8,6 +8,7 @@ import { BlockEditor } from "../components/BlockEditor.js";
 import { SearchModal } from "../components/SearchModal.js";
 import { KeyboardShortcuts } from "../components/KeyboardShortcuts.js";
 import { useStore } from "../store.js";
+import { usePageStore } from "../stores/pageStore.js";
 
 export const Route = createRoute({
   getParentRoute: () => rootRoute,
@@ -44,12 +45,14 @@ function HamburgerIcon() {
 
 function WorkspaceLayout() {
   const { loadPages } = useStore();
+  const { workspaceSlug } = useParams({ from: "/$workspaceSlug" });
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const closeSidebar = () => setSidebarOpen(false);
 
   useEffect(() => {
+    usePageStore.setState({ pages: [], currentPage: null });
     loadPages();
-  }, []);
+  }, [workspaceSlug]);
 
   // Close sidebar on escape
   useEffect(() => {
