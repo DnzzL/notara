@@ -1,11 +1,11 @@
-import { Effect, Stream } from "effect";
+import { Effect, Layer, Stream } from "effect";
+import type { Context } from "effect";
 import * as HttpServerRequest from "@effect/platform/HttpServerRequest";
 import * as HttpServerResponse from "@effect/platform/HttpServerResponse";
 import { auth } from "../auth.js";
 import { presence, type PresenceEvent } from "./index.js";
 import * as Permissions from "../handlers/permissions.js";
-import { PlatformDb } from "../platform-db.js";
-import type { Context } from "effect";
+import { PlatformDbLive } from "../platform-db.js";
 import type { WorkspaceDb } from "../db.js";
 
 type WorkspaceDbService = Context.Tag.Service<WorkspaceDb>;
@@ -49,7 +49,7 @@ export const makeHeartbeatHandler = (wdb: WorkspaceDbService) => Effect.gen(func
 
   const permCheck = yield* Effect.either(
     Permissions.checkPagePermission(session.user.id, workspaceId, pageId, "viewer").pipe(
-      Effect.provide(wdb.getLayer(workspaceId)),
+      Effect.provide(Layer.merge(wdb.getLayer(workspaceId), PlatformDbLive)),
     ),
   );
   if (permCheck._tag === "Left") return jsonResponse({ error: "Forbidden" }, 403);
@@ -87,7 +87,7 @@ export const makeStreamHandler = (wdb: WorkspaceDbService) => Effect.gen(functio
 
   const permCheck = yield* Effect.either(
     Permissions.checkPagePermission(session.user.id, workspaceId, pageId, "viewer").pipe(
-      Effect.provide(wdb.getLayer(workspaceId)),
+      Effect.provide(Layer.merge(wdb.getLayer(workspaceId), PlatformDbLive)),
     ),
   );
   if (permCheck._tag === "Left") return jsonResponse({ error: "Forbidden" }, 403);
