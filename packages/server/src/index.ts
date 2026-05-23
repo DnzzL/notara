@@ -24,6 +24,8 @@ import { auth } from "./auth.js";
 import { PlatformDbLive, PlatformDb, platformDb } from "./platform-db.js";
 import * as Permissions from "./handlers/permissions.js";
 import { resolveWorkspaceContext, getSessionUser, WorkspaceContext, AuthError } from "./workspace-context.js";
+import { heartbeatHandler, streamHandler } from "./presence/routes.js";
+import { presence } from "./presence/index.js";
 import { createServer } from "node:http";
 import * as path from "node:path";
 import * as fs from "node:fs";
@@ -314,6 +316,10 @@ const staticFilesRoute = Effect.gen(function* () {
     });
   })));
 
+  // Presence (collaboration) routes
+  yield* router.add("POST", "/api/presence/heartbeat", heartbeatHandler);
+  yield* router.add("GET", "/api/presence/stream", streamHandler);
+
   // Handle CORS preflight
   yield* router.add("OPTIONS", "/*", Effect.succeed(
     HttpServerResponse.empty({ status: 204, headers: corsHeaders })
@@ -524,7 +530,13 @@ const rpcHandlersLayer = AppRpc.toLayer({
     withAuthedWorkspace(({ userId, workspaceId }) =>
       Effect.gen(function* () {
         yield* Permissions.checkPagePermission(userId, workspaceId, req.id, "editor");
-        return yield* Pages.updatePage(req);
+        const page = yield* Pages.updatePage(req);
+        presence.broadcast(workspaceId, req.id, {
+          type: "page.metaUpdated",
+          actorUserId: userId,
+          fields: { title: page.title, icon: page.icon, coverUrl: page.coverUrl },
+        });
+        return page;
       }),
     ).pipe(Effect.orDie),
   deletePage: ({ id }) =>
@@ -564,28 +576,71 @@ const rpcHandlersLayer = AppRpc.toLayer({
     withAuthedWorkspace(({ userId, workspaceId }) =>
       Effect.gen(function* () {
         yield* Permissions.checkPagePermission(userId, workspaceId, req.pageId, "editor");
-        return yield* Blocks.createBlock(req);
+        const block = yield* Blocks.createBlock(req);
+        presence.broadcast(workspaceId, req.pageId, {
+          type: "block.created",
+          actorUserId: userId,
+          block,
+        });
+        return block;
       }),
     ).pipe(Effect.orDie),
   updateBlock: (req) =>
     withAuthedWorkspace(({ userId, workspaceId }) =>
       Effect.gen(function* () {
         yield* Permissions.checkBlockPermission(userId, workspaceId, req.id, "editor");
-        return yield* Blocks.updateBlock(req);
+        const pageId = yield* Blocks.getBlockPageId(req.id);
+        if (pageId) {
+          const holder = presence.lockHolder(workspaceId, pageId, req.id);
+          if (holder && holder !== userId) {
+            return yield* Effect.fail(new Error(`BlockLocked:${holder}`));
+          }
+        }
+        const block = yield* Blocks.updateBlock(req);
+        if (pageId) {
+          presence.broadcast(workspaceId, pageId, {
+            type: "block.updated",
+            actorUserId: userId,
+            blockId: req.id,
+            content: req.content,
+          });
+        }
+        return block;
       }),
     ).pipe(Effect.orDie),
   deleteBlock: ({ id }) =>
     withAuthedWorkspace(({ userId, workspaceId }) =>
       Effect.gen(function* () {
         yield* Permissions.checkBlockPermission(userId, workspaceId, id, "editor");
-        return yield* Blocks.deleteBlock(id);
+        const pageId = yield* Blocks.getBlockPageId(id);
+        if (pageId) {
+          const holder = presence.lockHolder(workspaceId, pageId, id);
+          if (holder && holder !== userId) {
+            return yield* Effect.fail(new Error(`BlockLocked:${holder}`));
+          }
+        }
+        const result = yield* Blocks.deleteBlock(id);
+        if (pageId) {
+          presence.broadcast(workspaceId, pageId, {
+            type: "block.deleted",
+            actorUserId: userId,
+            blockId: id,
+          });
+        }
+        return result;
       }),
     ).pipe(Effect.orDie),
   reorderBlocks: ({ pageId, blockIds }) =>
     withAuthedWorkspace(({ userId, workspaceId }) =>
       Effect.gen(function* () {
         yield* Permissions.checkPagePermission(userId, workspaceId, pageId, "editor");
-        return yield* Blocks.reorderBlocks(pageId, [...blockIds]);
+        const result = yield* Blocks.reorderBlocks(pageId, [...blockIds]);
+        presence.broadcast(workspaceId, pageId, {
+          type: "block.reordered",
+          actorUserId: userId,
+          blockIds: [...blockIds],
+        });
+        return result;
       }),
     ).pipe(Effect.orDie),
   getBacklinks: ({ pageId }) =>

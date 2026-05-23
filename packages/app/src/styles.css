@@ -2148,3 +2148,27 @@ select, input, textarea, button { font-family: var(--font-ui); }
 .page-lock-mini { font-size: 10px; opacity: 0.6; margin-left: auto; }
 
 .empty-state-lock { font-size: 56px; line-height: 1; }
+
+/* Collaboration: presence avatars + block lock */
+.presence-avatars { display: inline-flex; align-items: center; gap: 0; margin-left: 8px; }
+.presence-avatar {
+  width: 24px; height: 24px; border-radius: 50%;
+  display: inline-flex; align-items: center; justify-content: center;
+  font-size: 10px; font-weight: 600; color: #fff;
+  border: 2px solid var(--surface); margin-left: -6px;
+  user-select: none;
+}
+.presence-avatar:first-child { margin-left: 0; }
+.presence-avatar--overflow { background: var(--text-3, #888); color: #fff; font-size: 9px; }
+
+.block-node { position: relative; }
+.block-node--locked { opacity: 0.7; }
+.block-node--locked .ProseMirror { cursor: not-allowed; background: rgba(0, 0, 0, 0.02); border-radius: 4px; }
+.block-lock-badge {
+  position: absolute; top: 2px; right: 2px;
+  width: 18px; height: 18px; border-radius: 50%;
+  background: var(--accent, #4a6cf7); color: #fff;
+  font-size: 10px; font-weight: 600;
+  display: inline-flex; align-items: center; justify-content: center;
+  z-index: 2;
+}

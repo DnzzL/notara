@@ -25,6 +25,11 @@ import { PageMenu } from "./PageMenu.js";
 import { getCurrentWorkspaceId } from "../rpc-client.js";
 import { uploadFile as apiUploadFile, isUploadable } from "../uploader.js";
 import { useBlockStore } from "../stores/blockStore.js";
+import { toaster } from "../toaster.js";
+import { usePresenceStore } from "../stores/presenceStore.js";
+import { startPresence, stopPresence, setFocusedBlock } from "../lib/presenceConnection.js";
+import { useSession } from "../auth-client.js";
+import { PresenceAvatars } from "./PresenceAvatars.js";
 
 /** Placeholder text shown on empty blocks, keyed by block type. */
 function placeholderForType(blockType: string): string {
@@ -90,6 +95,9 @@ function SingleBlockEditor({
   const contentRef = useRef(block.content);
   contentRef.current = block.content;
 
+  const lockedByUserId = usePresenceStore((s) => s.locks.get(block.id) ?? null);
+  const lockedByName = usePresenceStore((s) => s.others.find((u) => u.userId === lockedByUserId)?.name ?? null);
+
   const editor = useEditor({
     extensions: [
       ...sharedExtensions(block.type),
@@ -117,6 +125,8 @@ function SingleBlockEditor({
     content: blockContent(block),
     autofocus: false,
     editorProps: {},
+    onFocus: () => { setFocusedBlock(block.id); },
+    onBlur: () => { setFocusedBlock(null); },
     onUpdate: ({ editor: ed }) => {
       detectSlashCommand(ed);
       clearTimeout(debounceRef.current);
@@ -205,17 +215,24 @@ function SingleBlockEditor({
     };
   }, [block.id, blockIndex, editor]);
 
-  // Sync content when block changes externally (merge/split).
-  // Skip when there's a pending debounced save — the editor has newer content.
+  // Sync content when block changes externally (merge/split, or remote edit).
+  // Skip when this block is focused locally — the editor has newer content.
   useEffect(() => {
     if (!editor) return;
     if (isPendingRef.current) return;
+    if (editor.isFocused) return;
     const expected = blockContent(block);
     const current = editor.getHTML();
     if (current !== expected) {
-      editor.commands.setContent(expected);
+      editor.commands.setContent(expected, false);
     }
   }, [block.id, block.content, editor]);
+
+  // Reflect remote lock: non-editable while another user holds the block.
+  useEffect(() => {
+    if (!editor) return;
+    editor.setEditable(lockedByUserId === null);
+  }, [editor, lockedByUserId]);
 
   // Non-editable block types
   if (block.type === "divider") {
@@ -273,7 +290,16 @@ function SingleBlockEditor({
   }
 
   return (
-    <div className="block-node" data-block-index={blockIndex} data-block-type={block.type}>
+    <div
+      className={`block-node ${lockedByUserId ? "block-node--locked" : ""}`}
+      data-block-index={blockIndex}
+      data-block-type={block.type}
+    >
+      {lockedByUserId && lockedByName && (
+        <span className="block-lock-badge" title={`${lockedByName} is editing`}>
+          {lockedByName.slice(0, 1).toUpperCase()}
+        </span>
+      )}
       {editor && (
         <BubbleMenu editor={editor} tippyOptions={{ duration: 100, placement: "top" }}>
           <div className="bubble-menu">
@@ -445,6 +471,22 @@ function SortableBlock({
 export function BlockEditor() {
   const { currentPage, blocks, updateBlock, createBlock, deleteBlock, createDatabase, updatePage, setPageIcon, toggleFavorite, databases, loadDatabases, reorderBlocks, reorderDatabases, loadBlocks, accessDeniedFor } = useStore();
   const [uploading, setUploading] = useState(false);
+  const { data: session } = useSession();
+
+  // Start a presence session whenever the open page changes.
+  useEffect(() => {
+    const workspaceId = getCurrentWorkspaceId();
+    if (!currentPage || !workspaceId || !session?.user) {
+      stopPresence();
+      return;
+    }
+    startPresence({
+      workspaceId,
+      pageId: currentPage.id,
+      selfUserId: session.user.id,
+    });
+    return () => { stopPresence(); };
+  }, [currentPage?.id, session?.user?.id]);
 
   const handleFiles = useCallback(async (files: FileList | File[]) => {
     if (!currentPage) return;
@@ -599,7 +641,24 @@ export function BlockEditor() {
 
   /** Update a block's content (for debounced saves). */
   const handleUpdateBlock = useCallback(async (id: string, content: string) => {
-    await updateBlock(id, content);
+    try {
+      await updateBlock(id, content);
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : String(err);
+      if (msg.includes("BlockLocked")) {
+        const holderId = msg.split("BlockLocked:")[1]?.split(/[^a-zA-Z0-9_-]/)[0] ?? null;
+        const holderName = holderId
+          ? usePresenceStore.getState().others.find((u) => u.userId === holderId)?.name ?? "Someone"
+          : "Someone";
+        toaster.create({
+          title: `${holderName} is editing this block`,
+          description: "Wait a moment and try again.",
+          type: "info",
+        });
+        return;
+      }
+      throw err;
+    }
   }, [updateBlock]);
 
   // ── Slash command handling ────────────────────────────────────────
@@ -854,6 +913,7 @@ export function BlockEditor() {
             >
               {currentPage.isFavorite ? "★" : "☆"}
             </button>
+            <PresenceAvatars />
             <PageMenu pageId={currentPage.id} workspaceId={getCurrentWorkspaceId()} />
           </div>
           <EmojiPicker

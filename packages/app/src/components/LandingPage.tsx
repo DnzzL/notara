@@ -18,8 +18,8 @@ const features = [
   },
   {
     icon: "⚑",
-    title: "Team workspaces",
-    desc: "Invite teammates via link or email. Multiple workspaces, role-based access.",
+    title: "Work with your team",
+    desc: "Invite teammates, see who's on the page, and edit alongside them without stepping on each other's work.",
   },
   {
     icon: "↓",
@@ -108,7 +108,7 @@ export function LandingPage() {
           </h1>
           <p className="landing-sub">
             Notara is a local-first Notion alternative. Block editor, inline databases,
-            team workspaces — all in a single file on your own server.
+            and lightweight team collaboration — all in a single file on your own server.
           </p>
           <div className="landing-hero-ctas">
             <Link to="/login" className="landing-cta-primary">Get started free</Link>

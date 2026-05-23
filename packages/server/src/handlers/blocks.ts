@@ -4,6 +4,15 @@ import { Block, Backlink } from "@notion-alt/shared";
 import { ulid } from "ulidx";
 import { BLOCK_COLS, blockFromRow } from "../mappers.js";
 
+export const getBlockPageId = (id: string) =>
+  Effect.gen(function* () {
+    const sql = yield* SqlClient.SqlClient;
+    const rows = yield* sql<{ page_id: string }>`
+      SELECT page_id FROM blocks WHERE id = ${id}
+    `;
+    return rows[0]?.page_id ?? null;
+  });
+
 export const listBlocks = (pageId: string) =>
   Effect.gen(function* () {
     const sql = yield* SqlClient.SqlClient;
