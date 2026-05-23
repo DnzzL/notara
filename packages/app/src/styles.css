@@ -1752,8 +1752,11 @@ select, input, textarea, button { font-family: var(--font-ui); }
 /* ════════════════════════════════════════════════════════════════════════════
    INVITE EXTRAS
 ════════════════════════════════════════════════════════════════════════════ */
-.invite-email-form { display: flex; gap: 8px; }
+.invite-email-form { display: flex; gap: 6px; }
 .invite-email-form input { flex: 1; }
+.invite-email-form button { padding: 7px 12px; border: 1px solid var(--accent); border-radius: 6px; font-size: 13px; cursor: pointer; background: var(--accent); color: #fff; font-family: var(--font-ui); white-space: nowrap; transition: all var(--t) var(--ease); }
+.invite-email-form button:hover:not(:disabled) { background: var(--accent-2); border-color: var(--accent-2); }
+.invite-email-form button:disabled { opacity: 0.55; cursor: not-allowed; }
 .invite-error { color: var(--danger); font-size: 12px; margin-top: 6px; }
 .settings-subsection { margin-top: 14px; }
 .settings-subsection h4 { font-size: 12px; font-weight: 600; color: var(--text-3); text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 8px; }
@@ -1978,8 +1981,11 @@ select, input, textarea, button { font-family: var(--font-ui); }
 .apikeys-docs-link { color: var(--accent); text-decoration: none; font-weight: 500; }
 .apikeys-docs-link:hover { opacity: 0.75; }
 
-.apikeys-create-form { display: flex; gap: 8px; }
+.apikeys-create-form { display: flex; gap: 6px; }
 .apikeys-create-form input { flex: 1; }
+.apikeys-create-form button { padding: 7px 12px; border: 1px solid var(--accent); border-radius: 6px; font-size: 13px; cursor: pointer; background: var(--accent); color: #fff; font-family: var(--font-ui); white-space: nowrap; transition: all var(--t) var(--ease); }
+.apikeys-create-form button:hover:not(:disabled) { background: var(--accent-2); border-color: var(--accent-2); }
+.apikeys-create-form button:disabled { opacity: 0.55; cursor: not-allowed; }
 
 .apikeys-new-key-banner { background: rgba(22,163,74,0.06); border: 1px solid rgba(22,163,74,0.25); border-radius: 10px; padding: 14px; margin-bottom: 16px; }
 .apikeys-new-key-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 10px; }
