@@ -1,5 +1,6 @@
 import { useEffect, useState, useCallback, useRef, useMemo } from "react";
 import { useStore } from "../store.js";
+import { api } from "../rpc-client.js";
 import { WorkspaceSwitcher } from "./WorkspaceSwitcher.js";
 import { ImportModal } from "./ImportModal.js";
 import { SettingsModal } from "./SettingsModal.js";
@@ -93,6 +94,17 @@ export function Sidebar({ className, onNavigate }: SidebarProps = {}) {
   const [showImport, setShowImport] = useState(false);
   const [showSettings, setShowSettings] = useState(false);
   const [showApiKeys, setShowApiKeys] = useState(false);
+  const [lockedPageIds, setLockedPageIds] = useState<Set<string>>(new Set());
+
+  useEffect(() => {
+    let cancelled = false;
+    const fetchLocked = () =>
+      api.listLockedPageIds().then((ids) => {
+        if (!cancelled) setLockedPageIds(new Set(ids));
+      }).catch(() => { /* ignore — non-critical */ });
+    fetchLocked();
+    return () => { cancelled = true; };
+  }, [pages.length]);
 
   const [width, setWidth] = useState<number>(() => {
     const stored = Number(localStorage.getItem(SIDEBAR_WIDTH_KEY));
@@ -431,6 +443,7 @@ export function Sidebar({ className, onNavigate }: SidebarProps = {}) {
                       onToggleFavorite={(pid) => toggleFavorite(pid)}
                       onIconClick={(pageId, coords) => setIconPickerFor({ pageId, ...coords })}
                       depth={0}
+                      lockedPageIds={lockedPageIds}
                     />
                   ))}
                 </TreeView.Tree>
@@ -518,6 +531,7 @@ interface PageTreeNodeProps {
   onToggleFavorite: (id: string) => void;
   onIconClick: (pageId: string, coords: { top: number; left: number }) => void;
   depth: number;
+  lockedPageIds: Set<string>;
 }
 
 const INDENT_STEP = 12;
@@ -525,7 +539,7 @@ const MAX_VISUAL_DEPTH = 6;
 
 function PageTreeNode({
   node, indexPath, pageMap, dragOverTarget, activePageId,
-  onDelete, onToggleFavorite, onIconClick, depth,
+  onDelete, onToggleFavorite, onIconClick, depth, lockedPageIds,
 }: PageTreeNodeProps) {
   const page = pageMap.get(node.id);
   if (!page) return null;
@@ -598,6 +612,10 @@ function PageTreeNode({
               {page.title || "Untitled"}
             </TreeView.BranchText>
 
+            {lockedPageIds.has(page.id) && (
+              <span className="page-lock-mini" title="Restricted page" aria-label="Restricted">🔒</span>
+            )}
+
             {page.isFavorite && (
               <span className="page-fav-mini" data-active="true" aria-label="Favorited">★</span>
             )}
@@ -625,6 +643,7 @@ function PageTreeNode({
                   onToggleFavorite={onToggleFavorite}
                   onIconClick={onIconClick}
                   depth={depth + 1}
+                  lockedPageIds={lockedPageIds}
                 />
               ))}
             </TreeView.BranchContent>

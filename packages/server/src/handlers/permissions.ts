@@ -164,6 +164,15 @@ export const removePageAcl = (pageId: string, subject: string, relation: AclRela
     );
   });
 
+/** Returns the IDs of all pages that have explicit ACL entries (i.e., are locked). */
+export const listLockedPageIds = Effect.gen(function* () {
+  const sql = yield* SqlClient.SqlClient;
+  const rows = yield* sql.unsafe(
+    `SELECT DISTINCT resource_id FROM acl_tuples WHERE resource_type = 'page'`,
+  );
+  return (rows as unknown as { resource_id: string }[]).map((r) => r.resource_id);
+});
+
 /** Resolves the page_id that owns a given block. Returns null if not found. */
 export const getBlockPageId = (blockId: string) =>
   Effect.gen(function* () {

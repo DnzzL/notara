@@ -379,6 +379,23 @@ describe("Permissions.filterPagesByPermission", () => {
     expect(visible.map((p) => p.id).sort()).toEqual([GRANDCHILD, CHILD, PAGE].sort());
   });
 
+  it("listLockedPageIds returns only the IDs of pages with ACL entries", async () => {
+    const wsDb = new Database(path.join(tmpDir, "workspace.db"));
+    // PAGE is locked, CHILD/GRANDCHILD are not (they inherit, but have no direct entries)
+    wsDb
+      .prepare("INSERT INTO acl_tuples (resource_type, resource_id, relation, subject) VALUES ('page', ?, 'viewer', ?)")
+      .run(PAGE, `user:${MEMBER}`);
+    wsDb.close();
+
+    const ids = await runWorkspace(Permissions.listLockedPageIds, workspaceLayer);
+    expect(ids).toEqual([PAGE]);
+  });
+
+  it("listLockedPageIds returns an empty list when no pages are locked", async () => {
+    const ids = await runWorkspace(Permissions.listLockedPageIds, workspaceLayer);
+    expect(ids).toEqual([]);
+  });
+
   it("excludes children of a locked page the member cannot access", async () => {
     const extraPage = "extra-root";
     const wsDb = new Database(path.join(tmpDir, "workspace.db"));

@@ -161,6 +161,8 @@ export const api = {
     rpcCall<void>("inviteMemberByEmail", { workspaceId, email }),
 
   // Page permissions (ReBAC)
+  listLockedPageIds: () =>
+    rpcCall<string[]>("listLockedPageIds", {}),
   getPagePermissions: (pageId: string) =>
     rpcCall<AclEntry[]>("getPagePermissions", { pageId }),
   setPagePermission: (pageId: string, subject: string, relation: AclRelation) =>

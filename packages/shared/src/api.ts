@@ -252,6 +252,9 @@ export const AppRpc = RpcGroup.make(
   }),
 
   // Page ACL
+  Rpc.make("listLockedPageIds", {
+    success: Schema.Array(Schema.String),
+  }),
   Rpc.make("getPagePermissions", {
     payload: { pageId: Schema.String },
     success: Schema.Array(AclEntry),

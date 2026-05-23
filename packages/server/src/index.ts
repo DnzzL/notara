@@ -813,6 +813,8 @@ const rpcHandlersLayer = AppRpc.toLayer({
   }).pipe(Effect.orDie),
 
   // Page ACL
+  listLockedPageIds: () =>
+    withAuthedWorkspace(() => Permissions.listLockedPageIds).pipe(Effect.orDie),
   getPagePermissions: ({ pageId }) =>
     withAuthedWorkspace(({ userId, workspaceId }) =>
       Effect.gen(function* () {
