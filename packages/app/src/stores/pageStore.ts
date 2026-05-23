@@ -1,5 +1,5 @@
 import { create } from "zustand";
-import { api } from "../rpc-client.js";
+import { api, AccessDeniedError } from "../rpc-client.js";
 import type { Page, SearchResult, Backlink } from "@notion-alt/shared";
 import { useBlockStore } from "./blockStore.js";
 import { useDatabaseStore } from "./databaseStore.js";
@@ -8,6 +8,8 @@ export interface PageState {
   pages: Page[];
   currentPage: Page | null;
   loading: boolean;
+  /** Id of the page the user just tried to open but was denied access to, or null. */
+  accessDeniedFor: string | null;
   searchResults: SearchResult[];
   backlinks: Backlink[];
   backlinksLoading: boolean;
@@ -40,6 +42,7 @@ export const usePageStore = create<PageState>((set, get) => ({
   pages: [],
   currentPage: null,
   loading: false,
+  accessDeniedFor: null,
   searchResults: [],
   backlinks: [],
   backlinksLoading: false,
@@ -77,15 +80,21 @@ export const usePageStore = create<PageState>((set, get) => ({
   selectPageById: async (id) => {
     const page = get().pages.find((p) => p.id === id);
     if (page) {
+      set({ accessDeniedFor: null });
       get().selectPage(page);
     } else {
       try {
         const fetchedPage = await api.getPage(id);
         if (fetchedPage) {
+          set({ accessDeniedFor: null });
           get().selectPage(fetchedPage);
         }
       } catch (e) {
-        console.error("Failed to load page:", e);
+        if (e instanceof AccessDeniedError) {
+          set({ accessDeniedFor: id, currentPage: null });
+        } else {
+          console.error("Failed to load page:", e);
+        }
       }
     }
   },
@@ -97,23 +106,25 @@ export const usePageStore = create<PageState>((set, get) => ({
   },
 
   selectPageByIdWithCascade: async (id) => {
-    console.log("[pageStore] selectPageByIdWithCascade called with id:", id);
     const page = get().pages.find((p) => p.id === id);
     if (page) {
-      console.log("[pageStore] Page found in local list:", page);
+      set({ accessDeniedFor: null });
       await get().selectPageWithCascade(page);
     } else {
       try {
-        console.log("[pageStore] Fetching page from server:", id);
         const fetchedPage = await api.getPage(id);
         if (fetchedPage) {
-          console.log("[pageStore] Page fetched from server:", fetchedPage);
+          set({ accessDeniedFor: null });
           get().selectPage(fetchedPage);
           await useBlockStore.getState().loadBlocks(id);
           await useDatabaseStore.getState().loadDatabases(id);
         }
       } catch (e) {
-        console.error("[pageStore] Failed to load page:", e);
+        if (e instanceof AccessDeniedError) {
+          set({ accessDeniedFor: id, currentPage: null });
+        } else {
+          console.error("[pageStore] Failed to load page:", e);
+        }
       }
     }
   },

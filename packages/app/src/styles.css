@@ -2146,3 +2146,5 @@ select, input, textarea, button { font-family: var(--font-ui); }
 .member-row-empty { padding: 8px 4px; font-size: 12px; color: var(--text-3); list-style: none; }
 
 .page-lock-mini { font-size: 10px; opacity: 0.6; margin-left: auto; }
+
+.empty-state-lock { font-size: 56px; line-height: 1; }

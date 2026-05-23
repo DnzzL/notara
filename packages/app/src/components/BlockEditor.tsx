@@ -443,7 +443,7 @@ function SortableBlock({
 }
 
 export function BlockEditor() {
-  const { currentPage, blocks, updateBlock, createBlock, deleteBlock, createDatabase, updatePage, setPageIcon, toggleFavorite, databases, loadDatabases, reorderBlocks, reorderDatabases, loadBlocks } = useStore();
+  const { currentPage, blocks, updateBlock, createBlock, deleteBlock, createDatabase, updatePage, setPageIcon, toggleFavorite, databases, loadDatabases, reorderBlocks, reorderDatabases, loadBlocks, accessDeniedFor } = useStore();
   const [uploading, setUploading] = useState(false);
 
   const handleFiles = useCallback(async (files: FileList | File[]) => {
@@ -733,6 +733,22 @@ export function BlockEditor() {
     type: "database" as const,
     index: orphanDatabases.indexOf(db) + sortedBlocks.length,
   }))];
+
+  if (!currentPage && accessDeniedFor) {
+    return (
+      <div className="empty-state">
+        <div className="empty-state-inner">
+          <div className="empty-state-illustration" aria-hidden="true">
+            <div className="empty-state-lock">🔒</div>
+          </div>
+          <h2 className="empty-state-title">You don't have access to this page</h2>
+          <p className="empty-state-body">
+            Ask the page owner to share it with you, or pick another page from the sidebar.
+          </p>
+        </div>
+      </div>
+    );
+  }
 
   if (!currentPage) {
     return (

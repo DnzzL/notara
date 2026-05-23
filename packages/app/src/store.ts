@@ -25,6 +25,7 @@ export function useStore() {
     pages: pageState.pages,
     currentPage: pageState.currentPage,
     loading: pageState.loading,
+    accessDeniedFor: pageState.accessDeniedFor,
     loadPages: pageState.loadPages,
     selectPage: pageState.selectPageWithCascade,
     selectPageById: pageState.selectPageByIdWithCascade,
