@@ -19,10 +19,18 @@ function jsonResponse(body: unknown, status = 200) {
   });
 }
 
+function toHeaders(raw: Record<string, string | string[] | undefined>) {
+  const h = new Headers();
+  for (const [k, v] of Object.entries(raw)) {
+    if (typeof v === "string") h.set(k, v);
+  }
+  return h;
+}
+
 /** POST /api/presence/heartbeat — body: { workspaceId, pageId, focusedBlockId } */
 export const heartbeatHandler = Effect.gen(function* () {
   const req = yield* HttpServerRequest.HttpServerRequest;
-  const headers = new Headers(req.headers as Record<string, string>);
+  const headers = toHeaders(req.headers as Record<string, string | string[] | undefined>);
   const session = yield* Effect.promise(() => auth.api.getSession({ headers }));
   if (!session) return jsonResponse({ error: "Unauthorized" }, 401);
 
@@ -55,13 +63,18 @@ export const heartbeatHandler = Effect.gen(function* () {
     presence: presence.presence(workspaceId, pageId).filter((p) => p.userId !== session.user.id),
   });
 }).pipe(
-  Effect.catchAllCause(() => Effect.succeed(jsonResponse({ error: "Server error" }, 500))),
+  Effect.catchAllCause((cause) =>
+    Effect.zipRight(
+      Effect.logError("presence route failed", cause),
+      Effect.succeed(jsonResponse({ error: "Server error" }, 500)),
+    ),
+  ),
 );
 
 /** GET /api/presence/stream?workspaceId=…&pageId=… — SSE */
 export const streamHandler = Effect.gen(function* () {
   const req = yield* HttpServerRequest.HttpServerRequest;
-  const headers = new Headers(req.headers as Record<string, string>);
+  const headers = toHeaders(req.headers as Record<string, string | string[] | undefined>);
   const session = yield* Effect.promise(() => auth.api.getSession({ headers }));
   if (!session) return jsonResponse({ error: "Unauthorized" }, 401);
 
@@ -113,5 +126,10 @@ export const streamHandler = Effect.gen(function* () {
     },
   });
 }).pipe(
-  Effect.catchAllCause(() => Effect.succeed(jsonResponse({ error: "Server error" }, 500))),
+  Effect.catchAllCause((cause) =>
+    Effect.zipRight(
+      Effect.logError("presence route failed", cause),
+      Effect.succeed(jsonResponse({ error: "Server error" }, 500)),
+    ),
+  ),
 );
