@@ -266,6 +266,33 @@ describe("Permissions.checkPagePermission", () => {
     expect(exit._tag).toBe("Success");
   });
 
+  it("requireWorkspaceOwner allows workspace owner", async () => {
+    const exit = await runExit(
+      Permissions.requireWorkspaceOwner(OWNER, WS),
+      platformDb,
+      workspaceLayer,
+    );
+    expect(exit._tag).toBe("Success");
+  });
+
+  it("requireWorkspaceOwner denies workspace member", async () => {
+    const exit = await runExit(
+      Permissions.requireWorkspaceOwner(MEMBER, WS),
+      platformDb,
+      workspaceLayer,
+    );
+    expect(exit._tag).toBe("Failure");
+  });
+
+  it("requireWorkspaceOwner denies non-member", async () => {
+    const exit = await runExit(
+      Permissions.requireWorkspaceOwner(OUTSIDER, WS),
+      platformDb,
+      workspaceLayer,
+    );
+    expect(exit._tag).toBe("Failure");
+  });
+
   // Bonus: grandchild inherits from grandparent
   it("propagates ACL through multiple levels (grandchild inherits grandparent lock)", async () => {
     const wsDb = new Database(path.join(tmpDir, "workspace.db"));

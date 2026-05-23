@@ -838,11 +838,34 @@ const rpcHandlersLayer = AppRpc.toLayer({
     ).pipe(Effect.orDie),
 
   // Import/Export
-  importNotion: ({ directory }) => withWorkspaceDb(ImportExport.importNotion(directory)).pipe(Effect.orDie),
+  importNotion: ({ directory }) =>
+    withAuthedWorkspace(({ userId, workspaceId }) =>
+      Effect.gen(function* () {
+        yield* Permissions.requireWorkspaceOwner(userId, workspaceId);
+        return yield* ImportExport.importNotion(directory);
+      }),
+    ).pipe(Effect.orDie),
   exportPage: ({ pageId, includeDatabases }) =>
-    withWorkspaceDb(ImportExport.exportPage(pageId, includeDatabases)).pipe(Effect.orDie),
-  exportDatabase: ({ dbId }) => withWorkspaceDb(ImportExport.exportDatabase(dbId)).pipe(Effect.orDie),
-  exportAll: ({ outputDir }) => withWorkspaceDb(ImportExport.exportAll(outputDir)).pipe(Effect.orDie),
+    withAuthedWorkspace(({ userId, workspaceId }) =>
+      Effect.gen(function* () {
+        yield* Permissions.checkPagePermission(userId, workspaceId, pageId, "viewer");
+        return yield* ImportExport.exportPage(pageId, includeDatabases);
+      }),
+    ).pipe(Effect.orDie),
+  exportDatabase: ({ dbId }) =>
+    withAuthedWorkspace(({ userId, workspaceId }) =>
+      Effect.gen(function* () {
+        yield* Permissions.checkDatabasePermission(userId, workspaceId, dbId, "viewer");
+        return yield* ImportExport.exportDatabase(dbId);
+      }),
+    ).pipe(Effect.orDie),
+  exportAll: ({ outputDir }) =>
+    withAuthedWorkspace(({ userId, workspaceId }) =>
+      Effect.gen(function* () {
+        yield* Permissions.requireWorkspaceOwner(userId, workspaceId);
+        return yield* ImportExport.exportAll(outputDir);
+      }),
+    ).pipe(Effect.orDie),
 });
 
 // Create RPC router layer

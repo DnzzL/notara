@@ -164,6 +164,25 @@ export const removePageAcl = (pageId: string, subject: string, relation: AclRela
     );
   });
 
+/** Fails with ApiError(403) if the caller is not a workspace owner. */
+export const requireWorkspaceOwner = (userId: string, workspaceId: string) =>
+  Effect.gen(function* () {
+    const db = yield* PlatformDb;
+    const member = db
+      .prepare("SELECT role FROM workspace_members WHERE workspace_id = ? AND user_id = ?")
+      .get(workspaceId, userId) as { role: "owner" | "member" } | null;
+    if (!member) {
+      return yield* Effect.fail(
+        new ApiError({ status: 403, message: "Not a member of this workspace" }),
+      );
+    }
+    if (member.role !== "owner") {
+      return yield* Effect.fail(
+        new ApiError({ status: 403, message: "Workspace owner role required" }),
+      );
+    }
+  });
+
 /** Returns the IDs of all pages that have explicit ACL entries (i.e., are locked). */
 export const listLockedPageIds = Effect.gen(function* () {
   const sql = yield* SqlClient.SqlClient;
