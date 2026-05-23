@@ -5,7 +5,10 @@ import { auth } from "../auth.js";
 import { presence, type PresenceEvent } from "./index.js";
 import * as Permissions from "../handlers/permissions.js";
 import { PlatformDb } from "../platform-db.js";
-import { WorkspaceDb } from "../db.js";
+import type { Context } from "effect";
+import type { WorkspaceDb } from "../db.js";
+
+type WorkspaceDbService = Context.Tag.Service<WorkspaceDb>;
 
 const corsBase = {
   "Access-Control-Allow-Origin": process.env.BASE_URL ?? "*",
@@ -28,7 +31,7 @@ function toHeaders(raw: Record<string, string | string[] | undefined>) {
 }
 
 /** POST /api/presence/heartbeat — body: { workspaceId, pageId, focusedBlockId } */
-export const heartbeatHandler = Effect.gen(function* () {
+export const makeHeartbeatHandler = (wdb: WorkspaceDbService) => Effect.gen(function* () {
   const req = yield* HttpServerRequest.HttpServerRequest;
   const headers = toHeaders(req.headers as Record<string, string | string[] | undefined>);
   const session = yield* Effect.promise(() => auth.api.getSession({ headers }));
@@ -44,7 +47,6 @@ export const heartbeatHandler = Effect.gen(function* () {
   const { workspaceId, pageId } = body;
   if (!workspaceId || !pageId) return jsonResponse({ error: "Missing workspaceId or pageId" }, 400);
 
-  const wdb = yield* WorkspaceDb;
   const permCheck = yield* Effect.either(
     Permissions.checkPagePermission(session.user.id, workspaceId, pageId, "viewer").pipe(
       Effect.provide(wdb.getLayer(workspaceId)),
@@ -72,7 +74,7 @@ export const heartbeatHandler = Effect.gen(function* () {
 );
 
 /** GET /api/presence/stream?workspaceId=…&pageId=… — SSE */
-export const streamHandler = Effect.gen(function* () {
+export const makeStreamHandler = (wdb: WorkspaceDbService) => Effect.gen(function* () {
   const req = yield* HttpServerRequest.HttpServerRequest;
   const headers = toHeaders(req.headers as Record<string, string | string[] | undefined>);
   const session = yield* Effect.promise(() => auth.api.getSession({ headers }));
@@ -83,7 +85,6 @@ export const streamHandler = Effect.gen(function* () {
   const pageId = url.searchParams.get("pageId");
   if (!workspaceId || !pageId) return jsonResponse({ error: "Missing query params" }, 400);
 
-  const wdb = yield* WorkspaceDb;
   const permCheck = yield* Effect.either(
     Permissions.checkPagePermission(session.user.id, workspaceId, pageId, "viewer").pipe(
       Effect.provide(wdb.getLayer(workspaceId)),

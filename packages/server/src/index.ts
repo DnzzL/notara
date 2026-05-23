@@ -24,7 +24,7 @@ import { auth } from "./auth.js";
 import { PlatformDbLive, PlatformDb, platformDb } from "./platform-db.js";
 import * as Permissions from "./handlers/permissions.js";
 import { resolveWorkspaceContext, getSessionUser, WorkspaceContext, AuthError } from "./workspace-context.js";
-import { heartbeatHandler, streamHandler } from "./presence/routes.js";
+import { makeHeartbeatHandler, makeStreamHandler } from "./presence/routes.js";
 import { presence } from "./presence/index.js";
 import { createServer } from "node:http";
 import * as path from "node:path";
@@ -316,9 +316,10 @@ const staticFilesRoute = Effect.gen(function* () {
     });
   })));
 
-  // Presence (collaboration) routes
-  yield* router.add("POST", "/api/presence/heartbeat", heartbeatHandler);
-  yield* router.add("GET", "/api/presence/stream", streamHandler);
+  // Presence (collaboration) routes — wdb is closed over so the per-request
+  // handler doesn't need WorkspaceDb in its own context.
+  yield* router.add("POST", "/api/presence/heartbeat", makeHeartbeatHandler(wdb));
+  yield* router.add("GET", "/api/presence/stream", makeStreamHandler(wdb));
 
   // Handle CORS preflight
   yield* router.add("OPTIONS", "/*", Effect.succeed(
