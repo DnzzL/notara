@@ -27,21 +27,23 @@ export const createBlock = (req: {
   index: number; parentId: string | null;
 }) => Effect.gen(function* () {
   const sql = yield* SqlClient.SqlClient;
-  const id = ulid();
-  // Shift later blocks down so the new block lands at exactly req.index
-  // without colliding. Without this, two blocks share the same index and
-  // ORDER BY breaks ties by ROWID, which can place the new block at the
-  // bottom of the page.
-  yield* sql`
-    UPDATE blocks SET "index" = "index" + 1
-    WHERE page_id = ${req.pageId} AND "index" >= ${req.index}
-  `;
-  const rows = yield* sql`
-    INSERT INTO blocks (id, page_id, type, content, "index", parent_id)
-    VALUES (${id}, ${req.pageId}, ${req.type}, ${req.content}, ${req.index}, ${req.parentId})
-    RETURNING ${sql.unsafe(BLOCK_COLS)}
-  `;
-  return blockFromRow(rows[0]);
+  return yield* sql.withTransaction(
+    Effect.gen(function* () {
+      const id = ulid();
+      // Shift later blocks down so the new block lands at exactly req.index
+      // without colliding.
+      yield* sql`
+        UPDATE blocks SET "index" = "index" + 1
+        WHERE page_id = ${req.pageId} AND "index" >= ${req.index}
+      `;
+      const rows = yield* sql`
+        INSERT INTO blocks (id, page_id, type, content, "index", parent_id)
+        VALUES (${id}, ${req.pageId}, ${req.type}, ${req.content}, ${req.index}, ${req.parentId})
+        RETURNING ${sql.unsafe(BLOCK_COLS)}
+      `;
+      return blockFromRow(rows[0]);
+    }),
+  );
 });
 
 export const updateBlock = (req: { id: string; content: string }) =>
@@ -64,14 +66,18 @@ export const deleteBlock = (id: string) =>
 export const reorderBlocks = (pageId: string, blockIds: string[]) =>
   Effect.gen(function* () {
     const sql = yield* SqlClient.SqlClient;
-    for (let i = 0; i < blockIds.length; i++) {
-      yield* sql`UPDATE blocks SET "index" = ${i} WHERE id = ${blockIds[i]} AND page_id = ${pageId}`;
-    }
-    const rows = yield* sql.unsafe(
-      `SELECT ${BLOCK_COLS} FROM blocks WHERE page_id = ? ORDER BY "index" ASC`,
-      [pageId]
+    return yield* sql.withTransaction(
+      Effect.gen(function* () {
+        for (let i = 0; i < blockIds.length; i++) {
+          yield* sql`UPDATE blocks SET "index" = ${i} WHERE id = ${blockIds[i]} AND page_id = ${pageId}`;
+        }
+        const rows = yield* sql.unsafe(
+          `SELECT ${BLOCK_COLS} FROM blocks WHERE page_id = ? ORDER BY "index" ASC`,
+          [pageId]
+        );
+        return rows.map(blockFromRow);
+      }),
     );
-    return rows.map(blockFromRow);
   });
 
 /**
