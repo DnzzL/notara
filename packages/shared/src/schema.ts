@@ -164,8 +164,76 @@ export class ApiKeyCreated extends Schema.Class<ApiKeyCreated>("ApiKeyCreated")(
 
 export const AclRelation = Schema.Literal("owner", "editor", "viewer");
 
-/** A single ACL entry on a resource. Subject is e.g. "user:<id>" or "workspace:<id>#member". */
+/**
+ * Zanzibar-style subject. A grant always targets one of:
+ *   - a specific user
+ *   - the userset "all members of workspace X"
+ *   - the "public" pseudo-userset (anyone with the link)
+ *
+ * On the wire and at REST boundaries we use this structured form; in storage
+ * it serialises to the canonical strings `user:<id>` / `workspace:<id>#member` / `public`
+ * (see `encodeSubject`/`decodeSubject` in @notion-alt/shared).
+ */
+export const Subject = Schema.Union(
+  Schema.Struct({ type: Schema.Literal("user"), id: Schema.String }),
+  Schema.Struct({
+    type: Schema.Literal("workspace"),
+    id: Schema.String,
+    relation: Schema.Literal("member"),
+  }),
+  Schema.Struct({ type: Schema.Literal("public") }),
+);
+export type Subject = Schema.Schema.Type<typeof Subject>;
+
+/** Per-resource monotonic revision token (zookie). */
+export const AclRevision = Schema.String;
+
+/** A single ACL entry on a resource. */
 export class AclEntry extends Schema.Class<AclEntry>("AclEntry")({
   relation: AclRelation,
-  subject: Schema.String,
+  subject: Subject,
 }) {}
+
+/** Direct + inherited grants on a page. `inheritedFromPageId` is null when grants
+ *  live on the requested page itself; otherwise it identifies the locked ancestor. */
+export class PagePermissions extends Schema.Class<PagePermissions>("PagePermissions")({
+  direct: Schema.Array(AclEntry),
+  inheritedFromPageId: Schema.NullOr(Schema.String),
+  inherited: Schema.Array(AclEntry),
+  revision: AclRevision,
+}) {}
+
+/** Encode a structured Subject to its canonical wire/storage string. */
+export function encodeSubject(s: Subject): string {
+  switch (s.type) {
+    case "user":
+      return `user:${s.id}`;
+    case "workspace":
+      return `workspace:${s.id}#${s.relation}`;
+    case "public":
+      return "public";
+  }
+}
+
+/** Decode a canonical subject string. Returns null on malformed input. */
+export function decodeSubject(raw: string): Subject | null {
+  if (raw === "public") return { type: "public" };
+  if (raw.startsWith("user:")) {
+    const id = raw.slice(5);
+    return id ? { type: "user", id } : null;
+  }
+  if (raw.startsWith("workspace:")) {
+    const rest = raw.slice(10);
+    const hash = rest.indexOf("#");
+    if (hash < 0) return null;
+    const id = rest.slice(0, hash);
+    const relation = rest.slice(hash + 1);
+    if (!id || relation !== "member") return null;
+    return { type: "workspace", id, relation: "member" };
+  }
+  return null;
+}
+
+export function subjectsEqual(a: Subject, b: Subject): boolean {
+  return encodeSubject(a) === encodeSubject(b);
+}

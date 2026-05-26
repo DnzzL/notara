@@ -868,28 +868,34 @@ const rpcHandlersLayer = AppRpc.toLayer({
     return yield* ApiKeys.revokeApiKey({ userId: user.id, id });
   }).pipe(Effect.orDie),
 
-  // Page ACL
+  // Page ACL — Zanzibar-style: structured subjects, atomic writes, revisions.
   listLockedPageIds: () =>
-    withAuthedWorkspace(() => Permissions.listLockedPageIds).pipe(Effect.orDie),
+    withAuthedWorkspace(({ userId, workspaceId, role }) =>
+      Permissions.listVisibleLockedPageIds(userId, workspaceId, role),
+    ).pipe(Effect.orDie),
   getPagePermissions: ({ pageId }) =>
     withAuthedWorkspace(({ userId, workspaceId }) =>
       Effect.gen(function* () {
         yield* Permissions.checkPagePermission(userId, workspaceId, pageId, "viewer");
-        return yield* Permissions.listPageAcl(pageId);
+        return yield* Permissions.getPagePermissions(pageId);
       }),
     ).pipe(Effect.orDie),
-  setPagePermission: ({ pageId, subject, relation }) =>
+  checkPagePermission: ({ pageId, relation }) =>
+    withAuthedWorkspace(({ userId, workspaceId }) =>
+      Permissions.canAccessPage(userId, workspaceId, pageId, relation).pipe(
+        Effect.map((allowed) => ({ allowed })),
+      ),
+    ).pipe(Effect.orDie),
+  writePagePermissions: ({ pageId, set, remove, ifRevision }) =>
     withAuthedWorkspace(({ userId, workspaceId }) =>
       Effect.gen(function* () {
         yield* Permissions.checkPagePermission(userId, workspaceId, pageId, "owner");
-        yield* Permissions.setPageAcl(pageId, subject, relation);
-      }),
-    ).pipe(Effect.orDie),
-  removePagePermission: ({ pageId, subject, relation }) =>
-    withAuthedWorkspace(({ userId, workspaceId }) =>
-      Effect.gen(function* () {
-        yield* Permissions.checkPagePermission(userId, workspaceId, pageId, "owner");
-        yield* Permissions.removePageAcl(pageId, subject, relation);
+        return yield* Permissions.writePagePermissions({
+          pageId,
+          set,
+          remove,
+          ifRevision,
+        });
       }),
     ).pipe(Effect.orDie),
 

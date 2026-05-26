@@ -2,6 +2,12 @@ import { Effect } from "effect";
 import { SqlClient } from "@effect/sql";
 import { PlatformDb } from "../platform-db.js";
 import { ApiError } from "../api-v1/auth.js";
+import {
+  decodeSubject,
+  encodeSubject,
+  type AclEntry,
+  type Subject,
+} from "@notion-alt/shared";
 
 export type AclRelation = "owner" | "editor" | "viewer";
 
@@ -15,23 +21,30 @@ const satisfies = (effective: AclRelation, required: AclRelation) =>
 const workspaceRoleToRelation = (role: "owner" | "member"): AclRelation =>
   role === "owner" ? "owner" : "editor";
 
+/** Subjects (encoded) that should match `userId` within `workspaceId`. */
+const userSubjectStrings = (userId: string, workspaceId: string): string[] => [
+  `user:${userId}`,
+  `workspace:${workspaceId}#member`,
+  "public",
+];
+
 /**
- * Checks that `userId` has at least `requiredRelation` on `pageId` within
- * `workspaceId`. Fails with ApiError(403) if access is denied.
+ * Returns the effective relation a user has on a page, or null if denied
+ * (non-member, or locked ancestor with no matching grant). Workspace owners
+ * always resolve to "owner" without consulting ACLs.
  *
  * Resolution order:
- *   1. Non-members → deny
- *   2. Workspace owners → always allow
+ *   1. Non-members → null
+ *   2. Workspace owners → "owner"
  *   3. Walk up the page tree; first page with acl_tuples entries is the
- *      "effective ACL owner" — check user's entry there
- *   4. No locked ancestor → fall back to workspace member role (editor)
+ *      "effective ACL owner" — match user subjects there
+ *   4. No locked ancestor → workspace member role (editor)
  */
-export const checkPagePermission = (
+export const resolveEffectiveRelation = (
   userId: string,
   workspaceId: string,
   pageId: string,
-  requiredRelation: AclRelation,
-): Effect.Effect<void, ApiError, PermissionsDeps> =>
+): Effect.Effect<AclRelation | null, never, PermissionsDeps> =>
   Effect.gen(function* () {
     const db = yield* PlatformDb;
     const sql = yield* SqlClient.SqlClient;
@@ -40,13 +53,10 @@ export const checkPagePermission = (
       .prepare("SELECT role FROM workspace_members WHERE workspace_id = ? AND user_id = ?")
       .get(workspaceId, userId) as { role: "owner" | "member" } | null;
 
-    if (!member) {
-      return yield* Effect.fail(
-        new ApiError({ status: 403, message: "Not a member of this workspace" }),
-      );
-    }
+    if (!member) return null;
+    if (member.role === "owner") return "owner";
 
-    if (member.role === "owner") return;
+    const subjects = userSubjectStrings(userId, workspaceId);
 
     let currentId: string | null = pageId;
     while (currentId !== null) {
@@ -62,20 +72,12 @@ export const checkPagePermission = (
         >;
 
       if (rows.length > 0) {
-        const userSubjects = [`user:${userId}`, `workspace:${workspaceId}#member`];
-        const userRows = rows.filter((r) => userSubjects.includes(r.subject));
-
+        const userRows = rows.filter((r) => subjects.includes(r.subject));
         const best = userRows.reduce<AclRelation | null>((acc, r) => {
           const rel = r.relation as AclRelation;
           return !acc || RANK[rel] > RANK[acc] ? rel : acc;
         }, null);
-
-        if (!best || !satisfies(best, requiredRelation)) {
-          return yield* Effect.fail(
-            new ApiError({ status: 403, message: "Insufficient permission" }),
-          );
-        }
-        return;
+        return best;
       }
 
       const parentRows: ReadonlyArray<{ parent_id: string | null }> = yield* sql
@@ -88,13 +90,56 @@ export const checkPagePermission = (
       currentId = parentRows.length > 0 ? (parentRows[0].parent_id ?? null) : null;
     }
 
-    const wsRelation = workspaceRoleToRelation(member.role);
-    if (!satisfies(wsRelation, requiredRelation)) {
+    return workspaceRoleToRelation(member.role);
+  });
+
+/**
+ * Checks that `userId` has at least `requiredRelation` on `pageId` within
+ * `workspaceId`. Fails with ApiError(403) if access is denied.
+ */
+export const checkPagePermission = (
+  userId: string,
+  workspaceId: string,
+  pageId: string,
+  requiredRelation: AclRelation,
+): Effect.Effect<void, ApiError, PermissionsDeps> =>
+  Effect.gen(function* () {
+    const effective = yield* resolveEffectiveRelation(userId, workspaceId, pageId);
+    if (effective === null) {
+      const isMember = yield* checkIsMember(userId, workspaceId);
+      return yield* Effect.fail(
+        new ApiError({
+          status: 403,
+          message: isMember ? "Insufficient permission" : "Not a member of this workspace",
+        }),
+      );
+    }
+    if (!satisfies(effective, requiredRelation)) {
       return yield* Effect.fail(
         new ApiError({ status: 403, message: "Insufficient permission" }),
       );
     }
   });
+
+const checkIsMember = (userId: string, workspaceId: string) =>
+  Effect.gen(function* () {
+    const db = yield* PlatformDb;
+    const row = db
+      .prepare("SELECT 1 FROM workspace_members WHERE workspace_id = ? AND user_id = ?")
+      .get(workspaceId, userId);
+    return row !== null;
+  });
+
+/** Non-throwing variant for UI gating. */
+export const canAccessPage = (
+  userId: string,
+  workspaceId: string,
+  pageId: string,
+  requiredRelation: AclRelation,
+): Effect.Effect<boolean, never, PermissionsDeps> =>
+  resolveEffectiveRelation(userId, workspaceId, pageId).pipe(
+    Effect.map((rel) => rel !== null && satisfies(rel, requiredRelation)),
+  );
 
 /**
  * Filters a list of pages to only those visible to `userId`.
@@ -122,12 +167,12 @@ export const filterPagesByPermission = <P extends { id: string; parentId: string
 
     if (lockedIds.size === 0) return [...allPages];
 
-    const userSubjects = [`user:${userId}`, `workspace:${workspaceId}#member`];
-    const placeholders = userSubjects.map(() => "?").join(", ");
+    const subjects = userSubjectStrings(userId, workspaceId);
+    const placeholders = subjects.map(() => "?").join(", ");
     const accessRows = yield* sql.unsafe(
       `SELECT DISTINCT resource_id FROM acl_tuples
        WHERE resource_type = 'page' AND subject IN (${placeholders})`,
-      userSubjects,
+      subjects,
     );
     const accessibleIds = new Set<string>(
       (accessRows as unknown as { resource_id: string }[]).map((r) => r.resource_id),
@@ -143,25 +188,6 @@ export const filterPagesByPermission = <P extends { id: string; parentId: string
       }
       return true;
     });
-  });
-
-export const setPageAcl = (pageId: string, subject: string, relation: AclRelation) =>
-  Effect.gen(function* () {
-    const sql = yield* SqlClient.SqlClient;
-    yield* sql.unsafe(
-      `INSERT OR REPLACE INTO acl_tuples (resource_type, resource_id, relation, subject)
-       VALUES ('page', ?, ?, ?)`,
-      [pageId, relation, subject],
-    );
-  });
-
-export const removePageAcl = (pageId: string, subject: string, relation: AclRelation) =>
-  Effect.gen(function* () {
-    const sql = yield* SqlClient.SqlClient;
-    yield* sql.unsafe(
-      `DELETE FROM acl_tuples WHERE resource_type = 'page' AND resource_id = ? AND relation = ? AND subject = ?`,
-      [pageId, relation, subject],
-    );
   });
 
 /** Fails with ApiError(403) if the caller is not a workspace owner. */
@@ -183,14 +209,41 @@ export const requireWorkspaceOwner = (userId: string, workspaceId: string) =>
     }
   });
 
-/** Returns the IDs of all pages that have explicit ACL entries (i.e., are locked). */
-export const listLockedPageIds = Effect.gen(function* () {
-  const sql = yield* SqlClient.SqlClient;
-  const rows = yield* sql.unsafe(
-    `SELECT DISTINCT resource_id FROM acl_tuples WHERE resource_type = 'page'`,
-  );
-  return (rows as unknown as { resource_id: string }[]).map((r) => r.resource_id);
-});
+/**
+ * Returns the IDs of pages with explicit ACL entries that the caller can
+ * actually see. Filters out locked pages the caller is excluded from to avoid
+ * leaking the existence of restricted resources. Workspace owners see all
+ * locked IDs.
+ */
+export const listVisibleLockedPageIds = (
+  userId: string,
+  workspaceId: string,
+  workspaceRole: "owner" | "member",
+) =>
+  Effect.gen(function* () {
+    const sql = yield* SqlClient.SqlClient;
+    const lockedRows = yield* sql.unsafe(
+      `SELECT DISTINCT resource_id FROM acl_tuples WHERE resource_type = 'page'`,
+    );
+    const lockedIds = (lockedRows as unknown as { resource_id: string }[]).map((r) => r.resource_id);
+    if (workspaceRole === "owner" || lockedIds.length === 0) return lockedIds;
+
+    const subjects = userSubjectStrings(userId, workspaceId);
+    const placeholders = subjects.map(() => "?").join(", ");
+    const accessRows = yield* sql.unsafe(
+      `SELECT DISTINCT resource_id FROM acl_tuples
+       WHERE resource_type = 'page' AND subject IN (${placeholders})`,
+      subjects,
+    );
+    const accessibleIds = new Set<string>(
+      (accessRows as unknown as { resource_id: string }[]).map((r) => r.resource_id),
+    );
+
+    // A locked page is "visible" to the caller iff they have a direct grant on
+    // it. Inherited access to children of a locked page doesn't entitle them
+    // to learn the lock exists, so we don't expand here.
+    return lockedIds.filter((id) => accessibleIds.has(id));
+  });
 
 /** Resolves the page_id that owns a given block. Returns null if not found. */
 export const getBlockPageId = (blockId: string) =>
@@ -253,6 +306,18 @@ export const checkDatabasePermission = checkVia(getDatabasePageId, "Database");
 export const checkRecordPermission = checkVia(getRecordPageId, "Record");
 export const checkFieldPermission = checkVia(getFieldPageId, "Field");
 
+// ── Page-ACL CRUD ─────────────────────────────────────────────────────────────
+
+const decodeRows = (rows: { relation: string; subject: string }[]): AclEntry[] => {
+  const out: AclEntry[] = [];
+  for (const r of rows) {
+    const subject = decodeSubject(r.subject);
+    if (subject) out.push({ relation: r.relation as AclRelation, subject });
+  }
+  return out;
+};
+
+/** Direct ACL entries on a page (no ancestor walk). */
 export const listPageAcl = (pageId: string) =>
   Effect.gen(function* () {
     const sql = yield* SqlClient.SqlClient;
@@ -260,8 +325,151 @@ export const listPageAcl = (pageId: string) =>
       `SELECT relation, subject FROM acl_tuples WHERE resource_type = 'page' AND resource_id = ?`,
       [pageId],
     );
-    return (rows as unknown as { relation: string; subject: string }[]).map((r) => ({
-      relation: r.relation as AclRelation,
-      subject: r.subject,
-    }));
+    return decodeRows(rows as unknown as { relation: string; subject: string }[]);
+  });
+
+/** Resolves the nearest locked ancestor of `pageId` (or `pageId` itself).
+ *  Returns null if no ancestor is locked. */
+export const findLockedAncestor = (pageId: string) =>
+  Effect.gen(function* () {
+    const sql = yield* SqlClient.SqlClient;
+    let currentId: string | null = pageId;
+    while (currentId !== null) {
+      const rows = (yield* sql.unsafe(
+        `SELECT 1 AS hit FROM acl_tuples WHERE resource_type = 'page' AND resource_id = ? LIMIT 1`,
+        [currentId],
+      )) as unknown as { hit: number }[];
+      if (rows.length > 0) return currentId;
+      const parentRows = (yield* sql.unsafe(
+        `SELECT parent_id FROM pages WHERE id = ?`,
+        [currentId],
+      )) as unknown as { parent_id: string | null }[];
+      currentId = parentRows.length > 0 ? (parentRows[0].parent_id ?? null) : null;
+    }
+    return null;
+  });
+
+const readRevision = (pageId: string) =>
+  Effect.gen(function* () {
+    const sql = yield* SqlClient.SqlClient;
+    const rows = (yield* sql.unsafe(
+      `SELECT revision FROM acl_revisions WHERE resource_type = 'page' AND resource_id = ?`,
+      [pageId],
+    )) as unknown as { revision: number }[];
+    return rows.length > 0 ? String(rows[0].revision) : "0";
+  });
+
+/**
+ * Read direct + inherited grants for a page along with the page's current ACL
+ * revision token. Inherited grants come from the nearest locked ancestor (if
+ * any) and are advisory only — they reflect what governs access today.
+ */
+export const getPagePermissions = (pageId: string) =>
+  Effect.gen(function* () {
+    const direct = yield* listPageAcl(pageId);
+    let inheritedFromPageId: string | null = null;
+    let inherited: AclEntry[] = [];
+    if (direct.length === 0) {
+      const sql = yield* SqlClient.SqlClient;
+      const parentRows = (yield* sql.unsafe(
+        `SELECT parent_id FROM pages WHERE id = ?`,
+        [pageId],
+      )) as unknown as { parent_id: string | null }[];
+      const parentId = parentRows.length > 0 ? (parentRows[0].parent_id ?? null) : null;
+      if (parentId) {
+        inheritedFromPageId = yield* findLockedAncestor(parentId);
+        if (inheritedFromPageId) {
+          inherited = yield* listPageAcl(inheritedFromPageId);
+        }
+      }
+    }
+    const revision = yield* readRevision(pageId);
+    return { direct, inheritedFromPageId, inherited, revision };
+  });
+
+const bumpRevision = (pageId: string) =>
+  Effect.gen(function* () {
+    const sql = yield* SqlClient.SqlClient;
+    yield* sql.unsafe(
+      `INSERT INTO acl_revisions (resource_type, resource_id, revision)
+       VALUES ('page', ?, 1)
+       ON CONFLICT (resource_type, resource_id)
+       DO UPDATE SET revision = revision + 1`,
+      [pageId],
+    );
+    return yield* readRevision(pageId);
+  });
+
+/**
+ * Atomic batched ACL write. Applies all `set` upserts and all `remove`s in a
+ * single transaction. Enforces:
+ *   - `ifRevision` matches current page revision (optimistic concurrency)
+ *   - the page retains at least one explicit `owner` grant after the write,
+ *     unless the page becomes fully open (no entries at all)
+ *
+ * Returns the new revision token.
+ */
+export const writePagePermissions = (input: {
+  pageId: string;
+  set: ReadonlyArray<{ subject: Subject; relation: AclRelation }>;
+  remove: ReadonlyArray<{ subject: Subject }>;
+  ifRevision?: string;
+}) =>
+  Effect.gen(function* () {
+    const sql = yield* SqlClient.SqlClient;
+    const { pageId } = input;
+
+    return yield* sql.withTransaction(
+      Effect.gen(function* () {
+        if (input.ifRevision !== undefined) {
+          const current = yield* readRevision(pageId);
+          if (current !== input.ifRevision) {
+            return yield* Effect.fail(
+              new ApiError({
+                status: 409,
+                message: `Page permissions changed since revision ${input.ifRevision} (current: ${current})`,
+              }),
+            );
+          }
+        }
+
+        for (const r of input.remove) {
+          yield* sql.unsafe(
+            `DELETE FROM acl_tuples WHERE resource_type = 'page' AND resource_id = ? AND subject = ?`,
+            [pageId, encodeSubject(r.subject)],
+          );
+        }
+        for (const s of input.set) {
+          yield* sql.unsafe(
+            `INSERT INTO acl_tuples (resource_type, resource_id, subject, relation)
+             VALUES ('page', ?, ?, ?)
+             ON CONFLICT (resource_type, resource_id, subject)
+             DO UPDATE SET relation = excluded.relation`,
+            [pageId, encodeSubject(s.subject), s.relation],
+          );
+        }
+
+        // Post-condition: if any entries remain, at least one must be `owner`.
+        // (Fully clearing the ACL is allowed — the page falls back to
+        // workspace-default access, which is the documented unlock semantics.)
+        const remaining = (yield* sql.unsafe(
+          `SELECT relation FROM acl_tuples WHERE resource_type = 'page' AND resource_id = ?`,
+          [pageId],
+        )) as unknown as { relation: string }[];
+        if (remaining.length > 0 && !remaining.some((r) => r.relation === "owner")) {
+          return yield* Effect.fail(
+            new ApiError({
+              status: 409,
+              message: "Refusing to leave page without any owner grant",
+            }),
+          );
+        }
+
+        const revision = yield* bumpRevision(pageId);
+        return { revision };
+      }),
+    ).pipe(
+      // Surface SqlError as die; ApiError surfaces normally.
+      Effect.catchTag("SqlError", (e) => Effect.die(e)),
+    );
   });

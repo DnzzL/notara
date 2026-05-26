@@ -1,6 +1,12 @@
 import { useState, useEffect, useMemo } from "react";
 import { api, type AclRelation } from "../rpc-client.js";
-import type { AclEntry, WorkspaceMember } from "@notion-alt/shared";
+import type {
+  AclEntry,
+  PagePermissions,
+  Subject,
+  WorkspaceMember,
+} from "@notion-alt/shared";
+import { encodeSubject } from "@notion-alt/shared";
 import { useSession } from "../auth-client.js";
 import { toaster } from "../toaster.js";
 
@@ -12,23 +18,39 @@ interface Props {
 
 const RELATIONS: AclRelation[] = ["viewer", "editor", "owner"];
 
+function workspaceSubject(workspaceId: string): Subject {
+  return { type: "workspace", id: workspaceId, relation: "member" };
+}
+
+function userSubject(userId: string): Subject {
+  return { type: "user", id: userId };
+}
+
+function isUserEntry(e: AclEntry): e is AclEntry & { subject: { type: "user"; id: string } } {
+  return e.subject.type === "user";
+}
+
 export function SharePageModal({ pageId, workspaceId, onClose }: Props) {
   const { data: session } = useSession();
-  const [entries, setEntries] = useState<AclEntry[]>([]);
+  const [perms, setPerms] = useState<PagePermissions | null>(null);
   const [members, setMembers] = useState<WorkspaceMember[]>([]);
+  const [canManage, setCanManage] = useState(false);
   const [loading, setLoading] = useState(true);
   const [pickerOpen, setPickerOpen] = useState(false);
+  const [pending, setPending] = useState(false);
 
-  const refresh = () => api.getPagePermissions(pageId).then(setEntries);
+  const refresh = () => api.getPagePermissions(pageId).then(setPerms);
 
   useEffect(() => {
     Promise.all([
       api.getPagePermissions(pageId),
       api.getWorkspaceMembers(workspaceId),
+      api.checkPagePermission(pageId, "owner"),
     ])
-      .then(([e, m]) => {
-        setEntries(e);
+      .then(([p, m, c]) => {
+        setPerms(p);
         setMembers(m);
+        setCanManage(c.allowed);
       })
       .catch((err) =>
         toaster.create({ title: "Couldn't load sharing", description: err.message, type: "error" }),
@@ -41,58 +63,81 @@ export function SharePageModal({ pageId, workspaceId, onClose }: Props) {
     [members],
   );
 
-  const grantedUserIds = useMemo(() => {
-    const ids = new Set<string>();
-    for (const e of entries) {
-      if (e.subject.startsWith("user:")) ids.add(e.subject.slice(5));
-    }
-    return ids;
-  }, [entries]);
+  const directUserEntries = useMemo(
+    () => (perms?.direct ?? []).filter(isUserEntry),
+    [perms],
+  );
+  const directWorkspaceEntry = useMemo(
+    () =>
+      (perms?.direct ?? []).find(
+        (e) => e.subject.type === "workspace" && e.subject.id === workspaceId,
+      ),
+    [perms, workspaceId],
+  );
+  const grantedUserIds = useMemo(
+    () => new Set(directUserEntries.map((e) => e.subject.id)),
+    [directUserEntries],
+  );
 
-  const workspaceMemberEntry = entries.find((e) => e.subject === `workspace:${workspaceId}#member`);
-  const isLocked = entries.length > 0;
+  // "Locked" means the page restricts access to a specific set of principals.
+  // A workspace-wide grant or inherited grants don't count as locked.
+  const isLocked = directUserEntries.length > 0;
 
-  const handleAddMember = async (userId: string, relation: AclRelation) => {
+  const runWrite = async (
+    input: Parameters<typeof api.writePagePermissions>[0],
+    successTitle?: string,
+  ) => {
+    if (!perms) return;
+    setPending(true);
     try {
-      await api.setPagePermission(pageId, `user:${userId}`, relation);
+      await api.writePagePermissions({ ...input, ifRevision: perms.revision });
       await refresh();
-      setPickerOpen(false);
+      if (successTitle) toaster.create({ title: successTitle, type: "success" });
     } catch (err: any) {
-      toaster.create({ title: "Failed to share", description: err.message, type: "error" });
-    }
-  };
-
-  const handleChangeRelation = async (subject: string, oldRel: AclRelation, newRel: AclRelation) => {
-    if (oldRel === newRel) return;
-    try {
-      await api.removePagePermission(pageId, subject, oldRel);
-      await api.setPagePermission(pageId, subject, newRel);
-      await refresh();
-    } catch (err: any) {
-      toaster.create({ title: "Failed to update", description: err.message, type: "error" });
-    }
-  };
-
-  const handleRemove = async (subject: string, relation: AclRelation) => {
-    try {
-      await api.removePagePermission(pageId, subject, relation);
-      await refresh();
-    } catch (err: any) {
-      toaster.create({ title: "Failed to remove", description: err.message, type: "error" });
-    }
-  };
-
-  const handleToggleWorkspaceAccess = async () => {
-    try {
-      if (workspaceMemberEntry) {
-        await api.removePagePermission(pageId, workspaceMemberEntry.subject, workspaceMemberEntry.relation);
+      const msg = String(err?.message ?? "");
+      if (msg.includes("changed since revision")) {
+        toaster.create({
+          title: "Sharing was changed elsewhere",
+          description: "Refreshed — please retry.",
+          type: "warning",
+        });
+        await refresh();
       } else {
-        await api.setPagePermission(pageId, `workspace:${workspaceId}#member`, "editor");
+        toaster.create({ title: "Failed", description: err.message, type: "error" });
       }
-      await refresh();
-    } catch (err: any) {
-      toaster.create({ title: "Failed", description: err.message, type: "error" });
+    } finally {
+      setPending(false);
+      setPickerOpen(false);
     }
+  };
+
+  const handleAddMember = (userId: string, relation: AclRelation) =>
+    runWrite({
+      pageId,
+      set: [{ subject: userSubject(userId), relation }],
+      remove: [],
+    });
+
+  const handleChangeRelation = (subject: Subject, newRel: AclRelation) =>
+    runWrite({
+      pageId,
+      set: [{ subject, relation: newRel }],
+      remove: [],
+    });
+
+  const handleRemove = (subject: Subject) =>
+    runWrite({
+      pageId,
+      set: [],
+      remove: [{ subject }],
+    });
+
+  const handleSetWorkspaceAccess = (relation: AclRelation | "off") => {
+    const subject = workspaceSubject(workspaceId);
+    if (relation === "off") {
+      return runWrite({ pageId, set: [], remove: [{ subject }] });
+    }
+    return runWrite({ pageId, set: [{ subject, relation }], remove: [] });
   };
 
   const availableMembers = members.filter(
@@ -108,29 +153,44 @@ export function SharePageModal({ pageId, workspaceId, onClose }: Props) {
         </div>
 
         <div className="modal-body">
-          <section className="settings-section">
-            <div className="share-status">
-              {isLocked ? (
-                <p className="share-status-text">
-                  🔒 This page is restricted. Only the people listed below have access.
-                </p>
-              ) : (
-                <p className="share-status-text">
-                  🌐 Open to all workspace members. Add a person below to restrict access.
-                </p>
-              )}
-            </div>
-          </section>
-
           {loading ? (
             <p>Loading…</p>
+          ) : !perms ? (
+            <p>Couldn't load permissions.</p>
           ) : (
             <>
               <section className="settings-section">
+                <div className="share-status">
+                  {isLocked ? (
+                    <p className="share-status-text">
+                      🔒 This page is restricted to specific people.
+                    </p>
+                  ) : directWorkspaceEntry ? (
+                    <p className="share-status-text">
+                      🌐 All workspace members can {directWorkspaceEntry.relation === "viewer" ? "view" : "edit"} this page.
+                    </p>
+                  ) : perms.inheritedFromPageId ? (
+                    <p className="share-status-text">
+                      ↑ Access inherited from a parent page.
+                    </p>
+                  ) : (
+                    <p className="share-status-text">
+                      🌐 Open to all workspace members (workspace default).
+                    </p>
+                  )}
+                </div>
+                {!canManage && (
+                  <p className="share-help-text">
+                    You can view sharing settings but not change them.
+                  </p>
+                )}
+              </section>
+
+              <section className="settings-section">
                 <div className="share-add-row">
                   <h3>People with access</h3>
-                  {availableMembers.length > 0 && (
-                    <button onClick={() => setPickerOpen((o) => !o)}>
+                  {canManage && availableMembers.length > 0 && (
+                    <button onClick={() => setPickerOpen((o) => !o)} disabled={pending}>
                       {pickerOpen ? "Cancel" : "+ Add member"}
                     </button>
                   )}
@@ -147,7 +207,11 @@ export function SharePageModal({ pageId, workspaceId, onClose }: Props) {
                         </div>
                         <div className="share-picker-actions">
                           {RELATIONS.map((r) => (
-                            <button key={r} onClick={() => handleAddMember(m.userId, r)}>
+                            <button
+                              key={r}
+                              disabled={pending}
+                              onClick={() => handleAddMember(m.userId, r)}
+                            >
                               {r}
                             </button>
                           ))}
@@ -159,53 +223,93 @@ export function SharePageModal({ pageId, workspaceId, onClose }: Props) {
                 )}
 
                 <ul className="members-list">
-                  {entries
-                    .filter((e) => e.subject.startsWith("user:"))
-                    .map((e) => {
-                      const uid = e.subject.slice(5);
-                      const member = memberByUserId.get(uid);
-                      const label = member ? member.name || member.email : uid;
-                      return (
-                        <li key={`${e.subject}-${e.relation}`} className="member-row">
-                          <span className="member-avatar">{label[0]?.toUpperCase()}</span>
-                          <div className="member-info">
-                            <span className="member-name">{label}</span>
-                            <span className="member-role">{member?.email ?? ""}</span>
-                          </div>
-                          <select
-                            value={e.relation}
-                            onChange={(ev) =>
-                              handleChangeRelation(e.subject, e.relation, ev.target.value as AclRelation)
-                            }
+                  {directUserEntries.map((e) => {
+                    const uid = e.subject.id;
+                    const member = memberByUserId.get(uid);
+                    const label = member ? member.name || member.email : uid;
+                    return (
+                      <li key={encodeSubject(e.subject)} className="member-row">
+                        <span className="member-avatar">{label[0]?.toUpperCase()}</span>
+                        <div className="member-info">
+                          <span className="member-name">{label}</span>
+                          <span className="member-role">{member?.email ?? ""}</span>
+                        </div>
+                        <select
+                          value={e.relation}
+                          disabled={!canManage || pending}
+                          onChange={(ev) =>
+                            handleChangeRelation(e.subject, ev.target.value as AclRelation)
+                          }
+                        >
+                          {RELATIONS.map((r) => (
+                            <option key={r} value={r}>{r}</option>
+                          ))}
+                        </select>
+                        {canManage && (
+                          <button
+                            className="member-remove"
+                            disabled={pending}
+                            onClick={() => handleRemove(e.subject)}
                           >
-                            {RELATIONS.map((r) => (
-                              <option key={r} value={r}>{r}</option>
-                            ))}
-                          </select>
-                          <button className="member-remove" onClick={() => handleRemove(e.subject, e.relation)}>✕</button>
-                        </li>
-                      );
-                    })}
-                  {entries.filter((e) => e.subject.startsWith("user:")).length === 0 && (
+                            ✕
+                          </button>
+                        )}
+                      </li>
+                    );
+                  })}
+                  {directUserEntries.length === 0 && (
                     <li className="member-row-empty">No individual access grants yet.</li>
                   )}
                 </ul>
               </section>
 
+              {perms.inheritedFromPageId && perms.inherited.length > 0 && (
+                <section className="settings-section">
+                  <h3>Inherited from parent</h3>
+                  <ul className="members-list">
+                    {perms.inherited.map((e) => {
+                      const key = encodeSubject(e.subject);
+                      const label =
+                        e.subject.type === "user"
+                          ? memberByUserId.get(e.subject.id)?.name ??
+                            memberByUserId.get(e.subject.id)?.email ??
+                            e.subject.id
+                          : e.subject.type === "workspace"
+                            ? "All workspace members"
+                            : "Anyone with link";
+                      return (
+                        <li key={key} className="member-row member-row-inherited">
+                          <div className="member-info">
+                            <span className="member-name">{label}</span>
+                            <span className="member-role">{e.relation} (inherited)</span>
+                          </div>
+                        </li>
+                      );
+                    })}
+                  </ul>
+                </section>
+              )}
+
               <section className="settings-section">
                 <h3>Workspace access</h3>
                 <label className="share-workspace-toggle">
-                  <input
-                    type="checkbox"
-                    checked={!!workspaceMemberEntry}
-                    onChange={handleToggleWorkspaceAccess}
-                  />
-                  Allow all workspace members to edit this page
-                  {workspaceMemberEntry && ` (currently: ${workspaceMemberEntry.relation})`}
+                  Workspace members can:
+                  <select
+                    value={directWorkspaceEntry?.relation ?? "off"}
+                    disabled={!canManage || pending}
+                    onChange={(e) =>
+                      handleSetWorkspaceAccess(e.target.value as AclRelation | "off")
+                    }
+                  >
+                    <option value="off">No explicit grant</option>
+                    <option value="viewer">View</option>
+                    <option value="editor">Edit</option>
+                    <option value="owner">Full access</option>
+                  </select>
                 </label>
-                {!isLocked && (
+                {!isLocked && !directWorkspaceEntry && (
                   <p className="share-help-text">
-                    When no one is listed above, the page falls back to workspace defaults.
+                    With no grants set, the page falls back to workspace defaults.
                   </p>
                 )}
               </section>

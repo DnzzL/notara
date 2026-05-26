@@ -39,11 +39,17 @@ function makeWorkspaceLayer(tmpDir: string) {
     CREATE TABLE acl_tuples (
       resource_type TEXT NOT NULL,
       resource_id   TEXT NOT NULL,
-      relation      TEXT NOT NULL,
       subject       TEXT NOT NULL,
-      PRIMARY KEY (resource_type, resource_id, relation, subject)
+      relation      TEXT NOT NULL,
+      PRIMARY KEY (resource_type, resource_id, subject)
     );
     CREATE INDEX idx_acl_resource ON acl_tuples(resource_type, resource_id);
+    CREATE TABLE acl_revisions (
+      resource_type TEXT NOT NULL,
+      resource_id   TEXT NOT NULL,
+      revision      INTEGER NOT NULL DEFAULT 1,
+      PRIMARY KEY (resource_type, resource_id)
+    );
   `);
   db.close();
   return SqliteClient.layer({ filename });
@@ -406,20 +412,53 @@ describe("Permissions.filterPagesByPermission", () => {
     expect(visible.map((p) => p.id).sort()).toEqual([GRANDCHILD, CHILD, PAGE].sort());
   });
 
-  it("listLockedPageIds returns only the IDs of pages with ACL entries", async () => {
+  it("listVisibleLockedPageIds returns the IDs of locked pages the caller can see", async () => {
     const wsDb = new Database(path.join(tmpDir, "workspace.db"));
-    // PAGE is locked, CHILD/GRANDCHILD are not (they inherit, but have no direct entries)
     wsDb
-      .prepare("INSERT INTO acl_tuples (resource_type, resource_id, relation, subject) VALUES ('page', ?, 'viewer', ?)")
+      .prepare("INSERT INTO acl_tuples (resource_type, resource_id, subject, relation) VALUES ('page', ?, ?, 'viewer')")
       .run(PAGE, `user:${MEMBER}`);
     wsDb.close();
 
-    const ids = await runWorkspace(Permissions.listLockedPageIds, workspaceLayer);
+    const ids = await runWorkspace(
+      Permissions.listVisibleLockedPageIds(MEMBER, WS, "member"),
+      workspaceLayer,
+    );
     expect(ids).toEqual([PAGE]);
   });
 
-  it("listLockedPageIds returns an empty list when no pages are locked", async () => {
-    const ids = await runWorkspace(Permissions.listLockedPageIds, workspaceLayer);
+  it("listVisibleLockedPageIds hides locked pages the caller is excluded from", async () => {
+    const wsDb = new Database(path.join(tmpDir, "workspace.db"));
+    wsDb
+      .prepare("INSERT INTO acl_tuples (resource_type, resource_id, subject, relation) VALUES ('page', ?, ?, 'viewer')")
+      .run(PAGE, "user:someone-else");
+    wsDb.close();
+
+    const ids = await runWorkspace(
+      Permissions.listVisibleLockedPageIds(MEMBER, WS, "member"),
+      workspaceLayer,
+    );
+    expect(ids).toEqual([]);
+  });
+
+  it("listVisibleLockedPageIds returns all locked IDs to workspace owners", async () => {
+    const wsDb = new Database(path.join(tmpDir, "workspace.db"));
+    wsDb
+      .prepare("INSERT INTO acl_tuples (resource_type, resource_id, subject, relation) VALUES ('page', ?, ?, 'viewer')")
+      .run(PAGE, "user:someone-else");
+    wsDb.close();
+
+    const ids = await runWorkspace(
+      Permissions.listVisibleLockedPageIds(OWNER, WS, "owner"),
+      workspaceLayer,
+    );
+    expect(ids).toEqual([PAGE]);
+  });
+
+  it("listVisibleLockedPageIds returns an empty list when no pages are locked", async () => {
+    const ids = await runWorkspace(
+      Permissions.listVisibleLockedPageIds(MEMBER, WS, "member"),
+      workspaceLayer,
+    );
     expect(ids).toEqual([]);
   });
 

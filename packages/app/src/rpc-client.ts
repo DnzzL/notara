@@ -20,7 +20,8 @@ import {
   WorkspaceMember,
   ApiKey,
   ApiKeyCreated,
-  AclEntry,
+  PagePermissions,
+  Subject,
 } from "@notion-alt/shared";
 
 export type AclRelation = "owner" | "editor" | "viewer";
@@ -183,15 +184,20 @@ export const api = {
   inviteMemberByEmail: (workspaceId: string, email: string) =>
     rpcCall<void>("inviteMemberByEmail", { workspaceId, email }),
 
-  // Page permissions (ReBAC)
+  // Page permissions (Zanzibar-style ReBAC)
   listLockedPageIds: () =>
     rpcCall<string[]>("listLockedPageIds", {}),
   getPagePermissions: (pageId: string) =>
-    rpcCall<AclEntry[]>("getPagePermissions", { pageId }),
-  setPagePermission: (pageId: string, subject: string, relation: AclRelation) =>
-    rpcCall<void>("setPagePermission", { pageId, subject, relation }),
-  removePagePermission: (pageId: string, subject: string, relation: AclRelation) =>
-    rpcCall<void>("removePagePermission", { pageId, subject, relation }),
+    rpcCall<PagePermissions>("getPagePermissions", { pageId }),
+  checkPagePermission: (pageId: string, relation: AclRelation) =>
+    rpcCall<{ allowed: boolean }>("checkPagePermission", { pageId, relation }),
+  writePagePermissions: (input: {
+    pageId: string;
+    set: ReadonlyArray<{ subject: Subject; relation: AclRelation }>;
+    remove: ReadonlyArray<{ subject: Subject }>;
+    ifRevision?: string;
+  }) =>
+    rpcCall<{ revision: string }>("writePagePermissions", input),
 
   listApiKeys: () =>
     rpcCall<ApiKey[]>("listApiKeys", {}),

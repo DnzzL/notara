@@ -18,8 +18,10 @@ import {
   WorkspaceMember,
   ApiKey,
   ApiKeyCreated,
-  AclEntry,
   AclRelation,
+  AclRevision,
+  Subject,
+  PagePermissions,
 } from "./schema.js";
 
 // Combined RPC group — all requests
@@ -251,21 +253,35 @@ export const AppRpc = RpcGroup.make(
     success: Schema.Void,
   }),
 
-  // Page ACL
+  // Page ACL (Zanzibar-style: structured subjects, atomic writes, revisions)
+  //
+  // Returns only the locked-page IDs the caller can actually see; safe for use
+  // as a "which of my visible pages are restricted?" hint in the sidebar.
   Rpc.make("listLockedPageIds", {
     success: Schema.Array(Schema.String),
   }),
+  // Read direct grants on a page plus the inherited grants from the nearest
+  // locked ancestor (if any), along with a revision token.
   Rpc.make("getPagePermissions", {
     payload: { pageId: Schema.String },
-    success: Schema.Array(AclEntry),
+    success: PagePermissions,
   }),
-  Rpc.make("setPagePermission", {
-    payload: { pageId: Schema.String, subject: Schema.String, relation: AclRelation },
-    success: Schema.Void,
+  // Cheap UI-gating check. Never throws — returns { allowed: false } on deny.
+  Rpc.make("checkPagePermission", {
+    payload: { pageId: Schema.String, relation: AclRelation },
+    success: Schema.Struct({ allowed: Schema.Boolean }),
   }),
-  Rpc.make("removePagePermission", {
-    payload: { pageId: Schema.String, subject: Schema.String, relation: AclRelation },
-    success: Schema.Void,
+  // Atomic batched write: applies all `set` upserts and all `remove`s in a
+  // single transaction. `ifRevision`, when provided, fails the call if the
+  // page's current ACL revision differs (optimistic concurrency, à la zookie).
+  Rpc.make("writePagePermissions", {
+    payload: {
+      pageId: Schema.String,
+      set: Schema.Array(Schema.Struct({ subject: Subject, relation: AclRelation })),
+      remove: Schema.Array(Schema.Struct({ subject: Subject })),
+      ifRevision: Schema.optional(AclRevision),
+    },
+    success: Schema.Struct({ revision: AclRevision }),
   }),
 
   // Import/Export
