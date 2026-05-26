@@ -1,6 +1,7 @@
 import { create } from "zustand";
 import { api } from "../rpc-client.js";
 import type { Block } from "@notion-alt/shared";
+import { useHistoryStore } from "./historyStore.js";
 
 export interface BlockState {
   blocks: Block[];
@@ -26,17 +27,21 @@ export const useBlockStore = create<BlockState>((set, get) => ({
     // Server shifts later indices on insert, so refetch keeps client in sync.
     const fresh = await api.listBlocks(req.pageId);
     set({ blocks: fresh });
+    useHistoryStore.getState().record({ kind: "create", block });
     return block;
   },
 
   updateBlock: async (id, content) => {
+    // Intentionally not recorded: TipTap handles intra-block text history.
     const block = await api.updateBlock(id, content);
     set((s) => ({ blocks: s.blocks.map((b) => (b.id === id ? block : b)) }));
   },
 
   deleteBlock: async (id) => {
+    const prev = get().blocks.find((b) => b.id === id);
     await api.deleteBlock(id);
     set((s) => ({ blocks: s.blocks.filter((b) => b.id !== id) }));
+    if (prev) useHistoryStore.getState().record({ kind: "delete", block: prev });
   },
 
   duplicateBlock: async (id) => {
@@ -51,11 +56,14 @@ export const useBlockStore = create<BlockState>((set, get) => ({
     });
     const fresh = await api.listBlocks(orig.pageId);
     set({ blocks: fresh });
+    useHistoryStore.getState().record({ kind: "create", block: copy });
     return copy;
   },
 
   reorderBlocks: async (pageId, blockIds) => {
+    const prevIds = [...get().blocks].sort((a, b) => a.index - b.index).map((b) => b.id);
     const blocks = await api.reorderBlocks(pageId, blockIds);
     set({ blocks });
+    useHistoryStore.getState().record({ kind: "reorder", pageId, ids: prevIds });
   },
 }));

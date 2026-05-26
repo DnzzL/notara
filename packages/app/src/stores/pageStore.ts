@@ -3,6 +3,7 @@ import { api, AccessDeniedError } from "../rpc-client.js";
 import type { Page, SearchResult, Backlink } from "@notion-alt/shared";
 import { useBlockStore } from "./blockStore.js";
 import { useDatabaseStore } from "./databaseStore.js";
+import { useHistoryStore } from "./historyStore.js";
 
 export interface PageState {
   pages: Page[];
@@ -61,6 +62,9 @@ export const usePageStore = create<PageState>((set, get) => ({
 
   selectPage: (page) => {
     console.log("[pageStore] selectPage called with:", page);
+    if (get().currentPage?.id !== page.id) {
+      useHistoryStore.getState().resetFor(page.id);
+    }
     set({ currentPage: page });
     // Track recently viewed pages
     const recent = JSON.parse(localStorage.getItem("notion-alt:recentPages") || "[]");

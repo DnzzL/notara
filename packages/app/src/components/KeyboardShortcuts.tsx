@@ -1,5 +1,6 @@
 import { useEffect } from "react";
 import { useStore } from "../store.js";
+import { useHistoryStore } from "../stores/historyStore.js";
 
 /**
  * Global keyboard shortcuts:
@@ -26,6 +27,17 @@ export function KeyboardShortcuts() {
     const handler = async (e: KeyboardEvent) => {
       const mod = e.metaKey || e.ctrlKey;
       if (!mod) return;
+
+      // Cmd+Z / Cmd+Shift+Z — undo / redo block structural ops.
+      // When focus is inside a TipTap editor, TipTap consumes the event first
+      // (handles intra-block text history); this global handler only fires for
+      // events that bubble up, i.e. focus outside an editor.
+      if (e.key === "z" || e.key === "Z") {
+        e.preventDefault();
+        if (e.shiftKey) await useHistoryStore.getState().redo();
+        else await useHistoryStore.getState().undo();
+        return;
+      }
 
       // Cmd+[ — back, Cmd+] — forward
       if (!e.shiftKey && e.key === "[") {
