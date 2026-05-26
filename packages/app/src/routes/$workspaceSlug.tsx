@@ -51,7 +51,34 @@ function WorkspaceLayout() {
 
   useEffect(() => {
     usePageStore.setState({ pages: [], currentPage: null });
-    loadPages();
+    let cancelled = false;
+    loadPages().then(() => {
+      if (cancelled) return;
+      const pages = usePageStore.getState().pages.filter((p) => !p.isDeleted);
+      if (pages.length === 0) return;
+      // 1) If URL already has ?page=X and that page exists, honor it.
+      const url = new URL(window.location.href);
+      const pageParam = url.searchParams.get("page");
+      if (pageParam && pages.some((p) => p.id === pageParam)) {
+        usePageStore.getState().selectPageByIdWithCascade(pageParam);
+        return;
+      }
+      // 2) Last visited page in this workspace from recents.
+      try {
+        const recent: string[] = JSON.parse(
+          localStorage.getItem("notion-alt:recentPages") || "[]",
+        );
+        const last = recent.find((id) => pages.some((p) => p.id === id));
+        if (last) {
+          usePageStore.getState().selectPageByIdWithCascade(last);
+          return;
+        }
+      } catch { /* ignore corrupt localStorage */ }
+      // 3) Fallback: first top-level page (or first page if none are root).
+      const firstRoot = pages.find((p) => p.parentId === null) ?? pages[0];
+      usePageStore.getState().selectPageByIdWithCascade(firstRoot.id);
+    });
+    return () => { cancelled = true; };
   }, [workspaceSlug]);
 
   // Close sidebar on escape

@@ -9,10 +9,11 @@ export interface BlockState {
   createBlock: (req: Parameters<typeof api.createBlock>[0]) => Promise<Block>;
   updateBlock: (id: string, content: string) => Promise<void>;
   deleteBlock: (id: string) => Promise<void>;
+  duplicateBlock: (id: string) => Promise<Block | null>;
   reorderBlocks: (pageId: string, blockIds: string[]) => Promise<void>;
 }
 
-export const useBlockStore = create<BlockState>((set) => ({
+export const useBlockStore = create<BlockState>((set, get) => ({
   blocks: [],
 
   loadBlocks: async (pageId) => {
@@ -36,6 +37,21 @@ export const useBlockStore = create<BlockState>((set) => ({
   deleteBlock: async (id) => {
     await api.deleteBlock(id);
     set((s) => ({ blocks: s.blocks.filter((b) => b.id !== id) }));
+  },
+
+  duplicateBlock: async (id) => {
+    const orig = get().blocks.find((b) => b.id === id);
+    if (!orig) return null;
+    const copy = await api.createBlock({
+      pageId: orig.pageId,
+      type: orig.type,
+      content: orig.content,
+      index: orig.index + 1,
+      parentId: orig.parentId,
+    });
+    const fresh = await api.listBlocks(orig.pageId);
+    set({ blocks: fresh });
+    return copy;
   },
 
   reorderBlocks: async (pageId, blockIds) => {

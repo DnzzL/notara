@@ -18,6 +18,7 @@ import { DndContext, type DragEndEvent, type DragStartEvent, type DragOverEvent,
 import { SortableContext, useSortable, verticalListSortingStrategy } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
 import { DragHandle } from "./DragHandle.js";
+import { BlockContextMenu, type BlockMenuItem } from "./BlockContextMenu.js";
 import { BacklinksPanel } from "./BacklinksPanel.js";
 import { BLOCK_TYPE_CONFIG, SLASH_COMMANDS } from "./blockTypes.js";
 import { EmojiPicker } from "./EmojiPicker.js";
@@ -416,6 +417,7 @@ function SortableBlock({
   isDragging,
   onDragStart,
   onInsertBelow,
+  onOpenMenu,
   blockType,
 }: {
   id: string;
@@ -424,12 +426,14 @@ function SortableBlock({
   isDragging: boolean;
   onDragStart: () => void;
   onInsertBelow?: () => void;
+  onOpenMenu?: (x: number, y: number) => void;
   blockType: string;
 }) {
   const { attributes, listeners, setNodeRef, transform, transition, isDragging: isSortableDragging } = useSortable({
     id,
     disabled: false,
   });
+  const handleDownPos = useRef<{ x: number; y: number } | null>(null);
 
   const style: React.CSSProperties = {
     transform: CSS.Transform.toString(transform),
@@ -438,7 +442,17 @@ function SortableBlock({
   };
 
   return (
-    <div ref={setNodeRef} style={style} className="sortable-block-wrapper" data-block-type={blockType}>
+    <div
+      ref={setNodeRef}
+      style={style}
+      className="sortable-block-wrapper"
+      data-block-type={blockType}
+      onContextMenu={(e) => {
+        if (!onOpenMenu) return;
+        e.preventDefault();
+        onOpenMenu(e.clientX, e.clientY);
+      }}
+    >
       <DropIndicator active={showDropIndicator} />
       <div className={`block-container ${isDragging || isSortableDragging ? "block-dragging" : ""}`}>
         <div className="block-gutter">
@@ -454,8 +468,22 @@ function SortableBlock({
             className="drag-handle-wrapper"
             onMouseDown={(e) => {
               e.stopPropagation();
+              handleDownPos.current = { x: e.clientX, y: e.clientY };
               onDragStart();
             }}
+            onMouseUp={(e) => {
+              const start = handleDownPos.current;
+              handleDownPos.current = null;
+              if (!onOpenMenu || !start) return;
+              const moved = Math.hypot(e.clientX - start.x, e.clientY - start.y);
+              // Only treat as click (not drag) when pointer barely moved.
+              if (moved < 4) {
+                e.stopPropagation();
+                const rect = (e.currentTarget as HTMLElement).getBoundingClientRect();
+                onOpenMenu(rect.right + 4, rect.top);
+              }
+            }}
+            title="Click for options, drag to reorder"
             {...listeners}
             {...attributes}
           >
@@ -469,7 +497,7 @@ function SortableBlock({
 }
 
 export function BlockEditor() {
-  const { currentPage, blocks, updateBlock, createBlock, deleteBlock, createDatabase, updatePage, setPageIcon, toggleFavorite, databases, loadDatabases, reorderBlocks, reorderDatabases, loadBlocks, accessDeniedFor } = useStore();
+  const { currentPage, blocks, updateBlock, createBlock, deleteBlock, duplicateBlock, createDatabase, updatePage, setPageIcon, toggleFavorite, databases, loadDatabases, reorderBlocks, reorderDatabases, loadBlocks, accessDeniedFor } = useStore();
   const [uploading, setUploading] = useState(false);
   const { data: session } = useSession();
 
@@ -513,6 +541,9 @@ export function BlockEditor() {
     show: false, query: "", top: 0, left: 0, blockIndex: 0,
   });
   const [newDbId, setNewDbId] = useState<string | null>(null);
+
+  // Context menu state
+  const [blockMenu, setBlockMenu] = useState<{ blockId: string; x: number; y: number } | null>(null);
 
   // Drag-drop state
   const [activeBlockId, setActiveBlockId] = useState<string | null>(null);
@@ -783,6 +814,55 @@ export function BlockEditor() {
     }
   };
 
+  // ── Block context menu ────────────────────────────────────────────
+  /** Move a block up or down in the sorted order. */
+  const moveBlock = useCallback(async (blockId: string, direction: "up" | "down") => {
+    if (!currentPage) return;
+    const ordered = [...blocks].sort((a, b) => a.index - b.index);
+    const idx = ordered.findIndex((b) => b.id === blockId);
+    if (idx === -1) return;
+    const swapWith = direction === "up" ? idx - 1 : idx + 1;
+    if (swapWith < 0 || swapWith >= ordered.length) return;
+    const reordered = [...ordered];
+    [reordered[idx], reordered[swapWith]] = [reordered[swapWith], reordered[idx]];
+    await reorderBlocks(currentPage.id, reordered.map((b) => b.id));
+  }, [currentPage, blocks, reorderBlocks]);
+
+  /** Build the context-menu items for a given block. */
+  const buildBlockMenuItems = useCallback((blockId: string): BlockMenuItem[] => {
+    const ordered = [...blocks].sort((a, b) => a.index - b.index);
+    const idx = ordered.findIndex((b) => b.id === blockId);
+    return [
+      {
+        id: "duplicate",
+        label: "Duplicate",
+        icon: "⎘",
+        onClick: () => { duplicateBlock(blockId); },
+      },
+      {
+        id: "move-up",
+        label: "Move up",
+        icon: "↑",
+        disabled: idx <= 0,
+        onClick: () => { moveBlock(blockId, "up"); },
+      },
+      {
+        id: "move-down",
+        label: "Move down",
+        icon: "↓",
+        disabled: idx === -1 || idx >= ordered.length - 1,
+        onClick: () => { moveBlock(blockId, "down"); },
+      },
+      {
+        id: "delete",
+        label: "Delete",
+        icon: "🗑",
+        danger: true,
+        onClick: () => { deleteBlock(blockId); },
+      },
+    ];
+  }, [blocks, duplicateBlock, deleteBlock, moveBlock]);
+
   // Build combined items list. Databases already pointed at by an inline
   // `database` block are skipped here so we don't double-render them
   // (once inline, once at the bottom). Anything left over is appended.
@@ -976,6 +1056,7 @@ export function BlockEditor() {
                     isDragging={activeBlockId === block.id}
                     onDragStart={() => setActiveBlockId(block.id)}
                     onInsertBelow={() => insertBlockAfter(sortedBlocks.indexOf(block))}
+                    onOpenMenu={(x, y) => setBlockMenu({ blockId: block.id, x, y })}
                     blockType="pageLink"
                   >
                     <PageLinkBlock
@@ -1004,6 +1085,7 @@ export function BlockEditor() {
                   isDragging={activeBlockId === block.id}
                   onDragStart={() => setActiveBlockId(block.id)}
                   onInsertBelow={() => insertBlockAfter(blockIndex)}
+                  onOpenMenu={(x, y) => setBlockMenu({ blockId: block.id, x, y })}
                   blockType={block.type}
                 >
                   <SingleBlockEditor
@@ -1046,6 +1128,16 @@ export function BlockEditor() {
                 position={{ top: slashMenu.top, left: slashMenu.left }}
                 onSelect={(cmd) => handleSlashCommand(cmd, slashMenu.blockIndex)}
                 onClose={() => setSlashMenu((m) => ({ ...m, show: false }))}
+              />
+            )}
+
+            {/* Block Context Menu (right-click or drag-handle click) */}
+            {blockMenu && (
+              <BlockContextMenu
+                x={blockMenu.x}
+                y={blockMenu.y}
+                items={buildBlockMenuItems(blockMenu.blockId)}
+                onClose={() => setBlockMenu(null)}
               />
             )}
           </div>

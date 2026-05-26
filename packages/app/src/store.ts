@@ -45,6 +45,7 @@ export function useStore() {
     createBlock: blockState.createBlock,
     updateBlock: blockState.updateBlock,
     deleteBlock: blockState.deleteBlock,
+    duplicateBlock: blockState.duplicateBlock,
     reorderBlocks: blockState.reorderBlocks,
 
     // Database state

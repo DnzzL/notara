@@ -2180,3 +2180,43 @@ select, input, textarea, button { font-family: var(--font-ui); }
   display: inline-flex; align-items: center; justify-content: center;
   z-index: 2;
 }
+
+/* Block context menu (right-click / drag-handle click on blocks) */
+.block-context-menu {
+  background: var(--surface);
+  border: 1px solid var(--border-mid);
+  border-radius: 10px;
+  box-shadow: var(--shadow-xl);
+  padding: 4px;
+  min-width: 200px;
+  display: flex;
+  flex-direction: column;
+}
+.block-context-menu-item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  padding: 7px 10px;
+  border: none;
+  background: transparent;
+  cursor: pointer;
+  text-align: left;
+  font-size: 13px;
+  color: var(--text-2);
+  border-radius: 6px;
+  font-family: var(--font-ui);
+  transition: background var(--t) var(--ease), color var(--t) var(--ease);
+}
+.block-context-menu-item:hover:not(:disabled) { background: var(--surface-3); color: var(--text); }
+.block-context-menu-item:disabled { opacity: 0.4; cursor: default; }
+.block-context-menu-item.danger { color: var(--danger); }
+.block-context-menu-item.danger:hover:not(:disabled) { background: var(--danger-dim, rgba(220,38,38,0.08)); color: var(--danger); }
+.block-context-menu-icon {
+  display: inline-flex; align-items: center; justify-content: center;
+  width: 18px; height: 18px; font-size: 13px; flex: 0 0 18px;
+}
+.block-context-menu-label { flex: 1; }
+.block-context-menu-shortcut {
+  font-size: 11px; color: var(--text-3); letter-spacing: 0.04em;
+}
