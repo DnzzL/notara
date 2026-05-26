@@ -438,17 +438,7 @@ export function importNotionExport(exportDir: string) {
       fileContentMap.set(relPath, content);
     }
 
-    // Single root wrapper page so the import doesn't pollute the sidebar.
-    // Created only after we know there is content to put inside.
     const now = new Date().toISOString();
-    const rootId = ulid();
-    const stamp = new Date().toLocaleString("en-US", {
-      month: "short", day: "numeric", year: "numeric", hour: "numeric", minute: "2-digit",
-    });
-    yield* sql`
-      INSERT INTO pages (id, title, parent_id, icon, created_at, updated_at)
-      VALUES (${rootId}, ${`Imported · ${stamp}`}, NULL, ${"📥"}, ${now}, ${now})
-    `;
 
     // Two parallel indexes:
     //   pageMap  — keyed by Notion GUID (used by CSV importer for cross-refs).
@@ -470,7 +460,7 @@ export function importNotionExport(exportDir: string) {
       const title = useHtml ? parseHtmlTitle(content, relPath) : parsePageTitle(content, relPath);
       const guid = extractGuid(relPath);
       const dir = path.dirname(relPath);
-      const parentId = (dir && dir !== "." ? folderMap.get(dir) : null) ?? rootId;
+      const parentId = (dir && dir !== "." ? folderMap.get(dir) : null) ?? null;
 
       const pageId = ulid();
       const pageNow = new Date().toISOString();
@@ -535,7 +525,7 @@ export function importNotionExport(exportDir: string) {
     for (const csvPath of csvFiles) {
       const guid = extractGuid(csvPath);
       const isInline = guid !== null && inlineCsvGuids.has(guid);
-      const result = yield* importCsvDatabase(exportDir, csvPath, folderMap, rootId, isInline);
+      const result = yield* importCsvDatabase(exportDir, csvPath, folderMap, null, isInline);
       if (result) {
         importedDbCount += 1;
         if (guid) csvGuidToDbId.set(guid, result.dbId);
@@ -583,11 +573,28 @@ export function importNotionExport(exportDir: string) {
       }
     }
 
+    // Prune empty leaf pages: pages with no blocks, no child pages, and no
+    // databases are useless stubs (Notion often exports empty index pages for
+    // folders that have no real content). Loop until stable so that a chain
+    // of empty parents collapses too.
+    let keepPruning = true;
+    while (keepPruning) {
+      const emptyLeaves = yield* sql<{ id: string }>`
+        SELECT p.id FROM pages p
+        WHERE NOT EXISTS (SELECT 1 FROM blocks b WHERE b.page_id = p.id)
+        AND NOT EXISTS (SELECT 1 FROM pages c WHERE c.parent_id = p.id)
+        AND NOT EXISTS (SELECT 1 FROM databases d WHERE d.page_id = p.id)
+      `;
+      if (emptyLeaves.length === 0) { keepPruning = false; break; }
+      for (const { id } of emptyLeaves) {
+        yield* sql`DELETE FROM pages WHERE id = ${id}`;
+      }
+    }
+
     return {
       pagesImported: sourceFiles.length,
       databasesImported: importedDbCount,
       pageMap,
-      rootPageId: rootId,
     };
   });
 }
@@ -596,7 +603,7 @@ function importCsvDatabase(
   exportDir: string,
   csvPath: string,
   folderMap: Map<string, string>,
-  fallbackParentId: string,
+  fallbackParentId: string | null,
   isInline: boolean,
 ) {
   return Effect.gen(function* () {
@@ -623,7 +630,7 @@ function importCsvDatabase(
     //   isolated → there's no inline reference, so we create a dedicated
     //              page that holds the database (otherwise the user has
     //              no way to find or navigate to it).
-    let parentId: string;
+    let parentId: string | null;
     if (isInline) {
       const dir = path.dirname(csvPath);
       parentId = (dir && dir !== "." ? folderMap.get(dir) : null) ?? fallbackParentId;
