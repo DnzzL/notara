@@ -2,6 +2,7 @@ import { useState, useEffect, useRef, useLayoutEffect } from "react";
 import { createPortal } from "react-dom";
 import { api } from "../../rpc-client.js";
 import { usePageStore } from "../../stores/pageStore.js";
+import { tryEvaluate } from "../../lib/formula.js";
 
 // ── Shared constants ──────────────────────────────────────────────────────
 
@@ -192,13 +193,30 @@ export function SelectPill({ value, colorIdx }: { value: string; colorIdx: numbe
 }
 
 export function CellDisplay({
-  field, value, databases, allRecords = {},
+  field, value, databases, allRecords = {}, recordValues,
 }: {
-  field: { id: string; name: string; type: string; options?: string[]; relationTargetDbId?: string | null };
+  field: { id: string; name: string; type: string; options?: string[]; relationTargetDbId?: string | null; formula?: string | null };
   value: any;
   databases: any[];
   allRecords?: Record<string, any[]>;
+  /** All values keyed by field name on the current record — used by formula cells. */
+  recordValues?: Record<string, unknown>;
 }) {
+  if (field.type === "formula") {
+    const res = tryEvaluate(field.formula ?? null, recordValues ?? {});
+    if (!res.ok) {
+      return <span title={res.error} style={{ fontSize: 12, color: "#c44", fontFamily: "ui-monospace, SFMono-Regular, Menlo, monospace" }}>#ERR</span>;
+    }
+    const v = res.value;
+    if (v === null || v === undefined || v === "") return <span style={{ color: "#d3d1cb" }}>&nbsp;</span>;
+    if (typeof v === "number") {
+      const display = Number.isFinite(v) ? v.toLocaleString(undefined, { maximumFractionDigits: 6 }) : String(v);
+      return <span style={{ fontSize: 13, color: "#37352f" }}>{display}</span>;
+    }
+    if (typeof v === "boolean") return <span style={{ fontSize: 13, color: "#37352f" }}>{v ? "✓" : ""}</span>;
+    return <span style={{ fontSize: 13, color: "#37352f" }}>{String(v)}</span>;
+  }
+
   if (value === null || value === undefined || value === "") {
     return <span style={{ color: "#d3d1cb" }}>&nbsp;</span>;
   }
@@ -592,18 +610,26 @@ export function RelationPicker({
 // ── Cell Editor (inline) ──────────────────────────────────────────────────
 
 export function InlineCellEditor({
-  field, value, onSave, onCancel, databases, allRecords = {},
+  field, value, onSave, onCancel, databases, allRecords = {}, onNavigate,
 }: {
   field: { id: string; name: string; type: string; options?: string[]; relationTargetDbId?: string | null };
   value: any; onSave: (val: string) => void; onCancel: () => void;
   databases: any[]; allRecords?: Record<string, any[]>;
+  /** Save current value, then move focus. "next" = Tab, "prev" = Shift+Tab, "down" = Enter. */
+  onNavigate?: (direction: "next" | "prev" | "down") => void;
 }) {
   const inputRef = useRef<HTMLInputElement>(null);
   useEffect(() => { inputRef.current?.focus(); }, []);
 
+  const saveAndNavigate = (direction: "next" | "prev" | "down") => {
+    if (inputRef.current) onSave(inputRef.current.value);
+    if (onNavigate) onNavigate(direction);
+  };
+
   const handleBlur = () => { if (inputRef.current) onSave(inputRef.current.value); };
   const handleKeyDown = (e: React.KeyboardEvent) => {
-    if (e.key === "Enter") { e.preventDefault(); if (inputRef.current) onSave(inputRef.current.value); }
+    if (e.key === "Tab") { e.preventDefault(); saveAndNavigate(e.shiftKey ? "prev" : "next"); return; }
+    if (e.key === "Enter") { e.preventDefault(); saveAndNavigate("down"); return; }
     if (e.key === "Escape") onCancel();
   };
 

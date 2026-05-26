@@ -50,13 +50,19 @@ export class Database extends Schema.Class<Database>("Database")({
   titleHidden: Schema.Boolean,
 }) {}
 
+export const DatabaseFieldType = Schema.Literal(
+  "text", "number", "select", "multiSelect", "date", "checkbox", "relation", "page", "formula",
+);
+
 export class DatabaseField extends Schema.Class<DatabaseField>("DatabaseField")({
   id: Schema.String,
   databaseId: Schema.String,
   name: Schema.String,
-  type: Schema.Literal("text", "number", "select", "multiSelect", "date", "checkbox", "relation", "page"),
+  type: DatabaseFieldType,
   options: Schema.NullOr(Schema.Array(Schema.String)),
   relationTargetDbId: Schema.NullOr(Schema.String),
+  formula: Schema.NullOr(Schema.String),
+  sortOrder: Schema.Number,
 }) {}
 
 export class DatabaseRecord extends Schema.Class<DatabaseRecord>("DatabaseRecord")({

@@ -74,7 +74,8 @@ export function dbFromRow(r: unknown): Database {
 // ── DatabaseField ─────────────────────────────────────────────────────────────
 
 export const FIELD_COLS = `id, database_id as "databaseId", name, type,
-  options, relation_target_db_id as "relationTargetDbId"`;
+  options, relation_target_db_id as "relationTargetDbId",
+  formula, sort_order as "sortOrder"`;
 
 export function fieldFromRow(r: unknown): DatabaseField {
   const row = r as Record<string, unknown>;
@@ -85,6 +86,8 @@ export function fieldFromRow(r: unknown): DatabaseField {
     type: row.type as DatabaseField["type"],
     options: row.options ? JSON.parse(row.options as string) : null,
     relationTargetDbId: (row.relationTargetDbId as string | null) ?? null,
+    formula: (row.formula as string | null) ?? null,
+    sortOrder: Number(row.sortOrder ?? 0),
   };
 }
 

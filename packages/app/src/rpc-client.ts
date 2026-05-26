@@ -127,7 +127,7 @@ export const api = {
   createDatabase: (pageId: string, name: string) =>
     rpcCall<Database>("createDatabase", { pageId, name }),
   listFields: (databaseId: string) => rpcCall<DatabaseField[]>("listFields", { databaseId }),
-  createField: (req: { databaseId: string; name: string; type: string; options?: string[] | null; relationTargetDbId?: string | null }) =>
+  createField: (req: { databaseId: string; name: string; type: string; options?: string[] | null; relationTargetDbId?: string | null; formula?: string | null }) =>
     rpcCall<DatabaseField>("createField", req),
   listRecords: (databaseId: string) => rpcCall<DatabaseRecord[]>("listRecords", { databaseId }),
   listRecordsWithValues: (databaseId: string) =>
@@ -142,8 +142,10 @@ export const api = {
   listViews: (databaseId: string) => rpcCall<DatabaseView[]>("listViews", { databaseId }),
   createView: (req: { databaseId: string; name: string; type: string; groupByFieldId?: string | null }) =>
     rpcCall<DatabaseView>("createView", req),
-  updateField: (id: string, updates: { name?: string; type?: string; options?: string[] | null; relationTargetDbId?: string | null }) =>
+  updateField: (id: string, updates: { name?: string; type?: string; options?: string[] | null; relationTargetDbId?: string | null; formula?: string | null }) =>
     rpcCall<DatabaseField>("updateField", { id, ...updates }),
+  reorderFields: (databaseId: string, fieldIds: string[]) =>
+    rpcCall<{ reordered: boolean }>("reorderFields", { databaseId, fieldIds }),
   updateRecord: (id: string, patch: { title?: string; description?: string }) =>
     rpcCall<{ updated: boolean }>("updateRecord", { id, ...patch }),
   reorderRecords: (databaseId: string, recordIds: string[]) =>

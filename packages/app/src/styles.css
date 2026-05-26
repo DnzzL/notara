@@ -1120,6 +1120,8 @@ body {
 .db-col-header { position: relative; padding: 7px 12px; vertical-align: middle; }
 .db-col-header:hover { background: var(--surface-3); }
 .db-col-header:hover .db-col-arrow { opacity: 0.5 !important; }
+.db-col-header:hover .db-col-drag-handle { opacity: 0.4 !important; }
+.db-col-drag-handle:hover { opacity: 0.8 !important; }
 .db-col-resize-handle { position: absolute; right: 0; top: 0; bottom: 0; width: 6px; cursor: col-resize; z-index: 3; }
 .db-col-resize-handle:hover { background: var(--accent); opacity: 0.3; }
 .db-col-header-content { display: flex; align-items: center; gap: 5px; cursor: pointer; user-select: none; }

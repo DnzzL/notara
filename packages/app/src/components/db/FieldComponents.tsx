@@ -3,7 +3,7 @@ import { Popover, optionColor } from "./CellComponents.js";
 import { api } from "../../rpc-client.js";
 import { usePageStore } from "../../stores/pageStore.js";
 
-export type FieldType = "text" | "number" | "select" | "multiSelect" | "date" | "checkbox" | "relation" | "page";
+export type FieldType = "text" | "number" | "select" | "multiSelect" | "date" | "checkbox" | "relation" | "page" | "formula";
 
 interface FieldTypeInfo {
   type: FieldType;
@@ -20,18 +20,21 @@ export const FIELD_TYPES: FieldTypeInfo[] = [
   { type: "checkbox", label: "Checkbox", icon: "☑" },
   { type: "page", label: "Page link", icon: "📄" },
   { type: "relation", label: "Relation", icon: "🔗" },
+  { type: "formula", label: "Formula", icon: "ƒ" },
 ];
 
 // ── Column Header with Menu ───────────────────────────────────────────────
 
 export function ColumnHeader({
-  field, onRename, onDelete, onOptions, onChangeType, onSortAsc, onSortDesc, onFilter,
-  isTitle, width, onResize,
+  field, onRename, onDelete, onOptions, onEditFormula, onChangeType, onSortAsc, onSortDesc, onFilter,
+  isTitle, width, onResize, sortDir, sortIndex, onHeaderClick,
+  dragRef, dragStyle, dragListeners, dragAttributes,
 }: {
   field: { id: string; name: string; type: string };
   onRename: (name: string) => void;
   onDelete: () => void;
   onOptions?: () => void;
+  onEditFormula?: () => void;
   onChangeType?: (type: FieldType) => void;
   onSortAsc?: () => void;
   onSortDesc?: () => void;
@@ -39,6 +42,15 @@ export function ColumnHeader({
   isTitle?: boolean;
   width?: number;
   onResize?: (fieldId: string, delta: number) => void;
+  sortDir?: "asc" | "desc" | null;
+  sortIndex?: number | null;
+  /** Cycle sort: none → asc → desc → none. Receives shiftKey for multi-sort. */
+  onHeaderClick?: (e: React.MouseEvent) => void;
+  /** dnd-kit drag wiring for column reorder. */
+  dragRef?: (el: HTMLElement | null) => void;
+  dragStyle?: React.CSSProperties;
+  dragListeners?: any;
+  dragAttributes?: any;
 }) {
   const [showMenu, setShowMenu] = useState(false);
   const [editing, setEditing] = useState(false);
@@ -87,12 +99,48 @@ export function ColumnHeader({
     );
   }
 
+  const sortGlyph = sortDir === "asc" ? "↑" : sortDir === "desc" ? "↓" : null;
+
   return (
-    <th className="db-col-header" data-field-id={field.id} style={{ minWidth: width || 150, width: width || undefined }}>
-      <div ref={triggerRef} className="db-col-header-content" onClick={() => setShowMenu(!showMenu)}>
+    <th
+      ref={dragRef as any}
+      className="db-col-header"
+      data-field-id={field.id}
+      style={{ minWidth: width || 150, width: width || undefined, ...(dragStyle || {}) }}
+    >
+      {dragListeners && (
+        <span
+          {...dragListeners}
+          {...(dragAttributes || {})}
+          className="db-col-drag-handle"
+          title="Drag to reorder"
+          style={{ position: "absolute", left: 2, top: "50%", transform: "translateY(-50%)", cursor: "grab", opacity: 0, transition: "opacity 0.15s", padding: "0 2px", fontSize: 10, lineHeight: 1 }}
+          onClick={(e) => e.stopPropagation()}
+        >⋮⋮</span>
+      )}
+      <div
+        ref={triggerRef}
+        className="db-col-header-content"
+        onClick={(e) => {
+          // Click on the caret area opens the menu; clicking the rest toggles sort.
+          const target = e.target as HTMLElement;
+          if (target.closest("[data-col-menu-trigger]")) { setShowMenu(!showMenu); return; }
+          if (onHeaderClick) onHeaderClick(e);
+          else setShowMenu(!showMenu);
+        }}
+      >
         <span style={{ opacity: 0.5, fontSize: 11, marginRight: 4, width: 16, textAlign: "center" }}>{typeInfo?.icon || "?"}</span>
         <span style={{ fontWeight: 500, overflow: "hidden", textOverflow: "ellipsis" }}>{field.name}</span>
-        <span style={{ fontSize: 10, opacity: 0, transition: "opacity 0.15s", marginLeft: 2 }} className="db-col-arrow">▼</span>
+        {sortGlyph && (
+          <span style={{ fontSize: 11, opacity: 0.7, marginLeft: 4, color: "#2eaadc", fontWeight: 600 }}>
+            {sortGlyph}{typeof sortIndex === "number" && sortIndex >= 0 ? <sub style={{ fontSize: 9 }}>{sortIndex + 1}</sub> : null}
+          </span>
+        )}
+        <span
+          data-col-menu-trigger
+          style={{ fontSize: 10, opacity: 0, transition: "opacity 0.15s", marginLeft: "auto", padding: "0 4px", cursor: "pointer" }}
+          className="db-col-arrow"
+        >▼</span>
       </div>
 
       {onResize && (
@@ -160,6 +208,9 @@ export function ColumnHeader({
             {(onSortAsc || onSortDesc || onFilter) && <div style={{ borderTop: "1px solid #f0f0f0", margin: "4px 0" }} />}
             {onOptions && (field.type === "select" || field.type === "multiSelect") && (
               <div className="db-menu-item" onClick={() => { handleMenuClose(); onOptions(); }}>Edit options</div>
+            )}
+            {onEditFormula && field.type === "formula" && (
+              <div className="db-menu-item" onClick={() => { handleMenuClose(); onEditFormula(); }}>Edit formula</div>
             )}
             <div className="db-menu-item" onClick={() => setEditing(true)}>Rename</div>
             <div className="db-menu-item db-menu-item--danger" onClick={() => { onDelete(); handleMenuClose(); }}>Delete</div>
@@ -230,6 +281,44 @@ export function OptionsEditor({
   );
 }
 
+// ── Formula Editor ────────────────────────────────────────────────────────
+
+export function FormulaEditor({
+  field, onClose, onSave,
+}: {
+  field: { id: string; name: string; formula?: string | null };
+  onClose: () => void;
+  onSave: (formula: string) => void;
+}) {
+  const [expr, setExpr] = useState(field.formula || "");
+  const inputRef = useRef<HTMLTextAreaElement>(null);
+  useEffect(() => { inputRef.current?.focus(); }, []);
+  return (
+    <div style={{ minWidth: 320 }}>
+      <div style={{ padding: "4px 8px", fontSize: 13, fontWeight: 600, marginBottom: 8 }}>Formula for "{field.name}"</div>
+      <textarea
+        ref={inputRef}
+        value={expr}
+        onChange={(e) => setExpr(e.target.value)}
+        onKeyDown={(e) => {
+          if (e.key === "Enter" && (e.metaKey || e.ctrlKey)) { e.preventDefault(); onSave(expr.trim()); onClose(); }
+          if (e.key === "Escape") onClose();
+        }}
+        placeholder={`e.g. prop("Price") * prop("Qty")`}
+        rows={4}
+        style={{ width: "100%", border: "1px solid #e9e9e7", borderRadius: 4, padding: "6px 8px", fontSize: 12, outline: "none", boxSizing: "border-box", fontFamily: "ui-monospace, SFMono-Regular, Menlo, monospace", resize: "vertical" }}
+      />
+      <div style={{ fontSize: 10, color: "#999", marginTop: 4, padding: "0 4px" }}>
+        Refs: <code>prop("Field Name")</code> · Ops: <code>+ - * /</code> · Fns: <code>if, sum, round, min, max</code>. <kbd>Cmd</kbd>+<kbd>Enter</kbd> to save.
+      </div>
+      <div style={{ display: "flex", justifyContent: "flex-end", gap: 6, marginTop: 8 }}>
+        <button onClick={onClose} style={{ background: "none", border: "1px solid #e9e9e7", borderRadius: 4, padding: "4px 10px", fontSize: 12, cursor: "pointer" }}>Cancel</button>
+        <button onClick={() => { onSave(expr.trim()); onClose(); }} style={{ background: "#2eaadc", color: "#fff", border: "none", borderRadius: 4, padding: "4px 10px", fontSize: 12, cursor: "pointer", fontWeight: 500 }}>Save</button>
+      </div>
+    </div>
+  );
+}
+
 // ── Add Field Popover ─────────────────────────────────────────────────────
 
 export function AddFieldPopover({
@@ -237,13 +326,14 @@ export function AddFieldPopover({
 }: {
   triggerRect: DOMRect | null;
   onClose: () => void;
-  onAdd: (name: string, type: FieldType, options?: string[], relationTargetDbId?: string | null) => void;
+  onAdd: (name: string, type: FieldType, options?: string[], relationTargetDbId?: string | null, formula?: string | null) => void;
 }) {
   const [name, setName] = useState("");
   const [type, setType] = useState<FieldType>("text");
   const [options, setOptions] = useState<string[]>([]);
   const [optionInput, setOptionInput] = useState("");
   const [relationTarget, setRelationTarget] = useState<string | null>(null);
+  const [formula, setFormula] = useState("");
   const [allDbs, setAllDbs] = useState<Array<{ id: string; name: string; pageId: string }>>([]);
   const pages = usePageStore((s) => s.pages);
   const nameRef = useRef<HTMLInputElement>(null);
@@ -266,7 +356,13 @@ export function AddFieldPopover({
 
   const handleCreate = () => {
     if (!name.trim()) return;
-    onAdd(name.trim(), type, (type === "select" || type === "multiSelect") ? options : undefined, type === "relation" ? relationTarget : null);
+    onAdd(
+      name.trim(),
+      type,
+      (type === "select" || type === "multiSelect") ? options : undefined,
+      type === "relation" ? relationTarget : null,
+      type === "formula" ? (formula.trim() || null) : null,
+    );
     onClose();
   };
 
@@ -314,6 +410,22 @@ export function AddFieldPopover({
                   placeholder="Add option"
                   style={{ flex: 1, border: "none", outline: "none", fontSize: 13, padding: "2px 0" }} />
               </div>
+            </div>
+          </div>
+        )}
+
+        {type === "formula" && (
+          <div style={{ marginBottom: 12, borderTop: "1px solid #f0f0f0", paddingTop: 8 }}>
+            <div style={{ fontSize: 11, color: "#999", marginBottom: 6, fontWeight: 500 }}>EXPRESSION</div>
+            <textarea
+              value={formula}
+              onChange={(e) => setFormula(e.target.value)}
+              placeholder={`e.g. prop("Price") * prop("Qty")`}
+              rows={3}
+              style={{ width: "100%", border: "1px solid #e9e9e7", borderRadius: 4, padding: "6px 8px", fontSize: 12, outline: "none", boxSizing: "border-box", fontFamily: "ui-monospace, SFMono-Regular, Menlo, monospace", resize: "vertical" }}
+            />
+            <div style={{ fontSize: 10, color: "#999", marginTop: 4 }}>
+              Refs: <code>prop("Field Name")</code> · Ops: <code>+ - * /</code> · Fns: <code>if, sum, round, min, max</code>
             </div>
           </div>
         )}

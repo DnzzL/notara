@@ -3,13 +3,13 @@ import {
   DndContext, DragOverlay, PointerSensor, useSensor, useSensors,
   type DragEndEvent, type DragStartEvent,
 } from "@dnd-kit/core";
-import { SortableContext, useSortable, verticalListSortingStrategy } from "@dnd-kit/sortable";
+import { SortableContext, useSortable, verticalListSortingStrategy, horizontalListSortingStrategy } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
 import { useStore } from "../store.js";
 import { api } from "../rpc-client.js";
 import { applyFiltersAndSorts, type Filter, type Sort, type FilterOperator } from "../lib/filterEngine.js";
 import { CellDisplay, InlineCellEditor, Popover } from "./db/CellComponents.js";
-import { ColumnHeader, AddFieldPopover, OptionsEditor, type FieldType } from "./db/FieldComponents.js";
+import { ColumnHeader, AddFieldPopover, OptionsEditor, FormulaEditor, type FieldType } from "./db/FieldComponents.js";
 import { BoardView } from "./db/BoardView.js";
 import { RecordPanel } from "./db/RecordPanel.js";
 
@@ -98,20 +98,31 @@ function SortBar({
 // ── Sortable Row ──────────────────────────────────────────────────────────
 
 function SortableRow({
-  id, children, isDragging, onDelete, onOpen,
+  id, children, isDragging, onDelete, onOpen, selected, onToggleSelect,
 }: {
   id: string; children: React.ReactNode; isDragging: boolean; onDelete: () => void; onOpen: () => void;
+  selected: boolean;
+  onToggleSelect: (e: React.MouseEvent) => void;
 }) {
   const { attributes, listeners, setNodeRef, transform, transition, isDragging: sortableDragging } = useSortable({ id });
   const [hovered, setHovered] = useState(false);
   const style: React.CSSProperties = {
     transform: CSS.Transform.toString(transform), transition,
     opacity: sortableDragging ? 0.4 : 1,
+    background: selected ? "rgba(46, 170, 220, 0.08)" : undefined,
   };
   return (
     <tr ref={setNodeRef} style={style} className={`db-table-row ${isDragging || sortableDragging ? "db-row-dragging" : ""}`}
       onMouseEnter={() => setHovered(true)} onMouseLeave={() => setHovered(false)}>
       <td className="db-drag-cell">
+        <input
+          type="checkbox"
+          checked={selected}
+          onClick={onToggleSelect}
+          onChange={() => { /* handled in onClick to capture shift/cmd */ }}
+          style={{ opacity: hovered || selected ? 1 : 0, marginRight: 2, cursor: "pointer" }}
+          title="Select row (Shift+click for range)"
+        />
         <div className="db-drag-handle" {...listeners} {...attributes}>
           <svg width="12" height="12" viewBox="0 0 16 16" fill="currentColor">
             <circle cx="5" cy="3" r="1.5" /><circle cx="11" cy="3" r="1.5" />
@@ -129,6 +140,42 @@ function SortableRow({
       </td>
       {children}
     </tr>
+  );
+}
+
+// ── Sortable Column Header (drag-reorder) ─────────────────────────────────
+//
+// The actual <th> is rendered by ColumnHeader. We need to (a) feed it dnd-kit
+// transform/transition styles and (b) provide drag listeners restricted to a
+// small handle so the header itself stays clickable for sort/menu actions.
+
+function useColumnSortable(fieldId: string) {
+  const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id: fieldId });
+  const dragStyle: React.CSSProperties = {
+    transform: CSS.Transform.toString(transform), transition,
+    opacity: isDragging ? 0.4 : 1,
+  };
+  return { setDragRef: setNodeRef, dragListeners: listeners, dragAttributes: attributes, dragStyle, isDragging };
+}
+
+function DraggableColumnHeader({
+  field, sortInfo, ...rest
+}: {
+  field: { id: string; name: string; type: string };
+  sortInfo: { dir: "asc" | "desc"; idx: number } | null;
+} & Omit<React.ComponentProps<typeof ColumnHeader>, "field" | "dragRef" | "dragStyle" | "dragListeners" | "dragAttributes" | "sortDir" | "sortIndex">) {
+  const { setDragRef, dragStyle, dragListeners, dragAttributes } = useColumnSortable(field.id);
+  return (
+    <ColumnHeader
+      field={field}
+      sortDir={sortInfo?.dir ?? null}
+      sortIndex={sortInfo?.idx ?? null}
+      dragRef={setDragRef}
+      dragStyle={dragStyle}
+      dragListeners={dragListeners}
+      dragAttributes={dragAttributes}
+      {...rest}
+    />
   );
 }
 
@@ -174,13 +221,22 @@ export function DatabaseView({ database, isNew }: { database: any; isNew?: boole
   const [editingCell, setEditingCell] = useState<{ recordId: string; fieldId: string } | null>(null);
   const [showAddField, setShowAddField] = useState(false);
   const [showOptionsFor, setShowOptionsFor] = useState<string | null>(null);
+  const [showFormulaFor, setShowFormulaFor] = useState<string | null>(null);
   const [isEditingName, setIsEditingName] = useState(isNew);
   const [dbName, setDbName] = useState(database.name || "Untitled");
   const [activeRowId, setActiveRowId] = useState<string | null>(null);
+  const [activeColId, setActiveColId] = useState<string | null>(null);
   const [openRecordId, setOpenRecordId] = useState<string | null>(null);
   const [columnWidths, setColumnWidths] = useState<Record<string, number>>({});
   const [dbRecordCache, setDbRecordCache] = useState<Record<string, any[]>>({});
+  /** Keyboard-focused cell `{row, col}`. `col` indexes into [titleCol?, ...dbFields]. */
+  const [focusedCell, setFocusedCell] = useState<{ row: number; col: number } | null>(null);
+  /** Selected row IDs for bulk actions. `lastSelected` anchors shift-click ranges. */
+  const [selectedRowIds, setSelectedRowIds] = useState<Set<string>>(new Set());
+  const lastSelectedRowRef = useRef<string | null>(null);
   const addFieldBtnRef = useRef<HTMLButtonElement>(null);
+  const tableWrapRef = useRef<HTMLDivElement>(null);
+  const sortedRecordsRef = useRef<any[]>([]);
 
   useEffect(() => {
     loadDbFields(database.id);
@@ -223,6 +279,8 @@ export function DatabaseView({ database, isNew }: { database: any; isNew?: boole
     () => applyFiltersAndSorts(records, dbFields, activeFilters, activeSorts),
     [records, dbFields, activeFilters, activeSorts],
   );
+  // Mirror for callbacks that need the current ordering without re-binding.
+  sortedRecordsRef.current = sortedRecords;
 
   const handleAddRecord = async () => {
     if (!newTitle.trim()) return;
@@ -237,10 +295,92 @@ export function DatabaseView({ database, isNew }: { database: any; isNew?: boole
     setEditingCell(null);
   };
 
-  const handleAddField = async (name: string, type: FieldType, options?: string[], relationTargetDbId?: string | null) => {
-    await createField({ databaseId: database.id, name, type, options: options || null, relationTargetDbId: relationTargetDbId || null });
+  const handleAddField = async (name: string, type: FieldType, options?: string[], relationTargetDbId?: string | null, formula?: string | null) => {
+    await createField({ databaseId: database.id, name, type, options: options || null, relationTargetDbId: relationTargetDbId || null, formula: formula ?? null });
     await loadDbFields(database.id);
   };
+
+  /** Cycle sort on a column: none → asc → desc → none. Shift+click adds as a
+   *  secondary sort instead of replacing existing sorts. */
+  const handleHeaderSortCycle = useCallback((fieldId: string, shiftKey: boolean) => {
+    const existingIdx = activeSorts.findIndex((s) => s.fieldId === fieldId);
+    if (existingIdx >= 0) {
+      const existing = activeSorts[existingIdx];
+      if (existing.direction === "asc") setSort(existingIdx, { ...existing, direction: "desc" });
+      else removeSort(existingIdx);
+      return;
+    }
+    if (!shiftKey) {
+      // Replace all sorts with this single ascending sort.
+      for (let i = activeSorts.length - 1; i >= 0; i--) removeSort(i);
+    }
+    addSort({ fieldId, direction: "asc" });
+  }, [activeSorts, addSort, removeSort, setSort]);
+
+  const handleBulkDelete = useCallback(async () => {
+    if (selectedRowIds.size === 0) return;
+    const n = selectedRowIds.size;
+    if (!window.confirm(`Delete ${n} record${n === 1 ? "" : "s"}?`)) return;
+    for (const id of selectedRowIds) {
+      try { await deleteRecord(id); } catch { /* skip */ }
+    }
+    setSelectedRowIds(new Set());
+    lastSelectedRowRef.current = null;
+  }, [selectedRowIds, deleteRecord]);
+
+  const handleToggleRowSelect = useCallback((recordId: string, e: React.MouseEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setSelectedRowIds((prev) => {
+      const next = new Set(prev);
+      const recordIds = sortedRecordsRef.current.map((r: any) => r.record.id);
+      if (e.shiftKey && lastSelectedRowRef.current) {
+        const a = recordIds.indexOf(lastSelectedRowRef.current);
+        const b = recordIds.indexOf(recordId);
+        if (a >= 0 && b >= 0) {
+          const [lo, hi] = a < b ? [a, b] : [b, a];
+          for (let i = lo; i <= hi; i++) next.add(recordIds[i]);
+          return next;
+        }
+      }
+      if (next.has(recordId)) next.delete(recordId);
+      else next.add(recordId);
+      lastSelectedRowRef.current = recordId;
+      return next;
+    });
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  /** Move editing cursor to neighbouring cell. Wraps to next/prev row at row ends. */
+  const handleCellNavigate = useCallback((from: { recordId: string; fieldId: string }, direction: "next" | "prev" | "down") => {
+    const rows = sortedRecordsRef.current;
+    const rowIdx = rows.findIndex((r: any) => r.record.id === from.recordId);
+    const colIdx = dbFields.findIndex((f: any) => f.id === from.fieldId);
+    if (rowIdx < 0 || colIdx < 0) { setEditingCell(null); return; }
+    let nextRow = rowIdx;
+    let nextCol = colIdx;
+    if (direction === "next") {
+      nextCol++;
+      if (nextCol >= dbFields.length) { nextCol = 0; nextRow++; }
+    } else if (direction === "prev") {
+      nextCol--;
+      if (nextCol < 0) { nextCol = dbFields.length - 1; nextRow--; }
+    } else if (direction === "down") {
+      nextRow++;
+    }
+    if (nextRow < 0 || nextRow >= rows.length || nextCol < 0 || nextCol >= dbFields.length) {
+      setEditingCell(null);
+      return;
+    }
+    const targetField = dbFields[nextCol] as any;
+    // Skip formula cells — they're read-only.
+    if (targetField.type === "formula") {
+      // Try one step further in the same direction; if not found, just clear.
+      handleCellNavigate({ recordId: rows[nextRow].record.id, fieldId: targetField.id }, direction);
+      return;
+    }
+    setEditingCell({ recordId: rows[nextRow].record.id, fieldId: targetField.id });
+  }, [dbFields]);
 
   const handleRenameField = async (fieldId: string, name: string) => {
     if (!name.trim()) return;
@@ -305,14 +445,56 @@ export function DatabaseView({ database, isNew }: { database: any; isNew?: boole
     await loadDbRecords(database.id);
   }, [sortedRecords, database.id, loadDbRecords]);
 
+  // Column DnD (reorder headers).
+  const colSensors = useSensors(useSensor(PointerSensor, { activationConstraint: { distance: 6 } }));
+  const handleColDragStart = useCallback(({ active }: DragStartEvent) => setActiveColId(String(active.id)), []);
+  const handleColDragEnd = useCallback(async ({ active, over }: DragEndEvent) => {
+    setActiveColId(null);
+    if (!over || active.id === over.id) return;
+    const oldI = dbFields.findIndex((f: any) => f.id === active.id);
+    const newI = dbFields.findIndex((f: any) => f.id === over.id);
+    if (oldI < 0 || newI < 0) return;
+    const order = dbFields.map((f: any) => f.id);
+    const [moved] = order.splice(oldI, 1);
+    order.splice(newI, 0, moved);
+    await api.reorderFields(database.id, order);
+    await loadDbFields(database.id);
+  }, [dbFields, database.id, loadDbFields]);
+
+  // Bulk delete via Delete key; Esc clears selection.
+  useEffect(() => {
+    const handler = (e: KeyboardEvent) => {
+      if (e.key === "Escape" && selectedRowIds.size > 0) {
+        setSelectedRowIds(new Set());
+        lastSelectedRowRef.current = null;
+        return;
+      }
+      if ((e.key === "Backspace" || e.key === "Delete") && selectedRowIds.size > 0) {
+        const target = e.target as HTMLElement;
+        // Don't hijack the key while typing in an input/textarea.
+        if (target && (target.tagName === "INPUT" || target.tagName === "TEXTAREA" || target.isContentEditable)) return;
+        e.preventDefault();
+        handleBulkDelete();
+      }
+    };
+    document.addEventListener("keydown", handler);
+    return () => document.removeEventListener("keydown", handler);
+  }, [selectedRowIds, handleBulkDelete]);
+
   // ── Render ──────────────────────────────────────────────────────────────
   if (viewType === "board") {
     return (<BoardView database={database} fields={dbFields} records={sortedRecords} databases={databases} onSwitchView={() => setViewType("table")} allRecords={dbRecordCache} />);
   }
 
+  const sortByFieldId = useMemo(() => {
+    const m = new Map<string, { dir: "asc" | "desc"; idx: number }>();
+    activeSorts.forEach((s, i) => m.set(s.fieldId, { dir: s.direction, idx: i }));
+    return m;
+  }, [activeSorts]);
+
   return (
     <DndContext sensors={tableSensors} onDragStart={handleRowDragStart} onDragEnd={handleRowDragEnd}>
-      <div className="table-view">
+      <div className="table-view" ref={tableWrapRef}>
         {/* Toolbar */}
         <div className="db-toolbar">
           <div className="db-view-switcher" role="tablist">
@@ -360,15 +542,26 @@ export function DatabaseView({ database, isNew }: { database: any; isNew?: boole
                     onResize={handleColumnResize}
                   />
                 )}
-                {dbFields.map((f: any) => (
-                  <ColumnHeader key={f.id} field={f} onRename={(name) => handleRenameField(f.id, name)} onDelete={() => handleDeleteField(f.id)}
-                    onOptions={() => setShowOptionsFor(showOptionsFor === f.id ? null : f.id)}
-                    onChangeType={async (type) => { await api.updateField(f.id, { type }); await loadDbFields(database.id); await loadDbRecords(database.id); }}
-                    onSortAsc={() => addSort({ fieldId: f.id, direction: "asc" })}
-                    onSortDesc={() => addSort({ fieldId: f.id, direction: "desc" })}
-                    onFilter={() => addFilter({ fieldId: f.id, operator: "contains", value: "" })}
-                    width={columnWidths[f.id]} onResize={handleColumnResize} />
-                ))}
+                <DndContext sensors={colSensors} onDragStart={handleColDragStart} onDragEnd={handleColDragEnd}>
+                  <SortableContext items={dbFields.map((f: any) => f.id)} strategy={horizontalListSortingStrategy}>
+                    {dbFields.map((f: any) => (
+                      <DraggableColumnHeader
+                        key={f.id} field={f}
+                        sortInfo={sortByFieldId.get(f.id) ?? null}
+                        onHeaderClick={(e) => handleHeaderSortCycle(f.id, e.shiftKey)}
+                        onRename={(name) => handleRenameField(f.id, name)}
+                        onDelete={() => handleDeleteField(f.id)}
+                        onOptions={() => setShowOptionsFor(showOptionsFor === f.id ? null : f.id)}
+                        onEditFormula={() => setShowFormulaFor(f.id)}
+                        onChangeType={async (type) => { await api.updateField(f.id, { type }); await loadDbFields(database.id); await loadDbRecords(database.id); }}
+                        onSortAsc={() => addSort({ fieldId: f.id, direction: "asc" })}
+                        onSortDesc={() => addSort({ fieldId: f.id, direction: "desc" })}
+                        onFilter={() => addFilter({ fieldId: f.id, operator: "contains", value: "" })}
+                        width={columnWidths[f.id]} onResize={handleColumnResize}
+                      />
+                    ))}
+                  </SortableContext>
+                </DndContext>
                 <th style={{ width: 40 }}>
                   <button ref={addFieldBtnRef} onClick={() => setShowAddField(true)} className="db-add-col-btn" title="Add property">+</button>
                 </th>
@@ -386,7 +579,14 @@ export function DatabaseView({ database, isNew }: { database: any; isNew?: boole
                   </tr>
                 )}
                 {sortedRecords.map(({ record, values }: any) => (
-                  <SortableRow key={record.id} id={record.id} isDragging={activeRowId === record.id} onDelete={() => handleDeleteRecord(record.id)} onOpen={() => setOpenRecordId(record.id)}>
+                  <SortableRow
+                    key={record.id} id={record.id}
+                    isDragging={activeRowId === record.id}
+                    onDelete={() => handleDeleteRecord(record.id)}
+                    onOpen={() => setOpenRecordId(record.id)}
+                    selected={selectedRowIds.has(record.id)}
+                    onToggleSelect={(e) => handleToggleRowSelect(record.id, e)}
+                  >
                     {!database.titleHidden && (
                       <td className="db-cell db-title-cell" style={columnWidths["__title__"] ? { minWidth: columnWidths["__title__"], width: columnWidths["__title__"] } : undefined}>
                         <TitleCell
@@ -402,14 +602,27 @@ export function DatabaseView({ database, isNew }: { database: any; isNew?: boole
                     {dbFields.map((field: any) => {
                       const val = values[field.name] ?? "";
                       const isEditing = editingCell?.recordId === record.id && editingCell?.fieldId === field.id;
+                      const isFormula = field.type === "formula";
                       const colW = columnWidths[field.id];
                       return (
                         <td key={field.id} className="db-cell" style={colW ? { minWidth: colW, width: colW } : undefined}>
-                          {isEditing ? (
-                            <InlineCellEditor field={field} value={val} onSave={(v) => handleCellEdit(record.id, field.id, v)} onCancel={() => setEditingCell(null)} databases={databases} allRecords={dbRecordCache} />
+                          {isEditing && !isFormula ? (
+                            <InlineCellEditor
+                              field={field}
+                              value={val}
+                              onSave={(v) => handleCellEdit(record.id, field.id, v)}
+                              onCancel={() => setEditingCell(null)}
+                              onNavigate={(dir) => handleCellNavigate({ recordId: record.id, fieldId: field.id }, dir)}
+                              databases={databases}
+                              allRecords={dbRecordCache}
+                            />
                           ) : (
-                            <div onClick={() => setEditingCell({ recordId: record.id, fieldId: field.id })} className="db-cell-content">
-                              <CellDisplay field={field} value={val} databases={databases} allRecords={dbRecordCache} />
+                            <div
+                              onClick={() => { if (!isFormula) setEditingCell({ recordId: record.id, fieldId: field.id }); }}
+                              className="db-cell-content"
+                              style={isFormula ? { cursor: "default" } : undefined}
+                            >
+                              <CellDisplay field={field} value={val} databases={databases} allRecords={dbRecordCache} recordValues={values} />
                             </div>
                           )}
                         </td>
@@ -449,6 +662,41 @@ export function DatabaseView({ database, isNew }: { database: any; isNew?: boole
             <OptionsEditor field={f as any} onClose={() => setShowOptionsFor(null)} onUpdate={() => {}} onDeleteOption={(opt) => handleDeleteOption(f.id, opt)} onAddOption={(opt) => handleAddOption(f.id, opt)} />
           </Popover>);
         })()}
+
+        {showFormulaFor && (() => {
+          const f = dbFields.find((x: any) => x.id === showFormulaFor);
+          if (!f) return null;
+          const el = document.querySelector(`[data-field-id="${f.id}"]`);
+          const rect = el ? (el as HTMLElement).getBoundingClientRect() : null;
+          return (
+            <Popover triggerRect={rect} onClose={() => setShowFormulaFor(null)} minWidth={340}>
+              <FormulaEditor
+                field={f as any}
+                onClose={() => setShowFormulaFor(null)}
+                onSave={async (expr) => { await api.updateField(f.id, { formula: expr || null }); await loadDbFields(database.id); }}
+              />
+            </Popover>
+          );
+        })()}
+
+        {selectedRowIds.size > 0 && (
+          <div style={{
+            position: "fixed", bottom: 20, left: "50%", transform: "translateX(-50%)",
+            background: "#37352f", color: "#fff", borderRadius: 8, padding: "8px 14px",
+            display: "flex", alignItems: "center", gap: 12, fontSize: 13,
+            boxShadow: "0 4px 16px rgba(0,0,0,0.25)", zIndex: 9999,
+          }}>
+            <span>{selectedRowIds.size} selected</span>
+            <button
+              onClick={handleBulkDelete}
+              style={{ background: "transparent", color: "#ff6b6b", border: "1px solid rgba(255,107,107,0.4)", borderRadius: 4, padding: "3px 10px", fontSize: 12, cursor: "pointer" }}
+            >Delete</button>
+            <button
+              onClick={() => { setSelectedRowIds(new Set()); lastSelectedRowRef.current = null; }}
+              style={{ background: "transparent", color: "#ccc", border: "none", padding: "3px 6px", fontSize: 12, cursor: "pointer" }}
+            >Clear</button>
+          </div>
+        )}
 
         <DragOverlay>
           {activeRowId ? (<div style={{ background: "#fff", border: "1px solid #ddd", borderRadius: 6, padding: "8px 16px", boxShadow: "0 4px 12px rgba(0,0,0,0.15)", fontSize: 14 }}>

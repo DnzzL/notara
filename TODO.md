@@ -1,189 +1,45 @@
 # Effect Notes - TODO List
 
-## P0 - Core Experience (Priority)
-
-### 1. Complete Block Types
-
-- [x] Add quote block (`/quote`)
-
-- [x] Add callout block (`/callout`) with emoji
-
-- [x] Add divider block (`/divider`)
-
-- [x] Add image embed block (`/image`)
-
-- [x] Add todo/checkbox block (`/todo`)
-
-- [x] Add toggle block (`/toggle`)
-
-### 2. Block Navigation
-
-- [x] Arrow keys navigate between blocks
-
-- [x] Backspace at start merges with previous block
-
-- [x] Enter splits current block
-
-- [x] Delete empty block when backspace on empty
-
-### 3. Drag & Drop Blocks
-
-- [x] Drag handle on blocks
-
-- [x] Reorder blocks within page
-
-- [x] Drop indicator between blocks
-
-- [x] Drag to sidebar to move to another page
-
----
-
-## P1 - Polish
-
-### 4. Search
-
-- [x] `Cmd+K` quick search modal
-
-- [x] Full-text search in page titles
-
-- [x] Full-text search in block content (use FTS)
-
-- [x] Recent pages in search
-
-- [x] Navigate to result on Enter
-
-### 5. Page Features
-
-- [x] Page icons (emoji picker)
-
-- [ ] Cover images (upload or URL)
-
-- [x] Favorite/starred pages
-
-- [x] Recently viewed pages
-
-- [ ] Page templates (blank, todo, meeting notes)
-
-### 6. Import/Export
-
-- [x] Import Notion Markdown export
-
-- [x] Import Notion CSV databases
-
-- [x] Export page as Markdown
-
-- [x] Export database as CSV
-
-- [x] Export all as ZIP
-
----
-
-## P2 - Desktop
-
-### 7. Electron App
-
-- [ ] Electron wrapper
-
-- [ ] Auto-start backend server
-
-- [ ] Menu bar (File, Edit, View)
-
-- [ ] Keyboard shortcuts registration
-
-- [ ] Auto-updater
-
-- [ ] Single executable build
-
-### 8. File Attachments (ADR-001)
-
-- [x] Migration: Add `attachments` table to SQLite
-
-- [x] Server: `POST /api/upload` endpoint (raw bytes with header metadata)
-
-- [x] Server: Extend static file handler for `.data/attachments/`
-
-- [x] Schema: Add `"pdf"` to Block type literal
-
-- [x] Frontend: PDF block renderer (inline `<iframe>`)
-
-- [x] Frontend: Update image renderer for JSON content format
-
-- [x] Frontend: Slash command upload (already wired, needs backend)
-
-- [x] Frontend: Drag-and-drop upload handler
-
-- [x] Frontend: Paste-from-clipboard upload handler
-
-- [ ] Tests: E2E tests for upload flow
-
-- [x] Backward compat: Support old HTML image format alongside new JSON format
-
----
-
-## P3 - Advanced
-
-### 9. Database Templates
-
-- [ ] Todo database template
-
-- [ ] Wiki/Documentation template
-
-- [ ] CRM/Contacts template
-
-- [ ] Custom templates
-
-### 10. Keyboard Shortcuts
-
-- [x] `Cmd+[` / `Cmd+]` - History back/forward
-
-- [x] `Cmd+D` - Duplicate block
-
-- [x] `Cmd+Shift+↑↓` - Move block up/down
-
-- [x] `Cmd+Shift+N` - New page
-
-- [ ] `Cmd+P` - Quick search
-
-- [ ] `Cmd+Shift+P` - Command palette
-
-### 11. Database Field Types
-
-- [ ] Select field with options
-
-- [ ] Multi-select field
-
-- [ ] Date field with picker
-
-- [ ] Checkbox field
-
-- [ ] Number field with sorting
-
-- [ ] Relation field (link to another database)
-
-- [ ] Rollup field (aggregate related records)
+## Active
+
+### Database UX polish
+- [ ] Keyboard cell navigation (arrows, Tab/Shift+Tab, Enter-to-edit)
+- [ ] One-click sort on column header + sort indicator (arrow + index)
+- [ ] Column drag-reorder
+- [ ] Bulk row select (Shift+click range, Cmd/Ctrl+click toggle, Cmd+A) + Delete with confirm
+- [ ] Board view: inline "Add column" tile
+- [ ] Basic formula field — `prop("Name")` refs, `+ - * /`, `if`, `sum`, `round`
+
+### Desktop (Phase 5)
+- [ ] Electron wrapper (auto-start backend, menu bar, shortcut registration, build pipeline, auto-updater)
+
+### Tests
+- [ ] E2E tests for image/PDF upload flow
 
 ---
 
 ## Done ✅
 
-- [x] Monorepo scaffold with Bun
+- Monorepo scaffold with Bun, Effect RPC, SQLite + migrations
+- Block types: paragraph, headings, lists, todo, code, quote, divider, image, PDF, callout, toggle, database, pageLink
+- Block navigation (arrows, backspace merge, enter split)
+- Drag & drop blocks (reorder + cross-page via sidebar)
+- Search: `Cmd+K` modal, FTS on titles + block content, recent pages
+- Page features: icons (emoji), favorites, recently viewed
+- Import: Notion Markdown + CSV. Export: page Markdown, database CSV, ZIP-all
+- File attachments: image + PDF upload, drag-drop, paste-from-clipboard, backward-compat
+- Keyboard shortcuts: `Cmd+[`/`]`, `Cmd+D`, `Cmd+Shift+↑↓`, `Cmd+Shift+N`
+- Database field types: text, number, select, multiSelect, date, checkbox, page, relation
+- Inline databases (table + board views), URL-based routing, page title editing
+- Playwright E2E (15 tests)
 
-- [x] Effect RPC type-safe API
+## Deferred / low priority
 
-- [x] SQLite with migrations
-
-- [x] TipTap block editor
-
-- [x] Slash menu (`/` for blocks)
-
-- [x] Nested pages with sidebar tree
-
-- [x] Inline databases (table/board)
-
-- [x] URL-based page routing
-
-- [x] Page title editing
-
-- [x] Database CRUD (fields, records, views)
-
-- [x] Playwright E2E tests
+- Cover images
+- Page templates (blank, todo, meeting notes)
+- `Cmd+P` quick search shortcut, `Cmd+Shift+P` command palette
+- Database templates (todo, wiki, CRM)
+- Rollup field (aggregate related records)
+- Virtualization (when >200 records becomes a real workload)
+- Freeze title column on scroll
+- Paste-multi-cell, type-migration warnings

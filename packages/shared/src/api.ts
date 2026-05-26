@@ -5,6 +5,7 @@ import {
   Block,
   Database,
   DatabaseField,
+  DatabaseFieldType,
   DatabaseRecord,
   RecordFieldValue,
   DatabaseView,
@@ -120,9 +121,10 @@ export const AppRpc = RpcGroup.make(
     payload: {
       databaseId: Schema.String,
       name: Schema.String,
-      type: Schema.Literal("text", "number", "select", "multiSelect", "date", "checkbox", "relation", "page"),
+      type: DatabaseFieldType,
       options: Schema.NullOr(Schema.Array(Schema.String)),
       relationTargetDbId: Schema.NullOr(Schema.String),
+      formula: Schema.optional(Schema.NullOr(Schema.String)),
     },
     success: DatabaseField,
   }),
@@ -173,11 +175,19 @@ export const AppRpc = RpcGroup.make(
     payload: {
       id: Schema.String,
       name: Schema.optional(Schema.String),
-      type: Schema.optional(Schema.Literal("text", "number", "select", "multiSelect", "date", "checkbox", "relation", "page")),
+      type: Schema.optional(DatabaseFieldType),
       options: Schema.optional(Schema.NullOr(Schema.Array(Schema.String))),
       relationTargetDbId: Schema.optional(Schema.NullOr(Schema.String)),
+      formula: Schema.optional(Schema.NullOr(Schema.String)),
     },
     success: DatabaseField,
+  }),
+  Rpc.make("reorderFields", {
+    payload: {
+      databaseId: Schema.String,
+      fieldIds: Schema.Array(Schema.String),
+    },
+    success: Schema.Struct({ reordered: Schema.Boolean }),
   }),
   Rpc.make("updateRecord", {
     payload: {

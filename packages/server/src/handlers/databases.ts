@@ -55,6 +55,7 @@ export const listFields = (databaseId: string) =>
     const sql = yield* SqlClient.SqlClient;
     const rows = yield* sql`
       SELECT ${sql.unsafe(FIELD_COLS)} FROM database_fields WHERE database_id = ${databaseId}
+      ORDER BY sort_order ASC, id ASC
     `;
     return rows.map(fieldFromRow);
   });
@@ -62,13 +63,20 @@ export const listFields = (databaseId: string) =>
 export const createField = (req: {
   databaseId: string; name: string; type: string;
   options: string[] | null; relationTargetDbId: string | null;
+  formula?: string | null;
 }) => Effect.gen(function* () {
   const sql = yield* SqlClient.SqlClient;
   const id = ulid();
   const options = req.options ? JSON.stringify(req.options) : null;
+  // Place new fields after existing ones (highest sort_order + 1).
+  const maxRows = yield* sql`
+    SELECT COALESCE(MAX(sort_order), 0) as "maxOrder"
+    FROM database_fields WHERE database_id = ${req.databaseId}
+  `;
+  const nextOrder = Number((maxRows[0] as any)?.maxOrder ?? 0) + 1;
   const rows = yield* sql`
-    INSERT INTO database_fields (id, database_id, name, type, options, relation_target_db_id)
-    VALUES (${id}, ${req.databaseId}, ${req.name}, ${req.type}, ${options}, ${req.relationTargetDbId})
+    INSERT INTO database_fields (id, database_id, name, type, options, relation_target_db_id, formula, sort_order)
+    VALUES (${id}, ${req.databaseId}, ${req.name}, ${req.type}, ${options}, ${req.relationTargetDbId}, ${req.formula ?? null}, ${nextOrder})
     RETURNING ${sql.unsafe(FIELD_COLS)}
   `;
   return fieldFromRow(rows[0]);
@@ -209,12 +217,12 @@ export const listViews = (databaseId: string) =>
     return rows.map(viewFromRow);
   });
 
-export const updateField = (req: { id: string; name?: string; type?: string; options?: string[] | null; relationTargetDbId?: string | null }) =>
+export const updateField = (req: { id: string; name?: string; type?: string; options?: string[] | null; relationTargetDbId?: string | null; formula?: string | null }) =>
   Effect.gen(function* () {
     const sql = yield* SqlClient.SqlClient;
 
     const existing = yield* sql`
-      SELECT name, type, options, relation_target_db_id as "relationTargetDbId"
+      SELECT name, type, options, relation_target_db_id as "relationTargetDbId", formula
       FROM database_fields WHERE id = ${req.id}
     `;
     if (existing.length === 0) return yield* Effect.fail(new Error(`Field ${req.id} not found`));
@@ -224,14 +232,27 @@ export const updateField = (req: { id: string; name?: string; type?: string; opt
     const newType = req.type ?? current.type;
     const newOptions = req.options === undefined ? current.options : (req.options ? JSON.stringify(req.options) : null);
     const newRelationTargetDbId = req.relationTargetDbId === undefined ? current.relationTargetDbId : req.relationTargetDbId;
+    const newFormula = req.formula === undefined ? current.formula : req.formula;
 
     const rows = yield* sql`
       UPDATE database_fields
-      SET name = ${newName}, type = ${newType}, options = ${newOptions}, relation_target_db_id = ${newRelationTargetDbId}
+      SET name = ${newName}, type = ${newType}, options = ${newOptions},
+          relation_target_db_id = ${newRelationTargetDbId}, formula = ${newFormula}
       WHERE id = ${req.id}
       RETURNING ${sql.unsafe(FIELD_COLS)}
     `;
     return fieldFromRow(rows[0]);
+  });
+
+export const reorderFields = (req: { databaseId: string; fieldIds: string[] }) =>
+  Effect.gen(function* () {
+    const sql = yield* SqlClient.SqlClient;
+    yield* Effect.all(
+      req.fieldIds.map((fieldId, index) =>
+        sql`UPDATE database_fields SET sort_order = ${index + 1} WHERE id = ${fieldId} AND database_id = ${req.databaseId}`
+      ),
+    );
+    return { reordered: true };
   });
 
 export const updateRecord = (req: { id: string; title?: string; description?: string }) =>

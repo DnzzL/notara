@@ -704,6 +704,7 @@ const rpcHandlersLayer = AppRpc.toLayer({
           type: req.type,
           options: req.options ? [...req.options] : null,
           relationTargetDbId: req.relationTargetDbId,
+          formula: req.formula ?? null,
         });
       }),
     ).pipe(Effect.orDie),
@@ -784,7 +785,15 @@ const rpcHandlersLayer = AppRpc.toLayer({
           type: req.type,
           options: req.options === undefined ? undefined : (req.options ? [...req.options] : null),
           relationTargetDbId: req.relationTargetDbId,
+          formula: req.formula,
         });
+      }),
+    ).pipe(Effect.orDie),
+  reorderFields: ({ databaseId, fieldIds }) =>
+    withAuthedWorkspace(({ userId, workspaceId }) =>
+      Effect.gen(function* () {
+        yield* Permissions.checkDatabasePermission(userId, workspaceId, databaseId, "editor");
+        return yield* Databases.reorderFields({ databaseId, fieldIds: [...fieldIds] });
       }),
     ).pipe(Effect.orDie),
   updateRecord: (req) =>

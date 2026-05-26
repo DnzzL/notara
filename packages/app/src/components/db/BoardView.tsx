@@ -15,7 +15,7 @@ export function BoardView({
   database: any; fields: any[]; records: any[]; databases: any[];
   onSwitchView: () => void; allRecords?: Record<string, any[]>;
 }) {
-  const { boardGroupByFieldId, setBoardGroupBy, boardHiddenFieldIds, toggleBoardField, updateFieldValue, updateField, loadDbRecords, createDbRecord } = useStore();
+  const { boardGroupByFieldId, setBoardGroupBy, boardHiddenFieldIds, toggleBoardField, updateFieldValue, updateField, loadDbRecords, createDbRecord, loadDbFields } = useStore();
   const [showFieldsPicker, setShowFieldsPicker] = useState(false);
   const fieldsPickerRef = useRef<HTMLDivElement>(null);
 
@@ -310,6 +310,13 @@ export function BoardView({
                 </div>
               </SortableColumn>
             ))}
+            {groupField && (groupField.type === "select" || groupField.type === "multiSelect") && (
+              <AddBoardColumn
+                groupField={groupField}
+                existingOptions={groupField.options || []}
+                onAdded={() => loadDbFields(database.id)}
+              />
+            )}
           </div>
         </SortableContext>
 
@@ -327,5 +334,52 @@ export function BoardView({
         </DragOverlay>
       </div>
     </DndContext>
+  );
+}
+
+// ── Inline "Add column" tile (creates a new option on the group-by field) ─
+
+function AddBoardColumn({ groupField, existingOptions, onAdded }: { groupField: { id: string; options: string[] | null }; existingOptions: string[]; onAdded: () => void | Promise<void> }) {
+  const [editing, setEditing] = useState(false);
+  const [value, setValue] = useState("");
+  const inputRef = useRef<HTMLInputElement>(null);
+  useEffect(() => { if (editing) inputRef.current?.focus(); }, [editing]);
+
+  const commit = async () => {
+    const v = value.trim();
+    setEditing(false);
+    setValue("");
+    if (!v || existingOptions.includes(v)) return;
+    await api.updateField(groupField.id, { options: [...existingOptions, v] });
+    await onAdded();
+  };
+
+  if (!editing) {
+    return (
+      <div
+        className="board-column"
+        style={{ display: "flex", alignItems: "flex-start", justifyContent: "center", padding: 8, opacity: 0.6, cursor: "pointer", minWidth: 220 }}
+        onClick={() => setEditing(true)}
+        title="Add a new column"
+      >
+        <span style={{ fontSize: 13, color: "#666" }}>+ Add column</span>
+      </div>
+    );
+  }
+  return (
+    <div className="board-column" style={{ padding: 8, minWidth: 220 }}>
+      <input
+        ref={inputRef}
+        value={value}
+        onChange={(e) => setValue(e.target.value)}
+        onBlur={commit}
+        onKeyDown={(e) => {
+          if (e.key === "Enter") { e.preventDefault(); commit(); }
+          if (e.key === "Escape") { setEditing(false); setValue(""); }
+        }}
+        placeholder="Column name"
+        style={{ width: "100%", border: "1px solid #2eaadc", borderRadius: 4, padding: "4px 6px", fontSize: 13, outline: "none" }}
+      />
+    </div>
   );
 }

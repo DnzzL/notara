@@ -116,6 +116,8 @@ describe("DatabaseField Schema", () => {
       type: "select" as const,
       options: ["todo", "done"],
       relationTargetDbId: null,
+      formula: null,
+      sortOrder: 0,
     };
 
     const decoded = Schema.decodeSync(DatabaseField)(input);
@@ -134,6 +136,8 @@ describe("DatabaseField Schema", () => {
       type: "relation" as const,
       options: null,
       relationTargetDbId: null,
+      formula: null,
+      sortOrder: 0,
     };
 
     const decoded = Schema.decodeSync(DatabaseField)(input);
