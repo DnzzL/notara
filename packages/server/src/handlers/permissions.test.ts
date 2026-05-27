@@ -323,7 +323,7 @@ describe("Permissions.checkPagePermission", () => {
 // ── filterPagesByPermission ───────────────────────────────────────────────────
 
 function makePage(id: string, parentId: string | null) {
-  return { id, parentId, title: "", icon: null, coverUrl: null, sortOrder: 0, isDeleted: false, isFavorite: false, createdAt: "", updatedAt: "" };
+  return { id, parentId, title: "", icon: null, coverUrl: null, sortOrder: 0, isDeleted: false, isFavorite: false, createdAt: "", updatedAt: "", deletedAt: null };
 }
 
 function runWorkspace<A>(

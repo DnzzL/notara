@@ -17,8 +17,12 @@ export const listDatabases = (pageId: string) =>
  *  field's target picker so users can link to a database on any page. */
 export const listAllDatabases = Effect.gen(function* () {
   const sql = yield* SqlClient.SqlClient;
+  // Exclude databases whose parent page is itself trashed — otherwise deleting
+  // a page would leave its databases visible here (orphans).
   const rows = yield* sql`
-    SELECT ${sql.unsafe(DB_COLS)} FROM databases WHERE is_deleted = 0
+    SELECT ${sql.unsafe(DB_COLS)} FROM databases
+    WHERE is_deleted = 0
+      AND page_id NOT IN (SELECT id FROM pages WHERE is_deleted = 1)
     ORDER BY sort_order ASC
   `;
   return rows.map(dbFromRow);
@@ -139,7 +143,7 @@ export const getRecordWithValues = (recordId: string) =>
     const sql = yield* SqlClient.SqlClient;
 
     const recordRows = yield* sql`
-      SELECT ${sql.unsafe(RECORD_COLS)} FROM database_records WHERE id = ${recordId}
+      SELECT ${sql.unsafe(RECORD_COLS)} FROM database_records WHERE id = ${recordId} AND is_deleted = 0
     `;
     if (recordRows.length === 0) return yield* Effect.fail(new Error(`Record ${recordId} not found`));
     const record = recordFromRow(recordRows[0]);
@@ -205,7 +209,15 @@ export const updateFieldValue = (req: { recordId: string; fieldId: string; value
 export const deleteRecord = (id: string) =>
   Effect.gen(function* () {
     const sql = yield* SqlClient.SqlClient;
-    yield* sql`UPDATE database_records SET is_deleted = 1 WHERE id = ${id}`;
+    const now = new Date().toISOString();
+    const recRows = yield* sql`SELECT page_id as "pageId" FROM database_records WHERE id = ${id}`;
+    yield* sql`UPDATE database_records SET is_deleted = 1, deleted_at = ${now} WHERE id = ${id}`;
+    // A row and its lazily-created backing page are one entity: trash them together
+    // so the page stops appearing as a ghost in the sidebar tree.
+    const pageId = (recRows[0] as { pageId: string | null } | undefined)?.pageId;
+    if (pageId) {
+      yield* sql`UPDATE pages SET is_deleted = 1, deleted_at = ${now}, updated_at = ${now} WHERE id = ${pageId}`;
+    }
   });
 
 export const listViews = (databaseId: string) =>
@@ -278,6 +290,22 @@ export const deleteField = (id: string) =>
     return { deleted: true };
   });
 
+/** Soft-delete a database. Mirrors `deletePage`: the row is flagged
+ *  `is_deleted = 1` so it drops out of listings; its fields and records are
+ *  left in place (reversible). Returns `{ deleted: false }` if the id was
+ *  unknown or already deleted. */
+export const deleteDatabase = (id: string) =>
+  Effect.gen(function* () {
+    const sql = yield* SqlClient.SqlClient;
+    const now = new Date().toISOString();
+    const rows = yield* sql`
+      UPDATE databases SET is_deleted = 1, deleted_at = ${now}
+      WHERE id = ${id} AND is_deleted = 0
+      RETURNING id
+    `;
+    return { deleted: rows.length > 0 };
+  });
+
 export const renameDatabase = (req: { id: string; name: string }) =>
   Effect.gen(function* () {
     const sql = yield* SqlClient.SqlClient;
@@ -345,3 +373,174 @@ export const createView = (req: {
   `;
   return viewFromRow(rows[0]);
 });
+
+// ── Trash: restore / permanent purge / sweep ────────────────────────────────────
+
+export const restoreDatabase = (id: string) =>
+  Effect.gen(function* () {
+    const sql = yield* SqlClient.SqlClient;
+    const rows = yield* sql`
+      UPDATE databases SET is_deleted = 0, deleted_at = NULL
+      WHERE id = ${id} AND is_deleted = 1
+      RETURNING id
+    `;
+    return { restored: rows.length > 0 };
+  });
+
+export const restoreRecord = (id: string) =>
+  Effect.gen(function* () {
+    const sql = yield* SqlClient.SqlClient;
+    const now = new Date().toISOString();
+    const rows = yield* sql`
+      UPDATE database_records SET is_deleted = 0, deleted_at = NULL
+      WHERE id = ${id} AND is_deleted = 1
+      RETURNING id, page_id as "pageId"
+    `;
+    // Restore the backing page alongside the row (mirror of deleteRecord).
+    const pageId = (rows[0] as { pageId: string | null } | undefined)?.pageId;
+    if (pageId) {
+      yield* sql`UPDATE pages SET is_deleted = 0, deleted_at = NULL, updated_at = ${now} WHERE id = ${pageId}`;
+    }
+    return { restored: rows.length > 0 };
+  });
+
+// NOTE on cascade: SQLite foreign keys are NOT enforced on these connections
+// (no `PRAGMA foreign_keys = ON`), and several FKs use NO ACTION, so we cannot
+// rely on `ON DELETE CASCADE`. Purge handlers therefore delete children
+// explicitly, inside a transaction. Order is irrelevant with FKs off, but we go
+// leaf-to-root for clarity.
+
+/** Permanently delete a record and its field values. */
+export const purgeRecord = (id: string) =>
+  Effect.gen(function* () {
+    const sql = yield* SqlClient.SqlClient;
+    const recRows = yield* sql`SELECT page_id as "pageId" FROM database_records WHERE id = ${id}`;
+    yield* sql`DELETE FROM record_field_values WHERE record_id = ${id}`;
+    yield* sql`DELETE FROM database_records WHERE id = ${id}`;
+    const pageId = (recRows[0] as { pageId: string | null } | undefined)?.pageId;
+    if (pageId) yield* purgePage(pageId);
+    return { purged: true };
+  });
+
+/** Permanently delete a database and everything under it (records, field
+ *  values, fields, views). */
+export const purgeDatabase = (id: string) =>
+  Effect.gen(function* () {
+    const sql = yield* SqlClient.SqlClient;
+    const backingRows = yield* sql`SELECT page_id as "pageId" FROM database_records WHERE database_id = ${id} AND page_id IS NOT NULL`;
+    yield* sql`DELETE FROM record_field_values WHERE record_id IN (SELECT id FROM database_records WHERE database_id = ${id})`;
+    yield* sql`DELETE FROM database_records WHERE database_id = ${id}`;
+    yield* sql`DELETE FROM database_fields WHERE database_id = ${id}`;
+    yield* sql`DELETE FROM database_views WHERE database_id = ${id}`;
+    yield* sql`DELETE FROM databases WHERE id = ${id}`;
+    const pageIds = backingRows.map((r) => (r as { pageId: string }).pageId);
+    yield* Effect.forEach(pageIds, (pid) => purgePage(pid), { discard: true });
+    return { purged: true };
+  });
+
+/** Permanently delete a page and everything under it: its blocks, and all of
+ *  its databases (with their records, field values, fields, and views). */
+export const purgePage = (id: string): Effect.Effect<{ purged: true }, any, SqlClient.SqlClient> =>
+  Effect.gen(function* () {
+    const sql = yield* SqlClient.SqlClient;
+    // Collect backing pages of this page's records before deleting those records.
+    const backingRows = yield* sql`
+      SELECT r.page_id as "pageId" FROM database_records r
+      JOIN databases d ON d.id = r.database_id
+      WHERE d.page_id = ${id} AND r.page_id IS NOT NULL`;
+    yield* sql`DELETE FROM record_field_values WHERE record_id IN (
+      SELECT r.id FROM database_records r JOIN databases d ON d.id = r.database_id WHERE d.page_id = ${id})`;
+    yield* sql`DELETE FROM database_records WHERE database_id IN (SELECT id FROM databases WHERE page_id = ${id})`;
+    yield* sql`DELETE FROM database_fields WHERE database_id IN (SELECT id FROM databases WHERE page_id = ${id})`;
+    yield* sql`DELETE FROM database_views WHERE database_id IN (SELECT id FROM databases WHERE page_id = ${id})`;
+    yield* sql`DELETE FROM databases WHERE page_id = ${id}`;
+    yield* sql`DELETE FROM blocks WHERE page_id = ${id}`;
+    yield* sql`DELETE FROM pages WHERE id = ${id}`;
+    // Recurse into backing pages (which may themselves host databases).
+    const pageIds = backingRows.map((r) => (r as { pageId: string }).pageId);
+    yield* Effect.forEach(pageIds, (pid) => purgePage(pid), { discard: true });
+    return { purged: true };
+  });
+
+/** Trash contents for the current workspace: explicitly-deleted pages,
+ *  databases, and records (children hidden via a deleted parent are NOT listed,
+ *  since their own `deleted_at` is null). Newest first. */
+export const listTrash = Effect.gen(function* () {
+  const sql = yield* SqlClient.SqlClient;
+  const pages = yield* sql`
+    SELECT id, title, deleted_at as "deletedAt" FROM pages
+    WHERE is_deleted = 1 ORDER BY deleted_at DESC
+  `;
+  const databases = yield* sql`
+    SELECT id, name, deleted_at as "deletedAt" FROM databases
+    WHERE is_deleted = 1 ORDER BY deleted_at DESC
+  `;
+  const records = yield* sql`
+    SELECT id, database_id as "databaseId", title, deleted_at as "deletedAt" FROM database_records
+    WHERE is_deleted = 1 ORDER BY deleted_at DESC
+  `;
+  return {
+    pages: pages.map((r: any) => ({ id: r.id as string, title: r.title as string, deletedAt: (r.deletedAt as string | null) ?? null })),
+    databases: databases.map((r: any) => ({ id: r.id as string, name: r.name as string, deletedAt: (r.deletedAt as string | null) ?? null })),
+    records: records.map((r: any) => ({ id: r.id as string, databaseId: r.databaseId as string, title: r.title as string, deletedAt: (r.deletedAt as string | null) ?? null })),
+  };
+});
+
+/** Lazily creates a full page for a database record.
+ *  On first call: creates a page (child of the database's host page) with the
+ *  record's title, stores its id on the record, and returns it.
+ *  On subsequent calls: returns the already-associated pageId unchanged. */
+export const openRecordAsPage = (recordId: string) =>
+  Effect.gen(function* () {
+    const sql = yield* SqlClient.SqlClient;
+
+    const recRows = yield* sql`
+      SELECT id, title, database_id as "databaseId", page_id as "pageId"
+      FROM database_records WHERE id = ${recordId} AND is_deleted = 0
+    `;
+    if (recRows.length === 0) return yield* Effect.fail(new Error(`Record ${recordId} not found`));
+    const rec = recRows[0] as { id: string; title: string; databaseId: string; pageId: string | null };
+
+    if (rec.pageId) return { pageId: rec.pageId };
+
+    const dbRows = yield* sql`SELECT page_id as "pageId" FROM databases WHERE id = ${rec.databaseId}`;
+    if (dbRows.length === 0) return yield* Effect.fail(new Error(`Database ${rec.databaseId} not found`));
+    const hostPageId = (dbRows[0] as { pageId: string }).pageId;
+
+    const pageId = ulid();
+    const now = new Date().toISOString();
+    yield* sql`
+      INSERT INTO pages (id, title, parent_id, created_at, updated_at)
+      VALUES (${pageId}, ${rec.title}, ${hostPageId}, ${now}, ${now})
+    `;
+    yield* sql`UPDATE database_records SET page_id = ${pageId} WHERE id = ${recordId}`;
+
+    return { pageId };
+  });
+
+/** Permanently delete trashed rows whose `deleted_at` is older than the
+ *  retention window, deep-purging children. Purging pages first means their
+ *  databases/records go with them; the later passes mop up individually-trashed
+ *  databases and records. Returns counts of explicitly-expired items.
+ *  `datetime(...)` normalizes stored values (JS ISO `…T…Z` or the backfill's
+ *  space-separated form) before comparing. */
+export const purgeExpired = (retentionDays: number) =>
+  Effect.gen(function* () {
+    const sql = yield* SqlClient.SqlClient;
+    const cutoff = `-${Math.max(0, Math.floor(retentionDays))} days`;
+    const expired = (table: string) =>
+      sql.unsafe(
+        `SELECT id FROM ${table} WHERE is_deleted = 1 AND deleted_at IS NOT NULL AND datetime(deleted_at) < datetime('now', ?)`,
+        [cutoff],
+      ) as unknown as Effect.Effect<ReadonlyArray<{ id: string }>, any, never>;
+
+    const pages = yield* expired("pages");
+    const databases = yield* expired("databases");
+    const records = yield* expired("database_records");
+
+    yield* Effect.forEach(pages, (r) => purgePage(r.id), { discard: true });
+    yield* Effect.forEach(databases, (r) => purgeDatabase(r.id), { discard: true });
+    yield* Effect.forEach(records, (r) => purgeRecord(r.id), { discard: true });
+
+    return { pages: pages.length, databases: databases.length, records: records.length };
+  });

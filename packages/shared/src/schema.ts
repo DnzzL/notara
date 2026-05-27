@@ -12,6 +12,7 @@ export class Page extends Schema.Class<Page>("Page")({
   isFavorite: Schema.Boolean,
   createdAt: Schema.String,
   updatedAt: Schema.String,
+  deletedAt: Schema.NullOr(Schema.String),
 }) {}
 
 export class Block extends Schema.Class<Block>("Block")({
@@ -48,6 +49,7 @@ export class Database extends Schema.Class<Database>("Database")({
   sortOrder: Schema.Number,
   titleLabel: Schema.String,
   titleHidden: Schema.Boolean,
+  deletedAt: Schema.NullOr(Schema.String),
 }) {}
 
 export const DatabaseFieldType = Schema.Literal(
@@ -70,8 +72,10 @@ export class DatabaseRecord extends Schema.Class<DatabaseRecord>("DatabaseRecord
   databaseId: Schema.String,
   title: Schema.String,
   description: Schema.String,
+  pageId: Schema.NullOr(Schema.String),
   isDeleted: Schema.Boolean,
   createdAt: Schema.String,
+  deletedAt: Schema.NullOr(Schema.String),
 }) {}
 
 export class RecordFieldValue extends Schema.Class<RecordFieldValue>("RecordFieldValue")({
@@ -166,6 +170,33 @@ export class ApiKeyCreated extends Schema.Class<ApiKeyCreated>("ApiKeyCreated")(
   keyPrefix: Schema.String,
   rawKey: Schema.String,
   createdAt: Schema.String,
+}) {}
+
+/** A single trashed item, identified for restore/purge. */
+export class TrashedPage extends Schema.Class<TrashedPage>("TrashedPage")({
+  id: Schema.String,
+  title: Schema.String,
+  deletedAt: Schema.NullOr(Schema.String),
+}) {}
+
+export class TrashedDatabase extends Schema.Class<TrashedDatabase>("TrashedDatabase")({
+  id: Schema.String,
+  name: Schema.String,
+  deletedAt: Schema.NullOr(Schema.String),
+}) {}
+
+export class TrashedRecord extends Schema.Class<TrashedRecord>("TrashedRecord")({
+  id: Schema.String,
+  databaseId: Schema.String,
+  title: Schema.String,
+  deletedAt: Schema.NullOr(Schema.String),
+}) {}
+
+/** Everything in the current workspace's trash, grouped by type. */
+export class TrashContents extends Schema.Class<TrashContents>("TrashContents")({
+  pages: Schema.Array(TrashedPage),
+  databases: Schema.Array(TrashedDatabase),
+  records: Schema.Array(TrashedRecord),
 }) {}
 
 export const AclRelation = Schema.Literal("owner", "editor", "viewer");

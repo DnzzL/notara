@@ -98,8 +98,24 @@ export const deletePage = (id: string) =>
   Effect.gen(function* () {
     const sql = yield* SqlClient.SqlClient;
     const now = new Date().toISOString();
-    yield* sql`UPDATE pages SET is_deleted = 1, updated_at = ${now} WHERE id = ${id}`;
+    yield* sql`UPDATE pages SET is_deleted = 1, deleted_at = ${now}, updated_at = ${now} WHERE id = ${id}`;
   });
+
+/** Restore a trashed page. Returns `{ restored: false }` if the id was unknown
+ *  or the page wasn't in the trash. Child databases/blocks were never touched
+ *  by the soft-delete, so they reappear automatically. */
+export const restorePage = (id: string) =>
+  Effect.gen(function* () {
+    const sql = yield* SqlClient.SqlClient;
+    const now = new Date().toISOString();
+    const rows = yield* sql`
+      UPDATE pages SET is_deleted = 0, deleted_at = NULL, updated_at = ${now}
+      WHERE id = ${id} AND is_deleted = 1
+      RETURNING id
+    `;
+    return { restored: rows.length > 0 };
+  });
+
 
 export const searchPages = (query: string) =>
   Effect.gen(function* () {

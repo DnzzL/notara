@@ -16,6 +16,8 @@ export interface AppSettings {
   s3SecretAccessKey: string;
   s3Prefix: string;
   s3Schedule: BackupSchedule;
+  /** Days a trashed item is kept before the sweep permanently deletes it. */
+  trashRetentionDays: number;
 }
 
 const defaults: AppSettings = {
@@ -27,6 +29,7 @@ const defaults: AppSettings = {
   s3SecretAccessKey: "",
   s3Prefix: "backups",
   s3Schedule: "manual",
+  trashRetentionDays: 30,
 };
 
 // Env var overrides — take precedence over settings.json values.
@@ -39,6 +42,10 @@ function envOverrides(): Partial<AppSettings> {
   if (process.env.S3_SECRET_KEY)    o.s3SecretAccessKey = process.env.S3_SECRET_KEY;
   if (process.env.S3_PREFIX)        o.s3Prefix = process.env.S3_PREFIX;
   if (process.env.S3_SCHEDULE)      o.s3Schedule = process.env.S3_SCHEDULE as BackupSchedule;
+  if (process.env.TRASH_RETENTION_DAYS) {
+    const n = Number.parseInt(process.env.TRASH_RETENTION_DAYS, 10);
+    if (Number.isFinite(n) && n >= 0) o.trashRetentionDays = n;
+  }
   return o;
 }
 

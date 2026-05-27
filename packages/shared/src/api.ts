@@ -23,6 +23,7 @@ import {
   AclRevision,
   Subject,
   PagePermissions,
+  TrashContents,
 } from "./schema.js";
 
 // Combined RPC group — all requests
@@ -204,6 +205,10 @@ export const AppRpc = RpcGroup.make(
     },
     success: Schema.Struct({ reordered: Schema.Boolean }),
   }),
+  Rpc.make("openRecordAsPage", {
+    payload: { recordId: Schema.String },
+    success: Schema.Struct({ pageId: Schema.String }),
+  }),
   Rpc.make("renameDatabase", {
     payload: { id: Schema.String, name: Schema.String },
     success: Database,
@@ -223,6 +228,37 @@ export const AppRpc = RpcGroup.make(
   Rpc.make("reorderDatabases", {
     payload: { pageId: Schema.String, databaseIds: Schema.Array(Schema.String) },
     success: Schema.Struct({ reordered: Schema.Boolean }),
+  }),
+  Rpc.make("deleteDatabase", {
+    payload: { id: Schema.String },
+    success: Schema.Struct({ deleted: Schema.Boolean }),
+  }),
+
+  // Trash: restore / permanent purge / listing
+  Rpc.make("listTrash", { success: TrashContents }),
+  Rpc.make("restorePage", {
+    payload: { id: Schema.String },
+    success: Schema.Struct({ restored: Schema.Boolean }),
+  }),
+  Rpc.make("restoreDatabase", {
+    payload: { id: Schema.String },
+    success: Schema.Struct({ restored: Schema.Boolean }),
+  }),
+  Rpc.make("restoreRecord", {
+    payload: { id: Schema.String },
+    success: Schema.Struct({ restored: Schema.Boolean }),
+  }),
+  Rpc.make("purgePage", {
+    payload: { id: Schema.String },
+    success: Schema.Struct({ purged: Schema.Boolean }),
+  }),
+  Rpc.make("purgeDatabase", {
+    payload: { id: Schema.String },
+    success: Schema.Struct({ purged: Schema.Boolean }),
+  }),
+  Rpc.make("purgeRecord", {
+    payload: { id: Schema.String },
+    success: Schema.Struct({ purged: Schema.Boolean }),
   }),
 
   // Workspaces

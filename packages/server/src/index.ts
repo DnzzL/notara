@@ -810,6 +810,10 @@ const rpcHandlersLayer = AppRpc.toLayer({
         return yield* Databases.reorderRecords({ databaseId, recordIds: [...recordIds] });
       }),
     ).pipe(Effect.orDie),
+  openRecordAsPage: ({ recordId }) =>
+    withAuthedWorkspace(() =>
+      Databases.openRecordAsPage(recordId),
+    ).pipe(Effect.orDie),
   renameDatabase: (req) =>
     withAuthedWorkspace(({ userId, workspaceId }) =>
       Effect.gen(function* () {
@@ -836,6 +840,59 @@ const rpcHandlersLayer = AppRpc.toLayer({
       Effect.gen(function* () {
         yield* Permissions.checkPagePermission(userId, workspaceId, req.pageId, "editor");
         return yield* Databases.reorderDatabases({ pageId: req.pageId, databaseIds: [...req.databaseIds] });
+      }),
+    ).pipe(Effect.orDie),
+  deleteDatabase: ({ id }) =>
+    withAuthedWorkspace(({ userId, workspaceId }) =>
+      Effect.gen(function* () {
+        yield* Permissions.checkDatabasePermission(userId, workspaceId, id, "editor");
+        return yield* Databases.deleteDatabase(id);
+      }),
+    ).pipe(Effect.orDie),
+
+  // Trash: list / restore / permanent purge
+  listTrash: () =>
+    withAuthedWorkspace(() => Databases.listTrash).pipe(Effect.orDie),
+  restorePage: ({ id }) =>
+    withAuthedWorkspace(({ userId, workspaceId }) =>
+      Effect.gen(function* () {
+        yield* Permissions.checkPagePermission(userId, workspaceId, id, "editor");
+        return yield* Pages.restorePage(id);
+      }),
+    ).pipe(Effect.orDie),
+  restoreDatabase: ({ id }) =>
+    withAuthedWorkspace(({ userId, workspaceId }) =>
+      Effect.gen(function* () {
+        yield* Permissions.checkDatabasePermission(userId, workspaceId, id, "editor");
+        return yield* Databases.restoreDatabase(id);
+      }),
+    ).pipe(Effect.orDie),
+  restoreRecord: ({ id }) =>
+    withAuthedWorkspace(({ userId, workspaceId }) =>
+      Effect.gen(function* () {
+        yield* Permissions.checkRecordPermission(userId, workspaceId, id, "editor");
+        return yield* Databases.restoreRecord(id);
+      }),
+    ).pipe(Effect.orDie),
+  purgePage: ({ id }) =>
+    withAuthedWorkspace(({ userId, workspaceId }) =>
+      Effect.gen(function* () {
+        yield* Permissions.checkPagePermission(userId, workspaceId, id, "editor");
+        return yield* Databases.purgePage(id);
+      }),
+    ).pipe(Effect.orDie),
+  purgeDatabase: ({ id }) =>
+    withAuthedWorkspace(({ userId, workspaceId }) =>
+      Effect.gen(function* () {
+        yield* Permissions.checkDatabasePermission(userId, workspaceId, id, "editor");
+        return yield* Databases.purgeDatabase(id);
+      }),
+    ).pipe(Effect.orDie),
+  purgeRecord: ({ id }) =>
+    withAuthedWorkspace(({ userId, workspaceId }) =>
+      Effect.gen(function* () {
+        yield* Permissions.checkRecordPermission(userId, workspaceId, id, "editor");
+        return yield* Databases.purgeRecord(id);
       }),
     ).pipe(Effect.orDie),
 
@@ -996,10 +1053,38 @@ function startBackupScheduler() {
   tick();
 }
 
+// ── Trash retention sweep ───────────────────────────────────────────────────
+// Once a day, permanently delete trashed items older than the retention window
+// from every workspace DB. Hard deletes cascade to children via FK. Runs
+// outside the Effect server runtime (like the backup scheduler), so it builds a
+// self-contained Effect and runs it with Effect.runPromise.
+
+const runTrashSweep = Effect.gen(function* () {
+  const days = loadSettings().trashRetentionDays ?? 30;
+  const wdb = yield* WorkspaceDb;
+  const workspaceIds = (platformDb.prepare("SELECT id FROM workspaces").all() as { id: string }[]).map((r) => r.id);
+  for (const id of workspaceIds) {
+    const res = yield* Databases.purgeExpired(days).pipe(Effect.provide(wdb.getLayer(id)));
+    if (res.pages || res.databases || res.records) {
+      yield* Effect.logInfo(
+        `[trash-sweep] workspace ${id}: purged ${res.pages} pages, ${res.databases} databases, ${res.records} records (retention ${days}d)`,
+      );
+    }
+  }
+}).pipe(Effect.provide(WorkspaceDbLive));
+
+function startTrashSweep() {
+  const tick = () =>
+    Effect.runPromise(runTrashSweep).catch((e) => console.error("[trash-sweep] failed:", e));
+  setInterval(tick, 24 * 60 * 60 * 1000);
+  tick();
+}
+
 // Run migrations then start server
 const program = Effect.gen(function* () {
   yield* runMigrations;
   startBackupScheduler();
+  startTrashSweep();
   yield* Effect.logInfo(`Server running on http://localhost:${process.env.PORT ?? 3000}`);
   // Keep the server running
   yield* Effect.never;

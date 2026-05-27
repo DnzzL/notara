@@ -17,7 +17,8 @@ import type { Page, Block, Database, DatabaseField, DatabaseRecord, RecordFieldV
 export const PAGE_COLS = `id, title, parent_id as "parentId", icon,
   cover_url as "coverUrl", sort_order as "sortOrder",
   is_deleted as "isDeleted", is_favorite as "isFavorite",
-  created_at as "createdAt", updated_at as "updatedAt"`;
+  created_at as "createdAt", updated_at as "updatedAt",
+  deleted_at as "deletedAt"`;
 
 export function pageFromRow(r: unknown): Page {
   const row = r as Record<string, unknown>;
@@ -32,6 +33,7 @@ export function pageFromRow(r: unknown): Page {
     isFavorite: (row.isFavorite as number) === 1,
     createdAt: new Date(row.createdAt as string).toISOString(),
     updatedAt: new Date(row.updatedAt as string).toISOString(),
+    deletedAt: (row.deletedAt as string | null) ?? null,
   };
 }
 
@@ -56,7 +58,8 @@ export function blockFromRow(r: unknown): Block {
 
 export const DB_COLS = `id, page_id as "pageId", name,
   is_deleted as "isDeleted", sort_order as "sortOrder",
-  title_label as "titleLabel", title_hidden as "titleHidden"`;
+  title_label as "titleLabel", title_hidden as "titleHidden",
+  deleted_at as "deletedAt"`;
 
 export function dbFromRow(r: unknown): Database {
   const row = r as Record<string, unknown>;
@@ -68,6 +71,7 @@ export function dbFromRow(r: unknown): Database {
     sortOrder: Number(row.sortOrder ?? 0),
     titleLabel: (row.titleLabel as string | null) ?? "Name",
     titleHidden: (row.titleHidden as number) === 1,
+    deletedAt: (row.deletedAt as string | null) ?? null,
   };
 }
 
@@ -94,7 +98,8 @@ export function fieldFromRow(r: unknown): DatabaseField {
 // ── DatabaseRecord ────────────────────────────────────────────────────────────
 
 export const RECORD_COLS = `id, database_id as "databaseId", title, description,
-  is_deleted as "isDeleted", created_at as "createdAt"`;
+  page_id as "pageId", is_deleted as "isDeleted", created_at as "createdAt",
+  deleted_at as "deletedAt"`;
 
 export function recordFromRow(r: unknown): DatabaseRecord {
   const row = r as Record<string, unknown>;
@@ -103,8 +108,10 @@ export function recordFromRow(r: unknown): DatabaseRecord {
     databaseId: row.databaseId as string,
     title: row.title as string,
     description: (row.description as string | null) ?? "",
+    pageId: (row.pageId as string | null) ?? null,
     isDeleted: (row.isDeleted as number) === 1,
     createdAt: new Date(row.createdAt as string).toISOString(),
+    deletedAt: (row.deletedAt as string | null) ?? null,
   };
 }
 
