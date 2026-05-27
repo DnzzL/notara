@@ -1,7 +1,19 @@
-import { Effect } from "effect";
+import { Effect, Layer } from "effect";
 import * as HttpServerRequest from "@effect/platform/HttpServerRequest";
 import * as HttpServerResponse from "@effect/platform/HttpServerResponse";
 import { ApiError } from "./auth.js";
+import { PlatformDb, PlatformDbLive } from "../platform-db.js";
+import { WorkspaceDb, WorkspaceDbLive } from "../db.js";
+
+/**
+ * Singleton services the v1 handlers need at request time. The HttpLayerRouter
+ * runs each route handler with only the *output* context of the served layer,
+ * and these zero-dependency `Layer.succeed` services aren't re-exported by the
+ * app layer (it `Layer.provide`s them as inputs). So we provide them here, at
+ * the handler boundary, where `withWorkspace` supplies the per-request SqlClient
+ * on top.
+ */
+const RequestServices = Layer.mergeAll(PlatformDbLive, WorkspaceDbLive);
 
 const JSON_HEADER = { "Content-Type": "application/json" };
 
@@ -74,19 +86,22 @@ export const queryParam = (name: string) =>
  */
 export const handle = <R>(
   handler: Effect.Effect<HttpServerResponse.HttpServerResponse, unknown, R>,
-): Effect.Effect<HttpServerResponse.HttpServerResponse, never, R> =>
+): Effect.Effect<
+  HttpServerResponse.HttpServerResponse,
+  never,
+  Exclude<R, PlatformDb | WorkspaceDb>
+> =>
   handler.pipe(
     Effect.catchAll((e) => {
       if (e instanceof ApiError) return Effect.succeed(apiError(e.status, e.message));
       return Effect.succeed(apiError(500, String(e)));
     }),
-    Effect.catchAllCause((cause) => {
-      const msg =
-        cause._tag === "Fail"
-          ? String((cause as any).error)
-          : "Internal server error";
-      return Effect.succeed(apiError(500, msg));
-    }),
+    Effect.catchAllCause((cause) =>
+      Effect.succeed(
+        apiError(500, cause._tag === "Fail" ? String((cause as any).error) : "Internal server error"),
+      ),
+    ),
+    Effect.provide(RequestServices),
   );
 
 /** Extract a required URL path param; fails with ApiError(400) if missing. */

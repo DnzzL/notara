@@ -8,6 +8,10 @@ const BLOCK_TYPES = [
   "image", "pdf", "database", "pageLink", "toggle", "callout",
 ] as const;
 
+const FIELD_TYPES = [
+  "text", "number", "select", "multiSelect", "date", "checkbox", "relation", "page", "formula",
+] as const;
+
 const schemas = {
   Error: {
     type: "object",
@@ -29,6 +33,7 @@ const schemas = {
       isFavorite:  { type: "boolean", example: false },
       createdAt:   { type: "string", format: "date-time" },
       updatedAt:   { type: "string", format: "date-time" },
+      deletedAt:   { type: "string", format: "date-time", nullable: true, description: "When the page was trashed, or null if not deleted." },
     },
   },
 
@@ -98,6 +103,63 @@ const schemas = {
       sortOrder:  { type: "number" },
       titleLabel: { type: "string", example: "Name" },
       titleHidden:{ type: "boolean" },
+      deletedAt:  { type: "string", format: "date-time", nullable: true },
+    },
+  },
+
+  DatabaseCreate: {
+    type: "object",
+    required: ["pageId", "name"],
+    properties: {
+      pageId: { type: "string", description: "Page the database is hosted on", example: "01JV2RXHK00000000000000000" },
+      name:   { type: "string", example: "Tasks" },
+    },
+  },
+
+  DatabaseUpdate: {
+    type: "object",
+    properties: {
+      name:        { type: "string", example: "Renamed DB" },
+      titleLabel:  { type: "string", example: "Name", description: "Label of the built-in title column" },
+      titleHidden: { type: "boolean", description: "Hide the title column" },
+    },
+  },
+
+  DatabaseField: {
+    type: "object",
+    required: ["id", "databaseId", "name", "type"],
+    properties: {
+      id:                 { type: "string" },
+      databaseId:         { type: "string" },
+      name:               { type: "string", example: "Status" },
+      type:               { type: "string", enum: [...FIELD_TYPES], example: "select" },
+      options:            { type: "array", items: { type: "string" }, nullable: true, example: ["Todo", "Doing", "Done"] },
+      relationTargetDbId: { type: "string", nullable: true, description: "Target database id for a relation field" },
+      formula:            { type: "string", nullable: true, description: "Expression for a formula field" },
+      sortOrder:          { type: "number" },
+    },
+  },
+
+  FieldCreate: {
+    type: "object",
+    required: ["name", "type"],
+    properties: {
+      name:               { type: "string", example: "Priority" },
+      type:               { type: "string", enum: [...FIELD_TYPES], example: "select" },
+      options:            { type: "array", items: { type: "string" }, nullable: true, example: ["Low", "High"] },
+      relationTargetDbId: { type: "string", nullable: true },
+      formula:            { type: "string", nullable: true },
+    },
+  },
+
+  FieldUpdate: {
+    type: "object",
+    properties: {
+      name:               { type: "string" },
+      type:               { type: "string", enum: [...FIELD_TYPES] },
+      options:            { type: "array", items: { type: "string" }, nullable: true },
+      relationTargetDbId: { type: "string", nullable: true },
+      formula:            { type: "string", nullable: true },
     },
   },
 
@@ -109,14 +171,71 @@ const schemas = {
       databaseId:  { type: "string" },
       title:       { type: "string", example: "Fix the login bug" },
       description: { type: "string", nullable: true },
+      pageId:      { type: "string", nullable: true, description: "Backing page id once the record has been opened as a page; null otherwise." },
       isDeleted:   { type: "boolean" },
       createdAt:   { type: "string", format: "date-time" },
+      deletedAt:   { type: "string", format: "date-time", nullable: true },
       fields:      {
         type: "object",
         description: "Map of field names to their values for this record",
         additionalProperties: { type: "string" },
         example: { Status: "In progress", Priority: "High" },
       },
+    },
+  },
+
+  RecordCreate: {
+    type: "object",
+    required: ["title"],
+    properties: {
+      title: { type: "string", example: "Fix the login bug" },
+    },
+  },
+
+  RecordUpdate: {
+    type: "object",
+    properties: {
+      title:       { type: "string", example: "Updated title" },
+      description: { type: "string", example: "More detail" },
+    },
+  },
+
+  CellUpdate: {
+    type: "object",
+    required: ["value"],
+    properties: {
+      value: {
+        type: "string",
+        description: "Cell value as a string. Number: \"42\". Checkbox: \"true\"/\"false\". multiSelect: a JSON array string like '[\"a\",\"b\"]'.",
+        example: "In progress",
+      },
+    },
+  },
+
+  RestoreResult: {
+    type: "object",
+    properties: { restored: { type: "boolean", example: true } },
+  },
+
+  TrashItem: {
+    type: "object",
+    required: ["id", "deletedAt"],
+    properties: {
+      id:         { type: "string" },
+      title:      { type: "string", nullable: true, description: "Present for pages and records." },
+      name:       { type: "string", nullable: true, description: "Present for databases." },
+      databaseId: { type: "string", nullable: true, description: "Present for records." },
+      deletedAt:  { type: "string", format: "date-time", nullable: true },
+    },
+  },
+
+  TrashContents: {
+    type: "object",
+    required: ["pages", "databases", "records"],
+    properties: {
+      pages:     { type: "array", items: { $ref: "#/components/schemas/TrashItem" } },
+      databases: { type: "array", items: { $ref: "#/components/schemas/TrashItem" } },
+      records:   { type: "array", items: { $ref: "#/components/schemas/TrashItem" } },
     },
   },
 
@@ -176,6 +295,30 @@ const dbParam = {
   required: true,
   schema: { type: "string" },
   description: "Database ID",
+};
+
+const fieldParam = {
+  name: "fieldId",
+  in: "path" as const,
+  required: true,
+  schema: { type: "string" },
+  description: "Field ID",
+};
+
+const recordParam = {
+  name: "recordId",
+  in: "path" as const,
+  required: true,
+  schema: { type: "string" },
+  description: "Record ID",
+};
+
+const permanentQuery = {
+  name: "permanent",
+  in: "query" as const,
+  required: false,
+  schema: { type: "boolean" },
+  description: "When `true`, permanently purge instead of moving to trash. Irreversible.",
 };
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
@@ -253,8 +396,9 @@ Each block stores a \`content\` JSON object whose shape depends on the block typ
     { name: "Workspaces", description: "List workspaces the authenticated user belongs to" },
     { name: "Pages",      description: "Create, read, update and delete pages" },
     { name: "Blocks",     description: "Read and write the content blocks inside a page" },
-    { name: "Databases",  description: "Inspect inline databases and their records" },
+    { name: "Databases",  description: "Create and edit inline databases, their fields, and records" },
     { name: "Search",     description: "Full-text search across pages and blocks" },
+    { name: "Trash",      description: "Soft-deleted items; restore or purge them" },
   ],
   components: {
     securitySchemes: {
@@ -327,10 +471,25 @@ Each block stores a \`content\` JSON object whose shape depends on the block typ
       },
       delete: {
         tags: ["Pages"],
-        summary: "Delete a page (soft delete)",
+        summary: "Delete a page",
+        description: "Moves the page to trash by default. Pass `?permanent=true` to purge it permanently along with its blocks, databases and records.",
         operationId: "deletePage",
+        parameters: [permanentQuery],
         responses: {
           204: { description: "Page deleted" },
+          ...errors,
+        },
+      },
+    },
+
+    "/workspaces/{workspaceId}/pages/{pageId}/restore": {
+      parameters: [wsParam, pageParam],
+      post: {
+        tags: ["Pages"],
+        summary: "Restore a trashed page",
+        operationId: "restorePage",
+        responses: {
+          200: jsonResponse("Restore result", ref("RestoreResult")),
           ...errors,
         },
       },
@@ -395,6 +554,100 @@ Each block stores a \`content\` JSON object whose shape depends on the block typ
           ...errors,
         },
       },
+      post: {
+        tags: ["Databases"],
+        summary: "Create a database",
+        operationId: "createDatabase",
+        requestBody: jsonBody(ref("DatabaseCreate")),
+        responses: {
+          201: jsonResponse("Created database", ref("Database")),
+          ...errors,
+        },
+      },
+    },
+
+    "/workspaces/{workspaceId}/databases/{dbId}": {
+      parameters: [wsParam, dbParam],
+      patch: {
+        tags: ["Databases"],
+        summary: "Update a database",
+        operationId: "updateDatabase",
+        requestBody: jsonBody(ref("DatabaseUpdate")),
+        responses: {
+          200: jsonResponse("Updated database", ref("Database")),
+          ...errors,
+        },
+      },
+      delete: {
+        tags: ["Databases"],
+        summary: "Delete a database",
+        description: "Moves the database to trash by default. Pass `?permanent=true` to purge it with all its records, fields and views.",
+        operationId: "deleteDatabase",
+        parameters: [permanentQuery],
+        responses: {
+          204: { description: "Database deleted" },
+          ...errors,
+        },
+      },
+    },
+
+    "/workspaces/{workspaceId}/databases/{dbId}/restore": {
+      parameters: [wsParam, dbParam],
+      post: {
+        tags: ["Databases"],
+        summary: "Restore a trashed database",
+        operationId: "restoreDatabase",
+        responses: {
+          200: jsonResponse("Restore result", ref("RestoreResult")),
+          ...errors,
+        },
+      },
+    },
+
+    "/workspaces/{workspaceId}/databases/{dbId}/fields": {
+      parameters: [wsParam, dbParam],
+      get: {
+        tags: ["Databases"],
+        summary: "List a database's fields (columns)",
+        operationId: "listFields",
+        responses: {
+          200: jsonResponse("Fields", { type: "array", items: ref("DatabaseField") }),
+          ...errors,
+        },
+      },
+      post: {
+        tags: ["Databases"],
+        summary: "Create a field (column)",
+        operationId: "createField",
+        requestBody: jsonBody(ref("FieldCreate")),
+        responses: {
+          201: jsonResponse("Created field", ref("DatabaseField")),
+          ...errors,
+        },
+      },
+    },
+
+    "/workspaces/{workspaceId}/databases/{dbId}/fields/{fieldId}": {
+      parameters: [wsParam, dbParam, fieldParam],
+      patch: {
+        tags: ["Databases"],
+        summary: "Update a field",
+        operationId: "updateField",
+        requestBody: jsonBody(ref("FieldUpdate")),
+        responses: {
+          200: jsonResponse("Updated field", ref("DatabaseField")),
+          ...errors,
+        },
+      },
+      delete: {
+        tags: ["Databases"],
+        summary: "Delete a field",
+        operationId: "deleteField",
+        responses: {
+          204: { description: "Field deleted" },
+          ...errors,
+        },
+      },
     },
 
     "/workspaces/{workspaceId}/databases/{dbId}/records": {
@@ -405,6 +658,68 @@ Each block stores a \`content\` JSON object whose shape depends on the block typ
         operationId: "listDatabaseRecords",
         responses: {
           200: jsonResponse("Records with field values", { type: "array", items: ref("DatabaseRecord") }),
+          ...errors,
+        },
+      },
+      post: {
+        tags: ["Databases"],
+        summary: "Create a record (row)",
+        operationId: "createRecord",
+        requestBody: jsonBody(ref("RecordCreate")),
+        responses: {
+          201: jsonResponse("Created record", ref("DatabaseRecord")),
+          ...errors,
+        },
+      },
+    },
+
+    "/workspaces/{workspaceId}/databases/{dbId}/records/{recordId}": {
+      parameters: [wsParam, dbParam, recordParam],
+      patch: {
+        tags: ["Databases"],
+        summary: "Update a record's title or description",
+        operationId: "updateRecord",
+        requestBody: jsonBody(ref("RecordUpdate")),
+        responses: {
+          200: jsonResponse("Updated record", ref("DatabaseRecord")),
+          ...errors,
+        },
+      },
+      delete: {
+        tags: ["Databases"],
+        summary: "Delete a record",
+        description: "Moves the record to trash by default. Pass `?permanent=true` to purge it.",
+        operationId: "deleteRecord",
+        parameters: [permanentQuery],
+        responses: {
+          204: { description: "Record deleted" },
+          ...errors,
+        },
+      },
+    },
+
+    "/workspaces/{workspaceId}/databases/{dbId}/records/{recordId}/restore": {
+      parameters: [wsParam, dbParam, recordParam],
+      post: {
+        tags: ["Databases"],
+        summary: "Restore a trashed record",
+        operationId: "restoreRecord",
+        responses: {
+          200: jsonResponse("Restore result", ref("RestoreResult")),
+          ...errors,
+        },
+      },
+    },
+
+    "/workspaces/{workspaceId}/databases/{dbId}/records/{recordId}/fields/{fieldId}": {
+      parameters: [wsParam, dbParam, recordParam, fieldParam],
+      put: {
+        tags: ["Databases"],
+        summary: "Set a single cell value",
+        operationId: "setCell",
+        requestBody: jsonBody(ref("CellUpdate")),
+        responses: {
+          200: jsonResponse("Updated value", { type: "object" }),
           ...errors,
         },
       },
@@ -429,6 +744,21 @@ Each block stores a \`content\` JSON object whose shape depends on the block typ
         operationId: "search",
         responses: {
           200: jsonResponse("Search results", { type: "array", items: ref("SearchResult") }),
+          ...errors,
+        },
+      },
+    },
+
+    // ── Trash ─────────────────────────────────────────────────────────────────
+    "/workspaces/{workspaceId}/trash": {
+      parameters: [wsParam],
+      get: {
+        tags: ["Trash"],
+        summary: "List trashed items",
+        description: "Returns explicitly-trashed pages, databases and records, newest first. Restore via the corresponding `…/restore` endpoint, or purge with `DELETE …?permanent=true`.",
+        operationId: "listTrash",
+        responses: {
+          200: jsonResponse("Trash contents", ref("TrashContents")),
           ...errors,
         },
       },

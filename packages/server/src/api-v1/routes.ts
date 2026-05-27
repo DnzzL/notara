@@ -185,8 +185,29 @@ export const registerV1Routes = Effect.gen(function* () {
         workspaceId,
         Permissions.checkPagePermission(userId, workspaceId, pageId, "editor"),
       );
-      yield* withWorkspace(workspaceId, Pages.deletePage(pageId));
+      const permanent = (yield* queryParam("permanent")) === "true";
+      if (permanent) yield* withWorkspace(workspaceId, Databases.purgePage(pageId));
+      else yield* withWorkspace(workspaceId, Pages.deletePage(pageId));
       return noContent();
+    })),
+  );
+
+  // ── POST /api/v1/workspaces/:workspaceId/pages/:pageId/restore ────────────
+
+  yield* router.add(
+    "POST",
+    "/api/v1/workspaces/:workspaceId/pages/:pageId/restore",
+    handle(Effect.gen(function* () {
+      const { userId } = yield* resolveApiUser;
+      const p = yield* HttpRouter.params;
+      const workspaceId = yield* requireParam(p, "workspaceId");
+      const pageId = yield* requireParam(p, "pageId");
+      yield* withWorkspace(
+        workspaceId,
+        Permissions.checkPagePermission(userId, workspaceId, pageId, "editor"),
+      );
+      const result = yield* withWorkspace(workspaceId, Pages.restorePage(pageId));
+      return ok(result);
     })),
   );
 
@@ -323,19 +344,343 @@ export const registerV1Routes = Effect.gen(function* () {
         workspaceId,
         Permissions.checkDatabasePermission(userId, workspaceId, dbId, "viewer"),
       );
+      // `listRecordsWithValues` yields `{ record, values }`, where `values` is
+      // already a field-name → parsed-value map. Flatten it for REST consumers.
       const raw = yield* withWorkspace(workspaceId, Databases.listRecordsWithValues(dbId));
-      const records = (raw as any[]).map((r) => ({
-        id:          r.id,
-        databaseId:  r.databaseId,
-        title:       r.title,
-        description: r.description ?? null,
-        isDeleted:   r.isDeleted,
-        createdAt:   r.createdAt,
-        fields:      Object.fromEntries(
-          ((r.values ?? []) as any[]).map((v: any) => [v.fieldName ?? v.fieldId, v.value]),
-        ),
-      }));
+      const records = (raw as Array<{ record: any; values: Record<string, unknown> }>).map(
+        ({ record, values }) => ({
+          id:          record.id,
+          databaseId:  record.databaseId,
+          title:       record.title,
+          description: record.description ?? null,
+          isDeleted:   record.isDeleted,
+          createdAt:   record.createdAt,
+          fields:      values ?? {},
+        }),
+      );
       return ok(records);
+    })),
+  );
+
+  // ── POST /api/v1/workspaces/:workspaceId/databases ───────────────────────
+
+  yield* router.add(
+    "POST",
+    "/api/v1/workspaces/:workspaceId/databases",
+    handle(Effect.gen(function* () {
+      const { userId } = yield* resolveApiUser;
+      const p = yield* HttpRouter.params;
+      const workspaceId = yield* requireParam(p, "workspaceId");
+      const body = yield* parseBody;
+      const pageId = yield* requireField(body, "pageId");
+      const name = yield* requireField(body, "name");
+      yield* withWorkspace(
+        workspaceId,
+        Permissions.checkPagePermission(userId, workspaceId, pageId, "editor"),
+      );
+      const db = yield* withWorkspace(workspaceId, Databases.createDatabase({ pageId, name }));
+      return created(db);
+    })),
+  );
+
+  // ── PATCH /api/v1/workspaces/:workspaceId/databases/:dbId ─────────────────
+
+  yield* router.add(
+    "PATCH",
+    "/api/v1/workspaces/:workspaceId/databases/:dbId",
+    handle(Effect.gen(function* () {
+      const { userId } = yield* resolveApiUser;
+      const p = yield* HttpRouter.params;
+      const workspaceId = yield* requireParam(p, "workspaceId");
+      const dbId = yield* requireParam(p, "dbId");
+      yield* withWorkspace(
+        workspaceId,
+        Permissions.checkDatabasePermission(userId, workspaceId, dbId, "editor"),
+      );
+      const body = yield* parseBody;
+      const b = body as Record<string, unknown>;
+      const db = yield* withWorkspace(
+        workspaceId,
+        Effect.gen(function* () {
+          if (typeof b.name === "string") yield* Databases.renameDatabase({ id: dbId, name: b.name });
+          return yield* Databases.updateDatabase({
+            id: dbId,
+            titleLabel:  typeof b.titleLabel === "string" ? b.titleLabel : undefined,
+            titleHidden: "titleHidden" in b ? Boolean(b.titleHidden) : undefined,
+          });
+        }),
+      ).pipe(Effect.mapError(() => new ApiError({ status: 404, message: `Database ${dbId} not found` })));
+      return ok(db);
+    })),
+  );
+
+  // ── DELETE /api/v1/workspaces/:workspaceId/databases/:dbId ────────────────
+
+  yield* router.add(
+    "DELETE",
+    "/api/v1/workspaces/:workspaceId/databases/:dbId",
+    handle(Effect.gen(function* () {
+      const { userId } = yield* resolveApiUser;
+      const p = yield* HttpRouter.params;
+      const workspaceId = yield* requireParam(p, "workspaceId");
+      const dbId = yield* requireParam(p, "dbId");
+      yield* withWorkspace(
+        workspaceId,
+        Permissions.checkDatabasePermission(userId, workspaceId, dbId, "editor"),
+      );
+      const permanent = (yield* queryParam("permanent")) === "true";
+      if (permanent) yield* withWorkspace(workspaceId, Databases.purgeDatabase(dbId));
+      else yield* withWorkspace(workspaceId, Databases.deleteDatabase(dbId));
+      return noContent();
+    })),
+  );
+
+  // ── POST /api/v1/workspaces/:workspaceId/databases/:dbId/restore ──────────
+
+  yield* router.add(
+    "POST",
+    "/api/v1/workspaces/:workspaceId/databases/:dbId/restore",
+    handle(Effect.gen(function* () {
+      const { userId } = yield* resolveApiUser;
+      const p = yield* HttpRouter.params;
+      const workspaceId = yield* requireParam(p, "workspaceId");
+      const dbId = yield* requireParam(p, "dbId");
+      yield* withWorkspace(
+        workspaceId,
+        Permissions.checkDatabasePermission(userId, workspaceId, dbId, "editor"),
+      );
+      const result = yield* withWorkspace(workspaceId, Databases.restoreDatabase(dbId));
+      return ok(result);
+    })),
+  );
+
+  // ── GET /api/v1/workspaces/:workspaceId/databases/:dbId/fields ────────────
+
+  yield* router.add(
+    "GET",
+    "/api/v1/workspaces/:workspaceId/databases/:dbId/fields",
+    handle(Effect.gen(function* () {
+      const { userId } = yield* resolveApiUser;
+      const p = yield* HttpRouter.params;
+      const workspaceId = yield* requireParam(p, "workspaceId");
+      const dbId = yield* requireParam(p, "dbId");
+      yield* withWorkspace(
+        workspaceId,
+        Permissions.checkDatabasePermission(userId, workspaceId, dbId, "viewer"),
+      );
+      const fields = yield* withWorkspace(workspaceId, Databases.listFields(dbId));
+      return ok(fields);
+    })),
+  );
+
+  // ── POST /api/v1/workspaces/:workspaceId/databases/:dbId/fields ───────────
+
+  yield* router.add(
+    "POST",
+    "/api/v1/workspaces/:workspaceId/databases/:dbId/fields",
+    handle(Effect.gen(function* () {
+      const { userId } = yield* resolveApiUser;
+      const p = yield* HttpRouter.params;
+      const workspaceId = yield* requireParam(p, "workspaceId");
+      const dbId = yield* requireParam(p, "dbId");
+      yield* withWorkspace(
+        workspaceId,
+        Permissions.checkDatabasePermission(userId, workspaceId, dbId, "editor"),
+      );
+      const body = yield* parseBody;
+      const b = body as Record<string, unknown>;
+      const name = yield* requireField(body, "name");
+      const type = yield* requireField(body, "type");
+      const field = yield* withWorkspace(
+        workspaceId,
+        Databases.createField({
+          databaseId: dbId,
+          name,
+          type,
+          options: Array.isArray(b.options) ? (b.options as string[]) : null,
+          relationTargetDbId: optionalField(body, "relationTargetDbId"),
+          formula: optionalField(body, "formula"),
+        }),
+      );
+      return created(field);
+    })),
+  );
+
+  // ── PATCH /api/v1/workspaces/:workspaceId/databases/:dbId/fields/:fieldId ─
+
+  yield* router.add(
+    "PATCH",
+    "/api/v1/workspaces/:workspaceId/databases/:dbId/fields/:fieldId",
+    handle(Effect.gen(function* () {
+      const { userId } = yield* resolveApiUser;
+      const p = yield* HttpRouter.params;
+      const workspaceId = yield* requireParam(p, "workspaceId");
+      const dbId = yield* requireParam(p, "dbId");
+      const fieldId = yield* requireParam(p, "fieldId");
+      yield* withWorkspace(
+        workspaceId,
+        Permissions.checkDatabasePermission(userId, workspaceId, dbId, "editor"),
+      );
+      const body = yield* parseBody;
+      const b = body as Record<string, unknown>;
+      const field = yield* withWorkspace(
+        workspaceId,
+        Databases.updateField({
+          id: fieldId,
+          name:    typeof b.name === "string" ? b.name : undefined,
+          type:    typeof b.type === "string" ? b.type : undefined,
+          options: "options" in b ? (Array.isArray(b.options) ? (b.options as string[]) : null) : undefined,
+          relationTargetDbId: "relationTargetDbId" in b ? (b.relationTargetDbId as string | null) : undefined,
+          formula: "formula" in b ? (b.formula as string | null) : undefined,
+        }),
+      ).pipe(Effect.mapError(() => new ApiError({ status: 404, message: `Field ${fieldId} not found` })));
+      return ok(field);
+    })),
+  );
+
+  // ── DELETE /api/v1/workspaces/:workspaceId/databases/:dbId/fields/:fieldId ─
+
+  yield* router.add(
+    "DELETE",
+    "/api/v1/workspaces/:workspaceId/databases/:dbId/fields/:fieldId",
+    handle(Effect.gen(function* () {
+      const { userId } = yield* resolveApiUser;
+      const p = yield* HttpRouter.params;
+      const workspaceId = yield* requireParam(p, "workspaceId");
+      const dbId = yield* requireParam(p, "dbId");
+      const fieldId = yield* requireParam(p, "fieldId");
+      yield* withWorkspace(
+        workspaceId,
+        Permissions.checkDatabasePermission(userId, workspaceId, dbId, "editor"),
+      );
+      yield* withWorkspace(workspaceId, Databases.deleteField(fieldId));
+      return noContent();
+    })),
+  );
+
+  // ── POST /api/v1/workspaces/:workspaceId/databases/:dbId/records ──────────
+
+  yield* router.add(
+    "POST",
+    "/api/v1/workspaces/:workspaceId/databases/:dbId/records",
+    handle(Effect.gen(function* () {
+      const { userId } = yield* resolveApiUser;
+      const p = yield* HttpRouter.params;
+      const workspaceId = yield* requireParam(p, "workspaceId");
+      const dbId = yield* requireParam(p, "dbId");
+      yield* withWorkspace(
+        workspaceId,
+        Permissions.checkDatabasePermission(userId, workspaceId, dbId, "editor"),
+      );
+      const body = yield* parseBody;
+      const title = yield* requireField(body, "title");
+      const record = yield* withWorkspace(
+        workspaceId,
+        Databases.createRecord({ databaseId: dbId, title }),
+      );
+      return created(record);
+    })),
+  );
+
+  // ── PATCH /api/v1/workspaces/:workspaceId/databases/:dbId/records/:recordId ─
+
+  yield* router.add(
+    "PATCH",
+    "/api/v1/workspaces/:workspaceId/databases/:dbId/records/:recordId",
+    handle(Effect.gen(function* () {
+      const { userId } = yield* resolveApiUser;
+      const p = yield* HttpRouter.params;
+      const workspaceId = yield* requireParam(p, "workspaceId");
+      const dbId = yield* requireParam(p, "dbId");
+      const recordId = yield* requireParam(p, "recordId");
+      yield* withWorkspace(
+        workspaceId,
+        Permissions.checkDatabasePermission(userId, workspaceId, dbId, "editor"),
+      );
+      const body = yield* parseBody;
+      const b = body as Record<string, unknown>;
+      const result = yield* withWorkspace(
+        workspaceId,
+        Databases.updateRecord({
+          id: recordId,
+          title:       typeof b.title === "string" ? b.title : undefined,
+          description: typeof b.description === "string" ? b.description : undefined,
+        }),
+      );
+      return ok(result);
+    })),
+  );
+
+  // ── DELETE /api/v1/workspaces/:workspaceId/databases/:dbId/records/:recordId ─
+
+  yield* router.add(
+    "DELETE",
+    "/api/v1/workspaces/:workspaceId/databases/:dbId/records/:recordId",
+    handle(Effect.gen(function* () {
+      const { userId } = yield* resolveApiUser;
+      const p = yield* HttpRouter.params;
+      const workspaceId = yield* requireParam(p, "workspaceId");
+      const dbId = yield* requireParam(p, "dbId");
+      const recordId = yield* requireParam(p, "recordId");
+      yield* withWorkspace(
+        workspaceId,
+        Permissions.checkDatabasePermission(userId, workspaceId, dbId, "editor"),
+      );
+      const permanent = (yield* queryParam("permanent")) === "true";
+      yield* withWorkspace(workspaceId, permanent ? Databases.purgeRecord(recordId) : Databases.deleteRecord(recordId));
+      return noContent();
+    })),
+  );
+
+  // ── POST /api/v1/workspaces/:workspaceId/databases/:dbId/records/:recordId/restore ─
+
+  yield* router.add(
+    "POST",
+    "/api/v1/workspaces/:workspaceId/databases/:dbId/records/:recordId/restore",
+    handle(Effect.gen(function* () {
+      const { userId } = yield* resolveApiUser;
+      const p = yield* HttpRouter.params;
+      const workspaceId = yield* requireParam(p, "workspaceId");
+      const dbId = yield* requireParam(p, "dbId");
+      const recordId = yield* requireParam(p, "recordId");
+      yield* withWorkspace(
+        workspaceId,
+        Permissions.checkDatabasePermission(userId, workspaceId, dbId, "editor"),
+      );
+      const result = yield* withWorkspace(workspaceId, Databases.restoreRecord(recordId));
+      return ok(result);
+    })),
+  );
+
+  // ── PUT /api/v1/workspaces/:workspaceId/databases/:dbId/records/:recordId/fields/:fieldId ─
+  // Sets a single cell value. `value` is stored as a string; for number use "42",
+  // checkbox "true"/"false", multiSelect a JSON array string like '["a","b"]'.
+
+  yield* router.add(
+    "PUT",
+    "/api/v1/workspaces/:workspaceId/databases/:dbId/records/:recordId/fields/:fieldId",
+    handle(Effect.gen(function* () {
+      const { userId } = yield* resolveApiUser;
+      const p = yield* HttpRouter.params;
+      const workspaceId = yield* requireParam(p, "workspaceId");
+      const dbId = yield* requireParam(p, "dbId");
+      const recordId = yield* requireParam(p, "recordId");
+      const fieldId = yield* requireParam(p, "fieldId");
+      yield* withWorkspace(
+        workspaceId,
+        Permissions.checkDatabasePermission(userId, workspaceId, dbId, "editor"),
+      );
+      const body = yield* parseBody;
+      const b = body as Record<string, unknown>;
+      if (!("value" in b)) {
+        return yield* Effect.fail(new ApiError({ status: 422, message: 'Field "value" is required' }));
+      }
+      const value = typeof b.value === "string" ? b.value : JSON.stringify(b.value);
+      const result = yield* withWorkspace(
+        workspaceId,
+        Databases.updateFieldValue({ recordId, fieldId, value }),
+      );
+      return ok(result);
     })),
   );
 
@@ -364,6 +709,21 @@ export const registerV1Routes = Effect.gen(function* () {
         }),
       );
       return ok(results);
+    })),
+  );
+
+  // ── GET /api/v1/workspaces/:workspaceId/trash ────────────────────────────
+
+  yield* router.add(
+    "GET",
+    "/api/v1/workspaces/:workspaceId/trash",
+    handle(Effect.gen(function* () {
+      const { userId } = yield* resolveApiUser;
+      const p = yield* HttpRouter.params;
+      const workspaceId = yield* requireParam(p, "workspaceId");
+      yield* requireWorkspaceMember(workspaceId, userId);
+      const trash = yield* withWorkspace(workspaceId, Databases.listTrash);
+      return ok(trash);
     })),
   );
 });
