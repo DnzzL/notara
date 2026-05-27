@@ -32,10 +32,20 @@ const features = [
     desc: "Optional encrypted backups to any S3-compatible bucket. Scheduled or manual.",
   },
   {
+    icon: "♻",
+    title: "Trash & restore",
+    desc: "Deleted a page, database or row by mistake? Everything goes to the trash first — restore it in a click, or let it purge automatically after your retention window.",
+  },
+  {
     icon: "⌁",
     title: "Open REST API",
     desc: "Full HTTP API with API key auth. Automate from scripts, CI pipelines, or any HTTP client. OpenAPI spec included.",
     docsHref: "/api/docs",
+  },
+  {
+    icon: "⌨",
+    title: "Command-line client",
+    desc: "Drive Notara from your terminal with the scriptable `notara` CLI — create pages, edit databases, and pipe JSON straight into your tools.",
   },
 ];
 

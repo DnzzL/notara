@@ -12,9 +12,11 @@ A local-first, open-source Notion alternative. Block editor, inline databases, t
 - **Inline databases** — table and board views with fields, relations and custom views
 - **Team workspaces** — invite members by email or link, owner/member roles
 - **Full-text search** — across page titles and block content
+- **Trash & restore** — soft-delete pages, databases and records; restore anytime, with an automatic purge after a configurable retention window
 - **Import / Export** — Notion Markdown and CSV imports; export back out anytime
 - **S3 backups** — optional scheduled backups to any S3-compatible bucket
 - **REST API** — full HTTP API with API key auth and [Swagger docs](/api/docs)
+- **CLI** — scriptable `notara` command-line client over the REST API ([packages/cli](./packages/cli))
 - **Self-hostable** — one Docker command, no external dependencies
 
 ---
