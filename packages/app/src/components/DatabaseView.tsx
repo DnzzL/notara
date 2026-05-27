@@ -6,6 +6,7 @@ import {
 import { SortableContext, useSortable, verticalListSortingStrategy, horizontalListSortingStrategy } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
 import { useStore } from "../store.js";
+import { usePageStore } from "../stores/pageStore.js";
 import { api } from "../rpc-client.js";
 import { applyFiltersAndSorts, type Filter, type Sort, type FilterOperator } from "../lib/filterEngine.js";
 import { CellDisplay, InlineCellEditor, Popover } from "./db/CellComponents.js";
@@ -98,11 +99,12 @@ function SortBar({
 // ── Sortable Row ──────────────────────────────────────────────────────────
 
 function SortableRow({
-  id, children, isDragging, onDelete, onOpen, selected, onToggleSelect,
+  id, children, isDragging, onDelete, onOpen, selected, onToggleSelect, hasPage,
 }: {
   id: string; children: React.ReactNode; isDragging: boolean; onDelete: () => void; onOpen: () => void;
   selected: boolean;
   onToggleSelect: (e: React.MouseEvent) => void;
+  hasPage?: boolean;
 }) {
   const { attributes, listeners, setNodeRef, transform, transition, isDragging: sortableDragging } = useSortable({ id });
   const [hovered, setHovered] = useState(false);
@@ -132,10 +134,10 @@ function SortableRow({
         </div>
         <button
           className="db-row-open-btn"
-          style={{ opacity: hovered ? 1 : 0 }}
+          style={{ opacity: hovered || hasPage ? 1 : 0 }}
           onClick={onOpen}
-          title="Open record"
-        >↗</button>
+          title={hasPage ? "Open page" : "Open record"}
+        >{hasPage ? "📄" : "↗"}</button>
         <button className="db-delete-btn" style={{ opacity: hovered ? 1 : 0 }} onClick={onDelete} title="Delete record">×</button>
       </td>
       {children}
@@ -215,6 +217,9 @@ export function DatabaseView({ database, isNew }: { database: any; isNew?: boole
     createField, deleteField, deleteRecord, databases, renameDatabase, loadDatabases,
     activeFilters, activeSorts, setFilter, setSort, addFilter, removeFilter, addSort, removeSort,
   } = useStore();
+
+  const loadPages = usePageStore((s) => s.loadPages);
+  const selectPageByIdWithCascade = usePageStore((s) => s.selectPageByIdWithCascade);
 
   const [viewType, setViewType] = useState<"table" | "board">("table");
   const [newTitle, setNewTitle] = useState("");
@@ -482,15 +487,15 @@ export function DatabaseView({ database, isNew }: { database: any; isNew?: boole
   }, [selectedRowIds, handleBulkDelete]);
 
   // ── Render ──────────────────────────────────────────────────────────────
-  if (viewType === "board") {
-    return (<BoardView database={database} fields={dbFields} records={sortedRecords} databases={databases} onSwitchView={() => setViewType("table")} allRecords={dbRecordCache} />);
-  }
-
   const sortByFieldId = useMemo(() => {
     const m = new Map<string, { dir: "asc" | "desc"; idx: number }>();
     activeSorts.forEach((s, i) => m.set(s.fieldId, { dir: s.direction, idx: i }));
     return m;
   }, [activeSorts]);
+
+  if (viewType === "board") {
+    return (<BoardView database={database} fields={dbFields} records={sortedRecords} databases={databases} onSwitchView={() => setViewType("table")} allRecords={dbRecordCache} />);
+  }
 
   return (
     <DndContext sensors={tableSensors} onDragStart={handleRowDragStart} onDragEnd={handleRowDragEnd}>
@@ -527,6 +532,7 @@ export function DatabaseView({ database, isNew }: { database: any; isNew?: boole
         </div>
 
         {/* Table */}
+        <DndContext sensors={colSensors} onDragStart={handleColDragStart} onDragEnd={handleColDragEnd}>
         <div style={{ overflowX: "auto" }}>
           <table className="db-table">
             <thead>
@@ -542,26 +548,24 @@ export function DatabaseView({ database, isNew }: { database: any; isNew?: boole
                     onResize={handleColumnResize}
                   />
                 )}
-                <DndContext sensors={colSensors} onDragStart={handleColDragStart} onDragEnd={handleColDragEnd}>
-                  <SortableContext items={dbFields.map((f: any) => f.id)} strategy={horizontalListSortingStrategy}>
-                    {dbFields.map((f: any) => (
-                      <DraggableColumnHeader
-                        key={f.id} field={f}
-                        sortInfo={sortByFieldId.get(f.id) ?? null}
-                        onHeaderClick={(e) => handleHeaderSortCycle(f.id, e.shiftKey)}
-                        onRename={(name) => handleRenameField(f.id, name)}
-                        onDelete={() => handleDeleteField(f.id)}
-                        onOptions={() => setShowOptionsFor(showOptionsFor === f.id ? null : f.id)}
-                        onEditFormula={() => setShowFormulaFor(f.id)}
-                        onChangeType={async (type) => { await api.updateField(f.id, { type }); await loadDbFields(database.id); await loadDbRecords(database.id); }}
-                        onSortAsc={() => addSort({ fieldId: f.id, direction: "asc" })}
-                        onSortDesc={() => addSort({ fieldId: f.id, direction: "desc" })}
-                        onFilter={() => addFilter({ fieldId: f.id, operator: "contains", value: "" })}
-                        width={columnWidths[f.id]} onResize={handleColumnResize}
-                      />
-                    ))}
-                  </SortableContext>
-                </DndContext>
+                <SortableContext items={dbFields.map((f: any) => f.id)} strategy={horizontalListSortingStrategy}>
+                  {dbFields.map((f: any) => (
+                    <DraggableColumnHeader
+                      key={f.id} field={f}
+                      sortInfo={sortByFieldId.get(f.id) ?? null}
+                      onHeaderClick={(e) => handleHeaderSortCycle(f.id, e.shiftKey)}
+                      onRename={(name) => handleRenameField(f.id, name)}
+                      onDelete={() => handleDeleteField(f.id)}
+                      onOptions={() => setShowOptionsFor(showOptionsFor === f.id ? null : f.id)}
+                      onEditFormula={() => setShowFormulaFor(f.id)}
+                      onChangeType={async (type) => { await api.updateField(f.id, { type }); await loadDbFields(database.id); await loadDbRecords(database.id); }}
+                      onSortAsc={() => addSort({ fieldId: f.id, direction: "asc" })}
+                      onSortDesc={() => addSort({ fieldId: f.id, direction: "desc" })}
+                      onFilter={() => addFilter({ fieldId: f.id, operator: "contains", value: "" })}
+                      width={columnWidths[f.id]} onResize={handleColumnResize}
+                    />
+                  ))}
+                </SortableContext>
                 <th style={{ width: 40 }}>
                   <button ref={addFieldBtnRef} onClick={() => setShowAddField(true)} className="db-add-col-btn" title="Add property">+</button>
                 </th>
@@ -583,9 +587,16 @@ export function DatabaseView({ database, isNew }: { database: any; isNew?: boole
                     key={record.id} id={record.id}
                     isDragging={activeRowId === record.id}
                     onDelete={() => handleDeleteRecord(record.id)}
-                    onOpen={() => setOpenRecordId(record.id)}
+                    onOpen={() => {
+                      if (record.pageId) {
+                        loadPages().then(() => selectPageByIdWithCascade(record.pageId));
+                      } else {
+                        setOpenRecordId(record.id);
+                      }
+                    }}
                     selected={selectedRowIds.has(record.id)}
                     onToggleSelect={(e) => handleToggleRowSelect(record.id, e)}
+                    hasPage={!!record.pageId}
                   >
                     {!database.titleHidden && (
                       <td className="db-cell db-title-cell" style={columnWidths["__title__"] ? { minWidth: columnWidths["__title__"], width: columnWidths["__title__"] } : undefined}>
@@ -650,6 +661,7 @@ export function DatabaseView({ database, isNew }: { database: any; isNew?: boole
             </SortableContext>
           </table>
         </div>
+        </DndContext>
 
         {showAddField && (<AddFieldPopover triggerRect={addFieldBtnRef.current?.getBoundingClientRect() ?? null} onClose={() => setShowAddField(false)} onAdd={handleAddField} />)}
 

@@ -5,6 +5,7 @@ import { WorkspaceSwitcher } from "./WorkspaceSwitcher.js";
 import { ImportModal } from "./ImportModal.js";
 import { SettingsModal } from "./SettingsModal.js";
 import { ApiKeysModal } from "./ApiKeysModal.js";
+import { TrashModal } from "./TrashModal.js";
 import { EmojiPicker } from "./EmojiPicker.js";
 import { createTreeCollection, TreeView } from "@ark-ui/react/tree-view";
 import { Menu } from "@ark-ui/react/menu";
@@ -94,6 +95,7 @@ export function Sidebar({ className, onNavigate }: SidebarProps = {}) {
   const [showImport, setShowImport] = useState(false);
   const [showSettings, setShowSettings] = useState(false);
   const [showApiKeys, setShowApiKeys] = useState(false);
+  const [showTrash, setShowTrash] = useState(false);
   const [lockedPageIds, setLockedPageIds] = useState<Set<string>>(new Set());
 
   useEffect(() => {
@@ -175,6 +177,23 @@ export function Sidebar({ className, onNavigate }: SidebarProps = {}) {
       });
     }
   }, [filtered.length]);
+
+  // When the selected page changes, ensure all its ancestors are expanded so the item is visible
+  useEffect(() => {
+    if (!currentPage?.parentId) return;
+    const ancestors: string[] = [];
+    let p = pageMap.get(currentPage.parentId);
+    while (p) {
+      ancestors.push(p.id);
+      p = p.parentId ? pageMap.get(p.parentId) : undefined;
+    }
+    if (ancestors.length === 0) return;
+    setExpandedValue((prev) => {
+      const prevSet = new Set(prev);
+      const missing = ancestors.filter((id) => !prevSet.has(id));
+      return missing.length > 0 ? [...prev, ...missing] : prev;
+    });
+  }, [currentPage?.id]);
 
   const treeOrder = buildTreeOrder(filtered);
 
@@ -477,6 +496,9 @@ export function Sidebar({ className, onNavigate }: SidebarProps = {}) {
             <button className="sidebar-footer-btn" onClick={() => setShowApiKeys(true)} title="API keys">
               <span>⌁</span> API keys
             </button>
+            <button className="sidebar-footer-btn" onClick={() => setShowTrash(true)} title="Trash">
+              <span>🗑</span> Trash
+            </button>
           </div>
 
           <div
@@ -515,6 +537,7 @@ export function Sidebar({ className, onNavigate }: SidebarProps = {}) {
       <ImportModal open={showImport} onClose={() => setShowImport(false)} />
       <SettingsModal open={showSettings} onClose={() => setShowSettings(false)} />
       {showApiKeys && <ApiKeysModal onClose={() => setShowApiKeys(false)} />}
+      {showTrash && <TrashModal onClose={() => setShowTrash(false)} onChanged={loadPages} />}
     </DndContext>
   );
 }

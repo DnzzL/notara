@@ -497,7 +497,7 @@ function SortableBlock({
 }
 
 export function BlockEditor() {
-  const { currentPage, blocks, updateBlock, createBlock, deleteBlock, duplicateBlock, createDatabase, updatePage, setPageIcon, toggleFavorite, databases, loadDatabases, reorderBlocks, reorderDatabases, loadBlocks, accessDeniedFor } = useStore();
+  const { currentPage, blocks, updateBlock, createBlock, deleteBlock, duplicateBlock, createDatabase, deleteDatabase, updatePage, setPageIcon, toggleFavorite, databases, loadDatabases, reorderBlocks, reorderDatabases, loadBlocks, accessDeniedFor } = useStore();
   const [uploading, setUploading] = useState(false);
   const { data: session } = useSession();
 
@@ -544,6 +544,9 @@ export function BlockEditor() {
 
   // Context menu state
   const [blockMenu, setBlockMenu] = useState<{ blockId: string; x: number; y: number } | null>(null);
+  // Database blocks aren't real blocks, so they need their own menu. `blockId`
+  // is set only for inline database blocks (so we can also drop the placeholder).
+  const [dbMenu, setDbMenu] = useState<{ dbId: string; blockId: string | null; x: number; y: number } | null>(null);
 
   // Drag-drop state
   const [activeBlockId, setActiveBlockId] = useState<string | null>(null);
@@ -863,6 +866,25 @@ export function BlockEditor() {
     ];
   }, [blocks, duplicateBlock, deleteBlock, moveBlock]);
 
+  /** Context-menu items for a database block. Deleting removes the database and,
+   *  for inline databases, the placeholder block that hosts it. */
+  const buildDatabaseMenuItems = useCallback((dbId: string, blockId: string | null): BlockMenuItem[] => {
+    const db = databases.find((d) => d.id === dbId);
+    return [
+      {
+        id: "delete",
+        label: "Delete database",
+        icon: "🗑",
+        danger: true,
+        onClick: () => {
+          if (!window.confirm(`Delete database "${db?.name || "Untitled"}"? It can be restored from Trash.`)) return;
+          deleteDatabase(dbId);
+          if (blockId) deleteBlock(blockId);
+        },
+      },
+    ];
+  }, [databases, deleteDatabase, deleteBlock]);
+
   // Build combined items list. Databases already pointed at by an inline
   // `database` block are skipped here so we don't double-render them
   // (once inline, once at the bottom). Anything left over is appended.
@@ -1016,6 +1038,7 @@ export function BlockEditor() {
                     showDropIndicator={dropIndicatorIndex === index}
                     isDragging={activeBlockId === item.id}
                     onDragStart={() => setActiveBlockId(item.id)}
+                    onOpenMenu={(x, y) => setDbMenu({ dbId: db.id, blockId: null, x, y })}
                     blockType="database"
                   >
                     <DatabaseView database={db} isNew={db.id === newDbId} />
@@ -1038,6 +1061,7 @@ export function BlockEditor() {
                     showDropIndicator={dropIndicatorIndex === index}
                     isDragging={activeBlockId === block.id}
                     onDragStart={() => setActiveBlockId(block.id)}
+                    onOpenMenu={(x, y) => setDbMenu({ dbId: db.id, blockId: block.id, x, y })}
                     blockType="database"
                   >
                     <DatabaseView database={db} isNew={db.id === newDbId} />
@@ -1138,6 +1162,16 @@ export function BlockEditor() {
                 y={blockMenu.y}
                 items={buildBlockMenuItems(blockMenu.blockId)}
                 onClose={() => setBlockMenu(null)}
+              />
+            )}
+
+            {/* Database context menu */}
+            {dbMenu && (
+              <BlockContextMenu
+                x={dbMenu.x}
+                y={dbMenu.y}
+                items={buildDatabaseMenuItems(dbMenu.dbId, dbMenu.blockId)}
+                onClose={() => setDbMenu(null)}
               />
             )}
           </div>

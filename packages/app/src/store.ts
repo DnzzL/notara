@@ -66,6 +66,7 @@ export function useStore() {
     deleteRecord: dbState.deleteRecord,
     updateField: dbState.updateField,
     renameDatabase: dbState.renameDatabase,
+    deleteDatabase: dbState.deleteDatabase,
     reorderRecords: dbState.reorderRecords,
     reorderDatabases: dbState.reorderDatabases,
 

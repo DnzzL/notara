@@ -22,6 +22,7 @@ import {
   ApiKeyCreated,
   PagePermissions,
   Subject,
+  TrashContents,
 } from "@notion-alt/shared";
 
 export type AclRelation = "owner" | "editor" | "viewer";
@@ -150,6 +151,8 @@ export const api = {
     rpcCall<{ updated: boolean }>("updateRecord", { id, ...patch }),
   reorderRecords: (databaseId: string, recordIds: string[]) =>
     rpcCall<{ reordered: boolean }>("reorderRecords", { databaseId, recordIds }),
+  openRecordAsPage: (recordId: string) =>
+    rpcCall<{ pageId: string }>("openRecordAsPage", { recordId }),
   reorderDatabases: (pageId: string, databaseIds: string[]) =>
     rpcCall<{ reordered: boolean }>("reorderDatabases", { pageId, databaseIds }),
   renameDatabase: (id: string, name: string) =>
@@ -157,6 +160,16 @@ export const api = {
   updateDatabase: (id: string, patch: { titleLabel?: string; titleHidden?: boolean }) =>
     rpcCall<Database>("updateDatabase", { id, ...patch }),
   deleteField: (id: string) => rpcCall<{ deleted: boolean }>("deleteField", { id }),
+  deleteDatabase: (id: string) => rpcCall<{ deleted: boolean }>("deleteDatabase", { id }),
+
+  // Trash: list / restore / permanent purge
+  listTrash: () => rpcCall<TrashContents>("listTrash", {}),
+  restorePage: (id: string) => rpcCall<{ restored: boolean }>("restorePage", { id }),
+  restoreDatabase: (id: string) => rpcCall<{ restored: boolean }>("restoreDatabase", { id }),
+  restoreRecord: (id: string) => rpcCall<{ restored: boolean }>("restoreRecord", { id }),
+  purgePage: (id: string) => rpcCall<{ purged: boolean }>("purgePage", { id }),
+  purgeDatabase: (id: string) => rpcCall<{ purged: boolean }>("purgeDatabase", { id }),
+  purgeRecord: (id: string) => rpcCall<{ purged: boolean }>("purgeRecord", { id }),
 
   // Backlinks
   getBacklinks: (pageId: string) => rpcCall<Backlink[]>("getBacklinks", { pageId }),

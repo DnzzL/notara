@@ -61,7 +61,6 @@ export const usePageStore = create<PageState>((set, get) => ({
   },
 
   selectPage: (page) => {
-    console.log("[pageStore] selectPage called with:", page);
     if (get().currentPage?.id !== page.id) {
       useHistoryStore.getState().resetFor(page.id);
     }
@@ -78,7 +77,6 @@ export const usePageStore = create<PageState>((set, get) => ({
     } else {
       window.history.replaceState({ pageId: page.id }, "", url);
     }
-    console.log("[pageStore] URL updated to:", url.toString());
   },
 
   selectPageById: async (id) => {
@@ -178,9 +176,7 @@ export const usePageStore = create<PageState>((set, get) => ({
   },
 
   globalSearch: async (query) => {
-    console.log("[pageStore] globalSearch called with query:", query);
     const results = await api.globalSearch(query);
-    console.log("[pageStore] Search results:", results);
     set({ searchResults: results });
   },
 

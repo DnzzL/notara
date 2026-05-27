@@ -32,14 +32,12 @@ export function SearchModal() {
   useEffect(() => {
     if (debounceRef.current) clearTimeout(debounceRef.current);
     if (!query.trim()) {
-      console.log("[SearchModal] globalSearch called with empty query");
       globalSearch("");
       setIsSearching(false);
       return;
     }
     setIsSearching(true);
     debounceRef.current = setTimeout(async () => {
-      console.log("[SearchModal] globalSearch called with query:", query);
       await globalSearch(query);
       setIsSearching(false);
       setSelectedIndex(0);
@@ -75,10 +73,8 @@ export function SearchModal() {
   // Focus input when modal opens
   useEffect(() => {
     if (isOpen) {
-      console.log("[SearchModal] Modal opened, query:", query);
       setTimeout(() => inputRef.current?.focus(), 50);
       if (!query.trim()) {
-        console.log("[SearchModal] Loading recent pages");
         loadRecentPages();
       }
     }
@@ -87,7 +83,6 @@ export function SearchModal() {
   // Reset state when closing
   useEffect(() => {
     if (!isOpen) {
-      console.log("[SearchModal] Modal closed");
       setQuery("");
       setSelectedIndex(0);
     }
@@ -104,9 +99,7 @@ export function SearchModal() {
     } else if (e.key === "Enter") {
       e.preventDefault();
       const flat = getFlatResults();
-      console.log("[SearchModal] Enter pressed, selectedIndex:", selectedIndex, "flatResults:", flat);
       if (flat[selectedIndex]) {
-        console.log("[SearchModal] Navigating to:", flat[selectedIndex]);
         navigateToResult(flat[selectedIndex]);
       }
     }
@@ -122,7 +115,6 @@ export function SearchModal() {
   };
 
   const navigateToResult = (result: SearchResult) => {
-    console.log("[SearchModal] navigateToResult called with:", result);
     selectPageById(result.pageId);
     setIsOpen(false);
     setQuery("");

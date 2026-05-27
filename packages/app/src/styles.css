@@ -63,6 +63,54 @@
   --t-slow:       0.22s;
 }
 
+/* ── Base Button component ──────────────────────────────────────────── */
+.btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  font-family: var(--font-ui);
+  font-weight: 500;
+  border-radius: 6px;
+  cursor: pointer;
+  border: 1px solid transparent;
+  line-height: 1;
+  white-space: nowrap;
+  transition: background var(--t) var(--ease), color var(--t) var(--ease),
+              border-color var(--t) var(--ease), box-shadow var(--t) var(--ease);
+}
+.btn:disabled { opacity: 0.5; cursor: not-allowed; pointer-events: none; }
+.btn-icon { justify-content: center; aspect-ratio: 1; padding: 0 !important; }
+
+/* sizes */
+.btn-sm  { padding: 4px 10px; font-size: 12.5px; }
+.btn-md  { padding: 7px 14px; font-size: 13.5px; }
+.btn-lg  { padding: 9px 18px; font-size: 14px; border-radius: 8px; }
+.btn-icon.btn-sm  { width: 28px; height: 28px; font-size: 14px; }
+.btn-icon.btn-md  { width: 32px; height: 32px; font-size: 16px; }
+.btn-icon.btn-lg  { width: 38px; height: 38px; font-size: 18px; border-radius: 8px; }
+
+/* ghost — no border, no bg; hover reveals a subtle bg */
+.btn-ghost { background: transparent; border-color: transparent; color: var(--text-3); }
+.btn-ghost:not(:disabled):hover { background: var(--surface-3); color: var(--text-2); }
+
+/* secondary — border + light surface */
+.btn-secondary { background: var(--surface-2); border-color: var(--border); color: var(--text-2); }
+.btn-secondary:not(:disabled):hover { background: var(--surface-3); border-color: var(--border-mid); color: var(--text); }
+
+/* primary — accent fill */
+.btn-primary {
+  background: var(--accent); border-color: var(--accent); color: #fff;
+  box-shadow: 0 2px 8px rgba(91,94,244,0.28);
+}
+.btn-primary:not(:disabled):hover {
+  background: var(--accent-2); border-color: var(--accent-2);
+  box-shadow: 0 4px 12px rgba(91,94,244,0.38);
+}
+
+/* danger — muted red */
+.btn-danger { background: var(--danger-dim); border-color: rgba(220,38,38,0.15); color: var(--danger); }
+.btn-danger:not(:disabled):hover { background: rgba(220,38,38,0.14); border-color: rgba(220,38,38,0.25); }
+
 /* ── Reset ─────────────────────────────────────────────────────────── */
 *, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
 
@@ -1364,11 +1412,10 @@ body {
 .record-panel::-webkit-scrollbar { width: 5px; }
 .record-panel::-webkit-scrollbar-track { background: transparent; }
 .record-panel::-webkit-scrollbar-thumb { background: var(--surface-4); border-radius: 3px; }
-.record-panel-header { display: flex; justify-content: flex-end; }
-.record-panel-close { background: none; border: none; cursor: pointer; font-size: 20px; color: var(--text-3); padding: 4px 8px; border-radius: 5px; transition: all var(--t) var(--ease); line-height: 1; }
-.record-panel-close:hover { background: var(--surface-3); color: var(--text-2); }
-.record-panel-title { font-family: var(--font-title); font-size: 24px; font-weight: 700; border: none; outline: none; background: transparent; width: 100%; padding: 4px 0 8px; margin-bottom: 8px; color: var(--text); letter-spacing: -0.02em; }
+.record-panel-header { display: flex; justify-content: flex-end; margin-bottom: 2px; }
+.record-panel-title { font-family: var(--font-title); font-size: 24px; font-weight: 700; border: none; outline: none; background: transparent; width: 100%; padding: 4px 0 6px; color: var(--text); letter-spacing: -0.02em; }
 .record-panel-title:focus { border-bottom: 2px solid var(--accent); }
+.record-panel-page-link { margin-bottom: 18px; }
 .record-panel-props { display: grid; grid-template-columns: 130px 1fr; row-gap: 6px; column-gap: 12px; align-items: start; margin-bottom: 24px; }
 .record-panel-prop { display: contents; }
 .record-panel-prop-label { color: var(--text-3); font-size: 12.5px; padding-top: 7px; }
@@ -1376,9 +1423,6 @@ body {
 .record-panel-prop-display { padding: 4px 7px; border-radius: 5px; cursor: pointer; min-height: 24px; color: var(--text-2); transition: background var(--t) var(--ease), color var(--t) var(--ease); }
 .record-panel-prop-display:hover { background: var(--surface-3); color: var(--text); }
 .record-panel-empty { grid-column: 1 / -1; color: var(--text-3); font-size: 13px; padding: 8px 0; }
-.record-panel-description { display: flex; flex-direction: column; gap: 4px; }
-.record-panel-description .record-panel-prop-label { padding-top: 0; }
-.record-panel-textarea { width: 100%; min-height: 140px; padding: 10px 12px; border: 1px solid var(--border); border-radius: 8px; font-size: 13.5px; font-family: var(--font-ui); resize: vertical; outline: none; background: var(--surface-2); color: var(--text); transition: border-color var(--t) var(--ease), box-shadow var(--t) var(--ease); }
 .record-panel-textarea:focus { border-color: var(--accent); box-shadow: 0 0 0 3px var(--accent-dim); background: var(--surface); }
 
 /* ── Page reference ── */

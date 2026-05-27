@@ -19,6 +19,7 @@ export interface DatabaseState {
   loadDatabases: (pageId: string) => Promise<void>;
   createDatabase: (pageId: string, name: string) => Promise<any>;
   renameDatabase: (id: string, name: string) => Promise<void>;
+  deleteDatabase: (id: string) => Promise<void>;
   reorderDatabases: (pageId: string, databaseIds: string[]) => Promise<void>;
 
   loadDbFields: (databaseId: string) => Promise<void>;
@@ -73,6 +74,14 @@ export const useDatabaseStore = create<DatabaseState>((set, get) => ({
     set((s) => ({
       databases: s.databases.map((d) => (d.id === id ? { ...d, name } : d)),
       currentDb: s.currentDb?.id === id ? { ...s.currentDb, name } : s.currentDb,
+    }));
+  },
+
+  deleteDatabase: async (id) => {
+    await api.deleteDatabase(id);
+    set((s) => ({
+      databases: s.databases.filter((d) => d.id !== id),
+      currentDb: s.currentDb?.id === id ? null : s.currentDb,
     }));
   },
 
