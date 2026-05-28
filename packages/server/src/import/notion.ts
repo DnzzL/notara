@@ -937,6 +937,20 @@ function importCsvDatabase(
         recPageRelPath = recordPageMap.get(key);
         if (recPageRelPath) break;
       }
+      let hasRecFolder = false;
+      for (const key of recordTitleKeys(recordTitle)) {
+        if (recordFolderMap.has(key)) { hasRecFolder = true; break; }
+      }
+      // Skip empty backing pages: Notion exports a per-row file even when
+      // the row has no body. Creating one here produces a content-less page
+      // that the UI's openRecordAsPage will re-create lazily anyway, so it's
+      // pure clutter. Only keep the file path when there's something to
+      // store (body content) or somewhere children need to anchor (folder).
+      if (recPageRelPath) {
+        const peekContent = fileContentMap.get(recPageRelPath) ?? "";
+        const peekBlocks = useHtml ? htmlToBlocks(peekContent) : markdownToBlocks(peekContent);
+        if (peekBlocks.length === 0 && !hasRecFolder) recPageRelPath = undefined;
+      }
       if (recPageRelPath) {
         const recPageContent = fileContentMap.get(recPageRelPath) ?? "";
         const recBlocks = useHtml ? htmlToBlocks(recPageContent) : markdownToBlocks(recPageContent);
