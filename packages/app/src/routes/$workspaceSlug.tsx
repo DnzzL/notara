@@ -88,6 +88,16 @@ function WorkspaceLayout() {
     return () => document.removeEventListener("keydown", onKey);
   }, [closeSidebar]);
 
+  // Handle programmatic navigation via pushState (page-link blocks, relation chips)
+  useEffect(() => {
+    const onPopState = () => {
+      const pageId = new URL(window.location.href).searchParams.get("page");
+      if (pageId) usePageStore.getState().selectPageByIdWithCascade(pageId);
+    };
+    window.addEventListener("popstate", onPopState);
+    return () => window.removeEventListener("popstate", onPopState);
+  }, []);
+
   return (
     <div className="app">
       {/* Mobile backdrop */}
