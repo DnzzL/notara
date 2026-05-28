@@ -463,35 +463,62 @@ export function importNotionExport(exportDir: string) {
       fileContentMap.set(relPath, content);
     }
 
+    // Map each CSV to the directory path containing its record files. Notion
+    // uses two distinct layouts:
+    //
+    //   Markdown export:  `dir/DB (dbguid).csv`
+    //                     `dir/DB (dbguid)/Record (recguid).md`
+    //                     → record folder = `dir/DB (dbguid)`
+    //
+    //   HTML export:      `dir/DB dbguid.csv`
+    //                     `dir/DB/Record recguid.html`         ← no guid on folder!
+    //                     → record folder = `dir/DB`
+    //
+    // Without supporting both, HTML exports never get their record files
+    // classified, so children of those rows end up as orphan top-level pages.
+    const recordFolderToCsvGuid = new Map<string, string>();
+    for (const csvPath of csvFiles) {
+      const guid = extractGuid(csvPath);
+      if (!guid) continue;
+      const csvDir = path.dirname(csvPath);
+      const csvBase = path.basename(csvPath, ".csv");
+      const candidates = new Set<string>([
+        csvBase,                          // "DB dbguid" (HTML form with guid)
+        stripTrailingGuid(csvBase),       // "DB"        (HTML form, folder has no guid)
+      ]);
+      for (const c of candidates) {
+        if (!c) continue;
+        const folder = csvDir === "." ? c : `${csvDir}/${c}`;
+        recordFolderToCsvGuid.set(folder, guid);
+      }
+    }
+
     // Identify record page files: source files whose immediate parent folder
-    // GUID matches a CSV GUID. These are per-record sub-pages in Notion's export
-    // (e.g. `Tasks (dbguid)/Task One (recguid).md`). They must become backing
-    // pages of their records (database_records.page_id) rather than regular pages.
+    // is a known record folder (per `recordFolderToCsvGuid`). These become
+    // backing pages of their records rather than regular pages.
     const recordPageRelPaths = new Set<string>();
-    // dbGuid → (lowercased record title → relPath)
+    // dbGuid → (lowercased record title variant → relPath)
     const recordPageByDbGuid = new Map<string, Map<string, string>>();
     for (const relPath of sourceFiles) {
-      const parts = relPath.split("/");
-      if (parts.length < 2) continue;
-      const parentDirGuid = extractGuid(parts[parts.length - 2]);
-      if (parentDirGuid && csvGuids.has(parentDirGuid)) {
-        recordPageRelPaths.add(relPath);
-        if (!recordPageByDbGuid.has(parentDirGuid)) {
-          recordPageByDbGuid.set(parentDirGuid, new Map());
-        }
-        const content = fileContentMap.get(relPath) ?? "";
-        const title = useHtml ? parseHtmlTitle(content, relPath) : parsePageTitle(content, relPath);
-        // Filename (without extension and trailing GUID) is an alternate key
-        // for cases where the CSV row title and the page H1 disagree (extra
-        // whitespace, an emoji in one but not the other, etc.).
-        const baseName = stripTrailingGuid(
-          path.basename(relPath, path.extname(relPath))
-        );
-        const variants = recordTitleKeys(title);
-        for (const v of recordTitleKeys(baseName)) variants.add(v);
-        const recMap = recordPageByDbGuid.get(parentDirGuid)!;
-        for (const v of variants) if (!recMap.has(v)) recMap.set(v, relPath);
+      const parentDir = path.dirname(relPath);
+      const dbGuid = recordFolderToCsvGuid.get(parentDir);
+      if (!dbGuid) continue;
+      recordPageRelPaths.add(relPath);
+      if (!recordPageByDbGuid.has(dbGuid)) {
+        recordPageByDbGuid.set(dbGuid, new Map());
       }
+      const content = fileContentMap.get(relPath) ?? "";
+      const title = useHtml ? parseHtmlTitle(content, relPath) : parsePageTitle(content, relPath);
+      // Filename (without extension and trailing GUID) is an alternate key
+      // for cases where the CSV row title and the page H1 disagree (extra
+      // whitespace, an emoji in one but not the other, etc.).
+      const baseName = stripTrailingGuid(
+        path.basename(relPath, path.extname(relPath))
+      );
+      const variants = recordTitleKeys(title);
+      for (const v of recordTitleKeys(baseName)) variants.add(v);
+      const recMap = recordPageByDbGuid.get(dbGuid)!;
+      for (const v of variants) if (!recMap.has(v)) recMap.set(v, relPath);
     }
 
     // Descendants of record pages: any file whose path passes through a folder
@@ -505,39 +532,39 @@ export function importNotionExport(exportDir: string) {
     // `Record (guid)/` containing children). Without folder-based detection,
     // those children fall into Pass 1 with no parent registered and end up at
     // the root.
-    const recordPageFileGuids = new Set<string>();
-    for (const relPath of recordPageRelPaths) {
-      const guid = extractGuid(relPath);
-      if (guid) recordPageFileGuids.add(guid);
-    }
     // dbGuid → (title variant → record folder path). Lets importCsvDatabase
     // synthesize a backing page for a row whose folder exists but whose .md
     // file is missing — without one, the row's sub-pages would be re-parented
     // to the database wrapper instead of hanging off the row itself.
+    //
+    // Record folders sit inside a known database record folder (e.g.
+    // `dir/DB/Record/...` or `dir/DB (guid)/Record (guid)/...`). We discover
+    // them by walking each sourceFile's ancestry: any directory whose parent
+    // is a known record folder is itself a row folder.
     const recordFolderByDbGuid = new Map<string, Map<string, string>>();
+    // path → dbGuid: every directory that is the IMMEDIATE folder for a row
+    // (i.e. children of this dir are descendants of that row's backing page).
+    const rowFolderToDbGuid = new Map<string, string>();
     const seenRecordFolders = new Set<string>();
     for (const relPath of sourceFiles) {
       const parts = relPath.split("/");
+      // For each interior directory in the path, check whether its parent
+      // is a known record folder (and therefore this dir is a row folder).
       for (let i = 2; i <= parts.length - 1; i++) {
-        const folderGuid = extractGuid(parts[i - 1]);
-        const parentGuid = extractGuid(parts[i - 2]);
-        if (folderGuid && parentGuid && csvGuids.has(parentGuid)) {
-          recordPageFileGuids.add(folderGuid);
-          // Only register the IMMEDIATE record folder (i === 2 means the
-          // segment directly under the database folder).
-          if (i === 2) {
-            const folderPath = parts.slice(0, 2).join("/");
-            if (seenRecordFolders.has(folderPath)) continue;
-            seenRecordFolders.add(folderPath);
-            const folderTitle = stripTrailingGuid(parts[i - 1]);
-            if (!recordFolderByDbGuid.has(parentGuid)) {
-              recordFolderByDbGuid.set(parentGuid, new Map());
-            }
-            const m = recordFolderByDbGuid.get(parentGuid)!;
-            for (const v of recordTitleKeys(folderTitle)) {
-              if (!m.has(v)) m.set(v, folderPath);
-            }
-          }
+        const folderPath = parts.slice(0, i).join("/");
+        const parentPath = parts.slice(0, i - 1).join("/");
+        const dbGuid = recordFolderToCsvGuid.get(parentPath);
+        if (!dbGuid) continue;
+        rowFolderToDbGuid.set(folderPath, dbGuid);
+        if (seenRecordFolders.has(folderPath)) continue;
+        seenRecordFolders.add(folderPath);
+        const folderTitle = stripTrailingGuid(parts[i - 1]);
+        if (!recordFolderByDbGuid.has(dbGuid)) {
+          recordFolderByDbGuid.set(dbGuid, new Map());
+        }
+        const m = recordFolderByDbGuid.get(dbGuid)!;
+        for (const v of recordTitleKeys(folderTitle)) {
+          if (!m.has(v)) m.set(v, folderPath);
         }
       }
     }
@@ -546,10 +573,10 @@ export function importNotionExport(exportDir: string) {
     for (const relPath of sourceFiles) {
       if (recordPageRelPaths.has(relPath)) continue;
       const parts = relPath.split("/");
-      // Check ancestor directories (all segments except the filename itself).
-      const isDescendant = parts.slice(0, -1).some((seg) => {
-        const g = extractGuid(seg);
-        return g !== null && recordPageFileGuids.has(g);
+      // A descendant is any file whose path passes through a row folder.
+      const isDescendant = parts.slice(0, -1).some((_, idx) => {
+        const ancestorPath = parts.slice(0, idx + 1).join("/");
+        return rowFolderToDbGuid.has(ancestorPath);
       });
       if (isDescendant) {
         descendantRelPaths.push(relPath);
@@ -569,9 +596,24 @@ export function importNotionExport(exportDir: string) {
     const pageMap = new Map<string, string>();
     const folderMap = new Map<string, string>();
     // CSV GUIDs that some imported page references inline via a <table>.
-    // Populated during the block-insert loop below, consumed by the CSV
-    // import phase to decide between "inline" and "isolated".
+    // Pre-scanned over ALL files (regular pages, record backing pages, and
+    // their sub-pages) so the inline/isolated decision in importCsvDatabase
+    // is correct even for databases referenced only from a record's body
+    // (e.g. an inline DB nested inside a row of another DB). Without the
+    // pre-scan, those nested DBs are mis-classified as isolated and get a
+    // bogus root-level wrapper page.
     const inlineCsvGuids = new Set<string>();
+    for (const relPath of sourceFiles) {
+      const content = fileContentMap.get(relPath) ?? "";
+      const blocks = useHtml ? htmlToBlocks(content) : markdownToBlocks(content);
+      for (const block of blocks) {
+        if (block.type !== "database") continue;
+        try {
+          const data = JSON.parse(block.content);
+          if (data?.__dbRef) inlineCsvGuids.add(data.__dbRef);
+        } catch { /* ignore malformed placeholder */ }
+      }
+    }
     // Exclude both record pages and their descendants from the regular loop —
     // record pages are handled by importCsvDatabase, descendants in a third pass.
     const sortedFiles = [...sourceFiles]
@@ -645,9 +687,20 @@ export function importNotionExport(exportDir: string) {
     // new dedicated page is created to hold the database).
     const csvGuidToDbId = new Map<string, string>();
     let importedDbCount = 0;
-    for (const csvPath of csvFiles) {
+    // Process shallow CSVs first: a nested inline DB (CSV inside another
+    // record's content folder) needs its host's backing page already in
+    // folderMap so the layout-based inline check resolves correctly.
+    const sortedCsvFiles = [...csvFiles].sort((a, b) => a.split("/").length - b.split("/").length);
+    for (const csvPath of sortedCsvFiles) {
       const guid = extractGuid(csvPath);
-      const isInline = guid !== null && inlineCsvGuids.has(guid);
+      // Inline if either an explicit __dbRef placeholder pointed at this CSV
+      // OR the CSV sits inside a folder whose page we already know about.
+      // Notion's HTML export omits the <a href=".csv"> anchor next to inline
+      // <table class="collection-content"> sometimes, so explicit detection
+      // alone is incomplete and isolated wrappers leak into the tree.
+      const csvDir = path.dirname(csvPath);
+      const layoutInline = csvDir !== "." && folderMap.has(csvDir);
+      const isInline = (guid !== null && inlineCsvGuids.has(guid)) || layoutInline;
       const recPageMap = (guid ? recordPageByDbGuid.get(guid) : null) ?? new Map<string, string>();
       const recFolderMap = (guid ? recordFolderByDbGuid.get(guid) : null) ?? new Map<string, string>();
       const result = yield* importCsvDatabase(exportDir, csvPath, folderMap, pageMap, null, isInline, recPageMap, fileContentMap, useHtml, recFolderMap);
