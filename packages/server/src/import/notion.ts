@@ -578,7 +578,7 @@ export function importNotionExport(exportDir: string) {
       const guid = extractGuid(csvPath);
       const isInline = guid !== null && inlineCsvGuids.has(guid);
       const recPageMap = (guid ? recordPageByDbGuid.get(guid) : null) ?? new Map<string, string>();
-      const result = yield* importCsvDatabase(exportDir, csvPath, folderMap, null, isInline, recPageMap, fileContentMap, useHtml);
+      const result = yield* importCsvDatabase(exportDir, csvPath, folderMap, pageMap, null, isInline, recPageMap, fileContentMap, useHtml);
       if (result) {
         importedDbCount += 1;
         if (guid) csvGuidToDbId.set(guid, result.dbId);
@@ -682,6 +682,7 @@ export function importNotionExport(exportDir: string) {
         WHERE NOT EXISTS (SELECT 1 FROM blocks b WHERE b.page_id = p.id)
         AND NOT EXISTS (SELECT 1 FROM pages c WHERE c.parent_id = p.id)
         AND NOT EXISTS (SELECT 1 FROM databases d WHERE d.page_id = p.id)
+        AND NOT EXISTS (SELECT 1 FROM database_records dr WHERE dr.page_id = p.id)
       `;
       if (emptyLeaves.length === 0) { keepPruning = false; break; }
       for (const { id } of emptyLeaves) {
@@ -701,6 +702,7 @@ function importCsvDatabase(
   exportDir: string,
   csvPath: string,
   folderMap: Map<string, string>,
+  pageMap: Map<string, string>,
   fallbackParentId: string | null,
   isInline: boolean,
   recordPageMap: Map<string, string>,
@@ -797,6 +799,10 @@ function importCsvDatabase(
           VALUES (${recPageId}, ${recordTitle}, ${parentId}, ${now}, ${now})
         `;
         yield* sql`UPDATE database_records SET page_id = ${recPageId} WHERE id = ${recordId}`;
+        // Register in pageMap so pageLink blocks in other pages that reference
+        // this record page by GUID resolve correctly in the placeholder pass.
+        const recPageGuid = extractGuid(recPageRelPath);
+        if (recPageGuid) pageMap.set(recPageGuid, recPageId);
         // Register the backing page's folder in folderMap so that any
         // sub-pages nested inside this record's export folder can find it
         // as their parent in the third-pass import.
