@@ -510,14 +510,34 @@ export function importNotionExport(exportDir: string) {
       const guid = extractGuid(relPath);
       if (guid) recordPageFileGuids.add(guid);
     }
+    // dbGuid → (title variant → record folder path). Lets importCsvDatabase
+    // synthesize a backing page for a row whose folder exists but whose .md
+    // file is missing — without one, the row's sub-pages would be re-parented
+    // to the database wrapper instead of hanging off the row itself.
+    const recordFolderByDbGuid = new Map<string, Map<string, string>>();
+    const seenRecordFolders = new Set<string>();
     for (const relPath of sourceFiles) {
       const parts = relPath.split("/");
-      // Every interior segment is a directory; check each.
       for (let i = 2; i <= parts.length - 1; i++) {
         const folderGuid = extractGuid(parts[i - 1]);
         const parentGuid = extractGuid(parts[i - 2]);
         if (folderGuid && parentGuid && csvGuids.has(parentGuid)) {
           recordPageFileGuids.add(folderGuid);
+          // Only register the IMMEDIATE record folder (i === 2 means the
+          // segment directly under the database folder).
+          if (i === 2) {
+            const folderPath = parts.slice(0, 2).join("/");
+            if (seenRecordFolders.has(folderPath)) continue;
+            seenRecordFolders.add(folderPath);
+            const folderTitle = stripTrailingGuid(parts[i - 1]);
+            if (!recordFolderByDbGuid.has(parentGuid)) {
+              recordFolderByDbGuid.set(parentGuid, new Map());
+            }
+            const m = recordFolderByDbGuid.get(parentGuid)!;
+            for (const v of recordTitleKeys(folderTitle)) {
+              if (!m.has(v)) m.set(v, folderPath);
+            }
+          }
         }
       }
     }
@@ -629,7 +649,8 @@ export function importNotionExport(exportDir: string) {
       const guid = extractGuid(csvPath);
       const isInline = guid !== null && inlineCsvGuids.has(guid);
       const recPageMap = (guid ? recordPageByDbGuid.get(guid) : null) ?? new Map<string, string>();
-      const result = yield* importCsvDatabase(exportDir, csvPath, folderMap, pageMap, null, isInline, recPageMap, fileContentMap, useHtml);
+      const recFolderMap = (guid ? recordFolderByDbGuid.get(guid) : null) ?? new Map<string, string>();
+      const result = yield* importCsvDatabase(exportDir, csvPath, folderMap, pageMap, null, isInline, recPageMap, fileContentMap, useHtml, recFolderMap);
       if (result) {
         importedDbCount += 1;
         if (guid) csvGuidToDbId.set(guid, result.dbId);
@@ -770,6 +791,7 @@ function importCsvDatabase(
   recordPageMap: Map<string, string>,
   fileContentMap: Map<string, string>,
   useHtml: boolean,
+  recordFolderMap: Map<string, string>,
 ) {
   return Effect.gen(function* () {
     const sql = yield* SqlClient.SqlClient;
@@ -900,6 +922,29 @@ function importCsvDatabase(
             INSERT INTO blocks (id, page_id, type, content, "index")
             VALUES (${ulid()}, ${recPageId}, ${finalBlock.type}, ${finalBlock.content}, ${i})
           `;
+        }
+      } else {
+        // No record .md file matched, but the row may still have a folder
+        // of sub-pages (e.g. an empty-body row whose only content is nested
+        // pages). Create a backing page so its children hang off the row
+        // itself rather than getting re-parented to the database wrapper.
+        let recFolderPath: string | undefined;
+        for (const key of recordTitleKeys(recordTitle)) {
+          recFolderPath = recordFolderMap.get(key);
+          if (recFolderPath) break;
+        }
+        if (recFolderPath) {
+          const recPageId = ulid();
+          yield* sql`
+            INSERT INTO pages (id, title, parent_id, created_at, updated_at)
+            VALUES (${recPageId}, ${recordTitle}, ${parentId}, ${now}, ${now})
+          `;
+          yield* sql`UPDATE database_records SET page_id = ${recPageId} WHERE id = ${recordId}`;
+          folderMap.set(recFolderPath, recPageId);
+          const stripped = recFolderPath
+            .replace(/\s*\([a-f0-9]{32}\)$/i, "")
+            .replace(/\s+[a-f0-9]{32}$/i, "");
+          if (stripped !== recFolderPath) folderMap.set(stripped, recPageId);
         }
       }
 
