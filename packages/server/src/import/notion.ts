@@ -438,6 +438,54 @@ export function importNotionExport(exportDir: string) {
       fileContentMap.set(relPath, content);
     }
 
+    // Identify record page files: source files whose immediate parent folder
+    // GUID matches a CSV GUID. These are per-record sub-pages in Notion's export
+    // (e.g. `Tasks (dbguid)/Task One (recguid).md`). They must become backing
+    // pages of their records (database_records.page_id) rather than regular pages.
+    const recordPageRelPaths = new Set<string>();
+    // dbGuid → (lowercased record title → relPath)
+    const recordPageByDbGuid = new Map<string, Map<string, string>>();
+    for (const relPath of sourceFiles) {
+      const parts = relPath.split("/");
+      if (parts.length < 2) continue;
+      const parentDirGuid = extractGuid(parts[parts.length - 2]);
+      if (parentDirGuid && csvGuids.has(parentDirGuid)) {
+        recordPageRelPaths.add(relPath);
+        if (!recordPageByDbGuid.has(parentDirGuid)) {
+          recordPageByDbGuid.set(parentDirGuid, new Map());
+        }
+        const content = fileContentMap.get(relPath) ?? "";
+        const title = useHtml ? parseHtmlTitle(content, relPath) : parsePageTitle(content, relPath);
+        recordPageByDbGuid.get(parentDirGuid)!.set(title.toLowerCase(), relPath);
+      }
+    }
+
+    // Descendants of record pages: any file whose path passes through a folder
+    // whose GUID matches a record page file's GUID. They can't be processed in
+    // the regular page loop because their parent (the backing page) doesn't exist
+    // yet — importCsvDatabase creates it and registers it in folderMap. A third
+    // pass after the CSV loop then handles them with a correct parent lookup.
+    const recordPageFileGuids = new Set<string>();
+    for (const relPath of recordPageRelPaths) {
+      const guid = extractGuid(relPath);
+      if (guid) recordPageFileGuids.add(guid);
+    }
+    const descendantRelPaths: string[] = [];
+    const descendantRelPathSet = new Set<string>();
+    for (const relPath of sourceFiles) {
+      if (recordPageRelPaths.has(relPath)) continue;
+      const parts = relPath.split("/");
+      // Check ancestor directories (all segments except the filename itself).
+      const isDescendant = parts.slice(0, -1).some((seg) => {
+        const g = extractGuid(seg);
+        return g !== null && recordPageFileGuids.has(g);
+      });
+      if (isDescendant) {
+        descendantRelPaths.push(relPath);
+        descendantRelPathSet.add(relPath);
+      }
+    }
+
     const now = new Date().toISOString();
 
     // Two parallel indexes:
@@ -453,7 +501,11 @@ export function importNotionExport(exportDir: string) {
     // Populated during the block-insert loop below, consumed by the CSV
     // import phase to decide between "inline" and "isolated".
     const inlineCsvGuids = new Set<string>();
-    const sortedFiles = [...sourceFiles].sort((a, b) => a.length - b.length);
+    // Exclude both record pages and their descendants from the regular loop —
+    // record pages are handled by importCsvDatabase, descendants in a third pass.
+    const sortedFiles = [...sourceFiles]
+      .filter((f) => !recordPageRelPaths.has(f) && !descendantRelPathSet.has(f))
+      .sort((a, b) => a.length - b.length);
 
     for (const relPath of sortedFiles) {
       const content = fileContentMap.get(relPath)!;
@@ -525,10 +577,56 @@ export function importNotionExport(exportDir: string) {
     for (const csvPath of csvFiles) {
       const guid = extractGuid(csvPath);
       const isInline = guid !== null && inlineCsvGuids.has(guid);
-      const result = yield* importCsvDatabase(exportDir, csvPath, folderMap, null, isInline);
+      const recPageMap = (guid ? recordPageByDbGuid.get(guid) : null) ?? new Map<string, string>();
+      const result = yield* importCsvDatabase(exportDir, csvPath, folderMap, null, isInline, recPageMap, fileContentMap, useHtml);
       if (result) {
         importedDbCount += 1;
         if (guid) csvGuidToDbId.set(guid, result.dbId);
+      }
+    }
+
+    // Third pass: sub-pages of record backing pages. folderMap now contains
+    // entries for every backing page (registered by importCsvDatabase above),
+    // so parent lookups resolve correctly. Sort by path length so parents are
+    // always created before their children.
+    for (const relPath of descendantRelPaths.sort((a, b) => a.length - b.length)) {
+      const content = fileContentMap.get(relPath)!;
+      const title = useHtml ? parseHtmlTitle(content, relPath) : parsePageTitle(content, relPath);
+      const guid = extractGuid(relPath);
+      const dir = path.dirname(relPath);
+      const parentId = (dir && dir !== "." ? folderMap.get(dir) : null) ?? null;
+
+      const pageId = ulid();
+      const pageNow = new Date().toISOString();
+      yield* sql`
+        INSERT INTO pages (id, title, parent_id, created_at, updated_at)
+        VALUES (${pageId}, ${title}, ${parentId}, ${pageNow}, ${pageNow})
+      `;
+
+      const blocks = useHtml ? htmlToBlocks(content) : markdownToBlocks(content);
+      for (let i = 0; i < blocks.length; i++) {
+        const block = blocks[i];
+        if ((block.type === "image" || block.type === "pdf") && block.content.startsWith("{")) {
+          try {
+            const data = JSON.parse(block.content);
+            const abs = data?.src ? resolveImportedAsset(exportDir, relPath, data.src) : null;
+            if (abs) {
+              const newUrl = yield* Effect.promise(() => copyAssetToAttachments(abs));
+              if (newUrl) blocks[i] = { ...block, content: JSON.stringify({ ...data, src: newUrl }) };
+            }
+          } catch { /* leave block untouched */ }
+        }
+      }
+      for (let i = 0; i < blocks.length; i++) {
+        yield* sql`
+          INSERT INTO blocks (id, page_id, type, content, "index")
+          VALUES (${ulid()}, ${pageId}, ${blocks[i].type}, ${blocks[i].content}, ${i})
+        `;
+      }
+
+      if (guid) pageMap.set(guid, pageId);
+      for (const key of contentFolderKeys(relPath)) {
+        folderMap.set(key, pageId);
       }
     }
 
@@ -592,7 +690,7 @@ export function importNotionExport(exportDir: string) {
     }
 
     return {
-      pagesImported: sourceFiles.length,
+      pagesImported: sourceFiles.length - recordPageRelPaths.size,
       databasesImported: importedDbCount,
       pageMap,
     };
@@ -605,6 +703,9 @@ function importCsvDatabase(
   folderMap: Map<string, string>,
   fallbackParentId: string | null,
   isInline: boolean,
+  recordPageMap: Map<string, string>,
+  fileContentMap: Map<string, string>,
+  useHtml: boolean,
 ) {
   return Effect.gen(function* () {
     const sql = yield* SqlClient.SqlClient;
@@ -681,6 +782,48 @@ function importCsvDatabase(
         INSERT INTO database_records (id, database_id, title, created_at)
         VALUES (${recordId}, ${dbId}, ${recordTitle}, ${now})
       `;
+
+      // If the export included a per-record sub-page, create a backing page
+      // for this record now (mirroring what openRecordAsPage does lazily) so
+      // the imported content is immediately accessible. Parent is the same
+      // host page that owns the database — consistent with the live behaviour.
+      const recPageRelPath = recordPageMap.get(recordTitle.toLowerCase());
+      if (recPageRelPath) {
+        const recPageContent = fileContentMap.get(recPageRelPath) ?? "";
+        const recBlocks = useHtml ? htmlToBlocks(recPageContent) : markdownToBlocks(recPageContent);
+        const recPageId = ulid();
+        yield* sql`
+          INSERT INTO pages (id, title, parent_id, created_at, updated_at)
+          VALUES (${recPageId}, ${recordTitle}, ${parentId}, ${now}, ${now})
+        `;
+        yield* sql`UPDATE database_records SET page_id = ${recPageId} WHERE id = ${recordId}`;
+        // Register the backing page's folder in folderMap so that any
+        // sub-pages nested inside this record's export folder can find it
+        // as their parent in the third-pass import.
+        for (const key of contentFolderKeys(recPageRelPath)) {
+          folderMap.set(key, recPageId);
+        }
+        for (let i = 0; i < recBlocks.length; i++) {
+          const block = recBlocks[i];
+          // Copy local image/pdf assets into the attachments dir, same as the
+          // regular page import loop.
+          let finalBlock = block;
+          if ((block.type === "image" || block.type === "pdf") && block.content.startsWith("{")) {
+            try {
+              const data = JSON.parse(block.content);
+              const abs = data?.src ? resolveImportedAsset(exportDir, recPageRelPath, data.src) : null;
+              if (abs) {
+                const newUrl = yield* Effect.promise(() => copyAssetToAttachments(abs));
+                if (newUrl) finalBlock = { ...block, content: JSON.stringify({ ...data, src: newUrl }) };
+              }
+            } catch { /* leave block untouched */ }
+          }
+          yield* sql`
+            INSERT INTO blocks (id, page_id, type, content, "index")
+            VALUES (${ulid()}, ${recPageId}, ${finalBlock.type}, ${finalBlock.content}, ${i})
+          `;
+        }
+      }
 
       for (let j = 0; j < fieldHeaders.length; j++) {
         const fieldId = fieldMap.get(fieldHeaders[j]);
