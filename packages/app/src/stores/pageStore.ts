@@ -181,7 +181,7 @@ export const usePageStore = create<PageState>((set, get) => ({
   },
 
   loadBacklinks: async (pageId) => {
-    set({ backlinksLoading: true });
+    set({ backlinksLoading: true, backlinks: [] });
     try {
       const backlinks = await api.getBacklinks(pageId);
       set({ backlinks });

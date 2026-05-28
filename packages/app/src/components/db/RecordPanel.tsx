@@ -51,6 +51,7 @@ export function RecordPanel({
     try {
       const result = await api.openRecordAsPage(record.id);
       setPageId(result.pageId);
+      await onChanged();
       await loadPages();
       onClose();
       await selectPageByIdWithCascade(result.pageId);
