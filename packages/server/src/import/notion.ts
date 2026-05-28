@@ -357,6 +357,31 @@ function findAllGuids(s: string): string[] {
  * against the page's id, so child lookups by their literal dirname find
  * the parent regardless of which export format produced the archive.
  */
+/**
+ * Normalized lookup keys for matching a CSV row title against a record page
+ * file. Notion's exports aren't always consistent — the CSV column value may
+ * have a leading emoji icon, a trailing GUID, or extra whitespace that the
+ * page's H1 doesn't, or vice versa. Generating multiple variants lets the
+ * lookup succeed across these mismatches without resorting to fuzzy matching.
+ */
+function recordTitleKeys(title: string): Set<string> {
+  const keys = new Set<string>();
+  const add = (s: string) => {
+    const t = s.trim();
+    if (t) keys.add(t.toLowerCase());
+  };
+  add(title);
+  add(stripTrailingGuid(title));
+  // Strip a leading icon (emoji + optional whitespace). Matches Notion's
+  // common "📋 Task One" → "Task One" pattern.
+  const noIcon = title.replace(/^\s*\p{Extended_Pictographic}+\s*/u, "");
+  add(noIcon);
+  add(stripTrailingGuid(noIcon));
+  // Collapse internal whitespace as a last resort.
+  add(title.replace(/\s+/g, " "));
+  return keys;
+}
+
 function contentFolderKeys(pageFilePath: string): string[] {
   const noExt = pageFilePath.replace(/\.(md|html)$/i, "");
   const stripped = noExt
@@ -456,7 +481,16 @@ export function importNotionExport(exportDir: string) {
         }
         const content = fileContentMap.get(relPath) ?? "";
         const title = useHtml ? parseHtmlTitle(content, relPath) : parsePageTitle(content, relPath);
-        recordPageByDbGuid.get(parentDirGuid)!.set(title.toLowerCase(), relPath);
+        // Filename (without extension and trailing GUID) is an alternate key
+        // for cases where the CSV row title and the page H1 disagree (extra
+        // whitespace, an emoji in one but not the other, etc.).
+        const baseName = stripTrailingGuid(
+          path.basename(relPath, path.extname(relPath))
+        );
+        const variants = recordTitleKeys(title);
+        for (const v of recordTitleKeys(baseName)) variants.add(v);
+        const recMap = recordPageByDbGuid.get(parentDirGuid)!;
+        for (const v of variants) if (!recMap.has(v)) recMap.set(v, relPath);
       }
     }
 
@@ -465,10 +499,27 @@ export function importNotionExport(exportDir: string) {
     // the regular page loop because their parent (the backing page) doesn't exist
     // yet — importCsvDatabase creates it and registers it in folderMap. A third
     // pass after the CSV loop then handles them with a correct parent lookup.
+    //
+    // We also include record FOLDER guids: a record can have sub-pages without
+    // its own body file (so no `Record (guid).md` exists, only the folder
+    // `Record (guid)/` containing children). Without folder-based detection,
+    // those children fall into Pass 1 with no parent registered and end up at
+    // the root.
     const recordPageFileGuids = new Set<string>();
     for (const relPath of recordPageRelPaths) {
       const guid = extractGuid(relPath);
       if (guid) recordPageFileGuids.add(guid);
+    }
+    for (const relPath of sourceFiles) {
+      const parts = relPath.split("/");
+      // Every interior segment is a directory; check each.
+      for (let i = 2; i <= parts.length - 1; i++) {
+        const folderGuid = extractGuid(parts[i - 1]);
+        const parentGuid = extractGuid(parts[i - 2]);
+        if (folderGuid && parentGuid && csvGuids.has(parentGuid)) {
+          recordPageFileGuids.add(folderGuid);
+        }
+      }
     }
     const descendantRelPaths: string[] = [];
     const descendantRelPathSet = new Set<string>();
@@ -594,7 +645,18 @@ export function importNotionExport(exportDir: string) {
       const title = useHtml ? parseHtmlTitle(content, relPath) : parsePageTitle(content, relPath);
       const guid = extractGuid(relPath);
       const dir = path.dirname(relPath);
-      const parentId = (dir && dir !== "." ? folderMap.get(dir) : null) ?? null;
+      // Walk up the dir tree: the immediate parent's backing page may not have
+      // been created (e.g. row title in CSV didn't match the record's .md H1,
+      // or there's no record .md file at all — only a folder of sub-pages).
+      // Falling back to the nearest registered ancestor keeps the descendant
+      // nested under the database wrapper instead of becoming a root page.
+      let parentId: string | null = null;
+      let cursor = dir;
+      while (cursor && cursor !== ".") {
+        const found = folderMap.get(cursor);
+        if (found) { parentId = found; break; }
+        cursor = path.dirname(cursor);
+      }
 
       const pageId = ulid();
       const pageNow = new Date().toISOString();
@@ -746,6 +808,12 @@ function importCsvDatabase(
         VALUES (${newPageId}, ${dbName}, ${folderParentId}, ${"🗃️"}, ${now}, ${now})
       `;
       parentId = newPageId;
+      // Register the wrapper under the database folder path so descendants of
+      // records whose backing page wasn't created (missing record file or
+      // title mismatch) still find an ancestor in the third-pass walk-up.
+      for (const key of contentFolderKeys(csvPath.replace(/\.csv$/i, ".md"))) {
+        folderMap.set(key, newPageId);
+      }
     }
 
     const dbId = ulid();
@@ -789,7 +857,11 @@ function importCsvDatabase(
       // for this record now (mirroring what openRecordAsPage does lazily) so
       // the imported content is immediately accessible. Parent is the same
       // host page that owns the database — consistent with the live behaviour.
-      const recPageRelPath = recordPageMap.get(recordTitle.toLowerCase());
+      let recPageRelPath: string | undefined;
+      for (const key of recordTitleKeys(recordTitle)) {
+        recPageRelPath = recordPageMap.get(key);
+        if (recPageRelPath) break;
+      }
       if (recPageRelPath) {
         const recPageContent = fileContentMap.get(recPageRelPath) ?? "";
         const recBlocks = useHtml ? htmlToBlocks(recPageContent) : markdownToBlocks(recPageContent);
