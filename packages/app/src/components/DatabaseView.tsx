@@ -9,10 +9,94 @@ import { useStore } from "../store.js";
 import { usePageStore } from "../stores/pageStore.js";
 import { api } from "../rpc-client.js";
 import { applyFiltersAndSorts, type Filter, type Sort, type FilterOperator } from "../lib/filterEngine.js";
+import { tryEvaluate } from "../lib/formula.js";
 import { CellDisplay, InlineCellEditor, Popover } from "./db/CellComponents.js";
 import { ColumnHeader, AddFieldPopover, OptionsEditor, FormulaEditor, type FieldType } from "./db/FieldComponents.js";
 import { BoardView } from "./db/BoardView.js";
 import { RecordPanel } from "./db/RecordPanel.js";
+
+// ── Column Footer (summary aggregations, à la Notion) ───────────────────────
+
+type AggType = "none" | "count" | "filled" | "empty" | "sum" | "avg" | "min" | "max";
+
+const AGG_LABEL: Record<AggType, string> = {
+  none: "Calculate", count: "Count", filled: "Filled", empty: "Empty",
+  sum: "Sum", avg: "Average", min: "Min", max: "Max",
+};
+
+/** Number-capable field types get the numeric aggregations (sum/avg/min/max). */
+function isNumericFieldType(type: string) {
+  return type === "number" || type === "formula";
+}
+
+function ColumnFooter({
+  field, rows, agg, onChange, isTitle = false,
+}: {
+  field: { id: string; name: string; type: string; formula?: string | null };
+  rows: { record: any; values: Record<string, unknown> }[];
+  agg: AggType;
+  onChange: (a: AggType) => void;
+  isTitle?: boolean;
+}) {
+  const numeric = !isTitle && isNumericFieldType(field.type);
+
+  const valueOf = (row: { record: any; values: Record<string, unknown> }): unknown => {
+    if (isTitle) return row.record.title;
+    if (field.type === "formula") {
+      const r = tryEvaluate(field.formula ?? null, row.values);
+      return r.ok ? r.value : null;
+    }
+    return row.values[field.name];
+  };
+
+  const result = useMemo(() => {
+    if (agg === "none") return null;
+    if (agg === "count") return rows.length;
+    const filled = rows.map(valueOf).filter((v) => v !== null && v !== undefined && v !== "");
+    if (agg === "filled") return filled.length;
+    if (agg === "empty") return rows.length - filled.length;
+    const nums = filled.map((v) => Number(v)).filter((n) => !Number.isNaN(n));
+    if (nums.length === 0) return 0;
+    const sum = nums.reduce((a, b) => a + b, 0);
+    if (agg === "sum") return sum;
+    if (agg === "avg") return sum / nums.length;
+    if (agg === "min") return Math.min(...nums);
+    return Math.max(...nums); // "max"
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [agg, rows, field.id, field.type, field.name, field.formula, isTitle]);
+
+  const formatted = typeof result === "number"
+    ? result.toLocaleString(undefined, { maximumFractionDigits: 2 })
+    : "";
+
+  return (
+    <div style={{ position: "relative", display: "flex", alignItems: "center", justifyContent: "flex-end", gap: 4, height: 32, paddingRight: 8 }}>
+      {agg === "none" ? (
+        <span style={{ fontSize: 12, color: "#c7c6c2" }}>Calculate</span>
+      ) : (
+        <span style={{ fontSize: 12, color: "#37352f" }}>
+          <span style={{ color: "#9b9a97", marginRight: 4 }}>{AGG_LABEL[agg]}</span>
+          {formatted}
+        </span>
+      )}
+      <select
+        value={agg}
+        onChange={(e) => onChange(e.target.value as AggType)}
+        title="Summary"
+        style={{ position: "absolute", inset: 0, width: "100%", height: "100%", opacity: 0, cursor: "pointer", border: "none" }}
+      >
+        <option value="none">Calculate</option>
+        <option value="count">Count all</option>
+        <option value="filled">Count values</option>
+        <option value="empty">Count empty</option>
+        {numeric && <option value="sum">Sum</option>}
+        {numeric && <option value="avg">Average</option>}
+        {numeric && <option value="min">Min</option>}
+        {numeric && <option value="max">Max</option>}
+      </select>
+    </div>
+  );
+}
 
 // ── Filter Bar ────────────────────────────────────────────────────────────
 
@@ -279,6 +363,22 @@ export function DatabaseView({ database, isNew }: { database: any; isNew?: boole
       ).catch(() => { /* ignore */ });
     }
   }, [dbFields, dbRecordCache]);
+
+  // Per-column footer summaries (Count / Sum / …), persisted locally per database.
+  const [footerAggs, setFooterAggs] = useState<Record<string, AggType>>({});
+  useEffect(() => {
+    try {
+      const raw = localStorage.getItem(`db-footer-aggs:${database.id}`);
+      setFooterAggs(raw ? JSON.parse(raw) : {});
+    } catch { setFooterAggs({}); }
+  }, [database.id]);
+  const setFooterAgg = useCallback((key: string, agg: AggType) => {
+    setFooterAggs((prev) => {
+      const next = { ...prev, [key]: agg };
+      try { localStorage.setItem(`db-footer-aggs:${database.id}`, JSON.stringify(next)); } catch { /* ignore */ }
+      return next;
+    });
+  }, [database.id]);
 
   const sortedRecords = useMemo(
     () => applyFiltersAndSorts(records, dbFields, activeFilters, activeSorts),
@@ -659,6 +759,35 @@ export function DatabaseView({ database, isNew }: { database: any; isNew?: boole
                 </tr>
               </tbody>
             </SortableContext>
+            {sortedRecords.length > 0 && (
+              <tfoot>
+                <tr className="db-footer-row">
+                  <td style={{ borderTop: "1px solid #e9e9e7" }} />
+                  {!database.titleHidden && (
+                    <td style={{ borderTop: "1px solid #e9e9e7" }}>
+                      <ColumnFooter
+                        field={{ id: "__title__", name: database.titleLabel || "Name", type: "text" }}
+                        rows={sortedRecords}
+                        agg={footerAggs["__title__"] ?? "none"}
+                        onChange={(a) => setFooterAgg("__title__", a)}
+                        isTitle
+                      />
+                    </td>
+                  )}
+                  {dbFields.map((field: any) => (
+                    <td key={field.id} style={{ borderTop: "1px solid #e9e9e7" }}>
+                      <ColumnFooter
+                        field={field}
+                        rows={sortedRecords}
+                        agg={footerAggs[field.id] ?? "none"}
+                        onChange={(a) => setFooterAgg(field.id, a)}
+                      />
+                    </td>
+                  ))}
+                  <td style={{ borderTop: "1px solid #e9e9e7" }} />
+                </tr>
+              </tfoot>
+            )}
           </table>
         </div>
         </DndContext>
