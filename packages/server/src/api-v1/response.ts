@@ -2,6 +2,7 @@ import { Effect, Layer } from "effect";
 import * as HttpServerRequest from "@effect/platform/HttpServerRequest";
 import * as HttpServerResponse from "@effect/platform/HttpServerResponse";
 import { ApiError } from "./auth.js";
+import { corsHeaders } from "../middleware.js";
 import { PlatformDb, PlatformDbLive } from "../platform-db.js";
 import { WorkspaceDb, WorkspaceDbLive } from "../db.js";
 
@@ -15,7 +16,7 @@ import { WorkspaceDb, WorkspaceDbLive } from "../db.js";
  */
 const RequestServices = Layer.mergeAll(PlatformDbLive, WorkspaceDbLive);
 
-const JSON_HEADER = { "Content-Type": "application/json" };
+const JSON_HEADER = { "Content-Type": "application/json", ...corsHeaders };
 
 // ── Successful responses ──────────────────────────────────────────────────────
 

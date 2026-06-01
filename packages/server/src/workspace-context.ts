@@ -2,6 +2,7 @@ import { Context, Effect } from "effect";
 import { HttpServerRequest } from "@effect/platform";
 import { auth } from "./auth.js";
 import { PlatformDb } from "./platform-db.js";
+import { WorkspaceDb } from "./db.js";
 
 export class WorkspaceContext extends Context.Tag("WorkspaceContext")<
   WorkspaceContext,
@@ -55,3 +56,44 @@ export const getSessionUser = Effect.gen(function* () {
   }
   return session.user;
 });
+
+/** Resolve workspace DB from X-Workspace-Id header and provide the SqlClient layer. */
+export const withWorkspaceDb = <A, E, R>(inner: Effect.Effect<A, E, R>) =>
+  Effect.gen(function* () {
+    const request = yield* HttpServerRequest.HttpServerRequest;
+    const workspaceId = request.headers["x-workspace-id"] as string | undefined;
+    if (!workspaceId) return yield* Effect.die(new Error("Missing X-Workspace-Id header"));
+
+    const wdb = yield* WorkspaceDb;
+    const dbLayer = wdb.getLayer(workspaceId);
+    return yield* inner.pipe(Effect.provide(dbLayer));
+  });
+
+/**
+ * Authenticated user + workspace context. Yields { userId, workspaceId, role }
+ * to the inner builder, runs it with the per-workspace SqlClient layer applied.
+ */
+export const withAuthedWorkspace = <A, E, R>(
+  build: (ctx: {
+    userId: string;
+    workspaceId: string;
+    role: "owner" | "member";
+  }) => Effect.Effect<A, E, R>,
+) =>
+  Effect.gen(function* () {
+    const user = yield* getSessionUser;
+    const request = yield* HttpServerRequest.HttpServerRequest;
+    const workspaceId = request.headers["x-workspace-id"] as string | undefined;
+    if (!workspaceId) return yield* Effect.die(new Error("Missing X-Workspace-Id header"));
+    const db = yield* PlatformDb;
+    const memberRow = db
+      .prepare("SELECT role FROM workspace_members WHERE workspace_id = ? AND user_id = ?")
+      .get(workspaceId, user.id) as { role: "owner" | "member" } | null;
+    if (!memberRow) {
+      return yield* Effect.fail(new AuthError(403, "Not a workspace member"));
+    }
+    const wdb = yield* WorkspaceDb;
+    return yield* build({ userId: user.id, workspaceId, role: memberRow.role }).pipe(
+      Effect.provide(wdb.getLayer(workspaceId)),
+    );
+  });

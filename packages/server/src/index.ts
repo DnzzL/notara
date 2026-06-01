@@ -24,7 +24,8 @@ import { registerV1Routes } from "./api-v1/routes.js";
 import { auth } from "./auth.js";
 import { PlatformDbLive, PlatformDb, platformDb } from "./platform-db.js";
 import * as Permissions from "./handlers/permissions.js";
-import { resolveWorkspaceContext, getSessionUser, WorkspaceContext, AuthError } from "./workspace-context.js";
+import { resolveWorkspaceContext, getSessionUser, WorkspaceContext, AuthError, withWorkspaceDb, withAuthedWorkspace } from "./workspace-context.js";
+import { corsHeaders, checkRateLimit, getIp, tooManyRequests } from "./middleware.js";
 import { makeHeartbeatHandler, makeStreamHandler } from "./presence/routes.js";
 import { presence } from "./presence/index.js";
 import { createServer } from "node:http";
@@ -36,51 +37,6 @@ import { dirname } from "node:path";
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
 const rootDir = path.join(__dirname, "../..");
-
-// ── Rate limiter ───────────────────────────────────────────────────────────
-const RATE_WINDOW_MS = 60_000;
-const rateLimits = new Map<string, { count: number; resetAt: number }>();
-function setInterval_unref(fn: () => void, ms: number) {
-  const t = setInterval(fn, ms);
-  if (typeof t === "object" && "unref" in t) (t as NodeJS.Timeout).unref();
-}
-setInterval_unref(() => {
-  const now = Date.now();
-  for (const [k, v] of rateLimits) if (v.resetAt < now) rateLimits.delete(k);
-}, 60_000);
-
-function checkRateLimit(ip: string, limit: number): boolean {
-  const now = Date.now();
-  let entry = rateLimits.get(ip);
-  if (!entry || entry.resetAt < now) {
-    entry = { count: 0, resetAt: now + RATE_WINDOW_MS };
-    rateLimits.set(ip, entry);
-  }
-  entry.count++;
-  return entry.count <= limit;
-}
-
-function getIp(req: import("@effect/platform/HttpServerRequest").HttpServerRequest): string {
-  const h = req.headers;
-  return (h["x-forwarded-for"] as string)?.split(",")[0]?.trim()
-    ?? (h["x-real-ip"] as string)
-    ?? "unknown";
-}
-
-const tooManyRequests = (retryAfter: number) =>
-  HttpServerResponse.text("Too Many Requests", {
-    status: 429,
-    headers: { "Retry-After": String(retryAfter), ...corsHeaders },
-  });
-
-// Wraps an effect with IP-based rate limiting
-const withRateLimit = <A>(limit: number, inner: Effect.Effect<A, unknown, any>) =>
-  Effect.gen(function* () {
-    const req = yield* HttpServerRequest.HttpServerRequest;
-    const ip = getIp(req);
-    if (!checkRateLimit(`${ip}:${limit}`, limit)) return tooManyRequests(60) as unknown as A;
-    return yield* inner;
-  });
 
 // Static file paths
 const possibleDistPaths = [
@@ -133,31 +89,6 @@ function validateEnv(): void {
 }
 
 validateEnv();
-
-// ── Security + CORS headers ───────────────────────────────────────────────────
-// CORS origin: lock down to BASE_URL / TRUSTED_ORIGINS in production; allow * otherwise.
-const _allowedOrigin = (() => {
-  const base = process.env.BASE_URL?.trim();
-  if (base) return base;
-  const trusted = (process.env.TRUSTED_ORIGINS ?? "").split(",").map(s => s.trim()).filter(Boolean);
-  return trusted.length > 0 ? trusted[0] : "*";
-})();
-
-const securityHeaders = {
-  "X-Content-Type-Options": "nosniff",
-  "X-Frame-Options": "SAMEORIGIN",
-  "Referrer-Policy": "strict-origin-when-cross-origin",
-  "X-XSS-Protection": "0",
-  "Permissions-Policy": "camera=(), microphone=(), geolocation=()",
-};
-
-const corsHeaders = {
-  "Access-Control-Allow-Origin": _allowedOrigin,
-  "Access-Control-Allow-Methods": "GET, POST, PUT, DELETE, OPTIONS",
-  "Access-Control-Allow-Headers": "Content-Type, Authorization",
-  "Vary": "Origin",
-  ...securityHeaders,
-};
 
 // Static file handler + import upload route as an Effect
 const staticFilesRoute = Effect.gen(function* () {
@@ -512,45 +443,6 @@ const StaticFilesLive = Layer.effectDiscard(staticFilesRoute);
 
 // Layer that adds the /api/v1 REST routes + /api/docs
 const ApiV1Live = Layer.effectDiscard(registerV1Routes);
-
-// Helper: resolve workspace DB from X-Workspace-Id header
-const withWorkspaceDb = <A, E, R>(inner: Effect.Effect<A, E, R>) =>
-  Effect.gen(function* () {
-    const request = yield* HttpServerRequest.HttpServerRequest;
-    const workspaceId = request.headers["x-workspace-id"] as string | undefined;
-    if (!workspaceId) return yield* Effect.die(new Error("Missing X-Workspace-Id header"));
-
-    const wdb = yield* WorkspaceDb;
-    const dbLayer = wdb.getLayer(workspaceId);
-    return yield* inner.pipe(Effect.provide(dbLayer));
-  });
-
-// Helper: authenticated user + workspace context. Yields { userId, workspaceId, role }
-// to the inner builder, runs it with the per-workspace SqlClient layer applied.
-const withAuthedWorkspace = <A, E, R>(
-  build: (ctx: {
-    userId: string;
-    workspaceId: string;
-    role: "owner" | "member";
-  }) => Effect.Effect<A, E, R>,
-) =>
-  Effect.gen(function* () {
-    const user = yield* getSessionUser;
-    const request = yield* HttpServerRequest.HttpServerRequest;
-    const workspaceId = request.headers["x-workspace-id"] as string | undefined;
-    if (!workspaceId) return yield* Effect.die(new Error("Missing X-Workspace-Id header"));
-    const db = yield* PlatformDb;
-    const memberRow = db
-      .prepare("SELECT role FROM workspace_members WHERE workspace_id = ? AND user_id = ?")
-      .get(workspaceId, user.id) as { role: "owner" | "member" } | null;
-    if (!memberRow) {
-      return yield* Effect.fail(new AuthError(403, "Not a workspace member"));
-    }
-    const wdb = yield* WorkspaceDb;
-    return yield* build({ userId: user.id, workspaceId, role: memberRow.role }).pipe(
-      Effect.provide(wdb.getLayer(workspaceId)),
-    );
-  });
 
 // RPC handlers layer
 const rpcHandlersLayer = AppRpc.toLayer({
