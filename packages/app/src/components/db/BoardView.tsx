@@ -6,19 +6,21 @@ import {
 import { SortableContext, useSortable, verticalListSortingStrategy, horizontalListSortingStrategy, arrayMove } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
 import { useStore } from "../../store.js";
-import { useDatabaseStore, selectBoardGroupBy, selectBoardHidden } from "../../stores/databaseStore.js";
+import { useDatabaseStore, selectBoardGroupBy, selectBoardHidden, selectSorts } from "../../stores/databaseStore.js";
 import { api } from "../../rpc-client.js";
 import { SelectPill, CellDisplay } from "./CellComponents.js";
 
 export function BoardView({
-  database, fields, records, databases, onSwitchView, allRecords = {},
+  database, fields, records, databases, onSwitchView, allRecords = {}, onOpenRecord,
 }: {
   database: any; fields: any[]; records: any[]; databases: any[];
   onSwitchView: () => void; allRecords?: Record<string, any[]>;
+  onOpenRecord?: (record: any) => void;
 }) {
-  const { setBoardGroupBy, toggleBoardField, updateFieldValue, updateField, loadDbRecords, createDbRecord, loadDbFields } = useStore();
+  const { setBoardGroupBy, toggleBoardField, updateFieldValue, updateField, loadDbRecords, createDbRecord, loadDbFields, addSort, removeSort, setSort } = useStore();
   const boardGroupByFieldId = useDatabaseStore((s) => selectBoardGroupBy(s, database.id));
   const boardHiddenFieldIds = useDatabaseStore((s) => selectBoardHidden(s, database.id));
+  const activeSorts = useDatabaseStore((s) => selectSorts(s, database.id));
   const [showFieldsPicker, setShowFieldsPicker] = useState(false);
   const fieldsPickerRef = useRef<HTMLDivElement>(null);
 
@@ -214,10 +216,11 @@ export function BoardView({
   const SortableCard = ({ record, isDragging }: { record: any; isDragging: boolean }) => {
     const { attributes, listeners, setNodeRef, transform, transition, isDragging: sd } = useSortable({ id: record.record.id });
     const style: React.CSSProperties = { transform: CSS.Transform.toString(transform), transition, opacity: sd ? 0.3 : 1 };
+    const hasPage = !!record.record.pageId;
 
     return (
       <div ref={setNodeRef} style={style}>
-        <div className={`board-card ${isDragging || sd ? "board-card-dragging" : ""}`}>
+        <div className={`board-card ${isDragging || sd ? "board-card-dragging" : ""}${hasPage ? " board-card-has-page" : ""}`}>
           <div className="board-card-drag-handle" {...listeners} {...attributes}>
             <svg width="14" height="14" viewBox="0 0 16 16" fill="currentColor">
               <circle cx="5" cy="3" r="1.5" /><circle cx="11" cy="3" r="1.5" />
@@ -225,6 +228,11 @@ export function BoardView({
               <circle cx="5" cy="13" r="1.5" /><circle cx="11" cy="13" r="1.5" />
             </svg>
           </div>
+          <button
+            className="board-card-open-btn"
+            onClick={() => onOpenRecord?.(record.record)}
+            title={hasPage ? "Open page" : "Open record"}
+          >{hasPage ? "📄" : "↗"}</button>
           <span className="board-card-title">{record.record.title}</span>
           <div style={{ marginTop: 8, display: "flex", flexDirection: "column", gap: 4 }}>
             {fields
@@ -295,6 +303,31 @@ export function BoardView({
                 )}
               </div>
             )}
+          </div>
+
+          <div style={{ marginLeft: 12 }}>
+            <div className="db-filter-bar">
+              <span style={{ fontSize: 12, color: "#666", fontWeight: 500, marginRight: 4 }}>Sort</span>
+              {activeSorts.map((sort, idx) => (
+                <div key={idx} className="db-filter-rule">
+                  <select
+                    value={sort.fieldId}
+                    onChange={(e) => setSort(database.id, idx, { ...sort, fieldId: e.target.value })}
+                  >
+                    {fields.map((f: any) => (<option key={f.id} value={f.id}>{f.name}</option>))}
+                  </select>
+                  <select
+                    value={sort.direction}
+                    onChange={(e) => setSort(database.id, idx, { ...sort, direction: e.target.value as "asc" | "desc" })}
+                  >
+                    <option value="asc">Ascending</option>
+                    <option value="desc">Descending</option>
+                  </select>
+                  <button onClick={() => removeSort(database.id, idx)}>×</button>
+                </div>
+              ))}
+              <button onClick={() => addSort(database.id, { fieldId: fields[0]?.id || "", direction: "asc" })}>+ Add sort</button>
+            </div>
           </div>
 
           <span style={{ marginLeft: "auto", fontSize: 13, color: "#666" }}>{database.name}</span>

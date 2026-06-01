@@ -1262,6 +1262,11 @@ body {
 .board-card-drag-handle:hover { background: var(--surface-3); color: var(--text-2); }
 .board-card-title { font-size: 13.5px; font-weight: 500; color: var(--text); padding-left: 20px; display: block; line-height: 1.45; }
 .board-card-dragging { opacity: 0.3; }
+.board-card-open-btn { position: absolute; top: 6px; right: 6px; background: none; border: none; cursor: pointer; color: var(--text-3); padding: 2px 4px; font-size: 13px; line-height: 1; border-radius: 4px; opacity: 0; transition: opacity var(--t) var(--ease), background var(--t) var(--ease); z-index: 1; }
+.board-card:hover .board-card-open-btn { opacity: 1; }
+.board-card-open-btn:hover { background: var(--surface-3); color: var(--accent); }
+.board-card-has-page .board-card-open-btn { opacity: 1; }
+.board-card-has-page .board-card-title { padding-right: 22px; }
 .board-cards-container-over { background: rgba(91,94,244,0.06); border-radius: 8px; outline: 2px dashed var(--border-mid); outline-offset: -2px; }
 
 /* Touch devices have no :hover, so the drag handles (which default to

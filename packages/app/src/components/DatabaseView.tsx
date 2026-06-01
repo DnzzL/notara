@@ -437,6 +437,16 @@ export function DatabaseView({ database, isNew }: { database: any; isNew?: boole
     addSort(database.id, { fieldId, direction: "asc" });
   }, [activeSorts, addSort, removeSort, setSort, database.id]);
 
+  // Open a record's child page if it has one, otherwise open the record panel.
+  // Shared by the table rows and the board cards.
+  const handleOpenRecord = useCallback((record: any) => {
+    if (record.pageId) {
+      loadPages().then(() => selectPageByIdWithCascade(record.pageId));
+    } else {
+      setOpenRecordId(record.id);
+    }
+  }, [loadPages, selectPageByIdWithCascade]);
+
   const handleBulkDelete = useCallback(async () => {
     if (selectedRowIds.size === 0) return;
     const n = selectedRowIds.size;
@@ -621,8 +631,34 @@ export function DatabaseView({ database, isNew }: { database: any; isNew?: boole
     return m;
   }, [activeSorts]);
 
+  const recordPanel = openRecordId ? (() => {
+    const entry = sortedRecords.find((r: any) => r.record.id === openRecordId);
+    if (!entry) return null;
+    return (
+      <RecordPanel
+        databaseId={database.id}
+        record={entry.record}
+        values={entry.values}
+        fields={dbFields as any}
+        databases={databases}
+        allRecords={dbRecordCache}
+        onClose={() => setOpenRecordId(null)}
+        onChanged={async () => { await loadDbRecords(database.id); await loadDbFields(database.id); }}
+      />
+    );
+  })() : null;
+
   if (viewType === "board") {
-    return (<BoardView database={database} fields={dbFields} records={sortedRecords} databases={databases} onSwitchView={() => setViewType("table")} allRecords={dbRecordCache} />);
+    return (
+      <>
+        <BoardView
+          database={database} fields={dbFields} records={sortedRecords} databases={databases}
+          onSwitchView={() => setViewType("table")} allRecords={dbRecordCache}
+          onOpenRecord={handleOpenRecord}
+        />
+        {recordPanel}
+      </>
+    );
   }
 
   return (
@@ -715,13 +751,7 @@ export function DatabaseView({ database, isNew }: { database: any; isNew?: boole
                     key={record.id} id={record.id}
                     isDragging={activeRowId === record.id}
                     onDelete={() => handleDeleteRecord(record.id)}
-                    onOpen={() => {
-                      if (record.pageId) {
-                        loadPages().then(() => selectPageByIdWithCascade(record.pageId));
-                      } else {
-                        setOpenRecordId(record.id);
-                      }
-                    }}
+                    onOpen={() => handleOpenRecord(record)}
                     selected={selectedRowIds.has(record.id)}
                     onToggleSelect={(e) => handleToggleRowSelect(record.id, e)}
                     hasPage={!!record.pageId}
@@ -873,22 +903,7 @@ export function DatabaseView({ database, isNew }: { database: any; isNew?: boole
           </div>) : null}
         </DragOverlay>
 
-        {openRecordId && (() => {
-          const entry = sortedRecords.find((r: any) => r.record.id === openRecordId);
-          if (!entry) return null;
-          return (
-            <RecordPanel
-              databaseId={database.id}
-              record={entry.record}
-              values={entry.values}
-              fields={dbFields as any}
-              databases={databases}
-              allRecords={dbRecordCache}
-              onClose={() => setOpenRecordId(null)}
-              onChanged={async () => { await loadDbRecords(database.id); await loadDbFields(database.id); }}
-            />
-          );
-        })()}
+        {recordPanel}
       </div>
     </DndContext>
   );
