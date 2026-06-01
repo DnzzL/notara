@@ -17,7 +17,8 @@ import * as Upload from "./handlers/upload.js";
 import * as Workspaces from "./handlers/workspaces.js";
 import * as ApiKeys from "./handlers/api-keys.js";
 import { loadSettings, saveSettings } from "./handlers/settings.js";
-import { triggerBackup } from "./handlers/backup.js";
+import { triggerBackup, listBackups } from "./handlers/backup.js";
+import { restoreBackup } from "./handlers/restore.js";
 import { AppRpc, RecordFieldValue } from "@notion-alt/shared";
 import { registerV1Routes } from "./api-v1/routes.js";
 import { auth } from "./auth.js";
@@ -268,6 +269,47 @@ const staticFilesRoute = Effect.gen(function* () {
       }
       return yield* inner;
     });
+
+  // List available S3 backups (admin only)
+  yield* router.add("GET", "/api/backup/list", requireAdmin(Effect.gen(function* () {
+    const items = yield* Effect.promise(() => listBackups());
+    return HttpServerResponse.text(JSON.stringify(items), {
+      headers: { "Content-Type": "application/json", ...corsHeaders },
+    });
+  }).pipe(
+    Effect.catchAllCause((cause) => {
+      const msg = cause._tag === "Fail" ? String(cause.error) : cause.toString();
+      return HttpServerResponse.text(JSON.stringify({ error: msg }), {
+        status: 500, headers: { "Content-Type": "application/json", ...corsHeaders },
+      });
+    })
+  )));
+
+  // Restore the whole instance from an S3 backup (admin only).
+  // On success the process exits so Docker relaunches the server with fresh
+  // SQLite handles on the restored files — open handles can't be hot-swapped.
+  yield* router.add("POST", "/api/backup/restore", requireAdmin(Effect.gen(function* () {
+    const request = yield* HttpServerRequest.HttpServerRequest;
+    const ab = yield* request.arrayBuffer;
+    const body = JSON.parse(Buffer.from(ab).toString("utf-8")) as { key?: string };
+    if (!body.key) throw new Error("Missing backup key");
+    const result = yield* Effect.promise(() => restoreBackup(body.key!));
+    // Flush the response, then exit so the container restarts.
+    setTimeout(() => {
+      console.log("[restore] restored from", result.restoredFrom, "— exiting for restart");
+      process.exit(0);
+    }, 250);
+    return HttpServerResponse.text(JSON.stringify(result), {
+      headers: { "Content-Type": "application/json", ...corsHeaders },
+    });
+  }).pipe(
+    Effect.catchAllCause((cause) => {
+      const msg = cause._tag === "Fail" ? String(cause.error) : cause.toString();
+      return HttpServerResponse.text(JSON.stringify({ error: msg }), {
+        status: 500, headers: { "Content-Type": "application/json", ...corsHeaders },
+      });
+    })
+  )));
 
   yield* router.add("GET", "/api/admin/users", requireAdmin(Effect.gen(function* () {
     const users = platformDb

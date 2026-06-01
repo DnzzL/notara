@@ -23,6 +23,12 @@ interface S3Settings {
   s3Schedule: BackupSchedule;
 }
 
+interface BackupListItem {
+  key: string;
+  size: number;
+  lastModified: string;
+}
+
 const DEFAULTS: S3Settings = {
   s3Enabled: false,
   s3Endpoint: "",
@@ -55,6 +61,10 @@ export function SettingsModal({ open, onClose }: SettingsModalProps) {
   const [backupStatus, setBackupStatus] = useState<"idle" | "running" | "success" | "error">("idle");
   const [backupMessage, setBackupMessage] = useState("");
   const [lastBackup, setLastBackup] = useState<string | null>(null);
+  const [backups, setBackups] = useState<BackupListItem[]>([]);
+  const [selectedKey, setSelectedKey] = useState("");
+  const [restoreStatus, setRestoreStatus] = useState<"idle" | "running" | "done" | "error">("idle");
+  const [restoreMessage, setRestoreMessage] = useState("");
 
   useEffect(() => {
     if (!open) return;
@@ -64,6 +74,17 @@ export function SettingsModal({ open, onClose }: SettingsModalProps) {
       .then((data) => setSettings({ ...DEFAULTS, ...data }))
       .catch(() => {});
   }, [open]);
+
+  const loadBackups = () => {
+    fetch("/api/backup/list")
+      .then((r) => (r.ok ? r.json() : []))
+      .then((data) => Array.isArray(data) && setBackups(data))
+      .catch(() => {});
+  };
+
+  useEffect(() => {
+    if (open && settings.s3Enabled) loadBackups();
+  }, [open, settings.s3Enabled]);
 
   const set = <K extends keyof S3Settings>(key: K, value: S3Settings[K]) =>
     setSettings((prev) => ({ ...prev, [key]: value }));
@@ -103,6 +124,55 @@ export function SettingsModal({ open, onClose }: SettingsModalProps) {
       setBackupStatus("idle");
       setBackupMessage("");
       toaster.create({ title: "Backup failed", description: msg, type: "error" });
+    }
+  };
+
+  const handleRestore = async () => {
+    if (!selectedKey) return;
+    if (
+      !confirm(
+        "Restore this backup?\n\nThis REPLACES ALL workspaces and attachments with the contents of the selected backup. A snapshot of the current state is saved to S3 first, then the server restarts.",
+      )
+    )
+      return;
+    if (prompt('Type RESTORE to confirm overwriting all data:') !== "RESTORE") return;
+
+    setRestoreStatus("running");
+    setRestoreMessage("Snapshotting current state, then restoring…");
+    try {
+      const resp = await fetch("/api/backup/restore", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ key: selectedKey }),
+      });
+      const data = await resp.json();
+      if (!resp.ok) throw new Error(data.error || "Restore failed");
+      setRestoreStatus("done");
+      setRestoreMessage("Restored. The server is restarting — reloading shortly…");
+      toaster.create({
+        title: "Restore started",
+        description: `Safety snapshot saved to ${data.snapshot}. Reloading once the server is back.`,
+        type: "success",
+      });
+      // The server exits and Docker relaunches it. Poll /health, then reload.
+      const start = Date.now();
+      const poll = setInterval(async () => {
+        try {
+          const h = await fetch("/health", { cache: "no-store" });
+          if (h.ok) {
+            clearInterval(poll);
+            window.location.reload();
+          }
+        } catch {
+          // server still down — keep polling
+        }
+        if (Date.now() - start > 60_000) clearInterval(poll);
+      }, 2000);
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : "Restore failed";
+      setRestoreStatus("error");
+      setRestoreMessage("");
+      toaster.create({ title: "Restore failed", description: msg, type: "error" });
     }
   };
 
@@ -235,6 +305,49 @@ export function SettingsModal({ open, onClose }: SettingsModalProps) {
                       disabled={backupStatus === "running"}
                     >
                       {backupStatus === "running" ? "Backing up…" : "Backup Now"}
+                    </button>
+                  </div>
+
+                  <div className="settings-section-title">Restore from backup</div>
+                  <p className="settings-field-hint">
+                    Replaces <strong>all</strong> workspaces and attachments with the contents of
+                    the selected backup. A snapshot of the current state is saved to S3 first, then
+                    the server restarts.
+                  </p>
+
+                  <div className="settings-fields">
+                    <label className="settings-field">
+                      <span>Backup to restore</span>
+                      <select
+                        value={selectedKey}
+                        onChange={(e) => setSelectedKey(e.target.value)}
+                        className="settings-select"
+                        disabled={restoreStatus === "running"}
+                      >
+                        <option value="">
+                          {backups.length ? "Select a backup…" : "No backups found"}
+                        </option>
+                        {backups.map((b) => (
+                          <option key={b.key} value={b.key}>
+                            {new Date(b.lastModified).toLocaleString()} ({(b.size / 1024).toFixed(0)} KB)
+                          </option>
+                        ))}
+                      </select>
+                    </label>
+                  </div>
+
+                  <div className="settings-backup-row">
+                    {restoreStatus !== "idle" && restoreMessage && (
+                      <span className={`settings-backup-msg${restoreStatus === "done" ? " success" : ""}`}>
+                        {restoreMessage}
+                      </span>
+                    )}
+                    <button
+                      className="import-modal-btn"
+                      onClick={handleRestore}
+                      disabled={!selectedKey || restoreStatus === "running" || restoreStatus === "done"}
+                    >
+                      {restoreStatus === "running" ? "Restoring…" : "Restore"}
                     </button>
                   </div>
                 </>
