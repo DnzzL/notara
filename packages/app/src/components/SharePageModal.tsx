@@ -39,13 +39,13 @@ export function SharePageModal({ pageId, workspaceId, onClose }: Props) {
   const [pickerOpen, setPickerOpen] = useState(false);
   const [pending, setPending] = useState(false);
 
-  const refresh = () => api.getPagePermissions(pageId).then(setPerms);
+  const refresh = () => api.getPagePermissions({ pageId }).then(setPerms);
 
   useEffect(() => {
     Promise.all([
-      api.getPagePermissions(pageId),
-      api.getWorkspaceMembers(workspaceId),
-      api.checkPagePermission(pageId, "owner"),
+      api.getPagePermissions({ pageId }),
+      api.getWorkspaceMembers({ workspaceId }),
+      api.checkPagePermission({ pageId, relation: "owner" }),
     ])
       .then(([p, m, c]) => {
         setPerms(p);

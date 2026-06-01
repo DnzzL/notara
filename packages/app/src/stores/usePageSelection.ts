@@ -33,7 +33,7 @@ export function usePageSelection() {
         await selectPageWithCascade(page);
       } else {
         try {
-          const fetchedPage = await api.getPage(id);
+          const fetchedPage = await api.getPage({ id });
           if (fetchedPage) {
             selectPage(fetchedPage);
             await loadBlocks(id);

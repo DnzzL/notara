@@ -29,13 +29,13 @@ export function PageMenu({ pageId, workspaceId }: { pageId: string; workspaceId:
   }, [open]);
 
   const exportMarkdown = async () => {
-    const result = await api.exportPage(pageId, false);
+    const result = await api.exportPage({ pageId, includeDatabases: false });
     download(`${result.title || "page"}.md`, result.markdown, "text/markdown");
     setOpen(false);
   };
 
   const exportFullMarkdown = async () => {
-    const result = await api.exportPage(pageId, true);
+    const result = await api.exportPage({ pageId, includeDatabases: true });
     download(`${result.title || "page"}.md`, result.markdown, "text/markdown");
     setOpen(false);
   };

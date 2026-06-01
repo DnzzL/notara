@@ -38,7 +38,7 @@ function WorkspaceSettingsPage() {
       if (!found) { setNotFound(true); setLoading(false); return; }
       setWorkspace(found);
       setInviteToken(found.inviteToken ?? "");
-      api.getWorkspaceMembers(found.id).then(setMembers).finally(() => setLoading(false));
+      api.getWorkspaceMembers({ workspaceId: found.id }).then(setMembers).finally(() => setLoading(false));
     });
   }, [workspaceSlug]);
 
@@ -54,13 +54,13 @@ function WorkspaceSettingsPage() {
 
   const handleRegenerate = async () => {
     if (!workspace) return;
-    const { inviteToken: newToken } = await api.regenerateInviteLink(workspace.id);
+    const { inviteToken: newToken } = await api.regenerateInviteLink({ workspaceId: workspace.id });
     setInviteToken(newToken);
   };
 
   const handleRemove = async (userId: string) => {
     if (!workspace) return;
-    await api.removeMember(workspace.id, userId);
+    await api.removeMember({ workspaceId: workspace.id, userId });
     setMembers((prev) => prev.filter((m) => m.userId !== userId));
   };
 
@@ -69,7 +69,7 @@ function WorkspaceSettingsPage() {
     if (!workspace || !inviteEmail) return;
     setInviteSending(true);
     try {
-      await api.inviteMemberByEmail(workspace.id, inviteEmail);
+      await api.inviteMemberByEmail({ workspaceId: workspace.id, email: inviteEmail });
       setInviteSent(true);
       setInviteEmail("");
       setTimeout(() => setInviteSent(false), 3000);

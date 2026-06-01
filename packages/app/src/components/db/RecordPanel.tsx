@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { api } from "../../rpc-client.js";
 import { usePageStore } from "../../stores/pageStore.js";
+import { selectPageByIdWithCascade } from "../../lib/page-loader.js";
 import { IconButton, Button } from "../ui/index.js";
 import { CellDisplay, InlineCellEditor } from "./CellComponents.js";
 
@@ -21,7 +22,6 @@ export function RecordPanel({
   const [pageId, setPageId] = useState<string | null>(record.pageId ?? null);
   const [openingPage, setOpeningPage] = useState(false);
   const loadPages = usePageStore((s) => s.loadPages);
-  const selectPageByIdWithCascade = usePageStore((s) => s.selectPageByIdWithCascade);
 
   useEffect(() => {
     setTitle(record.title || "");
@@ -36,12 +36,12 @@ export function RecordPanel({
 
   const saveTitle = async () => {
     if (title === record.title) return;
-    await api.updateRecord(record.id, { title });
+    await api.updateRecord({ id: record.id, title });
     await onChanged();
   };
 
   const setFieldValue = async (fieldId: string, value: string) => {
-    await api.updateFieldValue(record.id, fieldId, value);
+    await api.updateFieldValue({ recordId: record.id, fieldId, value });
     setEditingFieldId(null);
     await onChanged();
   };
@@ -49,7 +49,7 @@ export function RecordPanel({
   const handleOpenAsPage = async () => {
     setOpeningPage(true);
     try {
-      const result = await api.openRecordAsPage(record.id);
+      const result = await api.openRecordAsPage({ recordId: record.id });
       setPageId(result.pageId);
       await onChanged();
       await loadPages();

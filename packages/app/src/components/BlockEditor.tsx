@@ -246,7 +246,7 @@ function SingleBlockEditor({
         blockIndex={blockIndex}
         totalBlocks={totalBlocks}
         onUpdateBlock={callbacks.updateBlock as any}
-        onDeleteBlock={async () => {}}
+        onDeleteBlock={useBlockStore.getState().deleteBlock}
       />
     );
   }
@@ -968,7 +968,7 @@ export function BlockEditor() {
                       blockIndex={sortedBlocks.indexOf(block)}
                       totalBlocks={sortedBlocks.length}
                       onUpdateBlock={async (id, content) => { await updateBlock(id, content); }}
-                      onDeleteBlock={async () => {}}
+                      onDeleteBlock={deleteBlock}
                     />
                   </SortableBlock>
                 );

@@ -25,7 +25,7 @@ export const useApiKeyStore = create<ApiKeyState>((set) => ({
   },
 
   createApiKey: async (name) => {
-    const created = await api.createApiKey(name);
+    const created = await api.createApiKey({ name });
     set((s) => ({
       apiKeys: [
         { id: created.id, name: created.name, keyPrefix: created.keyPrefix, createdAt: created.createdAt, lastUsedAt: null },
@@ -36,7 +36,7 @@ export const useApiKeyStore = create<ApiKeyState>((set) => ({
   },
 
   revokeApiKey: async (id) => {
-    await api.revokeApiKey(id);
+    await api.revokeApiKey({ id });
     set((s) => ({ apiKeys: s.apiKeys.filter(k => k.id !== id) }));
   },
 }));

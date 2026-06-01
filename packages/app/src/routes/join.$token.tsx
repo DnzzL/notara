@@ -13,7 +13,7 @@ export const Route = createRoute({
       throw redirect({ to: "/login" });
     }
     try {
-      const ws = await api.joinWorkspaceByToken(params.token);
+      const ws = await api.joinWorkspaceByToken({ inviteToken: params.token });
       throw redirect({ to: "/$workspaceSlug", params: { workspaceSlug: ws.slug } });
     } catch (err: any) {
       if (err?.isRedirect) throw err;

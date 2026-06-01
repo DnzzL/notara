@@ -363,7 +363,7 @@ function RelationChip({
 
   useEffect(() => {
     if (!targetDbId || databases.some((d: any) => d.id === targetDbId)) return;
-    api.getDatabase(targetDbId).then((db) => setRemoteHostPageId(db.pageId)).catch(() => { /* ignore */ });
+    api.getDatabase({ id: targetDbId }).then((db) => setRemoteHostPageId(db.pageId)).catch(() => { /* ignore */ });
   }, [targetDbId, databases]);
 
   const onClick = (e: React.MouseEvent) => {
@@ -425,7 +425,7 @@ function SelectPopover({
     const opt = q;
     const next = [...options, opt];
     setOptions(next);
-    await api.updateField(field.id, { options: next });
+    await api.updateField({ id: field.id, options: next });
     choose(opt);
   };
 
@@ -553,7 +553,7 @@ export function RelationPicker({
   // Cross-page target: fetch the database metadata so we can show its name.
   useEffect(() => {
     if (!targetDbId || databases.some((d) => d.id === targetDbId)) return;
-    api.getDatabase(targetDbId).then((db) => setRemoteTargetDb({ id: db.id, name: db.name })).catch(() => { /* ignore */ });
+    api.getDatabase({ id: targetDbId }).then((db) => setRemoteTargetDb({ id: db.id, name: db.name })).catch(() => { /* ignore */ });
   }, [targetDbId, databases]);
 
   const toggle = (id: string) => {

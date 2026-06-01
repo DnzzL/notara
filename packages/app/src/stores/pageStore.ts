@@ -82,7 +82,7 @@ export const usePageStore = create<PageState>((set, get) => ({
       get().selectPage(page);
     } else {
       try {
-        const fetchedPage = await api.getPage(id);
+        const fetchedPage = await api.getPage({ id });
         if (fetchedPage) {
           set({ accessDeniedFor: null });
           get().selectPage(fetchedPage);
@@ -97,7 +97,7 @@ export const usePageStore = create<PageState>((set, get) => ({
     }
   },
 
-  selectPageByIdWithCascade: async (id) => {
+  selectPageByIdWithCascade: async (id: string) => {
     // Cascade logic moved to page-loader.ts — this is kept for backward compatibility
     const page = get().pages.find((p) => p.id === id);
     if (page) {
@@ -105,7 +105,7 @@ export const usePageStore = create<PageState>((set, get) => ({
       get().selectPage(page);
     } else {
       try {
-        const fetchedPage = await api.getPage(id);
+        const fetchedPage = await api.getPage({ id });
         if (fetchedPage) {
           set({ accessDeniedFor: null });
           get().selectPage(fetchedPage);
@@ -121,13 +121,13 @@ export const usePageStore = create<PageState>((set, get) => ({
   },
 
   createPage: async (title, parentId = null) => {
-    const page = await api.createPage(title, parentId);
+    const page = await api.createPage({ title, parentId });
     set((s) => ({ pages: [page, ...s.pages] }));
     return page;
   },
 
   updatePage: async (id, patch) => {
-    const page = await api.updatePage(id, patch);
+    const page = await api.updatePage({ id, ...patch });
     set((s) => ({
       pages: s.pages.map((p) => (p.id === id ? page : p)),
       currentPage: s.currentPage?.id === id ? page : s.currentPage,
@@ -144,7 +144,7 @@ export const usePageStore = create<PageState>((set, get) => ({
   },
 
   deletePage: async (id) => {
-    await api.deletePage(id);
+    await api.deletePage({ id });
     set((s) => ({
       pages: s.pages.filter((p) => p.id !== id),
       currentPage: s.currentPage?.id === id ? null : s.currentPage,
@@ -152,7 +152,7 @@ export const usePageStore = create<PageState>((set, get) => ({
   },
 
   movePage: async (id, parentId) => {
-    const page = await api.movePage(id, parentId);
+    const page = await api.movePage({ id, parentId });
     set((s) => ({
       pages: s.pages.map((p) => (p.id === id ? page : p)),
       currentPage: s.currentPage?.id === id ? page : s.currentPage,
@@ -160,19 +160,19 @@ export const usePageStore = create<PageState>((set, get) => ({
   },
 
   reorderPages: async (parentId, pageIds) => {
-    await api.reorderPages(parentId, pageIds);
+    await api.reorderPages({ parentId, pageIds });
     await get().loadPages();
   },
 
   globalSearch: async (query) => {
-    const results = await api.globalSearch(query);
+    const results = await api.globalSearch({ query });
     set({ searchResults: results });
   },
 
   loadBacklinks: async (pageId) => {
     set({ backlinksLoading: true, backlinks: [] });
     try {
-      const backlinks = await api.getBacklinks(pageId);
+      const backlinks = await api.getBacklinks({ pageId });
       set({ backlinks });
     } catch {
       set({ backlinks: [] });
@@ -193,7 +193,7 @@ export const usePageStore = create<PageState>((set, get) => ({
       const found = known.find(p => p.id === id);
       if (found && !found.isDeleted) { results.push(found); continue; }
       try {
-        const page = await api.getPage(id);
+        const page = await api.getPage({ id });
         if (page && !page.isDeleted) results.push(page);
       } catch { /* skip missing pages */ }
     }
@@ -218,7 +218,7 @@ export const usePageStore = create<PageState>((set, get) => ({
   importNotion: async (directory) => {
     set({ loading: true });
     try {
-      const result = await api.importNotion(directory);
+      const result = await api.importNotion({ directory });
       await get().loadPages();
       return result;
     } finally {

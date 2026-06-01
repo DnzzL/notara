@@ -40,7 +40,7 @@ function WorkspacesPage() {
   const handleCreate = async (e: React.FormEvent) => {
     e.preventDefault();
     try {
-      const ws = await api.createWorkspace(newName, newSlug);
+      const ws = await api.createWorkspace({ name: newName, slug: newSlug });
       navigate({ to: "/$workspaceSlug", params: { workspaceSlug: ws.slug } });
     } catch (err: any) {
       toaster.create({ title: "Failed to create workspace", description: err.message ?? "Something went wrong.", type: "error" });
@@ -50,7 +50,7 @@ function WorkspacesPage() {
   const handleJoin = async (e: React.FormEvent) => {
     e.preventDefault();
     try {
-      const ws = await api.joinWorkspaceByToken(joinToken);
+      const ws = await api.joinWorkspaceByToken({ inviteToken: joinToken });
       navigate({ to: "/$workspaceSlug", params: { workspaceSlug: ws.slug } });
     } catch (err: any) {
       toaster.create({ title: "Invalid invite link", description: err.message ?? "This invite link may have expired.", type: "error" });

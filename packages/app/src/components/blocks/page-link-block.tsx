@@ -12,6 +12,7 @@ export function PageLinkBlock({ block, onUpdateBlock }: BlockRendererProps) {
 
   const navigate = useCallback((e: React.MouseEvent) => {
     if (!pageId) return;
+    e.preventDefault();
     e.stopPropagation();
     const url = new URL(window.location.href);
     url.searchParams.set("page", pageId);

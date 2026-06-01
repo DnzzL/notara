@@ -67,14 +67,5 @@ export const tooManyRequests = (retryAfter: number) =>
     headers: { "Retry-After": String(retryAfter), ...corsHeaders },
   });
 
-/** Wrap an effect with IP-based rate limiting. */
-export const withRateLimit = <A>(limit: number, inner: Effect.Effect<A, unknown, any>) =>
-  Effect.gen(function* () {
-    const req = yield* HttpServerRequest.HttpServerRequest;
-    const ip = getIp(req);
-    if (!checkRateLimit(`${ip}:${limit}`, limit)) return tooManyRequests(60) as unknown as A;
-    return yield* inner;
-  });
-
 // Re-export checkRateLimit and getIp for inline use in auth handler
 export { checkRateLimit, getIp };

@@ -180,7 +180,7 @@ export function BoardView({
       if (from >= 0 && from !== to) {
         ids.splice(from, 1);
         ids.splice(to, 0, activeRecord.id);
-        await api.reorderRecords(database.id, ids);
+        await api.reorderRecords({ databaseId: database.id, recordIds: ids });
       }
       await loadDbRecords(database.id);
       return;
@@ -417,7 +417,7 @@ function AddBoardColumn({ groupField, existingOptions, onAdded }: { groupField: 
     setEditing(false);
     setValue("");
     if (!v || existingOptions.includes(v)) return;
-    await api.updateField(groupField.id, { options: [...existingOptions, v] });
+    await api.updateField({ id: groupField.id, options: [...existingOptions, v] });
     await onAdded();
   };
 

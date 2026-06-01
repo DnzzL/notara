@@ -9,6 +9,7 @@ import { SearchModal } from "../components/SearchModal.js";
 import { KeyboardShortcuts } from "../components/KeyboardShortcuts.js";
 import { useStore } from "../store.js";
 import { usePageStore } from "../stores/pageStore.js";
+import { selectPageByIdWithCascade } from "../lib/page-loader.js";
 
 export const Route = createRoute({
   getParentRoute: () => rootRoute,
@@ -60,7 +61,7 @@ function WorkspaceLayout() {
       const url = new URL(window.location.href);
       const pageParam = url.searchParams.get("page");
       if (pageParam && pages.some((p) => p.id === pageParam)) {
-        usePageStore.getState().selectPageByIdWithCascade(pageParam);
+        selectPageByIdWithCascade(pageParam);
         return;
       }
       // 2) Last visited page in this workspace from recents.
@@ -70,13 +71,13 @@ function WorkspaceLayout() {
         );
         const last = recent.find((id) => pages.some((p) => p.id === id));
         if (last) {
-          usePageStore.getState().selectPageByIdWithCascade(last);
+          selectPageByIdWithCascade(last);
           return;
         }
       } catch { /* ignore corrupt localStorage */ }
       // 3) Fallback: first top-level page (or first page if none are root).
       const firstRoot = pages.find((p) => p.parentId === null) ?? pages[0];
-      usePageStore.getState().selectPageByIdWithCascade(firstRoot.id);
+      selectPageByIdWithCascade(firstRoot.id);
     });
     return () => { cancelled = true; };
   }, [workspaceSlug]);
@@ -92,7 +93,7 @@ function WorkspaceLayout() {
   useEffect(() => {
     const onPopState = () => {
       const pageId = new URL(window.location.href).searchParams.get("page");
-      if (pageId) usePageStore.getState().selectPageByIdWithCascade(pageId);
+      if (pageId) selectPageByIdWithCascade(pageId);
     };
     window.addEventListener("popstate", onPopState);
     return () => window.removeEventListener("popstate", onPopState);

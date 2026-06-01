@@ -26,7 +26,7 @@ import { startBackupScheduler } from "./backup-scheduler.js";
 import { startTrashSweep } from "./trash-sweeper.js";
 import { PlatformDbLive, PlatformDb, platformDb } from "./platform-db.js";
 import * as Permissions from "./handlers/permissions.js";
-import { resolveWorkspaceContext, getSessionUser, WorkspaceContext, AuthError, withWorkspaceDb, withAuthedWorkspace } from "./workspace-context.js";
+import { getSessionUser, withWorkspaceDb, withAuthedWorkspace } from "./workspace-context.js";
 import { corsHeaders, checkRateLimit, getIp, tooManyRequests } from "./middleware.js";
 import { makeHeartbeatHandler, makeStreamHandler } from "./presence/routes.js";
 import { presence } from "./presence/index.js";

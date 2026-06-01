@@ -19,7 +19,7 @@ export function WorkspaceSettingsModal({ workspace, onClose }: Props) {
   const [inviteSent, setInviteSent] = useState(false);
 
   useEffect(() => {
-    api.getWorkspaceMembers(workspace.id).then(setMembers);
+    api.getWorkspaceMembers({ workspaceId: workspace.id }).then(setMembers);
   }, [workspace.id]);
 
   const inviteUrl = `${window.location.origin}/join/${inviteToken}`;
@@ -31,12 +31,12 @@ export function WorkspaceSettingsModal({ workspace, onClose }: Props) {
   };
 
   const handleRegenerate = async () => {
-    const { inviteToken: newToken } = await api.regenerateInviteLink(workspace.id);
+    const { inviteToken: newToken } = await api.regenerateInviteLink({ workspaceId: workspace.id });
     setInviteToken(newToken);
   };
 
   const handleRemove = async (userId: string) => {
-    await api.removeMember(workspace.id, userId);
+    await api.removeMember({ workspaceId: workspace.id, userId });
     setMembers((prev) => prev.filter((m) => m.userId !== userId));
   };
 
@@ -45,7 +45,7 @@ export function WorkspaceSettingsModal({ workspace, onClose }: Props) {
     if (!inviteEmail) return;
     setInviteSending(true);
     try {
-      await api.inviteMemberByEmail(workspace.id, inviteEmail);
+      await api.inviteMemberByEmail({ workspaceId: workspace.id, email: inviteEmail });
       setInviteSent(true);
       setInviteEmail("");
       setTimeout(() => setInviteSent(false), 3000);

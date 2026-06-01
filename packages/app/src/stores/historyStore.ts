@@ -39,7 +39,7 @@ async function apply(op: HistoryOp): Promise<HistoryOp | null> {
       parentId: op.block.parentId,
     });
     // Refresh blocks since server shifted indices.
-    const fresh = await api.listBlocks(op.block.pageId);
+    const fresh = await api.listBlocks({ pageId: op.block.pageId });
     useBlockStore.setState({ blocks: fresh });
     return { kind: "create", block: recreated };
   }

@@ -341,7 +341,7 @@ export function DatabaseView({ database, isNew }: { database: any; isNew?: boole
     databases.forEach(async (db: any) => {
       if (!dbRecordCache[db.id]) {
         try {
-          const recs = await api.listRecords(db.id);
+          const recs = await api.listRecords({ databaseId: db.id });
           setDbRecordCache((prev) => ({ ...prev, [db.id]: recs }));
         } catch { /* ignore */ }
       }
@@ -366,7 +366,7 @@ export function DatabaseView({ database, isNew }: { database: any; isNew?: boole
     for (const f of dbFields) {
       const targetId = (f as any).relationTargetDbId as string | null;
       if (!targetId || dbRecordCache[targetId]) continue;
-      api.listRecords(targetId).then((recs) =>
+      api.listRecords({ databaseId: targetId }).then((recs) =>
         setDbRecordCache((prev) => ({ ...prev, [targetId]: recs })),
       ).catch(() => { /* ignore */ });
     }
@@ -399,7 +399,7 @@ export function DatabaseView({ database, isNew }: { database: any; isNew?: boole
     if (!newTitle.trim()) return;
     await createDbRecord(database.id, newTitle.trim());
     setNewTitle("");
-    try { const recs = await api.listRecords(database.id); setDbRecordCache((prev) => ({ ...prev, [database.id]: recs })); } catch { /* ignore */ }
+    try { const recs = await api.listRecords({ databaseId: database.id }); setDbRecordCache((prev) => ({ ...prev, [database.id]: recs })); } catch { /* ignore */ }
   };
 
   const handleCellEdit = async (recordId: string, fieldId: string, value: string) => {
@@ -514,7 +514,7 @@ export function DatabaseView({ database, isNew }: { database: any; isNew?: boole
 
   const handleRenameField = async (fieldId: string, name: string) => {
     if (!name.trim()) return;
-    await api.updateField(fieldId, { name: name.trim() });
+    await api.updateField({ id: fieldId, name: name.trim() });
     await loadDbFields(database.id);
   };
 
@@ -522,14 +522,14 @@ export function DatabaseView({ database, isNew }: { database: any; isNew?: boole
 
   const handleDeleteRecord = async (recordId: string) => {
     await deleteRecord(database.id, recordId);
-    try { const recs = await api.listRecords(database.id); setDbRecordCache((prev) => ({ ...prev, [database.id]: recs })); } catch { /* ignore */ }
+    try { const recs = await api.listRecords({ databaseId: database.id }); setDbRecordCache((prev) => ({ ...prev, [database.id]: recs })); } catch { /* ignore */ }
   };
 
   const handleDeleteOption = async (fieldId: string, option: string) => {
     const field = dbFields.find((f) => f.id === fieldId);
     if (!field) return;
     const newOpts = (field.options || []).filter((o) => o !== option);
-    await api.updateField(fieldId, { options: newOpts.length ? newOpts : null });
+    await api.updateField({ id: fieldId, options: newOpts.length ? newOpts : null });
     await loadDbFields(database.id);
     await loadDbRecords(database.id);
   };
@@ -538,12 +538,12 @@ export function DatabaseView({ database, isNew }: { database: any; isNew?: boole
     const field = dbFields.find((f) => f.id === fieldId);
     if (!field) return;
     const newOpts = [...(field.options || []), option];
-    await api.updateField(fieldId, { options: newOpts });
+    await api.updateField({ id: fieldId, options: newOpts });
     await loadDbFields(database.id);
   };
 
   const handleReorderOptions = async (fieldId: string, options: string[]) => {
-    await api.updateField(fieldId, { options });
+    await api.updateField({ id: fieldId, options });
     await loadDbFields(database.id);
     await loadDbRecords(database.id);
   };
@@ -581,7 +581,7 @@ export function DatabaseView({ database, isNew }: { database: any; isNew?: boole
     const order = sortedRecords.map((r) => r.record.id);
     const [moved] = order.splice(oldI, 1);
     order.splice(newI, 0, moved);
-    await api.reorderRecords(database.id, order);
+    await api.reorderRecords({ databaseId: database.id, recordIds: order });
     await loadDbRecords(database.id);
   }, [sortedRecords, database.id, loadDbRecords]);
 
@@ -600,7 +600,7 @@ export function DatabaseView({ database, isNew }: { database: any; isNew?: boole
     const order = dbFields.map((f: any) => f.id);
     const [moved] = order.splice(oldI, 1);
     order.splice(newI, 0, moved);
-    await api.reorderFields(database.id, order);
+    await api.reorderFields({ databaseId: database.id, fieldIds: order });
     await loadDbFields(database.id);
   }, [dbFields, database.id, loadDbFields]);
 
@@ -683,7 +683,7 @@ export function DatabaseView({ database, isNew }: { database: any; isNew?: boole
               <button
                 className="db-filter-btn"
                 title="Show the title column"
-                onClick={async () => { await api.updateDatabase(database.id, { titleHidden: false }); await loadDatabases(database.pageId); }}
+                onClick={async () => { await api.updateDatabase({ id: database.id, titleHidden: false }); await loadDatabases(database.pageId); }}
               >
                 Show {database.titleLabel || "Name"} column
               </button>
@@ -705,8 +705,8 @@ export function DatabaseView({ database, isNew }: { database: any; isNew?: boole
                 {!database.titleHidden && (
                   <ColumnHeader
                     field={{ id: "title", name: database.titleLabel || "Name", type: "text" }}
-                    onRename={async (label) => { await api.updateDatabase(database.id, { titleLabel: label }); await loadDatabases(database.pageId); }}
-                    onDelete={async () => { await api.updateDatabase(database.id, { titleHidden: true }); await loadDatabases(database.pageId); }}
+                    onRename={async (label) => { await api.updateDatabase({ id: database.id, titleLabel: label }); await loadDatabases(database.pageId); }}
+                    onDelete={async () => { await api.updateDatabase({ id: database.id, titleHidden: true }); await loadDatabases(database.pageId); }}
                     isTitle
                     width={columnWidths["__title__"]}
                     onResize={handleColumnResize}
@@ -722,7 +722,7 @@ export function DatabaseView({ database, isNew }: { database: any; isNew?: boole
                       onDelete={() => handleDeleteField(f.id)}
                       onOptions={() => setShowOptionsFor(showOptionsFor === f.id ? null : f.id)}
                       onEditFormula={() => setShowFormulaFor(f.id)}
-                      onChangeType={async (type) => { await api.updateField(f.id, { type }); await loadDbFields(database.id); await loadDbRecords(database.id); }}
+                      onChangeType={async (type) => { await api.updateField({ id: f.id, type }); await loadDbFields(database.id); await loadDbRecords(database.id); }}
                       onSortAsc={() => addSort(database.id, { fieldId: f.id, direction: "asc" })}
                       onSortDesc={() => addSort(database.id, { fieldId: f.id, direction: "desc" })}
                       onFilter={() => addFilter(database.id, { fieldId: f.id, operator: "contains", value: "" })}
@@ -762,7 +762,7 @@ export function DatabaseView({ database, isNew }: { database: any; isNew?: boole
                           recordId={record.id}
                           title={record.title}
                           onSave={async (newTitle) => {
-                            await api.updateRecord(record.id, { title: newTitle });
+                            await api.updateRecord({ id: record.id, title: newTitle });
                             await loadDbRecords(database.id);
                           }}
                         />
@@ -872,7 +872,7 @@ export function DatabaseView({ database, isNew }: { database: any; isNew?: boole
               <FormulaEditor
                 field={f as any}
                 onClose={() => setShowFormulaFor(null)}
-                onSave={async (expr) => { await api.updateField(f.id, { formula: expr || null }); await loadDbFields(database.id); }}
+                onSave={async (expr) => { await api.updateField({ id: f.id, formula: expr || null }); await loadDbFields(database.id); }}
               />
             </Popover>
           );

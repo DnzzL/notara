@@ -43,9 +43,9 @@ export function TrashModal({ onClose, onChanged }: Props) {
     setBusy(id);
     try {
       if (op === "restore") {
-        await (kind === "page" ? api.restorePage(id) : kind === "database" ? api.restoreDatabase(id) : api.restoreRecord(id));
+        await (kind === "page" ? api.restorePage({ id }) : kind === "database" ? api.restoreDatabase({ id }) : api.restoreRecord({ id }));
       } else {
-        await (kind === "page" ? api.purgePage(id) : kind === "database" ? api.purgeDatabase(id) : api.purgeRecord(id));
+        await (kind === "page" ? api.purgePage({ id }) : kind === "database" ? api.purgeDatabase({ id }) : api.purgeRecord({ id }));
       }
       await load();
       onChanged?.();
