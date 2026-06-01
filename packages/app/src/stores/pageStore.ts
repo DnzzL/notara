@@ -1,8 +1,6 @@
 import { create } from "zustand";
 import { api, AccessDeniedError } from "../rpc-client.js";
 import type { Page, SearchResult, Backlink } from "@notion-alt/shared";
-import { useBlockStore } from "./blockStore.js";
-import { useDatabaseStore } from "./databaseStore.js";
 import { useHistoryStore } from "./historyStore.js";
 
 export interface PageState {
@@ -17,10 +15,12 @@ export interface PageState {
   recentPages: Page[];
 
   loadPages: () => Promise<void>;
-  /** Set currentPage and update URL. Does NOT load blocks/databases — use the composition hook for that. */
+  /** Set currentPage and update URL. Does NOT load blocks/databases. */
   selectPage: (page: Page) => void;
   /** Fetch a page by ID and select it. Does NOT load blocks/databases. */
   selectPageById: (id: string) => Promise<void>;
+  /** Fetch a single page, returning null on 403/404. */
+  fetchPage: (id: string) => Promise<Page | null>;
   createPage: (title: string, parentId?: string | null) => Promise<Page>;
   updatePage: (id: string, patch: { title?: string | null; icon?: string | null; coverUrl?: string | null; isFavorite?: boolean | null }) => Promise<void>;
   setPageIcon: (id: string, icon: string | null) => Promise<void>;
@@ -31,10 +31,6 @@ export interface PageState {
   globalSearch: (query: string) => Promise<void>;
   loadBacklinks: (pageId: string) => Promise<void>;
   loadRecentPages: () => Promise<void>;
-
-  /** Cascade version: selects page AND loads blocks + databases. */
-  selectPageWithCascade: (page: Page) => Promise<void>;
-  selectPageByIdWithCascade: (id: string) => Promise<void>;
 
   importNotion: (directory: string) => Promise<{ pagesImported: number; databasesImported: number }>;
 }
@@ -101,25 +97,18 @@ export const usePageStore = create<PageState>((set, get) => ({
     }
   },
 
-  selectPageWithCascade: async (page) => {
-    get().selectPage(page);
-    await useBlockStore.getState().loadBlocks(page.id);
-    await useDatabaseStore.getState().loadDatabases(page.id);
-  },
-
   selectPageByIdWithCascade: async (id) => {
+    // Cascade logic moved to page-loader.ts — this is kept for backward compatibility
     const page = get().pages.find((p) => p.id === id);
     if (page) {
       set({ accessDeniedFor: null });
-      await get().selectPageWithCascade(page);
+      get().selectPage(page);
     } else {
       try {
         const fetchedPage = await api.getPage(id);
         if (fetchedPage) {
           set({ accessDeniedFor: null });
           get().selectPage(fetchedPage);
-          await useBlockStore.getState().loadBlocks(id);
-          await useDatabaseStore.getState().loadDatabases(id);
         }
       } catch (e) {
         if (e instanceof AccessDeniedError) {
@@ -209,6 +198,21 @@ export const usePageStore = create<PageState>((set, get) => ({
       } catch { /* skip missing pages */ }
     }
     set({ recentPages: results });
+  },
+
+  /** Fetch a single page by ID. Returns null on 403/404. */
+  fetchPage: async (id: string): Promise<Page | null> => {
+    try {
+      const page = await api.getPage({ id });
+      return page;
+    } catch (e) {
+      if (e instanceof AccessDeniedError) {
+        set({ accessDeniedFor: id, currentPage: null });
+      } else {
+        console.error("Failed to fetch page:", e);
+      }
+      return null;
+    }
   },
 
   importNotion: async (directory) => {

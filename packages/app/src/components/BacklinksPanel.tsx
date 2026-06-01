@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { usePageStore } from "../store.js";
+import { selectPageByIdWithCascade } from "../lib/page-loader.js";
 import type { Backlink } from "@notion-alt/shared";
 
 export function BacklinksPanel() {
@@ -7,7 +8,7 @@ export function BacklinksPanel() {
   const backlinks = usePageStore(s => s.backlinks);
   const backlinksLoading = usePageStore(s => s.backlinksLoading);
   const loadBacklinks = usePageStore(s => s.loadBacklinks);
-  const selectPageById = usePageStore(s => s.selectPageByIdWithCascade);
+  const selectPageById = selectPageByIdWithCascade;
   const [isExpanded, setIsExpanded] = useState(false);
 
   useEffect(() => {

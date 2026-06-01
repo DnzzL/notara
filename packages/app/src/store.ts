@@ -3,13 +3,13 @@
  * backwards-compatible hook. Each slice is independently testable; this
  * module is purely a composition layer.
  *
- * The only cross-domain behavior is selectPage/selectPageById which cascade
- * to load blocks and databases — handled directly in the page store via
- * useBlockStore.getState() / useDatabaseStore.getState().
+ * Cross-domain orchestration (page selection → block/database loading) is
+ * handled by page-loader.ts, not by individual stores.
  */
 import { usePageStore } from "./stores/pageStore.js";
 import { useBlockStore } from "./stores/blockStore.js";
 import { useDatabaseStore } from "./stores/databaseStore.js";
+import { selectPageWithCascade, selectPageByIdWithCascade } from "./lib/page-loader.js";
 
 /**
  * Backwards-compatible composed hook. Returns the merged state from all
@@ -27,8 +27,8 @@ export function useStore() {
     loading: pageState.loading,
     accessDeniedFor: pageState.accessDeniedFor,
     loadPages: pageState.loadPages,
-    selectPage: pageState.selectPageWithCascade,
-    selectPageById: pageState.selectPageByIdWithCascade,
+    selectPage: selectPageWithCascade,
+    selectPageById: selectPageByIdWithCascade,
     createPage: pageState.createPage,
     updatePage: pageState.updatePage,
     setPageIcon: pageState.setPageIcon,

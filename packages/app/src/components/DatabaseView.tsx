@@ -311,7 +311,7 @@ export function DatabaseView({ database, isNew }: { database: any; isNew?: boole
   const activeSorts = useDatabaseStore((s) => selectSorts(s, database.id));
 
   const loadPages = usePageStore((s) => s.loadPages);
-  const selectPageByIdWithCascade = usePageStore((s) => s.selectPageByIdWithCascade);
+  const selectPageByIdWithCascade = (id: string) => import("../lib/page-loader.js").then(m => m.selectPageByIdWithCascade(id));
 
   const [viewType, setViewType] = useState<"table" | "board">("table");
   const [newTitle, setNewTitle] = useState("");
