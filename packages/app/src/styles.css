@@ -1170,6 +1170,7 @@ body {
 .db-col-header:hover .db-col-arrow { opacity: 0.5 !important; }
 .db-col-header:hover .db-col-drag-handle { opacity: 0.4 !important; }
 .db-col-drag-handle:hover { opacity: 0.8 !important; }
+.db-col-drag-handle { touch-action: none; }
 .db-col-resize-handle { position: absolute; right: 0; top: 0; bottom: 0; width: 6px; cursor: col-resize; z-index: 3; }
 .db-col-resize-handle:hover { background: var(--accent); opacity: 0.3; }
 .db-col-header-content { display: flex; align-items: center; gap: 5px; cursor: pointer; user-select: none; }
@@ -1187,7 +1188,7 @@ body {
 .db-row-dragging { background: var(--surface-3) !important; opacity: 0.6; }
 .db-drag-header { width: 28px; }
 .db-drag-cell { width: 28px; padding: 4px 2px; vertical-align: middle; position: relative; }
-.db-drag-handle { display: flex; align-items: center; justify-content: center; cursor: grab; color: #D0D3DC; padding: 4px; border-radius: 3px; transition: color var(--t) var(--ease), background var(--t) var(--ease); }
+.db-drag-handle { display: flex; align-items: center; justify-content: center; cursor: grab; color: #D0D3DC; padding: 4px; border-radius: 3px; transition: color var(--t) var(--ease), background var(--t) var(--ease); touch-action: none; }
 .db-drag-handle:hover { color: var(--text-3); background: var(--surface-3); }
 .db-drag-handle:active { cursor: grabbing; }
 .db-delete-btn { position: absolute; top: 4px; right: 4px; background: none; border: none; cursor: pointer; color: var(--text-3); font-size: 15px; padding: 2px 6px; border-radius: 5px; transition: all var(--t) var(--ease); line-height: 1; }
@@ -1244,7 +1245,7 @@ body {
 .board::-webkit-scrollbar-track { background: transparent; }
 .board::-webkit-scrollbar-thumb { background: var(--surface-4); border-radius: 3px; }
 .board-column { min-width: 268px; max-width: 300px; background: #F2F3F7; border: 1px solid var(--border); border-radius: 12px; padding: 12px 10px; display: flex; flex-direction: column; max-height: 62vh; transition: background var(--t) var(--ease), border-color var(--t) var(--ease); position: relative; }
-.board-column-drag-handle { position: absolute; top: 10px; right: 8px; opacity: 0; transition: opacity var(--t) var(--ease); cursor: grab; padding: 3px; border-radius: 3px; color: var(--text-3); display: flex; align-items: center; }
+.board-column-drag-handle { position: absolute; top: 10px; right: 8px; opacity: 0; transition: opacity var(--t) var(--ease); cursor: grab; padding: 3px; border-radius: 3px; color: var(--text-3); display: flex; align-items: center; touch-action: none; }
 .board-column:hover .board-column-drag-handle { opacity: 1; }
 .board-column-drag-handle:hover { background: var(--surface-3); color: var(--text-2); opacity: 1; }
 .board-column-overlay { min-width: 268px; max-width: 300px; background: var(--surface); border: 1.5px dashed var(--border-mid); border-radius: 12px; padding: 12px 10px; box-shadow: var(--shadow-xl); }
@@ -1256,11 +1257,23 @@ body {
 .board-cards-container::-webkit-scrollbar-thumb { background: var(--surface-4); border-radius: 2px; }
 .board-card { background: var(--surface); border: 1px solid var(--border); border-radius: 9px; padding: 10px 12px; cursor: pointer; transition: border-color var(--t) var(--ease), box-shadow var(--t) var(--ease); position: relative; }
 .board-card:hover { border-color: rgba(91,94,244,0.25); box-shadow: var(--shadow-sm); }
-.board-card-drag-handle { position: absolute; top: 8px; left: 4px; opacity: 0; transition: opacity var(--t) var(--ease); cursor: grab; padding: 4px; border-radius: 3px; color: var(--text-3); display: flex; align-items: center; }
+.board-card-drag-handle { position: absolute; top: 8px; left: 4px; opacity: 0; transition: opacity var(--t) var(--ease); cursor: grab; padding: 4px; border-radius: 3px; color: var(--text-3); display: flex; align-items: center; touch-action: none; }
 .board-card:hover .board-card-drag-handle { opacity: 1; }
 .board-card-drag-handle:hover { background: var(--surface-3); color: var(--text-2); }
 .board-card-title { font-size: 13.5px; font-weight: 500; color: var(--text); padding-left: 20px; display: block; line-height: 1.45; }
 .board-card-dragging { opacity: 0.3; }
+.board-cards-container-over { background: rgba(91,94,244,0.06); border-radius: 8px; outline: 2px dashed var(--border-mid); outline-offset: -2px; }
+
+/* Touch devices have no :hover, so the drag handles (which default to
+   opacity:0 and only appear on hover) would be invisible and column/card/row
+   reordering would be impossible. Reveal them whenever a fine hover isn't
+   available. */
+@media (hover: none), (pointer: coarse) {
+  .board-column-drag-handle,
+  .board-card-drag-handle { opacity: 0.55; }
+  .db-col-drag-handle { opacity: 0.4 !important; }
+  .db-drag-handle { color: var(--text-3); }
+}
 .board-card-overlay { background: var(--surface); border: 1px solid var(--border-mid); border-radius: 9px; padding: 10px 14px; box-shadow: var(--shadow-xl); max-width: 268px; }
 .board-add-card { width: 100%; background: none; border: 1.5px dashed var(--border-mid); border-radius: 8px; padding: 7px 12px; font-size: 13px; color: var(--text-3); cursor: pointer; font-family: var(--font-ui); transition: border-color var(--t) var(--ease), color var(--t) var(--ease); }
 .board-add-card:hover { border-color: var(--accent); color: var(--accent); }

@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback, useRef, useMemo } from "react";
 import {
-  DndContext, DragOverlay, PointerSensor, useSensor, useSensors,
+  DndContext, DragOverlay, MouseSensor, TouchSensor, useSensor, useSensors,
   type DragEndEvent, type DragStartEvent,
 } from "@dnd-kit/core";
 import { SortableContext, useSortable, verticalListSortingStrategy, horizontalListSortingStrategy } from "@dnd-kit/sortable";
@@ -397,6 +397,13 @@ export function DatabaseView({ database, isNew }: { database: any; isNew?: boole
   const handleCellEdit = async (recordId: string, fieldId: string, value: string) => {
     await updateFieldValue(recordId, fieldId, value);
     await loadDbRecords(database.id);
+    // Editing a select/multi-select cell can create a brand-new option inline;
+    // refresh the field definitions so its options (colors, grouping order)
+    // aren't stale until the next manual refresh.
+    const f = dbFields.find((x: any) => x.id === fieldId);
+    if (f && (f.type === "select" || f.type === "multiSelect")) {
+      await loadDbFields(database.id);
+    }
     setEditingCell(null);
   };
 
@@ -517,6 +524,12 @@ export function DatabaseView({ database, isNew }: { database: any; isNew?: boole
     await loadDbFields(database.id);
   };
 
+  const handleReorderOptions = async (fieldId: string, options: string[]) => {
+    await api.updateField(fieldId, { options });
+    await loadDbFields(database.id);
+    await loadDbRecords(database.id);
+  };
+
   const handleColumnResize = useCallback((fieldId: string, delta: number) => {
     setColumnWidths((prev) => {
       const current = prev[fieldId] || 0;
@@ -534,8 +547,12 @@ export function DatabaseView({ database, isNew }: { database: any; isNew?: boole
     if (e.key === "Escape") setIsEditingName(false);
   };
 
-  // Table DnD
-  const tableSensors = useSensors(useSensor(PointerSensor, { activationConstraint: { distance: 8 } }));
+  // Table DnD — MouseSensor for pointer, TouchSensor (long-press) so mobile
+  // touch-scroll isn't mistaken for a row drag.
+  const tableSensors = useSensors(
+    useSensor(MouseSensor, { activationConstraint: { distance: 8 } }),
+    useSensor(TouchSensor, { activationConstraint: { delay: 200, tolerance: 6 } }),
+  );
   const handleRowDragStart = useCallback(({ active }: DragStartEvent) => setActiveRowId(String(active.id)), []);
   const handleRowDragEnd = useCallback(async ({ active, over }: DragEndEvent) => {
     setActiveRowId(null);
@@ -551,7 +568,10 @@ export function DatabaseView({ database, isNew }: { database: any; isNew?: boole
   }, [sortedRecords, database.id, loadDbRecords]);
 
   // Column DnD (reorder headers).
-  const colSensors = useSensors(useSensor(PointerSensor, { activationConstraint: { distance: 6 } }));
+  const colSensors = useSensors(
+    useSensor(MouseSensor, { activationConstraint: { distance: 6 } }),
+    useSensor(TouchSensor, { activationConstraint: { delay: 200, tolerance: 6 } }),
+  );
   const handleColDragStart = useCallback(({ active }: DragStartEvent) => setActiveColId(String(active.id)), []);
   const handleColDragEnd = useCallback(async ({ active, over }: DragEndEvent) => {
     setActiveColId(null);
@@ -800,7 +820,7 @@ export function DatabaseView({ database, isNew }: { database: any; isNew?: boole
           const el = document.querySelector(`[data-field-id="${f.id}"]`);
           const rect = el ? (el as HTMLElement).getBoundingClientRect() : null;
           return (<Popover triggerRect={rect} onClose={() => setShowOptionsFor(null)} minWidth={260}>
-            <OptionsEditor field={f as any} onClose={() => setShowOptionsFor(null)} onUpdate={() => {}} onDeleteOption={(opt) => handleDeleteOption(f.id, opt)} onAddOption={(opt) => handleAddOption(f.id, opt)} />
+            <OptionsEditor field={f as any} onClose={() => setShowOptionsFor(null)} onUpdate={(opts) => handleReorderOptions(f.id, opts)} onDeleteOption={(opt) => handleDeleteOption(f.id, opt)} onAddOption={(opt) => handleAddOption(f.id, opt)} />
           </Popover>);
         })()}
 
@@ -857,7 +877,7 @@ export function DatabaseView({ database, isNew }: { database: any; isNew?: boole
               databases={databases}
               allRecords={dbRecordCache}
               onClose={() => setOpenRecordId(null)}
-              onChanged={() => loadDbRecords(database.id)}
+              onChanged={async () => { await loadDbRecords(database.id); await loadDbFields(database.id); }}
             />
           );
         })()}

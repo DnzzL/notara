@@ -1,4 +1,10 @@
 import { useState, useEffect, useRef } from "react";
+import {
+  DndContext, MouseSensor, TouchSensor, useSensor, useSensors, closestCenter,
+  type DragEndEvent,
+} from "@dnd-kit/core";
+import { SortableContext, useSortable, verticalListSortingStrategy, arrayMove } from "@dnd-kit/sortable";
+import { CSS } from "@dnd-kit/utilities";
 import { Popover, optionColor } from "./CellComponents.js";
 import { api } from "../../rpc-client.js";
 import { usePageStore } from "../../stores/pageStore.js";
@@ -223,11 +229,38 @@ export function ColumnHeader({
 
 // ── Options Editor for Select Fields ──────────────────────────────────────
 
+/** One draggable option row inside OptionsEditor. */
+function SortableOptionRow({ opt, colorIdx, onDelete }: { opt: string; colorIdx: number; onDelete: () => void }) {
+  const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id: opt });
+  const c = optionColor(colorIdx);
+  const style: React.CSSProperties = {
+    transform: CSS.Transform.toString(transform), transition,
+    opacity: isDragging ? 0.5 : 1,
+    display: "flex", alignItems: "center", gap: 6, padding: "2px 4px", borderRadius: 4,
+    background: isDragging ? "#f7f7f5" : undefined,
+  };
+  return (
+    <div ref={setNodeRef} style={style}>
+      <span
+        {...listeners}
+        {...attributes}
+        title="Drag to reorder"
+        style={{ cursor: "grab", color: "#c0c0bd", fontSize: 11, lineHeight: 1, touchAction: "none", display: "flex", alignItems: "center", padding: "0 1px" }}
+      >⋮⋮</span>
+      <span style={{ display: "inline-block", background: c.bg, borderRadius: 3, width: 14, height: 14 }} />
+      <span style={{ fontSize: 13, flex: 1 }}>{opt}</span>
+      <button onClick={onDelete}
+        style={{ background: "none", border: "none", cursor: "pointer", color: "#ccc", padding: 2, fontSize: 14, lineHeight: 1 }}>×</button>
+    </div>
+  );
+}
+
 export function OptionsEditor({
   field, onClose, onUpdate, onDeleteOption, onAddOption,
 }: {
   field: { id: string; name: string; type: string; options?: string[] | null };
   onClose: () => void;
+  /** Persist a reordered options array (drives group ordering on the board). */
   onUpdate: (options: string[]) => void;
   onDeleteOption: (option: string) => void;
   onAddOption: (option: string) => void;
@@ -237,6 +270,11 @@ export function OptionsEditor({
   const inputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => { inputRef.current?.focus(); }, []);
+
+  const sensors = useSensors(
+    useSensor(MouseSensor, { activationConstraint: { distance: 4 } }),
+    useSensor(TouchSensor, { activationConstraint: { delay: 200, tolerance: 6 } }),
+  );
 
   const handleAdd = () => {
     const opt = newOption.trim();
@@ -254,22 +292,29 @@ export function OptionsEditor({
     onDeleteOption(opt);
   };
 
+  const handleDragEnd = ({ active, over }: DragEndEvent) => {
+    if (!over || active.id === over.id) return;
+    const from = options.indexOf(String(active.id));
+    const to = options.indexOf(String(over.id));
+    if (from < 0 || to < 0) return;
+    const next = arrayMove(options, from, to);
+    setOptions(next);
+    onUpdate(next);
+  };
+
   return (
     <div>
-      <div style={{ padding: "4px 8px", fontSize: 13, fontWeight: 600, marginBottom: 8 }}>Edit "{field.name}" options</div>
-      <div style={{ display: "flex", flexDirection: "column", gap: 2 }}>
-        {options.map((opt, i) => {
-          const c = optionColor(i);
-          return (
-            <div key={opt} style={{ display: "flex", alignItems: "center", gap: 6, padding: "2px 4px", borderRadius: 4 }}>
-              <span style={{ display: "inline-block", background: c.bg, borderRadius: 3, width: 14, height: 14 }} />
-              <span style={{ fontSize: 13, flex: 1 }}>{opt}</span>
-              <button onClick={() => handleDelete(opt)}
-                style={{ background: "none", border: "none", cursor: "pointer", color: "#ccc", padding: 2, fontSize: 14, lineHeight: 1 }}>×</button>
-            </div>
-          );
-        })}
-      </div>
+      <div style={{ padding: "4px 8px", fontSize: 13, fontWeight: 600, marginBottom: 4 }}>Edit "{field.name}" options</div>
+      <div style={{ padding: "0 8px 6px", fontSize: 11, color: "#999" }}>Drag to reorder — groups follow this order.</div>
+      <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
+        <SortableContext items={options} strategy={verticalListSortingStrategy}>
+          <div style={{ display: "flex", flexDirection: "column", gap: 2 }}>
+            {options.map((opt, i) => (
+              <SortableOptionRow key={opt} opt={opt} colorIdx={i} onDelete={() => handleDelete(opt)} />
+            ))}
+          </div>
+        </SortableContext>
+      </DndContext>
       <div style={{ display: "flex", alignItems: "center", gap: 6, marginTop: 8, borderTop: "1px solid #f0f0f0", paddingTop: 8 }}>
         <span style={{ opacity: 0.5, fontSize: 12 }}>+</span>
         <input ref={inputRef} value={newOption} onChange={(e) => setNewOption(e.target.value)}

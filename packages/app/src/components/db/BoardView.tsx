@@ -1,6 +1,6 @@
 import { useState, useCallback, useEffect, useMemo, useRef } from "react";
 import {
-  DndContext, DragOverlay, PointerSensor, useSensor, useSensors,
+  DndContext, DragOverlay, MouseSensor, TouchSensor, useSensor, useSensors, useDroppable, closestCorners,
   type DragStartEvent, type DragOverEvent, type DragEndEvent,
 } from "@dnd-kit/core";
 import { SortableContext, useSortable, verticalListSortingStrategy, horizontalListSortingStrategy, arrayMove } from "@dnd-kit/sortable";
@@ -30,7 +30,12 @@ export function BoardView({
   const [activeColumnName, setActiveColumnName] = useState<string | null>(null);
   const [columnOrder, setColumnOrder] = useState<string[]>([]);
 
-  const sensors = useSensors(useSensor(PointerSensor, { activationConstraint: { distance: 8 } }));
+  // MouseSensor (small drag threshold) for pointer devices, TouchSensor (long-press)
+  // for touch so a tap-scroll on mobile isn't mistaken for a drag.
+  const sensors = useSensors(
+    useSensor(MouseSensor, { activationConstraint: { distance: 8 } }),
+    useSensor(TouchSensor, { activationConstraint: { delay: 200, tolerance: 6 } }),
+  );
 
   useEffect(() => {
     if (!showFieldsPicker) return;
@@ -112,12 +117,21 @@ export function BoardView({
     if (dragType === "column") return;
     if (!over) { setOverColumnId(null); setDropTarget(null); return; }
     const overId = String(over.id);
+    // Hovering the column body droppable ("col-…") or the column wrapper
+    // ("column-…") → append to the end of that column.
     if (overId.startsWith("col-")) {
       const colId = overId.slice(4);
       setOverColumnId(colId);
       setDropTarget({ columnId: colId, index: (groups[colId] || []).length });
       return;
     }
+    if (overId.startsWith("column-")) {
+      const colId = overId.slice(7);
+      setOverColumnId(colId);
+      setDropTarget({ columnId: colId, index: (groups[colId] || []).length });
+      return;
+    }
+    // Hovering another card → insert at that card's position in its column.
     const overRecord = records.find((r) => r.record.id === overId);
     if (overRecord && groupField) {
       const colId = String(overRecord.values[groupField.name] || "Untitled");
@@ -228,7 +242,7 @@ export function BoardView({
   };
 
   return (
-    <DndContext sensors={sensors} onDragStart={handleDragStart} onDragOver={handleDragOver} onDragEnd={handleDragEnd}>
+    <DndContext sensors={sensors} collisionDetection={closestCorners} onDragStart={handleDragStart} onDragOver={handleDragOver} onDragEnd={handleDragEnd}>
       <div className="board-view">
         <div className="db-toolbar">
           <button className="active" onClick={onSwitchView}>Board</button>
@@ -293,11 +307,11 @@ export function BoardView({
                   <span style={{ color: "#999", fontWeight: 400 }}> ({(groups[colName] || []).length})</span>
                 </h3>
                 <SortableContext items={(groups[colName] || []).map((r) => r.record.id)} strategy={verticalListSortingStrategy}>
-                  <div className="board-cards-container" id={`col-${colName}`}>
+                  <ColumnBody colName={colName} isOver={overColumnId === colName}>
                     {(groups[colName] || []).map((item) => (
                       <SortableCard key={item.record.id} record={item} isDragging={activeRecordId === item.record.id} />
                     ))}
-                  </div>
+                  </ColumnBody>
                 </SortableContext>
                 <div style={{ padding: "8px 4px" }}>
                   <button className="board-add-card" onClick={async () => {
@@ -334,6 +348,22 @@ export function BoardView({
         </DragOverlay>
       </div>
     </DndContext>
+  );
+}
+
+// ── Droppable column body ─────────────────────────────────────────────────
+//
+// Registers the cards container as a drop target so a card can be dropped on
+// an empty column (or the whitespace below the cards), not just onto another
+// card. Defined at module scope so the droppable node isn't torn down and
+// re-registered on every BoardView render.
+
+function ColumnBody({ colName, isOver, children }: { colName: string; isOver: boolean; children: React.ReactNode }) {
+  const { setNodeRef } = useDroppable({ id: `col-${colName}` });
+  return (
+    <div ref={setNodeRef} className={`board-cards-container${isOver ? " board-cards-container-over" : ""}`} id={`col-${colName}`}>
+      {children}
+    </div>
   );
 }
 
