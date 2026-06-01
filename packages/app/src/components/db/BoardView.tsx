@@ -6,6 +6,7 @@ import {
 import { SortableContext, useSortable, verticalListSortingStrategy, horizontalListSortingStrategy, arrayMove } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
 import { useStore } from "../../store.js";
+import { useDatabaseStore, selectBoardGroupBy, selectBoardHidden } from "../../stores/databaseStore.js";
 import { api } from "../../rpc-client.js";
 import { SelectPill, CellDisplay } from "./CellComponents.js";
 
@@ -15,7 +16,9 @@ export function BoardView({
   database: any; fields: any[]; records: any[]; databases: any[];
   onSwitchView: () => void; allRecords?: Record<string, any[]>;
 }) {
-  const { boardGroupByFieldId, setBoardGroupBy, boardHiddenFieldIds, toggleBoardField, updateFieldValue, updateField, loadDbRecords, createDbRecord, loadDbFields } = useStore();
+  const { setBoardGroupBy, toggleBoardField, updateFieldValue, updateField, loadDbRecords, createDbRecord, loadDbFields } = useStore();
+  const boardGroupByFieldId = useDatabaseStore((s) => selectBoardGroupBy(s, database.id));
+  const boardHiddenFieldIds = useDatabaseStore((s) => selectBoardHidden(s, database.id));
   const [showFieldsPicker, setShowFieldsPicker] = useState(false);
   const fieldsPickerRef = useRef<HTMLDivElement>(null);
 
@@ -183,12 +186,13 @@ export function BoardView({
 
     if (groupField.type === "select" && !groups[targetCol]) {
       await updateField(groupField.id, { options: [...(groupField.options || []), targetCol] });
+      await loadDbFields(database.id);
     }
     if (groupField.type === "select") {
       await updateFieldValue(activeRecord.id, groupField.id, targetCol === "Untitled" ? "" : targetCol);
     }
     await loadDbRecords(database.id);
-  }, [dragType, activeColumnName, displayOrder, activeRecord, activeGroupValue, groupField, groups, database.id, dropTarget, overColumnId, updateField, updateFieldValue, loadDbRecords]);
+  }, [dragType, activeColumnName, displayOrder, activeRecord, activeGroupValue, groupField, groups, database.id, dropTarget, overColumnId, updateField, updateFieldValue, loadDbRecords, loadDbFields]);
 
   const SortableColumn = ({ colName, children }: { colName: string; children: React.ReactNode }) => {
     const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id: `column-${colName}` });
@@ -252,7 +256,7 @@ export function BoardView({
             <span style={{ fontWeight: 500 }}>Group by:</span>
             <select
               value={boardGroupByFieldId || groupField?.id || ""}
-              onChange={(e) => setBoardGroupBy(e.target.value || null)}
+              onChange={(e) => setBoardGroupBy(database.id, e.target.value || null)}
               className="db-select"
             >
               <option value="">None</option>
@@ -279,7 +283,7 @@ export function BoardView({
                         <input
                           type="checkbox"
                           checked={!hidden}
-                          onChange={() => toggleBoardField(f.id)}
+                          onChange={() => toggleBoardField(database.id, f.id)}
                         />
                         <span>{f.name}</span>
                         <span className="board-fields-picker-type">{f.type}</span>

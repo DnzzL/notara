@@ -49,10 +49,11 @@ export function useStore() {
     reorderBlocks: blockState.reorderBlocks,
 
     // Database state
+    // Per-database state (records/fields/filters/sorts/board) is keyed by
+    // databaseId in useDatabaseStore — read it there via the selectFields/
+    // selectRecords/… helpers, not from this flat composition layer.
     databases: dbState.databases,
     currentDb: dbState.currentDb,
-    dbFields: dbState.dbFields,
-    records: dbState.records,
     dbViews: dbState.dbViews,
     loadDatabases: dbState.loadDatabases,
     createDatabase: dbState.createDatabase,
@@ -73,12 +74,10 @@ export function useStore() {
     // Import/Export
     importNotion: pageState.importNotion,
 
-    // View state
-    activeFilters: dbState.activeFilters,
-    activeSorts: dbState.activeSorts,
-    boardGroupByFieldId: dbState.boardGroupByFieldId,
+    // View-state mutators (per-database; pass a databaseId). The current
+    // values live in useDatabaseStore keyed by db — use selectFilters/
+    // selectSorts/selectBoardGroupBy/selectBoardHidden to read them.
     setBoardGroupBy: dbState.setBoardGroupBy,
-    boardHiddenFieldIds: dbState.boardHiddenFieldIds,
     toggleBoardField: dbState.toggleBoardField,
     addFilter: dbState.addFilter,
     setFilter: dbState.setFilter,

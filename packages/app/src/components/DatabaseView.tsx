@@ -6,6 +6,7 @@ import {
 import { SortableContext, useSortable, verticalListSortingStrategy, horizontalListSortingStrategy } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
 import { useStore } from "../store.js";
+import { useDatabaseStore, selectFields, selectRecords, selectFilters, selectSorts } from "../stores/databaseStore.js";
 import { usePageStore } from "../stores/pageStore.js";
 import { api } from "../rpc-client.js";
 import { applyFiltersAndSorts, type Filter, type Sort, type FilterOperator } from "../lib/filterEngine.js";
@@ -297,10 +298,17 @@ function TitleCell({ recordId, title, onSave }: { recordId: string; title: strin
 
 export function DatabaseView({ database, isNew }: { database: any; isNew?: boolean }) {
   const {
-    dbFields, records, loadDbFields, loadDbRecords, createDbRecord, updateFieldValue,
+    loadDbFields, loadDbRecords, createDbRecord, updateFieldValue,
     createField, deleteField, deleteRecord, databases, renameDatabase, loadDatabases,
-    activeFilters, activeSorts, setFilter, setSort, addFilter, removeFilter, addSort, removeSort,
+    setFilter, setSort, addFilter, removeFilter, addSort, removeSort,
   } = useStore();
+
+  // Per-database state, scoped by databaseId so sibling DatabaseView instances
+  // on the same page don't clobber one another.
+  const dbFields = useDatabaseStore((s) => selectFields(s, database.id));
+  const records = useDatabaseStore((s) => selectRecords(s, database.id));
+  const activeFilters = useDatabaseStore((s) => selectFilters(s, database.id));
+  const activeSorts = useDatabaseStore((s) => selectSorts(s, database.id));
 
   const loadPages = usePageStore((s) => s.loadPages);
   const selectPageByIdWithCascade = usePageStore((s) => s.selectPageByIdWithCascade);
@@ -418,27 +426,27 @@ export function DatabaseView({ database, isNew }: { database: any; isNew?: boole
     const existingIdx = activeSorts.findIndex((s) => s.fieldId === fieldId);
     if (existingIdx >= 0) {
       const existing = activeSorts[existingIdx];
-      if (existing.direction === "asc") setSort(existingIdx, { ...existing, direction: "desc" });
-      else removeSort(existingIdx);
+      if (existing.direction === "asc") setSort(database.id, existingIdx, { ...existing, direction: "desc" });
+      else removeSort(database.id, existingIdx);
       return;
     }
     if (!shiftKey) {
       // Replace all sorts with this single ascending sort.
-      for (let i = activeSorts.length - 1; i >= 0; i--) removeSort(i);
+      for (let i = activeSorts.length - 1; i >= 0; i--) removeSort(database.id, i);
     }
-    addSort({ fieldId, direction: "asc" });
-  }, [activeSorts, addSort, removeSort, setSort]);
+    addSort(database.id, { fieldId, direction: "asc" });
+  }, [activeSorts, addSort, removeSort, setSort, database.id]);
 
   const handleBulkDelete = useCallback(async () => {
     if (selectedRowIds.size === 0) return;
     const n = selectedRowIds.size;
     if (!window.confirm(`Delete ${n} record${n === 1 ? "" : "s"}?`)) return;
     for (const id of selectedRowIds) {
-      try { await deleteRecord(id); } catch { /* skip */ }
+      try { await deleteRecord(database.id, id); } catch { /* skip */ }
     }
     setSelectedRowIds(new Set());
     lastSelectedRowRef.current = null;
-  }, [selectedRowIds, deleteRecord]);
+  }, [selectedRowIds, deleteRecord, database.id]);
 
   const handleToggleRowSelect = useCallback((recordId: string, e: React.MouseEvent) => {
     e.preventDefault();
@@ -500,10 +508,10 @@ export function DatabaseView({ database, isNew }: { database: any; isNew?: boole
     await loadDbFields(database.id);
   };
 
-  const handleDeleteField = async (fieldId: string) => { await deleteField(fieldId); };
+  const handleDeleteField = async (fieldId: string) => { await deleteField(database.id, fieldId); };
 
   const handleDeleteRecord = async (recordId: string) => {
-    await deleteRecord(recordId);
+    await deleteRecord(database.id, recordId);
     try { const recs = await api.listRecords(database.id); setDbRecordCache((prev) => ({ ...prev, [database.id]: recs })); } catch { /* ignore */ }
   };
 
@@ -628,10 +636,10 @@ export function DatabaseView({ database, isNew }: { database: any; isNew?: boole
           </div>
 
           <div style={{ marginLeft: 16, display: "flex", alignItems: "center", gap: 12, flexWrap: "wrap" }}>
-            <FilterBar fields={dbFields} filters={activeFilters} onAdd={() => addFilter({ fieldId: dbFields[0]?.id || "", operator: "contains", value: "" })}
-              onRemove={removeFilter} onChange={(idx, updates) => { const ex = activeFilters[idx]; setFilter(idx, { ...ex, ...updates }); }} />
-            <SortBar fields={dbFields} sorts={activeSorts} onAdd={() => addSort({ fieldId: dbFields[0]?.id || "", direction: "asc" })}
-              onRemove={removeSort} onChange={(idx, updates) => { const ex = activeSorts[idx]; setSort(idx, { ...ex, ...updates }); }} />
+            <FilterBar fields={dbFields} filters={activeFilters} onAdd={() => addFilter(database.id, { fieldId: dbFields[0]?.id || "", operator: "contains", value: "" })}
+              onRemove={(idx) => removeFilter(database.id, idx)} onChange={(idx, updates) => { const ex = activeFilters[idx]; setFilter(database.id, idx, { ...ex, ...updates }); }} />
+            <SortBar fields={dbFields} sorts={activeSorts} onAdd={() => addSort(database.id, { fieldId: dbFields[0]?.id || "", direction: "asc" })}
+              onRemove={(idx) => removeSort(database.id, idx)} onChange={(idx, updates) => { const ex = activeSorts[idx]; setSort(database.id, idx, { ...ex, ...updates }); }} />
           </div>
 
           <span style={{ marginLeft: "auto", fontSize: 13, color: "#666", display: "flex", alignItems: "center", gap: 8 }}>
@@ -679,9 +687,9 @@ export function DatabaseView({ database, isNew }: { database: any; isNew?: boole
                       onOptions={() => setShowOptionsFor(showOptionsFor === f.id ? null : f.id)}
                       onEditFormula={() => setShowFormulaFor(f.id)}
                       onChangeType={async (type) => { await api.updateField(f.id, { type }); await loadDbFields(database.id); await loadDbRecords(database.id); }}
-                      onSortAsc={() => addSort({ fieldId: f.id, direction: "asc" })}
-                      onSortDesc={() => addSort({ fieldId: f.id, direction: "desc" })}
-                      onFilter={() => addFilter({ fieldId: f.id, operator: "contains", value: "" })}
+                      onSortAsc={() => addSort(database.id, { fieldId: f.id, direction: "asc" })}
+                      onSortDesc={() => addSort(database.id, { fieldId: f.id, direction: "desc" })}
+                      onFilter={() => addFilter(database.id, { fieldId: f.id, operator: "contains", value: "" })}
                       width={columnWidths[f.id]} onResize={handleColumnResize}
                     />
                   ))}
