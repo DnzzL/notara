@@ -11,7 +11,7 @@ import { DetailsNode, DetailsSummary, DetailsContent } from "./DetailsExtension.
 import { BlockNavigationExtension, type BlockNavigationCallbacks } from "./BlockNavigationExtension.js";
 import { PageReferenceNode, PageReferenceExtension, createPageReferenceRender } from "./PageReferenceExtension.js";
 import { api } from "../rpc-client.js";
-import { useStore, usePageStore } from "../store.js";
+import { useStore } from "../store.js";
 import { DatabaseView } from "./DatabaseView.js";
 import { SlashMenu } from "./SlashMenu.js";
 import { DndContext, type DragEndEvent, type DragStartEvent, type DragOverEvent, DragOverlay, PointerSensor, useSensor, useSensors } from "@dnd-kit/core";
@@ -31,6 +31,8 @@ import { usePresenceStore } from "../stores/presenceStore.js";
 import { startPresence, stopPresence, setFocusedBlock } from "../lib/presenceConnection.js";
 import { useSession } from "../auth-client.js";
 import { PresenceAvatars } from "./PresenceAvatars.js";
+import { getBlockRenderer, hasBlockRenderer } from "./blocks/renderer-registry.js";
+import { PageLinkBlock } from "./blocks/page-link-block.js";
 
 /** Placeholder text shown on empty blocks, keyed by block type. */
 function placeholderForType(blockType: string): string {
@@ -112,7 +114,7 @@ function SingleBlockEditor({
         items: async (query: string) => {
           // Search pages matching the query
           const results = query.length > 0
-            ? await api.globalSearch(query)
+            ? await api.globalSearch({ query })
             : (await api.listPages()).map((p: any) => ({ type: "page" as const, id: p.id, title: p.title, content: "", pageId: p.id }));
           const pages = results.filter((r: any) => r.type === "page").slice(0, 10);
           return pages.map((page: any) => ({
@@ -235,59 +237,18 @@ function SingleBlockEditor({
     editor.setEditable(lockedByUserId === null);
   }, [editor, lockedByUserId]);
 
-  // Non-editable block types
-  if (block.type === "divider") {
-    return <hr className="block-divider" />;
-  }
-
-  if (block.type === "image") {
-    // New format: JSON { src, mimeType, fileName }
-    let src: string | null = null;
-    let alt = "Block image";
-    if (block.content?.startsWith("{")) {
-      try {
-        const data = JSON.parse(block.content);
-        src = data.src;
-        alt = data.fileName || alt;
-      } catch { /* fall through */ }
-    }
-    if (!src) {
-      // Legacy HTML format
-      const srcMatch = block.content?.match(/src=["']([^"']+)["']/);
-      if (srcMatch) src = srcMatch[1];
-    }
-    if (src) {
-      return <img src={src} alt={alt} className="block-image" style={{ maxWidth: "100%", borderRadius: 4, display: "block", margin: "4px 0" }} />;
-    }
-    return <div className="block-image-placeholder">Click to add image</div>;
-  }
-
-  if (block.type === "pdf") {
-    let src: string | null = null;
-    let fileName = "document.pdf";
-    if (block.content?.startsWith("{")) {
-      try {
-        const data = JSON.parse(block.content);
-        src = data.src;
-        fileName = data.fileName || fileName;
-      } catch { /* fall through */ }
-    }
-    if (!src) {
-      return <div className="block-image-placeholder">PDF not found</div>;
-    }
+  // Non-editable block types — delegate to registered renderers.
+  if (hasBlockRenderer(block.type)) {
+    const Renderer = getBlockRenderer(block.type)!;
     return (
-      <div className="block-pdf">
-        <div className="block-pdf-header">
-          <span>📄 {fileName}</span>
-          <a href={src} target="_blank" rel="noopener noreferrer">Open</a>
-        </div>
-        <iframe src={src} title={fileName} className="block-pdf-frame" />
-      </div>
+      <Renderer
+        block={block as any}
+        blockIndex={blockIndex}
+        totalBlocks={totalBlocks}
+        onUpdateBlock={callbacks.updateBlock as any}
+        onDeleteBlock={async () => {}}
+      />
     );
-  }
-
-  if (block.type === "database") {
-    return null;
   }
 
   return (
@@ -323,92 +284,11 @@ function DropIndicator({ active }: { active: boolean }) {
 }
 
 /**
- * Block-level link to another page. Two states:
  *   - targetPageId set → render a clickable card; click navigates.
  *   - targetPageId empty (just-inserted from /page slash command) → open
  *     a small inline picker so the user immediately chooses a page; the
  *     selection is persisted as the block's content.
  */
-function PageLinkBlock({
-  blockId, targetPageId, onPick,
-}: {
-  blockId: string;
-  targetPageId: string;
-  onPick: (pageId: string) => void | Promise<void>;
-}) {
-  const pages = usePageStore((s) => s.pages);
-  const page = pages.find((p) => p.id === targetPageId);
-  const [pickerOpen, setPickerOpen] = useState(targetPageId === "");
-  const [query, setQuery] = useState("");
-
-  const navigate = (e: React.MouseEvent) => {
-    if (!targetPageId) return;
-    e.stopPropagation();
-    const url = new URL(window.location.href);
-    url.searchParams.set("page", targetPageId);
-    window.history.pushState({ pageId: targetPageId }, "", url);
-    window.dispatchEvent(new PopStateEvent("popstate"));
-  };
-
-  if (!targetPageId || pickerOpen) {
-    const q = query.trim().toLowerCase();
-    const visible = (q
-      ? pages.filter((p) => !p.isDeleted && (p.title || "").toLowerCase().includes(q))
-      : pages.filter((p) => !p.isDeleted)
-    ).slice(0, 20);
-    return (
-      <div className="page-link-picker" onMouseDown={(e) => e.stopPropagation()}>
-        <input
-          autoFocus
-          className="page-link-picker-input"
-          placeholder="Link to page…"
-          value={query}
-          onChange={(e) => setQuery(e.target.value)}
-          onKeyDown={(e) => {
-            if (e.key === "Escape") { e.preventDefault(); setPickerOpen(false); }
-            else if (e.key === "Enter" && visible[0]) {
-              e.preventDefault();
-              setPickerOpen(false);
-              onPick(visible[0].id);
-            }
-          }}
-        />
-        <div className="page-link-picker-list">
-          {visible.length === 0 ? (
-            <div className="page-link-picker-empty">No pages</div>
-          ) : visible.map((p) => (
-            <button
-              key={p.id}
-              className="page-link-picker-item"
-              onClick={() => { setPickerOpen(false); onPick(p.id); }}
-            >
-              <span>{p.icon || "📄"}</span>
-              <span style={{ flex: 1, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
-                {p.title || "Untitled"}
-              </span>
-            </button>
-          ))}
-        </div>
-      </div>
-    );
-  }
-
-  if (!page) {
-    return (
-      <div className="page-link-block page-link-block--missing" data-block-id={blockId}>
-        Page no longer exists
-      </div>
-    );
-  }
-  return (
-    <a className="page-link-block" href={`?page=${targetPageId}`} onClick={navigate}>
-      <span className="page-link-block-icon">{page.icon || "📄"}</span>
-      <span className="page-link-block-title">{page.title || "Untitled"}</span>
-      <span className="page-link-block-arrow">↗</span>
-    </a>
-  );
-}
-
 /** Sortable wrapper for a single block with drag handle. */
 function SortableBlock({
   id,
@@ -1084,9 +964,11 @@ export function BlockEditor() {
                     blockType="pageLink"
                   >
                     <PageLinkBlock
-                      blockId={block.id}
-                      targetPageId={block.content}
-                      onPick={(pid) => updateBlock(block.id, pid)}
+                      block={block as any}
+                      blockIndex={sortedBlocks.indexOf(block)}
+                      totalBlocks={sortedBlocks.length}
+                      onUpdateBlock={async (id, content) => { await updateBlock(id, content); }}
+                      onDeleteBlock={async () => {}}
                     />
                   </SortableBlock>
                 );
