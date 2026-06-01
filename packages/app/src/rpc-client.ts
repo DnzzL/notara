@@ -1,29 +1,13 @@
 /**
  * Typed RPC client for the Effect RPC HTTP server.
  *
- * Uses fetch for transport (works in browsers without Effect platform HttpClient).
- * Response types are inferred from the shared AppRpc schema definitions.
- * The Interface is a simple Promise-based API; the Implementation validates
- * responses through Effect's serialization protocol.
+ * Method names, payloads, and return types are derived from the shared AppRpc
+ * schema — if the schema changes, the client type fails to compile.
+ *
+ * Transport is fetch-based (works in browsers without Effect platform HttpClient).
+ * Response types are validated through Effect's serialization protocol.
  */
-import {
-  Page,
-  Block,
-  Database,
-  DatabaseField,
-  DatabaseRecord,
-  RecordFieldValue,
-  DatabaseView,
-  Backlink,
-  SearchResult,
-  Workspace,
-  WorkspaceMember,
-  ApiKey,
-  ApiKeyCreated,
-  PagePermissions,
-  Subject,
-  TrashContents,
-} from "@notion-alt/shared";
+import { createTypedApiClient, type TypedApiClient } from "@notion-alt/shared";
 
 export type AclRelation = "owner" | "editor" | "viewer";
 
@@ -60,7 +44,7 @@ export function getCurrentWorkspaceId(): string | null {
   return currentWorkspaceId;
 }
 
-async function rpcCall<T>(method: string, payload: Record<string, unknown> = {}): Promise<T> {
+async function rpcCall<T>(method: string, payload: Record<string, unknown>): Promise<T> {
   const id = String(nextId++);
   const headers: Record<string, string> = { "Content-Type": "application/json" };
   if (currentWorkspaceId) {
@@ -97,127 +81,8 @@ async function rpcCall<T>(method: string, payload: Record<string, unknown> = {})
   return result.exit.value as T;
 }
 
-export const api = {
-  // Pages
-  listPages: () => rpcCall<Page[]>("listPages", {}),
-  getPage: (id: string) => rpcCall<Page>("getPage", { id }),
-  createPage: (title: string, parentId: string | null = null) =>
-    rpcCall<Page>("createPage", { title, parentId }),
-  updatePage: (id: string, patch: { title?: string | null; icon?: string | null; coverUrl?: string | null; isFavorite?: boolean | null }) =>
-    rpcCall<Page>("updatePage", { id, ...patch }),
-  deletePage: (id: string) => rpcCall<void>("deletePage", { id }),
-  globalSearch: (query: string) => rpcCall<SearchResult[]>("globalSearch", { query }),
-  movePage: (id: string, parentId: string | null) =>
-    rpcCall<Page>("movePage", { id, parentId }),
-  reorderPages: (parentId: string | null, pageIds: string[]) =>
-    rpcCall<{ reordered: boolean }>("reorderPages", { parentId, pageIds }),
-
-  // Blocks
-  listBlocks: (pageId: string) => rpcCall<Block[]>("listBlocks", { pageId }),
-  createBlock: (req: { pageId: string; type: string; content: string; index: number; parentId?: string | null }) =>
-    rpcCall<Block>("createBlock", req),
-  updateBlock: (id: string, content: string) => rpcCall<Block>("updateBlock", { id, content }),
-  deleteBlock: (id: string) => rpcCall<void>("deleteBlock", { id }),
-  reorderBlocks: (pageId: string, blockIds: string[]) =>
-    rpcCall<Block[]>("reorderBlocks", { pageId, blockIds }),
-
-  // Databases
-  listDatabases: (pageId: string) => rpcCall<Database[]>("listDatabases", { pageId }),
-  listAllDatabases: () => rpcCall<Database[]>("listAllDatabases", {}),
-  getDatabase: (id: string) => rpcCall<Database>("getDatabase", { id }),
-  createDatabase: (pageId: string, name: string) =>
-    rpcCall<Database>("createDatabase", { pageId, name }),
-  listFields: (databaseId: string) => rpcCall<DatabaseField[]>("listFields", { databaseId }),
-  createField: (req: { databaseId: string; name: string; type: string; options?: string[] | null; relationTargetDbId?: string | null; formula?: string | null }) =>
-    rpcCall<DatabaseField>("createField", req),
-  listRecords: (databaseId: string) => rpcCall<DatabaseRecord[]>("listRecords", { databaseId }),
-  listRecordsWithValues: (databaseId: string) =>
-    rpcCall<Array<{ record: DatabaseRecord; values: Record<string, unknown> }>>("listRecordsWithValues", { databaseId }),
-  getRecordWithValues: (recordId: string) =>
-    rpcCall<{ record: DatabaseRecord; values: Record<string, unknown> }>("getRecordWithValues", { recordId }),
-  createRecord: (databaseId: string, title: string) =>
-    rpcCall<DatabaseRecord>("createRecord", { databaseId, title }),
-  updateFieldValue: (recordId: string, fieldId: string, value: string) =>
-    rpcCall<RecordFieldValue>("updateFieldValue", { recordId, fieldId, value }),
-  deleteRecord: (id: string) => rpcCall<void>("deleteRecord", { id }),
-  listViews: (databaseId: string) => rpcCall<DatabaseView[]>("listViews", { databaseId }),
-  createView: (req: { databaseId: string; name: string; type: string; groupByFieldId?: string | null }) =>
-    rpcCall<DatabaseView>("createView", req),
-  updateField: (id: string, updates: { name?: string; type?: string; options?: string[] | null; relationTargetDbId?: string | null; formula?: string | null }) =>
-    rpcCall<DatabaseField>("updateField", { id, ...updates }),
-  reorderFields: (databaseId: string, fieldIds: string[]) =>
-    rpcCall<{ reordered: boolean }>("reorderFields", { databaseId, fieldIds }),
-  updateRecord: (id: string, patch: { title?: string; description?: string }) =>
-    rpcCall<{ updated: boolean }>("updateRecord", { id, ...patch }),
-  reorderRecords: (databaseId: string, recordIds: string[]) =>
-    rpcCall<{ reordered: boolean }>("reorderRecords", { databaseId, recordIds }),
-  openRecordAsPage: (recordId: string) =>
-    rpcCall<{ pageId: string }>("openRecordAsPage", { recordId }),
-  reorderDatabases: (pageId: string, databaseIds: string[]) =>
-    rpcCall<{ reordered: boolean }>("reorderDatabases", { pageId, databaseIds }),
-  renameDatabase: (id: string, name: string) =>
-    rpcCall<Database>("renameDatabase", { id, name }),
-  updateDatabase: (id: string, patch: { titleLabel?: string; titleHidden?: boolean }) =>
-    rpcCall<Database>("updateDatabase", { id, ...patch }),
-  deleteField: (id: string) => rpcCall<{ deleted: boolean }>("deleteField", { id }),
-  deleteDatabase: (id: string) => rpcCall<{ deleted: boolean }>("deleteDatabase", { id }),
-
-  // Trash: list / restore / permanent purge
-  listTrash: () => rpcCall<TrashContents>("listTrash", {}),
-  restorePage: (id: string) => rpcCall<{ restored: boolean }>("restorePage", { id }),
-  restoreDatabase: (id: string) => rpcCall<{ restored: boolean }>("restoreDatabase", { id }),
-  restoreRecord: (id: string) => rpcCall<{ restored: boolean }>("restoreRecord", { id }),
-  purgePage: (id: string) => rpcCall<{ purged: boolean }>("purgePage", { id }),
-  purgeDatabase: (id: string) => rpcCall<{ purged: boolean }>("purgeDatabase", { id }),
-  purgeRecord: (id: string) => rpcCall<{ purged: boolean }>("purgeRecord", { id }),
-
-  // Backlinks
-  getBacklinks: (pageId: string) => rpcCall<Backlink[]>("getBacklinks", { pageId }),
-
-  // Import/Export
-  importNotion: (directory: string) =>
-    rpcCall<{ pagesImported: number; databasesImported: number }>("importNotion", { directory }),
-  exportPage: (pageId: string, includeDatabases: boolean) =>
-    rpcCall<{ pageId: string; title: string; markdown: string; databasesExported: number }>("exportPage", { pageId, includeDatabases }),
-  exportDatabase: (dbId: string) =>
-    rpcCall<{ dbId: string; name: string; csv: string }>("exportDatabase", { dbId }),
-  exportAll: (outputDir: string) =>
-    rpcCall<{ pagesExported: number; databasesExported: number; outputDir: string }>("exportAll", { outputDir }),
-
-  // Workspaces
-  getMyWorkspaces: () => rpcCall<Workspace[]>("getMyWorkspaces", {}),
-  createWorkspace: (name: string, slug: string) =>
-    rpcCall<Workspace>("createWorkspace", { name, slug }),
-  joinWorkspaceByToken: (inviteToken: string) =>
-    rpcCall<Workspace>("joinWorkspaceByToken", { inviteToken }),
-  getWorkspaceMembers: (workspaceId: string) =>
-    rpcCall<WorkspaceMember[]>("getWorkspaceMembers", { workspaceId }),
-  removeMember: (workspaceId: string, userId: string) =>
-    rpcCall<void>("removeMember", { workspaceId, userId }),
-  regenerateInviteLink: (workspaceId: string) =>
-    rpcCall<{ inviteToken: string }>("regenerateInviteLink", { workspaceId }),
-  inviteMemberByEmail: (workspaceId: string, email: string) =>
-    rpcCall<void>("inviteMemberByEmail", { workspaceId, email }),
-
-  // Page permissions (Zanzibar-style ReBAC)
-  listLockedPageIds: () =>
-    rpcCall<string[]>("listLockedPageIds", {}),
-  getPagePermissions: (pageId: string) =>
-    rpcCall<PagePermissions>("getPagePermissions", { pageId }),
-  checkPagePermission: (pageId: string, relation: AclRelation) =>
-    rpcCall<{ allowed: boolean }>("checkPagePermission", { pageId, relation }),
-  writePagePermissions: (input: {
-    pageId: string;
-    set: ReadonlyArray<{ subject: Subject; relation: AclRelation }>;
-    remove: ReadonlyArray<{ subject: Subject }>;
-    ifRevision?: string;
-  }) =>
-    rpcCall<{ revision: string }>("writePagePermissions", input),
-
-  listApiKeys: () =>
-    rpcCall<ApiKey[]>("listApiKeys", {}),
-  createApiKey: (name: string) =>
-    rpcCall<ApiKeyCreated>("createApiKey", { name }),
-  revokeApiKey: (id: string) =>
-    rpcCall<void>("revokeApiKey", { id }),
-};
+/**
+ * Fully typed API client. Method signatures are inferred from AppRpc so
+ * adding a new endpoint to the schema automatically updates this client's type.
+ */
+export const api: TypedApiClient = createTypedApiClient(rpcCall);
