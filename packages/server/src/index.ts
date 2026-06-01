@@ -38,7 +38,7 @@ import { dirname } from "node:path";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
-const rootDir = path.join(__dirname, "../..");
+const rootDir = path.join(__dirname, "../../..");
 
 // Static file paths
 const possibleDistPaths = [
@@ -70,6 +70,7 @@ const mimeTypes: Record<string, string> = {
   ".jpg": "image/jpeg",
   ".svg": "image/svg+xml",
   ".ico": "image/x-icon",
+  ".pdf": "application/pdf",
   ".woff": "font/woff",
   ".woff2": "font/woff2",
 };

@@ -74,7 +74,6 @@ export function PageLinkBlock({ block, onUpdateBlock }: BlockRendererProps) {
     <a className="page-link-block" href={`?page=${pageId}`} onClick={navigate}>
       <span className="page-link-block-icon">{page.icon || "\uD83D\uDCC4"}</span>
       <span className="page-link-block-title">{page.title || "Untitled"}</span>
-      <span className="page-link-block-arrow">\u2197</span>
     </a>
   );
 }

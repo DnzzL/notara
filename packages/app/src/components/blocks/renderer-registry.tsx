@@ -14,6 +14,22 @@ export interface BlockRendererProps {
   onDeleteBlock: (id: string) => Promise<void>;
 }
 
+/**
+ * Parse block content that may be wrapped in HTML tags (e.g. from TipTap).
+ * Tries JSON parse directly first, then strips HTML and retries.
+ */
+export function tryParseBlockContent<T>(content: string): T | null {
+  if (content.startsWith("{")) {
+    try { return JSON.parse(content) as T; } catch { /* fall through */ }
+  }
+  // Handle <p>{...}</p> wrapping from TipTap
+  const stripped = content.replace(/<[^>]*>/g, "").trim();
+  if (stripped.startsWith("{")) {
+    try { return JSON.parse(stripped) as T; } catch { /* fall through */ }
+  }
+  return null;
+}
+
 // ── Registry ────────────────────────────────────────────────────────────────
 
 const registry = new Map<string, React.ComponentType<BlockRendererProps>>();
@@ -35,7 +51,9 @@ export function hasBlockRenderer(type: string): boolean {
 import { DividerBlock } from "./divider-block.js";
 import { ImageBlock } from "./image-block.js";
 import { PdfBlock } from "./pdf-block.js";
+import { FileBlock } from "./file-block.js";
 
 registerBlockRenderer("divider", DividerBlock);
 registerBlockRenderer("image", ImageBlock);
 registerBlockRenderer("pdf", PdfBlock);
+registerBlockRenderer("file", FileBlock);

@@ -1,3 +1,5 @@
+import { getCurrentWorkspaceId } from "./rpc-client.js";
+
 /**
  * Upload a file to the server. Returns the created block's metadata.
  * Sends raw bytes with metadata in headers (Content-Type, X-Page-Id, X-File-Name).
@@ -11,13 +13,18 @@ export interface UploadResult {
 
 export async function uploadFile(pageId: string, file: File): Promise<UploadResult> {
   const buffer = await file.arrayBuffer();
+  const headers: Record<string, string> = {
+    "Content-Type": file.type || "application/octet-stream",
+    "X-Page-Id": pageId,
+    "X-File-Name": encodeURIComponent(file.name),
+  };
+  const workspaceId = getCurrentWorkspaceId();
+  if (workspaceId) {
+    headers["X-Workspace-Id"] = workspaceId;
+  }
   const res = await fetch("/api/upload", {
     method: "POST",
-    headers: {
-      "Content-Type": file.type || "application/octet-stream",
-      "X-Page-Id": pageId,
-      "X-File-Name": encodeURIComponent(file.name),
-    },
+    headers,
     body: buffer,
   });
 
@@ -29,6 +36,6 @@ export async function uploadFile(pageId: string, file: File): Promise<UploadResu
   return await res.json();
 }
 
-export function isUploadable(file: File): boolean {
-  return file.type.startsWith("image/") || file.type === "application/pdf";
+export function isUploadable(_file: File): boolean {
+  return true;
 }

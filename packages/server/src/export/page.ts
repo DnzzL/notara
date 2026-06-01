@@ -38,6 +38,14 @@ export function blockToMarkdown(type: string, content: string): string {
       return "---";
     case "image":
       return `![image](${content})`;
+    case "file": {
+      try {
+        const data = JSON.parse(content);
+        return `[${data.fileName || "file"}](${data.src})`;
+      } catch {
+        return `[file](${content})`;
+      }
+    }
     case "toggle":
       return `<details><summary>${content}</summary></details>`;
     case "callout":

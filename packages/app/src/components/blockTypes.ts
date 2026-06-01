@@ -83,6 +83,7 @@ export const BLOCK_TYPE_CONFIG: Record<string, BlockTypeConfig> = {
   divider:  { placeholder: "", defaultContent: "", splitBehavior: "normal", rendersCustom: true },
   image:    { placeholder: "", defaultContent: "", splitBehavior: "normal", rendersCustom: true },
   pdf:      { placeholder: "", defaultContent: "", splitBehavior: "normal", rendersCustom: true },
+  file:     { placeholder: "", defaultContent: "", splitBehavior: "normal", rendersCustom: true },
   database: { placeholder: "", defaultContent: "", splitBehavior: "normal", rendersCustom: true },
   pageLink: { placeholder: "", defaultContent: "", splitBehavior: "normal", rendersCustom: true },
   toggle:   { placeholder: "", defaultContent: "", splitBehavior: "normal", rendersCustom: false },
@@ -95,6 +96,7 @@ const DETAILS_CONTENT =
 /** All slash menu commands in display order. */
 export const SLASH_COMMANDS: SlashCommandDef[] = [
   { id: "image",    icon: "🖼️", name: "Image",         shortcut: "/image",    defaultContent: null },
+  { id: "file",     icon: "📎", name: "File",          shortcut: "/file",     defaultContent: null },
   { id: "heading1", icon: "H1", name: "Heading 1",     shortcut: "#",         defaultContent: "<h1></h1>" },
   { id: "heading2", icon: "H2", name: "Heading 2",     shortcut: "##",        defaultContent: "<h2></h2>" },
   { id: "heading3", icon: "H3", name: "Heading 3",     shortcut: "###",       defaultContent: "<h3></h3>" },

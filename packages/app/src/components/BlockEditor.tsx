@@ -599,6 +599,8 @@ export function BlockEditor() {
       setNewDbId(db.id);
     } else if (command === "image") {
       fileInputRef.current?.click();
+    } else if (command === "file") {
+      fileInputRef.current?.click();
     } else if (command === "divider") {
       await createBlock({ pageId: currentPage.id, type: "divider", content: "", index: currentBlock.index + 1, parentId: null });
     } else if (command === "pageLink") {
@@ -856,7 +858,7 @@ export function BlockEditor() {
           <input
             ref={fileInputRef}
             type="file"
-            accept="image/*,application/pdf"
+            accept="*/*"
             multiple
             style={{ display: "none" }}
             onChange={(e) => {
@@ -964,6 +966,33 @@ export function BlockEditor() {
                     blockType="pageLink"
                   >
                     <PageLinkBlock
+                      block={block as any}
+                      blockIndex={sortedBlocks.indexOf(block)}
+                      totalBlocks={sortedBlocks.length}
+                      onUpdateBlock={async (id, content) => { await updateBlock(id, content); }}
+                      onDeleteBlock={deleteBlock}
+                    />
+                  </SortableBlock>
+                );
+              }
+
+              // Custom-rendered blocks (image, pdf, file, divider) —
+              // render directly without SingleBlockEditor to avoid
+              // TipTap wrapping raw JSON content in <p> tags.
+              if (hasBlockRenderer(block.type)) {
+                const Renderer = getBlockRenderer(block.type)!;
+                return (
+                  <SortableBlock
+                    key={block.id}
+                    id={block.id}
+                    showDropIndicator={dropIndicatorIndex === index}
+                    isDragging={activeBlockId === block.id}
+                    onDragStart={() => setActiveBlockId(block.id)}
+                    onInsertBelow={() => insertBlockAfter(sortedBlocks.indexOf(block))}
+                    onOpenMenu={(x, y) => setBlockMenu({ blockId: block.id, x, y })}
+                    blockType={block.type}
+                  >
+                    <Renderer
                       block={block as any}
                       blockIndex={sortedBlocks.indexOf(block)}
                       totalBlocks={sortedBlocks.length}

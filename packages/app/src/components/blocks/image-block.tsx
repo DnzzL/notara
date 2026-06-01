@@ -1,16 +1,16 @@
 import type { BlockRendererProps } from "./renderer-registry.js";
+import { tryParseBlockContent } from "./renderer-registry.js";
 
 export function ImageBlock({ block }: BlockRendererProps) {
   let src: string | null = null;
   let alt = "Block image";
 
-  if (block.content?.startsWith("{")) {
-    try {
-      const data = JSON.parse(block.content);
-      src = data.src;
-      alt = data.fileName || alt;
-    } catch { /* fall through */ }
+  const data = tryParseBlockContent<{ src: string; fileName?: string }>(block.content ?? "");
+  if (data) {
+    src = data.src;
+    alt = data.fileName || alt;
   }
+
   if (!src) {
     // Legacy HTML format
     const srcMatch = block.content?.match(/src=["']([^"']+)["']/);

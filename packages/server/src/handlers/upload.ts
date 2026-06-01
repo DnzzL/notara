@@ -26,12 +26,10 @@ const ALLOWED_IMAGE_TYPES = new Set([
 ]);
 const ALLOWED_PDF_TYPE = "application/pdf";
 
-function isAllowedType(mimeType: string): boolean {
-  return ALLOWED_IMAGE_TYPES.has(mimeType) || mimeType === ALLOWED_PDF_TYPE;
-}
-
-function blockTypeForMimeType(mimeType: string): "image" | "pdf" {
-  return mimeType === ALLOWED_PDF_TYPE ? "pdf" : "image";
+function blockTypeForMimeType(mimeType: string): "image" | "pdf" | "file" {
+  if (mimeType === ALLOWED_PDF_TYPE) return "pdf";
+  if (ALLOWED_IMAGE_TYPES.has(mimeType)) return "image";
+  return "file";
 }
 
 /**
@@ -45,13 +43,6 @@ export const uploadFile = (req: {
 }) =>
   Effect.gen(function* () {
     const sql = yield* SqlClient.SqlClient;
-
-    // Validate MIME type
-    if (!isAllowedType(req.mimeType)) {
-      return yield* Effect.fail(
-        `Unsupported file type: ${req.mimeType}. Allowed: images and PDFs only.`
-      );
-    }
 
     // Generate ULID for the file
     const fileId = ulid();
@@ -87,6 +78,7 @@ export const uploadFile = (req: {
       src: `/attachments/${fileName}`,
       mimeType: req.mimeType,
       fileName: req.fileName,
+      size: req.fileBuffer.length,
     });
 
     const blockRows = yield* sql`
