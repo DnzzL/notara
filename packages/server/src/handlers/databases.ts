@@ -3,6 +3,60 @@ import { SqlClient } from "@effect/sql";
 import { ulid } from "ulidx";
 import { DB_COLS, dbFromRow, FIELD_COLS, fieldFromRow, RECORD_COLS, recordFromRow, VIEW_COLS, viewFromRow } from "../mappers.js";
 
+/** Decode a stored cell value into the shape the client expects for its type.
+ *  Total by construction: a malformed value (e.g. a bare string in a
+ *  multiSelect column) degrades to a best-effort value instead of throwing,
+ *  so one bad cell can never crash a whole record-list load. */
+const decodeFieldValue = (type: string, value: string): unknown => {
+  if (type === "number") return Number(value);
+  if (type === "checkbox") return value === "true";
+  if (type === "select") return value;
+  if (type === "multiSelect") {
+    if (!value) return [];
+    try {
+      const parsed = JSON.parse(value);
+      return Array.isArray(parsed) ? parsed : [String(parsed)]; // tolerate legacy bare value
+    } catch {
+      return value ? [value] : []; // never throw — degrade a bad cell to a 1-element array
+    }
+  }
+  return value;
+};
+
+/** Convert a stored cell value from one column type's storage format to
+ *  another when a column's type changes. Lossless conversions only; anything
+ *  else is left as-is (the read path tolerates it). Never throws. */
+const migrateFieldValue = (oldType: string, newType: string, value: string): string => {
+  if (oldType === newType || !value) return value;
+  // select stores a bare string; multiSelect stores a JSON array.
+  if (oldType === "select" && newType === "multiSelect") {
+    return JSON.stringify([value]);
+  }
+  if (oldType === "multiSelect" && newType === "select") {
+    try {
+      const parsed = JSON.parse(value);
+      if (Array.isArray(parsed)) return parsed.length ? String(parsed[0]) : "";
+      return String(parsed);
+    } catch {
+      return value; // already a bare string
+    }
+  }
+  return value;
+};
+
+/** Ensure a value destined for a multiSelect cell is a JSON-encoded array, so
+ *  a bare string can never be persisted into a multiSelect column. */
+const normalizeMultiSelectValue = (value: string): string => {
+  if (!value) return value;
+  try {
+    const parsed = JSON.parse(value);
+    if (Array.isArray(parsed)) return value;
+    return JSON.stringify([String(parsed)]);
+  } catch {
+    return JSON.stringify([value]);
+  }
+};
+
 export const listDatabases = (pageId: string) =>
   Effect.gen(function* () {
     const sql = yield* SqlClient.SqlClient;
@@ -124,12 +178,7 @@ export const listRecordsWithValues = (databaseId: string) =>
     for (const fv of fieldValues as unknown as Array<{ recordId: string; name: string; type: string; value: string }>) {
       if (!valueMaps.has(fv.recordId)) valueMaps.set(fv.recordId, {});
       const vm = valueMaps.get(fv.recordId)!;
-      vm[fv.name] = fv.type === "number" ? Number(fv.value) :
-                    fv.type === "checkbox" ? fv.value === "true" :
-                    fv.type === "select" ? fv.value :
-                    fv.type === "multiSelect" ?
-                      (fv.value ? JSON.parse(fv.value) : []) :
-                    fv.value;
+      vm[fv.name] = decodeFieldValue(fv.type, fv.value);
     }
 
     return records.map(recordFromRow).map((record) => ({
@@ -157,12 +206,7 @@ export const getRecordWithValues = (recordId: string) =>
 
     const values: Record<string, unknown> = {};
     for (const fv of fieldValues as unknown as Array<{ name: string; type: string; value: string }>) {
-      values[fv.name] = fv.type === "number" ? Number(fv.value) :
-                        fv.type === "checkbox" ? fv.value === "true" :
-                        fv.type === "select" ? fv.value :
-                        fv.type === "multiSelect" ?
-                          (fv.value ? JSON.parse(fv.value) : []) :
-                        fv.value;
+      values[fv.name] = decodeFieldValue(fv.type, fv.value);
     }
 
     return { record, values };
@@ -184,13 +228,18 @@ export const createRecord = (req: { databaseId: string; title: string }) =>
 export const updateFieldValue = (req: { recordId: string; fieldId: string; value: string }) =>
   Effect.gen(function* () {
     const sql = yield* SqlClient.SqlClient;
+    // Normalize the value against the field's type so a malformed value (e.g. a
+    // bare string in a multiSelect column) can never be persisted.
+    const fieldRows = yield* sql`SELECT type FROM database_fields WHERE id = ${req.fieldId}`;
+    const fieldType = (fieldRows[0] as { type: string } | undefined)?.type;
+    const value = fieldType === "multiSelect" ? normalizeMultiSelectValue(req.value) : req.value;
     const existing = yield* sql`
       SELECT id FROM record_field_values
       WHERE record_id = ${req.recordId} AND field_id = ${req.fieldId}
     `;
     if (existing.length > 0) {
       const rows = yield* sql`
-        UPDATE record_field_values SET value = ${req.value}
+        UPDATE record_field_values SET value = ${value}
         WHERE record_id = ${req.recordId} AND field_id = ${req.fieldId}
         RETURNING id, record_id as "recordId", field_id as "fieldId", value
       `;
@@ -199,7 +248,7 @@ export const updateFieldValue = (req: { recordId: string; fieldId: string; value
       const id = ulid();
       const rows = yield* sql`
         INSERT INTO record_field_values (id, record_id, field_id, value)
-        VALUES (${id}, ${req.recordId}, ${req.fieldId}, ${req.value})
+        VALUES (${id}, ${req.recordId}, ${req.fieldId}, ${value})
         RETURNING id, record_id as "recordId", field_id as "fieldId", value
       `;
       return rows[0];
@@ -245,6 +294,19 @@ export const updateField = (req: { id: string; name?: string; type?: string; opt
     const newOptions = req.options === undefined ? current.options : (req.options ? JSON.stringify(req.options) : null);
     const newRelationTargetDbId = req.relationTargetDbId === undefined ? current.relationTargetDbId : req.relationTargetDbId;
     const newFormula = req.formula === undefined ? current.formula : req.formula;
+
+    // When the type changes, migrate existing cell values into the new type's
+    // storage format (e.g. select "Thomas" -> multiSelect ["Thomas"]) so the
+    // column can never be left holding values it cannot parse.
+    if (req.type && req.type !== current.type) {
+      const vals = yield* sql`SELECT id, value FROM record_field_values WHERE field_id = ${req.id}`;
+      for (const row of vals as unknown as Array<{ id: string; value: string }>) {
+        const migrated = migrateFieldValue(current.type as string, req.type, row.value);
+        if (migrated !== row.value) {
+          yield* sql`UPDATE record_field_values SET value = ${migrated} WHERE id = ${row.id}`;
+        }
+      }
+    }
 
     const rows = yield* sql`
       UPDATE database_fields
