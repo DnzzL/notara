@@ -22,6 +22,8 @@ import { restoreBackup } from "./handlers/restore.js";
 import { AppRpc, RecordFieldValue } from "@notion-alt/shared";
 import { registerV1Routes } from "./api-v1/routes.js";
 import { auth } from "./auth.js";
+import { startBackupScheduler } from "./backup-scheduler.js";
+import { startTrashSweep } from "./trash-sweeper.js";
 import { PlatformDbLive, PlatformDb, platformDb } from "./platform-db.js";
 import * as Permissions from "./handlers/permissions.js";
 import { resolveWorkspaceContext, getSessionUser, WorkspaceContext, AuthError, withWorkspaceDb, withAuthedWorkspace } from "./workspace-context.js";
@@ -954,65 +956,6 @@ const AppLive = Layer.mergeAll(
 const ServerLive = HttpLayerRouter.serve(AppLive).pipe(
   Layer.provide(NodeHttpServer.layer(createServer, { port: Number(process.env.PORT ?? 3000), host: "0.0.0.0" })),
 );
-
-const SCHEDULE_INTERVALS: Record<string, number | null> = {
-  manual: null,
-  hourly: 60 * 60 * 1000,
-  every6h: 6 * 60 * 60 * 1000,
-  daily: 24 * 60 * 60 * 1000,
-  weekly: 7 * 24 * 60 * 60 * 1000,
-};
-
-function startBackupScheduler() {
-  let currentHandle: ReturnType<typeof setInterval> | null = null;
-  let currentSchedule: string | null = null;
-
-  const tick = () => {
-    const settings = loadSettings();
-    const interval = SCHEDULE_INTERVALS[settings.s3Schedule ?? "manual"] ?? null;
-
-    if (settings.s3Schedule !== currentSchedule) {
-      if (currentHandle) { clearInterval(currentHandle); currentHandle = null; }
-      currentSchedule = settings.s3Schedule ?? "manual";
-      if (interval !== null) {
-        currentHandle = setInterval(() => {
-          triggerBackup().catch((e) => console.error("[backup] scheduled backup failed:", e));
-        }, interval);
-      }
-    }
-  };
-
-  // Check for schedule changes every minute
-  setInterval(tick, 60_000);
-  tick();
-}
-
-// ── Trash retention sweep ───────────────────────────────────────────────────
-// Once a day, permanently delete trashed items older than the retention window
-// from every workspace DB. Hard deletes cascade to children via FK. Runs
-// outside the Effect server runtime (like the backup scheduler), so it builds a
-// self-contained Effect and runs it with Effect.runPromise.
-
-const runTrashSweep = Effect.gen(function* () {
-  const days = loadSettings().trashRetentionDays ?? 30;
-  const wdb = yield* WorkspaceDb;
-  const workspaceIds = (platformDb.prepare("SELECT id FROM workspaces").all() as { id: string }[]).map((r) => r.id);
-  for (const id of workspaceIds) {
-    const res = yield* Databases.purgeExpired(days).pipe(Effect.provide(wdb.getLayer(id)));
-    if (res.pages || res.databases || res.records) {
-      yield* Effect.logInfo(
-        `[trash-sweep] workspace ${id}: purged ${res.pages} pages, ${res.databases} databases, ${res.records} records (retention ${days}d)`,
-      );
-    }
-  }
-}).pipe(Effect.provide(WorkspaceDbLive));
-
-function startTrashSweep() {
-  const tick = () =>
-    Effect.runPromise(runTrashSweep).catch((e) => console.error("[trash-sweep] failed:", e));
-  setInterval(tick, 24 * 60 * 60 * 1000);
-  tick();
-}
 
 // Run migrations then start server
 const program = Effect.gen(function* () {
