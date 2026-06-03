@@ -7,7 +7,7 @@ const POLAR_CHECKOUT_URL =
   (import.meta as any).env?.VITE_POLAR_CHECKOUT_URL ?? "#pricing";
 
 const onCheckoutClick = (location: "hero" | "pricing") => () => {
-  capture("checkout_clicked", { location, plan: "self_host", price_eur: 19 });
+  capture("checkout_clicked", { location, plan: "self_host", price_eur: 29 });
 };
 
 const features = [
@@ -62,8 +62,8 @@ const features = [
 const plans = [
   {
     name: "Notara Self-Host",
-    price: "€19",
-    note: "early-bird · one-time",
+    price: "€29",
+    note: "early-bird · one-time · first 500 buyers",
     highlight: true,
     features: [
       "Full source code, delivered via private GitHub repo",
@@ -107,7 +107,7 @@ export function LandingPage() {
       {/* Hero */}
       <section className="landing-hero">
         <div className="landing-hero-inner">
-          <div className="landing-badge">Source-available · Self-hostable · One-time payment</div>
+          <div className="landing-badge">Early-bird · First 500 buyers · €29 forever</div>
           <h1 className="landing-headline">
             The notes app<br />you actually own
           </h1>
@@ -123,7 +123,7 @@ export function LandingPage() {
               rel="noopener noreferrer"
               onClick={onCheckoutClick("hero")}
             >
-              Get Notara — €19 early-bird
+              Get Notara — €29 (early-bird)
             </a>
             <a href="#features" className="landing-cta-secondary">See features</a>
           </div>
@@ -182,7 +182,7 @@ export function LandingPage() {
       <section id="pricing" className="landing-pricing">
         <div className="landing-section-inner">
           <h2 className="landing-section-title">One price. Yours forever.</h2>
-          <p className="landing-section-sub">Less than five months of Notion, then never again. Lifetime updates included.</p>
+          <p className="landing-section-sub">€29 one-time for the first 500 buyers — about three months of Notion, then never again. Lifetime updates included.</p>
           <div className="landing-pricing-grid">
             {plans.map((plan) => (
               <div key={plan.name} className={`landing-plan ${plan.highlight ? "landing-plan--highlight" : ""}`}>

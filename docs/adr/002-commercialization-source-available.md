@@ -44,11 +44,11 @@ This removes the need to write any custom webhook plumbing for delivery. The "bu
 
 ### 3. Pricing: One-Time, Early-Bird Anchored Low
 
-- **Early-bird (first 100 buyers or first 3 months):** 19€ one-time, lifetime updates.
-- **Standard price after early-bird:** 39–49€ one-time, lifetime updates.
+- **Early-bird (first 500 buyers):** €29 one-time, lifetime updates.
+- **Standard price after early-bird:** €49–59 one-time, lifetime updates.
 - No subscription. No recurring revenue at launch.
 
-Marketing anchor: "less than 5 months of Notion, then yours forever."
+Marketing anchor: "about three months of Notion, then yours forever." The 500-buyer cap is a hard, public commitment — when the counter hits 500 the price changes.
 
 Rationale: the Notion-alt market (productivity / second-brain) has a much lower price ceiling than developer tools — comparables sit at $30–50 for one-time, not $200+. Starting low at launch maximizes signal and testimonials; the price can rise as social proof accumulates.
 
