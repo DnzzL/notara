@@ -314,6 +314,25 @@ Notara is shipped as a **single-instance** application. The built-in rate limite
 
 ---
 
+## Reporting bugs
+
+Open an issue using the **Bug report** template — it asks the questions that turn a vague complaint into a fixable problem:
+
+1. **Version / commit** — `git rev-parse --short HEAD` of your install, or the version in the app footer.
+2. **Deployment** — Docker Compose, bare metal, local dev, or hosted.
+3. **Browser + OS** — vendor and version (e.g. *Chrome 132 on macOS 14.5*).
+4. **Expected vs actual** — one sentence each.
+5. **Steps to reproduce** — numbered list, shortest path that triggers it.
+6. **Logs** — browser console and `docker logs notara-server`, secrets redacted.
+
+Open the template directly: <https://github.com/dnzzl/notara/issues/new?template=bug_report.yml>
+
+> Security vulnerabilities: please email **thomas.legrand@freelancerepublik.com** instead of opening a public issue.
+
+Feature requests use the **Feature request** template. The two questions that decide whether a request lands are *what problem does it solve* and *who has that problem* — please answer those before suggesting an implementation.
+
+---
+
 ## License
 
 Notara is **source-available, commercial software**. By purchasing a license you receive the source code, the right to deploy on your own instances (no seat limit), and lifetime updates. You may modify the code for internal use. Redistribution and operation as a hosted service for third parties are not permitted. See [LICENSE](./LICENSE) for the full terms.

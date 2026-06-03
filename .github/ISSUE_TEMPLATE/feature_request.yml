@@ -1,0 +1,47 @@
+name: Feature request
+description: Suggest an improvement or a new capability.
+title: "[feature] "
+labels: ["enhancement"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Two questions decide whether a feature lands: **what problem does
+        it solve** and **who has that problem**. Please answer those before
+        suggesting an implementation.
+  - type: textarea
+    id: problem
+    attributes:
+      label: The problem
+      description: "What can't you do today? Be specific."
+      placeholder: "I can't filter database records by relation field, so I have to scroll through everything."
+    validations:
+      required: true
+  - type: textarea
+    id: who
+    attributes:
+      label: Who hits this
+      description: "Just you? Your team? A common workflow?"
+      placeholder: "Anyone using databases with more than a few dozen records."
+    validations:
+      required: true
+  - type: textarea
+    id: idea
+    attributes:
+      label: What you'd like instead
+      description: "How would this work in practice? Sketches/screenshots welcome — but optional. Resist the urge to design the implementation, focus on the user-facing behaviour."
+      placeholder: "Add 'is / is not' operators to relation fields in the filter bar."
+    validations:
+      required: true
+  - type: textarea
+    id: workaround
+    attributes:
+      label: Current workaround (if any)
+      placeholder: "I export to CSV and filter in a spreadsheet."
+  - type: checkboxes
+    id: confirm
+    attributes:
+      label: Confirmations
+      options:
+        - label: I searched existing issues and didn't find a duplicate.
+          required: true

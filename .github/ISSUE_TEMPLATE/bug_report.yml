@@ -1,0 +1,87 @@
+name: Bug report
+description: Something works incorrectly or doesn't work at all.
+title: "[bug] "
+labels: ["bug"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for taking the time to file a bug. A clear report saves
+        roundtrips and gets a fix out faster. **Do not include personal
+        data, secrets, or session tokens.**
+  - type: input
+    id: version
+    attributes:
+      label: Notara version / commit
+      description: Run `git rev-parse --short HEAD` in your install, or check the footer of the app.
+      placeholder: "e.g. v0.4.2 or commit abc1234"
+    validations:
+      required: true
+  - type: dropdown
+    id: deployment
+    attributes:
+      label: Deployment
+      options:
+        - Docker Compose (self-host)
+        - Bare metal (self-host)
+        - Local dev
+        - Hosted cloud (notara.app)
+        - Other (please specify in steps below)
+    validations:
+      required: true
+  - type: input
+    id: env
+    attributes:
+      label: Browser + OS
+      description: "Browser (Chrome/Firefox/Safari + version) and OS."
+      placeholder: "Chrome 132 on macOS 14.5"
+    validations:
+      required: true
+  - type: textarea
+    id: expected
+    attributes:
+      label: What you expected to happen
+      placeholder: "Creating a database should add it to the sidebar."
+    validations:
+      required: true
+  - type: textarea
+    id: actual
+    attributes:
+      label: What actually happened
+      description: "Include the error message, status code, or visual symptom. Screenshots welcome."
+      placeholder: "The page reloads with a 500 toast and the database doesn't appear."
+    validations:
+      required: true
+  - type: textarea
+    id: steps
+    attributes:
+      label: Steps to reproduce
+      description: "Numbered list, smallest possible reproduction."
+      placeholder: |
+        1. Sign in
+        2. Open the workspace "Wedding"
+        3. Click "New database"
+        4. Set the title to "Guests"
+        5. See the error toast
+    validations:
+      required: true
+  - type: textarea
+    id: logs
+    attributes:
+      label: Relevant server / browser console logs
+      description: "Paste lines from the browser DevTools console and/or `docker logs notara-server`. Redact secrets first."
+      render: shell
+  - type: textarea
+    id: notes
+    attributes:
+      label: Anything else?
+      description: "Hypotheses, recent changes, related issues, environment quirks."
+  - type: checkboxes
+    id: confirm
+    attributes:
+      label: Confirmations
+      options:
+        - label: I searched existing issues and didn't find a duplicate.
+          required: true
+        - label: This report contains no passwords, API keys, session tokens, or other secrets.
+          required: true

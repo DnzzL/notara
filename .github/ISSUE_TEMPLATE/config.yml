@@ -1,0 +1,11 @@
+blank_issues_enabled: false
+contact_links:
+  - name: Security vulnerability
+    url: mailto:thomas.legrand@freelancerepublik.com
+    about: Please report security issues privately by email — do not open a public issue.
+  - name: GDPR / privacy request
+    url: mailto:thomas.legrand@freelancerepublik.com
+    about: Data access, rectification, erasure, or portability requests.
+  - name: Author's blog
+    url: https://thomas.legrand.sh
+    about: For context, announcements, and what's coming next.
