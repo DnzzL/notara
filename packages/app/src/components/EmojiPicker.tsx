@@ -1,29 +1,38 @@
 import { useEffect, useRef, useState } from "react";
+import emojiData from "emojibase-data/en/data.json" with { type: "json" };
+import messages from "emojibase-data/en/messages.json" with { type: "json" };
 
-const CATEGORIES: { name: string; emoji: string[] }[] = [
-  {
-    name: "Smileys",
-    emoji: ["😀", "😃", "😄", "😁", "😆", "😅", "🤣", "😂", "🙂", "🙃", "😉", "😊", "😇", "🥰", "😍", "🤩", "😘", "😗", "😚", "😙", "🥲", "😋", "😛", "😜", "🤪", "😝", "🤑", "🤗", "🤭", "🤫", "🤔", "🫡", "🤐", "🤨", "😐", "😑", "😶", "🙄", "😏", "😒", "😬", "🤥", "😌", "😔"],
-  },
-  {
-    name: "Objects",
-    emoji: ["📄", "📝", "📋", "📑", "📊", "📈", "📉", "📌", "📍", "📎", "🔖", "📚", "📖", "📓", "📔", "📒", "📕", "📗", "📘", "📙", "📰", "📁", "📂", "🗂️", "🗃️", "🗄️", "📅", "📆", "🗓️", "💼", "🧰", "🔧", "🔨", "⚙️", "💡", "🔍", "🔎", "🔑", "🔒", "🔓", "🎯", "🚀", "✏️", "🖊️"],
-  },
-  {
-    name: "Symbols",
-    emoji: ["✅", "❌", "⭐", "🌟", "✨", "🔥", "💯", "❗", "❓", "💬", "💭", "🗯️", "♻️", "✔️", "☑️", "⚠️", "🚧", "🆕", "🆙", "🆗", "🆒", "📛", "🎉", "🎊", "🏆", "🏅", "🎖️", "🥇", "🥈", "🥉"],
-  },
-  {
-    name: "Nature",
-    emoji: ["🌱", "🌿", "🍀", "🌳", "🌲", "🌴", "🌵", "🌷", "🌸", "🌹", "🌺", "🌻", "🌼", "🌞", "🌝", "🌚", "🌜", "🌛", "🌙", "⭐", "☁️", "⛅", "🌤️", "🌧️", "⛈️", "❄️", "🔥", "💧", "🌊"],
-  },
-  {
-    name: "People",
-    emoji: ["👤", "👥", "👶", "🧒", "👦", "👧", "🧑", "👨", "👩", "🧓", "👴", "👵", "🙋", "🙆", "🙅", "🙎", "🙍", "💁", "🙇", "🤝", "👋", "🤚", "✋", "🖖", "👌", "🤌", "🤏", "👍", "👎", "👊", "✊", "👏"],
-  },
-];
+interface EmojiEntry {
+  label: string;
+  hexcode: string;
+  tags?: string[];
+  emoji: string;
+  text: string;
+  type: number;
+  order: number;
+  group: number;
+  subgroup: number;
+  version: number;
+}
 
-const ALL_EMOJI = CATEGORIES.flatMap((c) => c.emoji);
+const ALL_EMOJI = (emojiData as EmojiEntry[]).filter(
+  (e) => e.type !== 0 && e.group !== undefined && e.emoji
+);
+
+const GROUP_LABELS: Record<number, string> = {};
+const GROUP_ORDER: Record<number, number> = {};
+for (const g of messages.groups) {
+  GROUP_LABELS[g.order] = g.message;
+  GROUP_ORDER[g.order] = g.order;
+}
+
+const GROUP_IDS = Array.from(new Set(ALL_EMOJI.map((e) => e.group)))
+  .sort((a, b) => GROUP_ORDER[a] - GROUP_ORDER[b]);
+
+const CATEGORIES = GROUP_IDS.map((gid) => ({
+  name: GROUP_LABELS[gid] ?? `Group ${gid}`,
+  emoji: ALL_EMOJI.filter((e) => e.group === gid),
+}));
 
 interface Props {
   open: boolean;
@@ -57,7 +66,14 @@ export function EmojiPicker({ open, anchor, onClose, onSelect }: Props) {
 
   if (!open || !anchor) return null;
 
-  const filtered = query ? ALL_EMOJI : null;
+  const q = query.toLowerCase().trim();
+  const filtered = q
+    ? ALL_EMOJI.filter(
+        (e) =>
+          e.label.toLowerCase().includes(q) ||
+          (e.tags ?? []).some((t) => t.toLowerCase().includes(q))
+      )
+    : null;
 
   return (
     <div
@@ -79,19 +95,23 @@ export function EmojiPicker({ open, anchor, onClose, onSelect }: Props) {
       </div>
       <div className="emoji-picker-grid">
         {filtered ? (
-          filtered.map((e) => (
-            <button key={e} className="emoji-picker-btn" onClick={() => { onSelect(e); onClose(); }}>
-              {e}
-            </button>
-          ))
+          filtered.length > 0 ? (
+            filtered.map((e) => (
+              <button key={e.hexcode} className="emoji-picker-btn" onClick={() => { onSelect(e.emoji); onClose(); }} title={e.label}>
+                {e.emoji}
+              </button>
+            ))
+          ) : (
+            <div className="emoji-picker-empty">No emojis found</div>
+          )
         ) : (
           CATEGORIES.map((cat) => (
             <div key={cat.name} className="emoji-picker-category">
               <div className="emoji-picker-category-title">{cat.name}</div>
               <div className="emoji-picker-category-grid">
                 {cat.emoji.map((e) => (
-                  <button key={e} className="emoji-picker-btn" onClick={() => { onSelect(e); onClose(); }}>
-                    {e}
+                  <button key={e.hexcode} className="emoji-picker-btn" onClick={() => { onSelect(e.emoji); onClose(); }} title={e.label}>
+                    {e.emoji}
                   </button>
                 ))}
               </div>
