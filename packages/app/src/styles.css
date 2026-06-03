@@ -1934,6 +1934,26 @@ select, input, textarea, button { font-family: var(--font-ui); }
 .landing-feature-card h3 { font-size: 16px; font-weight: 600; margin-bottom: 8px; color: var(--text); }
 .landing-feature-card p { font-size: 14px; line-height: 1.65; color: var(--text-2); margin: 0; }
 
+/* Consent banner — bottom-anchored, non-modal */
+.consent-banner { position: fixed; left: 0; right: 0; bottom: 0; z-index: 100; background: var(--surface); border-top: 1px solid var(--border); box-shadow: 0 -4px 24px rgba(0,0,0,0.08); animation: consent-rise 240ms var(--ease) both; }
+@keyframes consent-rise { from { transform: translateY(100%); } to { transform: translateY(0); } }
+.consent-banner-inner { max-width: 1080px; margin: 0 auto; padding: 16px 24px; display: flex; align-items: center; gap: 24px; }
+.consent-banner-text { flex: 1; font-size: 13px; color: var(--text-2); line-height: 1.55; }
+.consent-banner-text strong { color: var(--text); font-weight: 600; }
+.consent-banner-text a { color: var(--accent); text-decoration: none; }
+.consent-banner-text a:hover { text-decoration: underline; }
+.consent-banner-actions { display: flex; gap: 8px; flex-shrink: 0; }
+.consent-btn { font: inherit; font-size: 13px; font-weight: 500; padding: 8px 16px; border-radius: 8px; border: 1px solid var(--border); cursor: pointer; transition: background var(--t) var(--ease), color var(--t) var(--ease), border-color var(--t) var(--ease); }
+.consent-btn-secondary { background: transparent; color: var(--text-2); }
+.consent-btn-secondary:hover { background: var(--surface-2); color: var(--text); }
+.consent-btn-primary { background: var(--text); color: var(--surface); border-color: var(--text); }
+.consent-btn-primary:hover { background: var(--text-2); border-color: var(--text-2); }
+@media (max-width: 640px) {
+  .consent-banner-inner { flex-direction: column; align-items: stretch; padding: 14px 18px; gap: 12px; }
+  .consent-banner-actions { justify-content: stretch; }
+  .consent-btn { flex: 1; }
+}
+
 /* Legal pages (Privacy, Terms) */
 .legal-page { min-height: 100vh; background: var(--surface); color: var(--text); padding-bottom: 80px; }
 .legal-nav { padding: 20px 24px; border-bottom: 1px solid var(--border); }
