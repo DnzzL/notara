@@ -1,3 +1,5 @@
+// Side-effect import: must run before anything else so PostHog catches early errors.
+import { reportError, LoggerLive, track } from "./observability.js";
 import { Effect, Layer, pipe } from "effect";
 import * as HttpLayerRouter from "@effect/platform/HttpLayerRouter";
 import * as HttpRouter from "@effect/platform/HttpRouter";
@@ -15,6 +17,7 @@ import * as Search from "./handlers/search.js";
 import * as ImportExport from "./handlers/importExport.js";
 import * as Upload from "./handlers/upload.js";
 import * as Workspaces from "./handlers/workspaces.js";
+import * as Onboarding from "./handlers/onboarding.js";
 import * as ApiKeys from "./handlers/api-keys.js";
 import { loadSettings, saveSettings } from "./handlers/settings.js";
 import { triggerBackup, listBackups } from "./handlers/backup.js";
@@ -56,9 +59,9 @@ for (const p of possibleDistPaths) {
 }
 
 if (appDist) {
-  console.log("Serving static files from:", appDist);
+  console.log(JSON.stringify({ event: "static_dist", path: appDist }));
 } else {
-  console.log("No frontend dist found - API only mode");
+  console.log(JSON.stringify({ event: "static_dist", path: null, mode: "api_only" }));
 }
 
 const mimeTypes: Record<string, string> = {
@@ -122,6 +125,7 @@ const staticFilesRoute = Effect.gen(function* () {
   }).pipe(
     Effect.catchAllCause((cause) => {
       const msg = cause._tag === "Fail" ? String(cause.error) : cause.toString();
+      reportError(cause._tag === "Fail" ? cause.error : new Error(msg));
       return HttpServerResponse.text(JSON.stringify({ error: msg }), {
         status: 500, headers: { "Content-Type": "application/json", ...corsHeaders },
       });
@@ -162,6 +166,7 @@ const staticFilesRoute = Effect.gen(function* () {
   }).pipe(
     Effect.catchAllCause((cause) => {
       const msg = cause._tag === "Fail" ? String(cause.error) : cause.toString();
+      reportError(cause._tag === "Fail" ? cause.error : new Error(msg));
       return HttpServerResponse.text(JSON.stringify({ error: msg }), {
         status: 500, headers: { "Content-Type": "application/json", ...corsHeaders },
       });
@@ -177,6 +182,7 @@ const staticFilesRoute = Effect.gen(function* () {
   }).pipe(
     Effect.catchAllCause((cause) => {
       const msg = cause._tag === "Fail" ? String(cause.error) : cause.toString();
+      reportError(cause._tag === "Fail" ? cause.error : new Error(msg));
       return HttpServerResponse.text(JSON.stringify({ error: msg }), {
         status: 500, headers: { "Content-Type": "application/json", ...corsHeaders },
       });
@@ -213,6 +219,7 @@ const staticFilesRoute = Effect.gen(function* () {
   }).pipe(
     Effect.catchAllCause((cause) => {
       const msg = cause._tag === "Fail" ? String(cause.error) : cause.toString();
+      reportError(cause._tag === "Fail" ? cause.error : new Error(msg));
       return HttpServerResponse.text(JSON.stringify({ error: msg }), {
         status: 500, headers: { "Content-Type": "application/json", ...corsHeaders },
       });
@@ -239,6 +246,7 @@ const staticFilesRoute = Effect.gen(function* () {
   }).pipe(
     Effect.catchAllCause((cause) => {
       const msg = cause._tag === "Fail" ? String(cause.error) : cause.toString();
+      reportError(cause._tag === "Fail" ? cause.error : new Error(msg));
       return HttpServerResponse.text(JSON.stringify({ error: msg }), {
         status: 500, headers: { "Content-Type": "application/json", ...corsHeaders },
       });
@@ -463,7 +471,14 @@ const rpcHandlersLayer = AppRpc.toLayer({
         return yield* Pages.getPage(id);
       }),
     ).pipe(Effect.orDie),
-  createPage: (req) => withWorkspaceDb(Pages.createPage(req)).pipe(Effect.orDie),
+  createPage: (req) =>
+    withAuthedWorkspace(({ userId, workspaceId }) =>
+      Effect.gen(function* () {
+        const page = yield* Pages.createPage(req);
+        track("page_created", userId, { workspace_id: workspaceId, page_id: page.id });
+        return page;
+      }),
+    ).pipe(Effect.orDie),
   updatePage: (req) =>
     withAuthedWorkspace(({ userId, workspaceId }) =>
       Effect.gen(function* () {
@@ -840,7 +855,13 @@ const rpcHandlersLayer = AppRpc.toLayer({
   }).pipe(Effect.orDie),
   createWorkspace: ({ name, slug }) => Effect.gen(function* () {
     const user = yield* getSessionUser;
-    return yield* Workspaces.createWorkspace({ userId: user.id, name, slug });
+    const ws = yield* Workspaces.createWorkspace({ userId: user.id, name, slug });
+    // Seed "Getting Started" content; tolerate failures so a broken seed never blocks creation.
+    yield* Onboarding.seedStarterContent(ws.id).pipe(
+      Effect.catchAll((err) => Effect.logError("seedStarterContent failed", err)),
+    );
+    track("workspace_created", user.id, { workspace_id: ws.id });
+    return ws;
   }).pipe(Effect.orDie),
   joinWorkspaceByToken: ({ inviteToken }) => Effect.gen(function* () {
     const user = yield* getSessionUser;
@@ -971,6 +992,7 @@ const program = Effect.gen(function* () {
 // Server program - combine migrations with server layer
 const main = program.pipe(
   Effect.provide(ServerLive),
+  Effect.provide(LoggerLive),
 );
 
 NodeRuntime.runMain(main as import("effect/Effect").Effect<void, unknown, never>);

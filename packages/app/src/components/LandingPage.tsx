@@ -1,4 +1,14 @@
 import { Link } from "@tanstack/react-router";
+import { capture } from "../analytics.js";
+
+// Polar checkout URL is injected at build time. Falls back to a benign anchor so
+// the landing page still renders during early development.
+const POLAR_CHECKOUT_URL =
+  (import.meta as any).env?.VITE_POLAR_CHECKOUT_URL ?? "#pricing";
+
+const onCheckoutClick = (location: "hero" | "pricing") => () => {
+  capture("checkout_clicked", { location, plan: "self_host", price_eur: 19 });
+};
 
 const features = [
   {
@@ -13,8 +23,8 @@ const features = [
   },
   {
     icon: "⌘",
-    title: "Local-first",
-    desc: "All data stays in a single SQLite file on your server. Own your data. No vendor lock-in.",
+    title: "You own it",
+    desc: "All data lives in a single SQLite file on your server. The source ships with your license — modify, export, walk away. No vendor lock-in, ever.",
   },
   {
     icon: "⚑",
@@ -51,35 +61,20 @@ const features = [
 
 const plans = [
   {
-    name: "Self-hosted",
-    price: "Free",
-    note: "forever",
-    highlight: false,
-    features: [
-      "Unlimited pages & blocks",
-      "Unlimited workspaces",
-      "Invite-based team access",
-      "S3 backup support",
-      "MIT licensed",
-    ],
-    cta: "Deploy yourself",
-    ctaHref: "https://github.com",
-    ctaExternal: true,
-  },
-  {
-    name: "Cloud",
-    price: "Coming soon",
-    note: "",
+    name: "Notara Self-Host",
+    price: "€19",
+    note: "early-bird · one-time",
     highlight: true,
     features: [
-      "Everything in Self-hosted",
-      "Hosted & managed for you",
-      "Automatic updates",
-      "Priority support",
+      "Full source code, delivered via private GitHub repo",
+      "Run on your own server, unlimited workspaces & members",
+      "Commercial use included",
+      "Lifetime updates",
+      "Reply-to-a-human support",
     ],
-    cta: "Get notified",
-    ctaHref: "/login",
-    ctaExternal: false,
+    cta: "Buy & get the source",
+    ctaHref: POLAR_CHECKOUT_URL,
+    ctaExternal: true,
   },
 ];
 
@@ -112,16 +107,24 @@ export function LandingPage() {
       {/* Hero */}
       <section className="landing-hero">
         <div className="landing-hero-inner">
-          <div className="landing-badge">Open source · Self-hostable · MIT license</div>
+          <div className="landing-badge">Source-available · Self-hostable · One-time payment</div>
           <h1 className="landing-headline">
             The notes app<br />you actually own
           </h1>
           <p className="landing-sub">
-            Notara is a local-first Notion alternative. Block editor, inline databases,
-            and lightweight team collaboration — all in a single file on your own server.
+            Notara is a self-hostable Notion alternative. Block editor, inline databases,
+            team collaboration — all in a single file on your own server. Pay once, keep it forever.
           </p>
           <div className="landing-hero-ctas">
-            <Link to="/login" className="landing-cta-primary">Get started free</Link>
+            <a
+              href={POLAR_CHECKOUT_URL}
+              className="landing-cta-primary"
+              target="_blank"
+              rel="noopener noreferrer"
+              onClick={onCheckoutClick("hero")}
+            >
+              Get Notara — €19 early-bird
+            </a>
             <a href="#features" className="landing-cta-secondary">See features</a>
           </div>
         </div>
@@ -178,8 +181,8 @@ export function LandingPage() {
       {/* Pricing */}
       <section id="pricing" className="landing-pricing">
         <div className="landing-section-inner">
-          <h2 className="landing-section-title">Simple pricing</h2>
-          <p className="landing-section-sub">Host it yourself for free, or let us handle it when cloud launches.</p>
+          <h2 className="landing-section-title">One price. Yours forever.</h2>
+          <p className="landing-section-sub">Less than five months of Notion, then never again. Lifetime updates included.</p>
           <div className="landing-pricing-grid">
             {plans.map((plan) => (
               <div key={plan.name} className={`landing-plan ${plan.highlight ? "landing-plan--highlight" : ""}`}>
@@ -194,8 +197,13 @@ export function LandingPage() {
                   ))}
                 </ul>
                 {plan.ctaExternal ? (
-                  <a href={plan.ctaHref} target="_blank" rel="noopener noreferrer"
-                     className={plan.highlight ? "landing-cta-primary" : "landing-cta-secondary"}>
+                  <a
+                    href={plan.ctaHref}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    onClick={onCheckoutClick("pricing")}
+                    className={plan.highlight ? "landing-cta-primary" : "landing-cta-secondary"}
+                  >
                     {plan.cta}
                   </a>
                 ) : (
@@ -213,9 +221,8 @@ export function LandingPage() {
       {/* Footer */}
       <footer className="landing-footer">
         <div className="landing-footer-inner">
-          <span>© 2025 Notara. MIT licensed.</span>
+          <span>© 2026 Notara. Commercial source-available license.</span>
           <div className="landing-footer-links">
-            <a href="https://github.com" target="_blank" rel="noopener noreferrer">GitHub</a>
             <a href="/api/docs">API docs</a>
             <Link to="/login">Sign in</Link>
           </div>

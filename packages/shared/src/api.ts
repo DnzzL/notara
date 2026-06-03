@@ -1,5 +1,17 @@
 import { Rpc, RpcGroup } from "@effect/rpc";
 import { Schema } from "effect";
+
+// ── Validation-only primitives ────────────────────────────────────────────────
+// Constrained string types used at RPC boundaries to bound payload sizes and
+// reject obviously bad inputs without scattering checks across handlers. Decoded
+// values are still plain strings; the constraints only affect input acceptance.
+
+const TitleString = Schema.String.pipe(Schema.maxLength(500));
+const ShortName = Schema.String.pipe(Schema.minLength(1), Schema.maxLength(120));
+const Slug = Schema.String.pipe(Schema.pattern(/^[a-z0-9](?:[a-z0-9-]{0,58}[a-z0-9])?$/));
+const Email = Schema.String.pipe(Schema.pattern(/^[^\s@]+@[^\s@]+\.[^\s@]+$/), Schema.maxLength(254));
+const SearchQuery = Schema.String.pipe(Schema.maxLength(500));
+const BlockContent = Schema.String.pipe(Schema.maxLength(1_048_576));
 import {
   Page,
   Block,
@@ -35,13 +47,13 @@ export const AppRpc = RpcGroup.make(
     success: Page,
   }),
   Rpc.make("createPage", {
-    payload: { title: Schema.String, parentId: Schema.NullOr(Schema.String) },
+    payload: { title: TitleString, parentId: Schema.NullOr(Schema.String) },
     success: Page,
   }),
   Rpc.make("updatePage", {
     payload: {
       id: Schema.String,
-      title: Schema.optional(Schema.NullOr(Schema.String)),
+      title: Schema.optional(Schema.NullOr(TitleString)),
       icon: Schema.optional(Schema.NullOr(Schema.String)),
       coverUrl: Schema.optional(Schema.NullOr(Schema.String)),
       isFavorite: Schema.optional(Schema.NullOr(Schema.Boolean)),
@@ -53,7 +65,7 @@ export const AppRpc = RpcGroup.make(
     success: Schema.Void,
   }),
   Rpc.make("globalSearch", {
-    payload: { query: Schema.String },
+    payload: { query: SearchQuery },
     success: Schema.Array(SearchResult),
   }),
   Rpc.make("movePage", {
@@ -77,14 +89,14 @@ export const AppRpc = RpcGroup.make(
     payload: {
       pageId: Schema.String,
       type: Schema.String,
-      content: Schema.String,
+      content: BlockContent,
       index: Schema.Number,
       parentId: Schema.NullOr(Schema.String),
     },
     success: Block,
   }),
   Rpc.make("updateBlock", {
-    payload: { id: Schema.String, content: Schema.String },
+    payload: { id: Schema.String, content: BlockContent },
     success: Block,
   }),
   Rpc.make("deleteBlock", {
@@ -264,7 +276,7 @@ export const AppRpc = RpcGroup.make(
   // Workspaces
   Rpc.make("getMyWorkspaces", { success: Schema.Array(Workspace) }),
   Rpc.make("createWorkspace", {
-    payload: { name: Schema.String, slug: Schema.String },
+    payload: { name: ShortName, slug: Slug },
     success: Workspace,
   }),
   Rpc.make("joinWorkspaceByToken", {
@@ -284,14 +296,14 @@ export const AppRpc = RpcGroup.make(
     success: Schema.Struct({ inviteToken: Schema.String }),
   }),
   Rpc.make("inviteMemberByEmail", {
-    payload: { workspaceId: Schema.String, email: Schema.String },
+    payload: { workspaceId: Schema.String, email: Email },
     success: Schema.Void,
   }),
 
   // API keys
   Rpc.make("listApiKeys", { success: Schema.Array(ApiKey) }),
   Rpc.make("createApiKey", {
-    payload: { name: Schema.String },
+    payload: { name: ShortName },
     success: ApiKeyCreated,
   }),
   Rpc.make("revokeApiKey", {

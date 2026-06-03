@@ -28,6 +28,7 @@
     "better-auth": "^1.6.11",
     "effect": "^3.15.0",
     "emojibase-data": "^17.0.0",
+    "posthog-js": "^1.190.0",
     "react": "^19.0.0",
     "react-dom": "^19.0.0",
     "zustand": "^5.0.0"

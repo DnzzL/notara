@@ -1,8 +1,8 @@
 # Notara
 
-A local-first, open-source Notion alternative. Block editor, inline databases, team workspaces — all stored in a single SQLite file on your own server.
+A self-hostable, source-available Notion alternative. Block editor, inline databases, team workspaces — all stored in a single SQLite file on your own server. Yours to own, no subscription.
 
-**[Live demo](#) · [API docs](/api/docs) · MIT license**
+**[Live demo](#) · [API docs](/api/docs) · [Commercial license](./LICENSE)**
 
 ---
 
@@ -308,6 +308,12 @@ Back up the entire `.data/` directory to keep everything. The S3 backup feature 
 
 ---
 
+## Deployment
+
+Notara is shipped as a **single-instance** application. The built-in rate limiter and presence state are in-process and not shared across instances. Run it as a single container behind your reverse proxy of choice (the bundled `nginx.conf` is a fine starting point); scale up by giving it a bigger VM rather than horizontal pods.
+
+---
+
 ## License
 
-MIT — see [LICENSE](./LICENSE).
+Notara is **source-available, commercial software**. By purchasing a license you receive the source code, the right to deploy on your own instances (no seat limit), and lifetime updates. You may modify the code for internal use. Redistribution and operation as a hosted service for third parties are not permitted. See [LICENSE](./LICENSE) for the full terms.

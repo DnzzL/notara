@@ -28,6 +28,12 @@ export const corsHeaders: Record<string, string> = {
 };
 
 // ── Rate Limiter ──────────────────────────────────────────────────────────────
+//
+// In-memory, per-process. Deliberately mono-instance — Notara ships as a
+// single-instance self-host product (see docs/adr/002). If you horizontally
+// scale this behind a load balancer the counters won't be shared and the
+// limits will be effectively N× looser. For multi-instance, terminate
+// rate-limiting at nginx or a Redis-backed limiter.
 
 const RATE_WINDOW_MS = 60_000;
 const rateLimits = new Map<string, { count: number; resetAt: number }>();

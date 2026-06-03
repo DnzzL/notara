@@ -1,21 +1,86 @@
-MIT License
+Notara Commercial License
 
-Copyright (c) 2025 Notara contributors
+Copyright (c) 2026 Thomas Legrand. All rights reserved.
 
-Permission is hereby granted, free of charge, to any person obtaining a copy
-of this software and associated documentation files (the "Software"), to deal
-in the Software without restriction, including without limitation the rights
-to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
-copies of the Software, and to permit persons to whom the Software is
-furnished to do so, subject to the following conditions:
+This source code is made available to licensed purchasers under the terms below.
+By acquiring a license, downloading, accessing, or using the Software, you agree
+to be bound by this Agreement.
 
-The above copyright notice and this permission notice shall be included in all
-copies or substantial portions of the Software.
+1. DEFINITIONS
 
-THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
-IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
-FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
-AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
-LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
-OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
-SOFTWARE.
+  "Software"  — the Notara source code, binaries, documentation, and any updates
+                provided to the Licensee.
+  "Licensee"  — the individual or legal entity that has acquired a license to
+                use the Software from the Licensor.
+  "Instance"  — a deployment of the Software running on infrastructure controlled
+                by the Licensee.
+
+2. LICENSE GRANT
+
+  Subject to payment of the applicable fees and continued compliance with this
+  Agreement, the Licensor grants the Licensee a non-exclusive, non-transferable
+  worldwide license to:
+
+  (a) install and run the Software on any number of Instances controlled by the
+      Licensee, for the Licensee's own internal business or personal use;
+
+  (b) modify the source code for the Licensee's own internal use;
+
+  (c) make backup copies of the Software.
+
+3. RESTRICTIONS
+
+  The Licensee shall not:
+
+  (a) redistribute, sell, sublicense, lease, lend, or otherwise transfer the
+      Software (in source or binary form) to any third party;
+
+  (b) operate the Software, or any modified version of it, as a hosted or
+      managed service offered to third parties (commercial SaaS), unless
+      expressly authorized in writing by the Licensor;
+
+  (c) remove, alter, or obscure any copyright, trademark, or other proprietary
+      notices contained in the Software;
+
+  (d) use the Software to develop a competing product intended for distribution
+      to third parties.
+
+4. OWNERSHIP
+
+  The Software is licensed, not sold. The Licensor retains all right, title,
+  and interest in and to the Software, including all intellectual property
+  rights. No rights are granted to the Licensee other than those expressly
+  set forth in this Agreement.
+
+5. UPDATES
+
+  The Licensee is entitled to receive updates released during their license
+  validity period as defined at the time of purchase.
+
+6. WARRANTY DISCLAIMER
+
+  THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+  IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+  FITNESS FOR A PARTICULAR PURPOSE, AND NONINFRINGEMENT.
+
+7. LIMITATION OF LIABILITY
+
+  IN NO EVENT SHALL THE LICENSOR BE LIABLE FOR ANY CLAIM, DAMAGES, OR OTHER
+  LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT, OR OTHERWISE, ARISING
+  FROM, OUT OF, OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
+  DEALINGS IN THE SOFTWARE. THE LICENSOR'S TOTAL LIABILITY UNDER THIS
+  AGREEMENT SHALL NOT EXCEED THE FEES PAID BY THE LICENSEE FOR THE SOFTWARE.
+
+8. TERMINATION
+
+  This Agreement terminates automatically if the Licensee breaches any of its
+  terms. Upon termination, the Licensee must cease all use of the Software and
+  destroy all copies. Sections 3, 4, 6, 7, and 9 survive termination.
+
+9. GOVERNING LAW
+
+  This Agreement is governed by the laws of France. Any dispute arising out of
+  this Agreement shall be subject to the exclusive jurisdiction of the courts
+  of Paris, France.
+
+For inquiries: thomas.legrand@freelancerepublik.com
