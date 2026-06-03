@@ -1934,6 +1934,14 @@ select, input, textarea, button { font-family: var(--font-ui); }
 .landing-feature-card h3 { font-size: 16px; font-weight: 600; margin-bottom: 8px; color: var(--text); }
 .landing-feature-card p { font-size: 14px; line-height: 1.65; color: var(--text-2); margin: 0; }
 
+/* Why source-available */
+.landing-why { padding: 64px 24px; border-top: 1px solid var(--border); background: var(--surface); }
+.landing-why-inner { max-width: 720px; text-align: center; }
+.landing-why-body { font-size: 16px; line-height: 1.7; color: var(--text-2); margin: 16px 0 24px; }
+.landing-why-signoff { font-size: 14px; color: var(--text-3); margin: 0; }
+.landing-why-signoff a { color: var(--text-2); text-decoration: none; border-bottom: 1px solid var(--border); transition: color var(--t) var(--ease); }
+.landing-why-signoff a:hover { color: var(--text); }
+
 /* Pricing */
 .landing-pricing { padding: 80px 24px; }
 .landing-pricing-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 24px; max-width: 680px; margin: 0 auto; }

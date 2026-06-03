@@ -178,6 +178,25 @@ export function LandingPage() {
         </div>
       </section>
 
+      {/* Why source-available (honest answer) */}
+      <section id="why-source-available" className="landing-why">
+        <div className="landing-section-inner landing-why-inner">
+          <h2 className="landing-section-title">Why source-available, not free open-source?</h2>
+          <p className="landing-why-body">
+            Honest answer: I'd rather make a modest living building Notara than abandon it in six months.
+            You receive the full source on purchase, you can read it, modify it for your own use, and walk
+            away with your data any time — but it isn't free for the world to fork into a competing service.
+            That trade keeps Notara alive, keeps support real, and keeps your data yours.
+          </p>
+          <p className="landing-why-signoff">
+            — Thomas Legrand, sole developer ·{" "}
+            <a href="https://thomas.legrand.sh" target="_blank" rel="noopener noreferrer">thomas.legrand.sh</a>
+            {" · "}
+            <a href="https://github.com/dnzzl" target="_blank" rel="noopener noreferrer">@dnzzl</a>
+          </p>
+        </div>
+      </section>
+
       {/* Pricing */}
       <section id="pricing" className="landing-pricing">
         <div className="landing-section-inner">
@@ -221,9 +240,16 @@ export function LandingPage() {
       {/* Footer */}
       <footer className="landing-footer">
         <div className="landing-footer-inner">
-          <span>© 2026 Notara. Commercial source-available license.</span>
+          <span>
+            © 2026 Notara · built by{" "}
+            <a href="https://thomas.legrand.sh" target="_blank" rel="noopener noreferrer">Thomas Legrand</a>
+            {" · "}
+            <a href="https://github.com/dnzzl" target="_blank" rel="noopener noreferrer">github.com/dnzzl</a>
+          </span>
           <div className="landing-footer-links">
             <a href="/api/docs">API docs</a>
+            <Link to="/privacy">Privacy</Link>
+            <Link to="/terms">Terms</Link>
             <Link to="/login">Sign in</Link>
           </div>
         </div>
