@@ -2,6 +2,7 @@ import { createRoute, redirect, useNavigate } from "@tanstack/react-router";
 import { Route as rootRoute } from "./__root.js";
 import { createAuthClient } from "better-auth/react";
 import { useState, useEffect } from "react";
+import { Button } from "../components/ui/index.js";
 import { api } from "../rpc-client.js";
 
 export const Route = createRoute({
@@ -82,7 +83,7 @@ function AdminPage() {
             </svg>
             <span>Notara Admin</span>
           </div>
-          <button onClick={goBack} className="admin-back-btn">← Back to app</button>
+          <Button variant="secondary" size="sm" onClick={goBack}>← Back to app</Button>
         </div>
       </header>
 
@@ -123,12 +124,9 @@ function AdminPage() {
                   <td>{u.workspace_count}</td>
                   <td>{new Date(u.createdAt).toLocaleDateString()}</td>
                   <td>
-                    <button
-                      className="admin-delete-btn"
-                      onClick={() => deleteUser(u.id, u.email)}
-                    >
+                    <Button variant="danger" size="sm" onClick={() => deleteUser(u.id, u.email)}>
                       Delete
-                    </button>
+                    </Button>
                   </td>
                 </tr>
               ))}

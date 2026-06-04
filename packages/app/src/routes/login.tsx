@@ -1,6 +1,7 @@
 import { createRoute, useNavigate, Link } from "@tanstack/react-router";
 import { Route as rootRoute } from "./__root.js";
 import { useState } from "react";
+import { Field } from "../components/ui/index.js";
 import { signIn, signUp } from "../auth-client.js";
 import { toaster } from "../toaster.js";
 
@@ -99,8 +100,7 @@ function LoginPage() {
 
         <form className="auth-form" onSubmit={handleSubmit}>
           {!isLogin && (
-            <div className="auth-field">
-              <label htmlFor="auth-name">Full name</label>
+            <Field label="Full name" htmlFor="auth-name">
               <input
                 id="auth-name"
                 type="text"
@@ -110,10 +110,9 @@ function LoginPage() {
                 required
                 autoComplete="name"
               />
-            </div>
+            </Field>
           )}
-          <div className="auth-field">
-            <label htmlFor="auth-email">Email</label>
+          <Field label="Email" htmlFor="auth-email">
             <input
               id="auth-email"
               type="email"
@@ -123,14 +122,12 @@ function LoginPage() {
               required
               autoComplete="email"
             />
-          </div>
-          <div className="auth-field">
-            <div className="auth-field-header">
-              <label htmlFor="auth-password">Password</label>
-              {isLogin && (
-                <Link to="/forgot-password" className="auth-forgot-link">Forgot password?</Link>
-              )}
-            </div>
+          </Field>
+          <Field
+            label="Password"
+            htmlFor="auth-password"
+            accessory={isLogin ? <Link to="/forgot-password" className="auth-forgot-link">Forgot password?</Link> : undefined}
+          >
             <input
               id="auth-password"
               type="password"
@@ -140,7 +137,7 @@ function LoginPage() {
               required
               autoComplete={isLogin ? "current-password" : "new-password"}
             />
-          </div>
+          </Field>
 
           <button type="submit" className="auth-submit" disabled={loading}>
             {loading ? (

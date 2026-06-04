@@ -4,7 +4,13 @@ import { api, setCurrentWorkspaceId } from "../rpc-client.js";
 import { signOut } from "../auth-client.js";
 import type { Workspace } from "@notion-alt/shared";
 
-export function WorkspaceSwitcher() {
+interface WorkspaceSwitcherProps {
+  onCollapse?: () => void;
+  onOpenBackups?: () => void;
+  onOpenApiKeys?: () => void;
+}
+
+export function WorkspaceSwitcher({ onCollapse, onOpenBackups, onOpenApiKeys }: WorkspaceSwitcherProps = {}) {
   const navigate = useNavigate();
   const params = useParams({ strict: false }) as { workspaceSlug?: string };
   const [open, setOpen] = useState(false);
@@ -42,17 +48,29 @@ export function WorkspaceSwitcher() {
 
   return (
     <div className="workspace-switcher" ref={ref}>
-      <button
-        className="workspace-switcher-trigger"
-        onClick={() => setOpen(!open)}
-        title="Switch workspace"
-      >
-        <span className="workspace-avatar-sm">
-          {current ? current.name[0].toUpperCase() : "?"}
-        </span>
-        <span className="workspace-switcher-name">{current?.name ?? "Select workspace"}</span>
-        <span className="workspace-switcher-chevron">▾</span>
-      </button>
+      <div className="workspace-switcher-row">
+        <button
+          className="workspace-switcher-trigger"
+          onClick={() => setOpen(!open)}
+          title="Switch workspace"
+        >
+          <span className="workspace-avatar-sm">
+            {current ? current.name[0].toUpperCase() : "?"}
+          </span>
+          <span className="workspace-switcher-name">{current?.name ?? "Select workspace"}</span>
+          <span className="workspace-switcher-chevron">▾</span>
+        </button>
+        {onCollapse && (
+          <button
+            className="sidebar-collapse-btn"
+            onClick={onCollapse}
+            title="Collapse sidebar (⌘\\)"
+            aria-label="Collapse sidebar"
+          >
+            «
+          </button>
+        )}
+      </div>
 
       {open && (
         <div className="workspace-switcher-dropdown">
@@ -71,6 +89,7 @@ export function WorkspaceSwitcher() {
           </div>
 
           <div className="workspace-switcher-section workspace-switcher-actions">
+            <div className="workspace-switcher-label">Settings</div>
             {current && (
               <button
                 className="workspace-switcher-item"
@@ -79,6 +98,26 @@ export function WorkspaceSwitcher() {
                 Workspace settings
               </button>
             )}
+            {onOpenBackups && (
+              <button
+                className="workspace-switcher-item"
+                onClick={() => { setOpen(false); onOpenBackups(); }}
+              >
+                Backups
+              </button>
+            )}
+            {onOpenApiKeys && (
+              <button
+                className="workspace-switcher-item"
+                onClick={() => { setOpen(false); onOpenApiKeys(); }}
+              >
+                API keys
+              </button>
+            )}
+          </div>
+
+          <div className="workspace-switcher-section workspace-switcher-actions">
+            <div className="workspace-switcher-label">Account</div>
             <button
               className="workspace-switcher-item"
               onClick={() => { setOpen(false); navigate({ to: "/workspaces" }); }}

@@ -1,4 +1,5 @@
 import { useState, useEffect } from "react";
+import { Modal, Button } from "./ui/index.js";
 import { useApiKeyStore } from "../store.js";
 import type { ApiKeyCreated } from "@notion-alt/shared";
 import { toaster } from "../toaster.js";
@@ -45,14 +46,7 @@ export function ApiKeysModal({ onClose }: Props) {
   };
 
   return (
-    <div className="modal-overlay" onClick={onClose}>
-      <div className="modal-content apikeys-modal" onClick={(e) => e.stopPropagation()}>
-        <div className="modal-header">
-          <h2>API keys</h2>
-          <button className="modal-close" onClick={onClose}>✕</button>
-        </div>
-
-        <div className="modal-body">
+    <Modal title="API keys" onClose={onClose} className="apikeys-modal">
           <p className="apikeys-description">
             Use API keys to automate Notara from scripts, CI pipelines, or any HTTP client.
             Keys authenticate as you and have access to all your workspaces.{" "}
@@ -72,9 +66,9 @@ export function ApiKeysModal({ onClose }: Props) {
               </div>
               <div className="apikeys-new-key-row">
                 <code className="apikeys-raw-key">{created.rawKey}</code>
-                <button className="apikeys-copy-btn" onClick={handleCopy}>
+                <Button variant="primary" size="sm" onClick={handleCopy}>
                   {copied ? "Copied!" : "Copy"}
-                </button>
+                </Button>
               </div>
             </div>
           )}
@@ -91,9 +85,9 @@ export function ApiKeysModal({ onClose }: Props) {
                 className="invite-link-input"
                 maxLength={64}
               />
-              <button type="submit" disabled={creating || !newKeyName.trim()}>
+              <Button type="submit" variant="primary" size="sm" disabled={creating || !newKeyName.trim()}>
                 {creating ? "Creating…" : "Create"}
-              </button>
+              </Button>
             </form>
           </section>
 
@@ -106,11 +100,11 @@ export function ApiKeysModal({ onClose }: Props) {
               <div className="apikeys-empty-state">
                 <div className="apikeys-empty-illustration" aria-hidden="true">
                   <svg width="56" height="56" viewBox="0 0 56 56" fill="none">
-                    <rect x="4" y="4" width="48" height="48" rx="14" fill="#EEEFFE"/>
-                    <circle cx="22" cy="24" r="8" stroke="#5B5EF4" strokeWidth="2" fill="none"/>
-                    <circle cx="22" cy="24" r="3" fill="#5B5EF4" opacity="0.3"/>
-                    <path d="M28 30l10 10" stroke="#5B5EF4" strokeWidth="2.5" strokeLinecap="round"/>
-                    <path d="M35 37l3-1.5 1 2.5" stroke="#5B5EF4" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+                    <rect x="4" y="4" width="48" height="48" rx="14" fill="#E7EBFF"/>
+                    <circle cx="22" cy="24" r="8" stroke="#2B4DFF" strokeWidth="2" fill="none"/>
+                    <circle cx="22" cy="24" r="3" fill="#2B4DFF" opacity="0.3"/>
+                    <path d="M28 30l10 10" stroke="#2B4DFF" strokeWidth="2.5" strokeLinecap="round"/>
+                    <path d="M35 37l3-1.5 1 2.5" stroke="#2B4DFF" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
                   </svg>
                 </div>
                 <p className="apikeys-empty-title">No keys yet</p>
@@ -129,20 +123,19 @@ export function ApiKeysModal({ onClose }: Props) {
                         Created {new Date(k.createdAt).toLocaleDateString()}
                         {k.lastUsedAt && ` · Last used ${new Date(k.lastUsedAt).toLocaleDateString()}`}
                       </span>
-                      <button
-                        className="admin-delete-btn"
+                      <Button
+                        variant="danger"
+                        size="sm"
                         onClick={() => handleRevoke(k.id, k.name)}
                       >
                         Revoke
-                      </button>
+                      </Button>
                     </div>
                   </li>
                 ))}
               </ul>
             )}
           </section>
-        </div>
-      </div>
-    </div>
+    </Modal>
   );
 }

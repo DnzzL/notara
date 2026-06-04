@@ -1,4 +1,5 @@
 import { useState, useEffect, useMemo } from "react";
+import { Modal, Button } from "./ui/index.js";
 import { api, type AclRelation } from "../rpc-client.js";
 import type {
   AclEntry,
@@ -145,14 +146,7 @@ export function SharePageModal({ pageId, workspaceId, onClose }: Props) {
   );
 
   return (
-    <div className="modal-overlay" onClick={onClose}>
-      <div className="modal-content" onClick={(e) => e.stopPropagation()}>
-        <div className="modal-header">
-          <h2>Share page</h2>
-          <button className="modal-close" onClick={onClose}>✕</button>
-        </div>
-
-        <div className="modal-body">
+    <Modal title="Share page" onClose={onClose}>
           {loading ? (
             <p>Loading…</p>
           ) : !perms ? (
@@ -190,9 +184,9 @@ export function SharePageModal({ pageId, workspaceId, onClose }: Props) {
                 <div className="share-add-row">
                   <h3>People with access</h3>
                   {canManage && availableMembers.length > 0 && (
-                    <button onClick={() => setPickerOpen((o) => !o)} disabled={pending}>
+                    <Button variant="secondary" size="sm" onClick={() => setPickerOpen((o) => !o)} disabled={pending}>
                       {pickerOpen ? "Cancel" : "+ Add member"}
-                    </button>
+                    </Button>
                   )}
                 </div>
 
@@ -315,8 +309,6 @@ export function SharePageModal({ pageId, workspaceId, onClose }: Props) {
               </section>
             </>
           )}
-        </div>
-      </div>
-    </div>
+    </Modal>
   );
 }

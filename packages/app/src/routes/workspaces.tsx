@@ -1,6 +1,7 @@
 import { createRoute, useNavigate, redirect } from "@tanstack/react-router";
 import { Route as rootRoute } from "./__root.js";
 import { useState, useEffect } from "react";
+import { Button } from "../components/ui/index.js";
 import { authClient, useSession } from "../auth-client.js";
 import { api } from "../rpc-client.js";
 import type { Workspace } from "@notion-alt/shared";
@@ -106,8 +107,8 @@ function WorkspacesPage() {
               required
             />
             <div className="form-row">
-              <button type="submit">Create</button>
-              <button type="button" onClick={() => setCreating(false)}>Cancel</button>
+              <Button type="submit" variant="primary">Create</Button>
+              <Button type="button" variant="secondary" onClick={() => setCreating(false)}>Cancel</Button>
             </div>
           </form>
         ) : joining ? (
@@ -120,14 +121,14 @@ function WorkspacesPage() {
               required
             />
             <div className="form-row">
-              <button type="submit">Join</button>
-              <button type="button" onClick={() => setJoining(false)}>Cancel</button>
+              <Button type="submit" variant="primary">Join</Button>
+              <Button type="button" variant="secondary" onClick={() => setJoining(false)}>Cancel</Button>
             </div>
           </form>
         ) : (
           <div className="form-row">
-            <button onClick={() => setCreating(true)}>New workspace</button>
-            <button onClick={() => setJoining(true)}>Join with invite</button>
+            <Button variant="primary" onClick={() => setCreating(true)}>New workspace</Button>
+            <Button variant="secondary" onClick={() => setJoining(true)}>Join with invite</Button>
           </div>
         )}
       </div>

@@ -372,21 +372,16 @@ export function Sidebar({ className, onNavigate }: SidebarProps = {}) {
     >
       <SortableContext items={treeOrder} strategy={verticalListSortingStrategy}>
         <aside className={`sidebar${className ? ` ${className}` : ""}`} style={{ width }}>
-          <WorkspaceSwitcher />
+          <WorkspaceSwitcher
+            onCollapse={() => setCollapsed(true)}
+            onOpenBackups={() => setShowSettings(true)}
+            onOpenApiKeys={() => setShowApiKeys(true)}
+          />
           <div className="sidebar-header">
-            <div className="sidebar-topbar">
-              <button
-                className="sidebar-icon-btn"
-                title="Collapse sidebar (⌘\\)"
-                onClick={() => setCollapsed(true)}
-              >
-                «
-              </button>
-              <button className="sidebar-search" onClick={openSearch} title="Open quick search">
-                <span>Search…</span>
-                <kbd>⌘K</kbd>
-              </button>
-            </div>
+            <button className="sidebar-search" onClick={openSearch} title="Open quick search">
+              <span>Search…</span>
+              <kbd>⌘K</kbd>
+            </button>
             <input
               type="text"
               className="sidebar-filter"
@@ -466,12 +461,6 @@ export function Sidebar({ className, onNavigate }: SidebarProps = {}) {
             </button>
             <button className="sidebar-footer-btn" onClick={() => setShowImport(true)} title="Import Notion export">
               <span>⤓</span> Import
-            </button>
-            <button className="sidebar-footer-btn" onClick={() => setShowSettings(true)} title="Settings">
-              <span>⚙</span> Settings
-            </button>
-            <button className="sidebar-footer-btn" onClick={() => setShowApiKeys(true)} title="API keys">
-              <span>⌁</span> API keys
             </button>
             <button className="sidebar-footer-btn" onClick={() => setShowTrash(true)} title="Trash">
               <span>🗑</span> Trash

@@ -1,4 +1,5 @@
 import { useEffect, useState, useCallback } from "react";
+import { Modal, Button } from "./ui/index.js";
 import type { TrashContents } from "@notion-alt/shared";
 import { api } from "../rpc-client.js";
 import { toaster } from "../toaster.js";
@@ -66,25 +67,18 @@ export function TrashModal({ onClose, onChanged }: Props) {
       </div>
       <div className="apikeys-row-meta">
         <span className="apikeys-meta-text">Deleted {fmt(deletedAt)}</span>
-        <button disabled={busy === id} onClick={() => act("restore", kind, id, label)}>
+        <Button variant="secondary" size="sm" disabled={busy === id} onClick={() => act("restore", kind, id, label)}>
           Restore
-        </button>
-        <button className="admin-delete-btn" disabled={busy === id} onClick={() => act("purge", kind, id, label)}>
+        </Button>
+        <Button variant="danger" size="sm" disabled={busy === id} onClick={() => act("purge", kind, id, label)}>
           Delete forever
-        </button>
+        </Button>
       </div>
     </li>
   );
 
   return (
-    <div className="modal-overlay" onClick={onClose}>
-      <div className="modal-content apikeys-modal" onClick={(e) => e.stopPropagation()}>
-        <div className="modal-header">
-          <h2>Trash</h2>
-          <button className="modal-close" onClick={onClose}>✕</button>
-        </div>
-
-        <div className="modal-body">
+    <Modal title="Trash" onClose={onClose} className="apikeys-modal">
           <p className="apikeys-description">
             Deleted pages, databases, and records are kept here and can be restored.
             Items are permanently removed automatically after the retention period.
@@ -119,8 +113,6 @@ export function TrashModal({ onClose, onChanged }: Props) {
               )}
             </>
           )}
-        </div>
-      </div>
-    </div>
+    </Modal>
   );
 }

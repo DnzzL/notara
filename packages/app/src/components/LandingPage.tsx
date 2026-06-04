@@ -12,184 +12,191 @@ const onCheckoutClick = (location: "hero" | "pricing") => () => {
 
 const features = [
   {
-    icon: "◻",
     title: "Block editor",
     desc: "Paragraphs, headings, todos, code, tables, toggles and more — everything you need to write clearly.",
   },
   {
-    icon: "⊞",
     title: "Inline databases",
     desc: "Table and board views live right inside your pages. Filter, sort, relate — no extra app required.",
   },
   {
-    icon: "⌘",
     title: "You own it",
     desc: "All data lives in a single SQLite file on your server. The source ships with your license — modify, export, walk away. No vendor lock-in, ever.",
   },
   {
-    icon: "⚑",
     title: "Work with your team",
     desc: "Invite teammates, see who's on the page, and edit alongside them without stepping on each other's work.",
   },
   {
-    icon: "↓",
     title: "Import from Notion",
     desc: "Bring your existing notes and databases in one click. Export back out anytime.",
   },
   {
-    icon: "☁",
     title: "S3 backups",
     desc: "Optional encrypted backups to any S3-compatible bucket. Scheduled or manual.",
   },
   {
-    icon: "♻",
     title: "Trash & restore",
-    desc: "Deleted a page, database or row by mistake? Everything goes to the trash first — restore it in a click, or let it purge automatically after your retention window.",
+    desc: "Deleted something by mistake? Everything goes to the trash first — restore in a click, or let it purge after your retention window.",
   },
   {
-    icon: "⌁",
     title: "Open REST API",
-    desc: "Full HTTP API with API key auth. Automate from scripts, CI pipelines, or any HTTP client. OpenAPI spec included.",
+    desc: "Full HTTP API with API-key auth. Automate from scripts, CI, or any client. OpenAPI spec included.",
     docsHref: "/api/docs",
   },
   {
-    icon: "⌨",
     title: "Command-line client",
-    desc: "Drive Notara from your terminal with the scriptable `notara` CLI — create pages, edit databases, and pipe JSON straight into your tools.",
+    desc: "Drive Notara from your terminal with the scriptable notara CLI — pipe JSON straight into your tools.",
+    code: "notara",
   },
 ];
 
-const plans = [
-  {
-    name: "Notara Self-Host",
-    price: "€29",
-    note: "early-bird · one-time · first 500 buyers",
-    highlight: true,
-    features: [
-      "Full source code, delivered via private GitHub repo",
-      "Run on your own server, unlimited workspaces & members",
-      "Commercial use included",
-      "Lifetime updates",
-      "Reply-to-a-human support",
-    ],
-    cta: "Buy & get the source",
-    ctaHref: POLAR_CHECKOUT_URL,
-    ctaExternal: true,
-  },
+const planFeatures = [
+  "Full source · private GitHub repo",
+  "Unlimited workspaces & members",
+  "Commercial use",
+  "Lifetime updates",
+  "Reply-to-a-human support",
 ];
 
 export function LandingPage() {
   return (
     <div className="landing">
+      <div className="lp-gridlines" aria-hidden="true" />
+
       {/* Nav */}
       <nav className="landing-nav">
-        <div className="landing-nav-inner">
+        <div className="lp-wrap landing-nav-inner">
           <div className="landing-brand">
             <div className="auth-brand-icon">
               <svg width="20" height="20" viewBox="0 0 20 20" fill="none">
-                <rect x="2" y="2" width="7" height="7" rx="2" fill="currentColor" opacity="0.9"/>
-                <rect x="11" y="2" width="7" height="7" rx="2" fill="currentColor" opacity="0.5"/>
-                <rect x="2" y="11" width="7" height="7" rx="2" fill="currentColor" opacity="0.5"/>
-                <rect x="11" y="11" width="7" height="7" rx="2" fill="currentColor" opacity="0.25"/>
+                <rect x="2" y="2" width="7" height="7" fill="currentColor"/>
+                <rect x="11" y="2" width="7" height="7" fill="#2B4DFF"/>
+                <rect x="2" y="11" width="7" height="7" fill="currentColor"/>
+                <rect x="11" y="11" width="7" height="7" fill="currentColor"/>
               </svg>
             </div>
-            <span className="landing-brand-name">Notara</span>
+            <span className="landing-brand-name">NOTARA</span>
           </div>
           <div className="landing-nav-links">
             <a href="#features" className="landing-nav-link">Features</a>
+            <a href="#why" className="landing-nav-link">Why</a>
             <a href="#pricing" className="landing-nav-link">Pricing</a>
-            <a href="/api/docs" className="landing-nav-link">API docs</a>
-            <Link to="/login" className="landing-nav-cta">Sign in</Link>
+            <Link to="/login" className="landing-nav-cta">Sign in →</Link>
           </div>
         </div>
       </nav>
 
       {/* Hero */}
-      <section className="landing-hero">
-        <div className="landing-hero-inner">
-          <div className="landing-badge">Early-bird · First 500 buyers · €29 forever</div>
-          <h1 className="landing-headline">
-            The notes app<br />you actually own
+      <header className="landing-hero">
+        <div className="lp-wrap">
+          <div className="lp-hero-tag lp-reveal" style={{ animationDelay: ".05s" }}>
+            <span className="sq" />
+            <span className="lp-kicker">Early-bird · first 500 buyers · <b>€29 forever</b></span>
+          </div>
+          <h1 className="landing-headline lp-reveal" style={{ animationDelay: ".12s" }}>
+            The notes app<br />you <span className="out">actually</span> <span className="blue">own.</span>
           </h1>
-          <p className="landing-sub">
-            Notara is a self-hostable Notion alternative. Block editor, inline databases,
-            team collaboration — all in a single file on your own server. Pay once, keep it forever.
-          </p>
-          <div className="landing-hero-ctas">
-            <a
-              href={POLAR_CHECKOUT_URL}
-              className="landing-cta-primary"
-              target="_blank"
-              rel="noopener noreferrer"
-              onClick={onCheckoutClick("hero")}
-            >
-              Get Notara — €29 (early-bird)
-            </a>
-            <a href="#features" className="landing-cta-secondary">See features</a>
+          <div className="lp-hero-lower">
+            <p className="lp-reveal" style={{ animationDelay: ".24s" }}>
+              A self-hostable Notion alternative. Block editor, inline databases,
+              real-time collaboration — living in a single file on your own server.
+              Pay once. Keep the source. Walk away whenever you like.
+            </p>
+            <div className="landing-hero-ctas lp-reveal" style={{ animationDelay: ".34s" }}>
+              <a
+                href={POLAR_CHECKOUT_URL}
+                className="landing-cta-primary"
+                target="_blank"
+                rel="noopener noreferrer"
+                onClick={onCheckoutClick("hero")}
+              >
+                Get Notara — €29
+              </a>
+              <a href="#features" className="landing-cta-secondary">Index ↓</a>
+            </div>
           </div>
         </div>
+      </header>
 
-        {/* App preview placeholder */}
-        <div className="landing-preview">
-          <div className="landing-preview-chrome">
-            <div className="landing-preview-dots">
-              <span/><span/><span/>
-            </div>
+      {/* Specs */}
+      <section className="lp-specs">
+        <div className="lp-wrap lp-specs-in">
+          <div className="lp-spec"><div className="num">1<span className="u">×</span></div><div className="lbl">SQLite file · your data</div></div>
+          <div className="lp-spec"><div className="num">0<span className="u">/mo</span></div><div className="lbl">Subscriptions, forever</div></div>
+          <div className="lp-spec"><div className="num">∞</div><div className="lbl">Workspaces &amp; members</div></div>
+          <div className="lp-spec"><div className="num">€29</div><div className="lbl">Once · first 500 buyers</div></div>
+        </div>
+      </section>
+
+      {/* Object */}
+      <section className="lp-object">
+        <div className="lp-wrap lp-object-in">
+          <div className="lp-object-txt">
+            <span className="lp-kicker"><b>01</b> · The premise</span>
+            <h2>One file. On your disk. No vendors in the middle.</h2>
+            <p>
+              Everything you write lives in a single SQLite file on a server you control. The source
+              ships with your license — read it, modify it, export your data, walk away. There is
+              nothing to be locked into.
+            </p>
           </div>
-          <div className="landing-preview-body">
-            <div className="landing-preview-sidebar">
-              {["Getting started", "Projects", "Meeting notes", "Ideas"].map((item) => (
-                <div key={item} className="landing-preview-page-item">{item}</div>
-              ))}
+          <div className="lp-object-file">
+            <div className="lp-file-top"><i /><i /><i /><span className="p">~/notara.sqlite</span></div>
+            <div className="lp-file-body">
+              <div className="lp-frow title"><span className="n">01</span><span>Getting started</span></div>
+              <div className="lp-frow"><span className="n">02</span><span>Everything lives in one SQLite file.</span></div>
+              <div className="lp-frow"><span className="n">03</span><span className="lp-chk on" /><span className="lp-done">Import your Notion export</span></div>
+              <div className="lp-frow"><span className="n">04</span><span className="lp-chk" /><span>Create your first workspace</span></div>
+              <div className="lp-frow"><span className="n">05</span><span className="lp-chk" /><span>Invite the team</span></div>
             </div>
-            <div className="landing-preview-content">
-              <div className="landing-preview-title">Getting started</div>
-              <div className="landing-preview-block landing-preview-block--h2">Welcome to Notara</div>
-              <div className="landing-preview-block">Everything you write lives in a single SQLite file.</div>
-              <div className="landing-preview-block landing-preview-block--todo">
-                <span className="landing-preview-checkbox"/>Import your Notion export
-              </div>
-              <div className="landing-preview-block landing-preview-block--todo landing-preview-block--checked">
-                <span className="landing-preview-checkbox landing-preview-checkbox--checked"/>Create your first workspace
-              </div>
-            </div>
+            <div className="lp-file-foot"><span>1 file · 0 vendors</span><span>yours, on disk</span></div>
           </div>
         </div>
       </section>
+
+      {/* Ticker */}
+      <div className="lp-strip">
+        <div className="lp-strip-in">
+          <span>SOURCE-AVAILABLE<em>/</em>ONE-TIME PAYMENT<em>/</em>SELF-HOSTED<em>/</em>NO SUBSCRIPTION<em>/</em>NO CLOUD LOCK-IN<em>/</em>OPEN REST API<em>/</em>CLI INCLUDED<em>/</em></span>
+          <span aria-hidden="true">SOURCE-AVAILABLE<em>/</em>ONE-TIME PAYMENT<em>/</em>SELF-HOSTED<em>/</em>NO SUBSCRIPTION<em>/</em>NO CLOUD LOCK-IN<em>/</em>OPEN REST API<em>/</em>CLI INCLUDED<em>/</em></span>
+        </div>
+      </div>
 
       {/* Features */}
       <section id="features" className="landing-features">
-        <div className="landing-section-inner">
-          <h2 className="landing-section-title">Everything you need, nothing you don't</h2>
-          <div className="landing-features-grid">
-            {features.map((f) => (
-              <div key={f.title} className="landing-feature-card">
-                <div className="landing-feature-icon">{f.icon}</div>
-                <h3>{f.title}</h3>
-                <p>{f.desc}</p>
-                {"docsHref" in f && (
-                  <a href={(f as any).docsHref} className="landing-feature-link">
-                    View API docs →
-                  </a>
-                )}
-              </div>
-            ))}
+        <div className="lp-wrap">
+          <div className="lp-feat-head">
+            <h2 className="landing-section-title">Everything you need<br />Nothing you don't</h2>
+            <span className="lp-kicker">Index · 01—09</span>
           </div>
+          {features.map((f, i) => (
+            <div key={f.title} className="lp-feat-row">
+              <span className="idx"><b>{String(i + 1).padStart(2, "0")}</b></span>
+              <h3>{f.title}</h3>
+              <p>
+                {f.code
+                  ? <>Drive Notara from your terminal with the scriptable <code>{f.code}</code> CLI — pipe JSON straight into your tools.</>
+                  : f.desc}
+                {f.docsHref && <> <a href={f.docsHref}>View docs →</a></>}
+              </p>
+            </div>
+          ))}
         </div>
       </section>
 
-      {/* Why source-available (honest answer) */}
-      <section id="why-source-available" className="landing-why">
-        <div className="landing-section-inner landing-why-inner">
-          <h2 className="landing-section-title">Why source-available, not free open-source?</h2>
+      {/* Why source-available */}
+      <section id="why" className="landing-why">
+        <div className="lp-wrap lp-why-in">
+          <span className="lp-kicker"><b>02</b> · A note from the developer</span>
+          <h2>Why source-available, not free open-source?</h2>
           <p className="landing-why-body">
-            Honest framing: this is a compromise. Pure open-source brings a flood of issues, support
-            requests, and forks that a one-person project can't absorb without dying inside a year.
-            Pure closed-source breaks the promise that your data and tools are yours. Source-available
-            sits between the two — paying buyers get the full source, the right to read it, modify
-            it for their own use, and walk away with their data any time. In exchange I get a small,
-            sustainable customer base I can actually support over the long run, instead of an audience
-            I can't serve. That trade is what keeps Notara alive past month six.
+            Honest framing: this is a compromise. Pure open-source brings a flood of issues and forks
+            a one-person project can't absorb without dying inside a year. Pure closed-source breaks the
+            promise that your data and tools are yours. Source-available sits between — paying buyers get
+            the full source, the right to read it, modify it for their own use, and walk away with their
+            data any time. In exchange I get a small, sustainable base I can actually support over the
+            long run. That trade is what keeps Notara alive past month six.
           </p>
           <p className="landing-why-signoff">
             — Thomas Legrand, sole developer ·{" "}
@@ -202,55 +209,48 @@ export function LandingPage() {
 
       {/* Pricing */}
       <section id="pricing" className="landing-pricing">
-        <div className="landing-section-inner">
-          <h2 className="landing-section-title">One price. Yours forever.</h2>
-          <p className="landing-section-sub">€29 one-time for the first 500 buyers — about three months of Notion, then never again. Lifetime updates included.</p>
-          <div className="landing-pricing-grid">
-            {plans.map((plan) => (
-              <div key={plan.name} className={`landing-plan ${plan.highlight ? "landing-plan--highlight" : ""}`}>
-                <div className="landing-plan-name">{plan.name}</div>
-                <div className="landing-plan-price">
-                  {plan.price}
-                  {plan.note && <span className="landing-plan-note"> / {plan.note}</span>}
-                </div>
-                <ul className="landing-plan-features">
-                  {plan.features.map((f) => (
-                    <li key={f}><span className="landing-plan-check">✓</span>{f}</li>
-                  ))}
-                </ul>
-                {plan.ctaExternal ? (
-                  <a
-                    href={plan.ctaHref}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    onClick={onCheckoutClick("pricing")}
-                    className={plan.highlight ? "landing-cta-primary" : "landing-cta-secondary"}
-                  >
-                    {plan.cta}
-                  </a>
-                ) : (
-                  <Link to={plan.ctaHref as any}
-                        className={plan.highlight ? "landing-cta-primary" : "landing-cta-secondary"}>
-                    {plan.cta}
-                  </Link>
-                )}
-              </div>
-            ))}
+        <div className="lp-wrap">
+          <div className="lp-price-head">
+            <span className="lp-kicker"><b>03</b> · One price · yours forever</span>
+            <h2>No tiers.<br />No renewals.</h2>
+            <p className="sub">€29 one-time for the first 500 buyers — about three months of Notion, then never again. Lifetime updates included.</p>
+          </div>
+          <div className="lp-sheet">
+            <div className="lp-sheet-left">
+              <span className="tag">Notara · self-host</span>
+              <h3>What's in the box</h3>
+              {planFeatures.map((f) => (
+                <div key={f} className="lp-sline">{f}<span className="c">INCL</span></div>
+              ))}
+            </div>
+            <div className="lp-sheet-right">
+              <span className="badge">Early-bird · 001/500</span>
+              <div className="amt">€29</div>
+              <div className="once">one-time · no subscription</div>
+              <a
+                href={POLAR_CHECKOUT_URL}
+                target="_blank"
+                rel="noopener noreferrer"
+                onClick={onCheckoutClick("pricing")}
+                className="buy"
+              >
+                Buy &amp; get the source →
+              </a>
+              <div className="fine">EULA · SOURCE-AVAILABLE · POLAR CHECKOUT</div>
+            </div>
           </div>
         </div>
       </section>
 
       {/* Footer */}
       <footer className="landing-footer">
-        <div className="landing-footer-inner">
+        <div className="lp-wrap landing-footer-inner">
           <span>
             © 2026 Notara · built by{" "}
             <a href="https://thomas.legrand.sh" target="_blank" rel="noopener noreferrer">Thomas Legrand</a>
-            {" · "}
-            <a href="https://github.com/dnzzl" target="_blank" rel="noopener noreferrer">github.com/dnzzl</a>
           </span>
           <div className="landing-footer-links">
-            <a href="/api/docs">API docs</a>
+            <a href="/api/docs">API</a>
             <Link to="/privacy">Privacy</Link>
             <Link to="/terms">Terms</Link>
             <Link to="/login">Sign in</Link>

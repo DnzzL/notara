@@ -1,66 +1,75 @@
 # Notara Design System
 
-A living reference for the visual language of Notara. All tokens live in `:root` inside `packages/app/src/styles.css` and should be the single source of truth for any new UI work.
+A living reference for the visual language of Notara. All tokens live in `:root` inside `packages/app/src/styles.css` and are the single source of truth for any new UI work.
 
 ---
 
 ## Personality
 
-Notara is a **content-first** writing tool. The UI exists to get out of the way. The aesthetic is:
+Notara is a **content-first** writing tool with a **Swiss / International typographic** chrome. The aesthetic:
 
-- **Light** — white content area, nothing competing with the text
-- **Refined** — choices are deliberate, not decorative
-- **Calm** — no aggressive colors, no jarring motion
-- **Editorial** — serif titles give notes the weight of real documents
+- **Paper, not screen** — warm off-white (`#FAFAF8`), never clinical pure white
+- **Ink + one signal** — near-black ink and a single electric blue. No gradients, no second accent
+- **Structural** — visible grid lines, hairline rules, hard 2px section borders. Composition over decoration
+- **Squared** — small radii (3–6px), flat fills. Borders carry the design, not shadows
+- **Display in grotesque** — Bricolage Grotesque, tight and uppercase, gives headings graphic weight; mono labels give a technical, self-hosted feel
+
+> This supersedes the earlier *editorial / warm-paper + coral* direction (it read too close to other AI products) and the original *indigo-on-white* look.
 
 ---
 
 ## Color
 
-### Content area
+### Content & surfaces
 
 | Token | Value | Usage |
 |-------|-------|-------|
-| `--bg` | `#FFFFFF` | Page background |
-| `--bg-editor` | `#FEFEFE` | Editor surface |
-| `--surface` | `#FFFFFF` | Modals, popovers, cards |
-| `--surface-2` | `#F7F8FA` | Input backgrounds, table headers |
-| `--surface-3` | `#EDEEF2` | Hover fills, secondary surfaces |
-| `--surface-4` | `#E3E5EC` | Active fills, pressed states |
+| `--bg` | `#FAFAF8` | Page + editor background (paper) |
+| `--bg-editor` | `#FAFAF8` | Editor surface |
+| `--surface` | `#FFFFFF` | Modals, popovers, cards (pure white pops on paper) |
+| `--surface-2` | `#F4F4F1` | Input backgrounds, table headers, hover fills |
+| `--surface-3` | `#ECECE8` | Secondary hover, code chips |
+| `--surface-4` | `#E2E2DD` | Active / pressed |
 
-### Sidebar
+### Sidebar — calm light paper
 
-The sidebar uses a dedicated cool blue-slate palette, clearly distinct from the white content area without being harsh.
+A light warm-paper panel, only slightly off the content background and separated by a hairline — calm and low-contrast on purpose (a dark panel was tried and read as too harsh against the paper content). Identity comes from crisp structure and type, not a dark fill: mono uppercase section headers, a clean bordered search/filter, and the electric-blue active state. Page-node hover is a faint ink wash (`rgba(10,10,10,0.045)`); the selected node uses `--accent-dim` fill with `--accent-2` text and the blue left bar.
 
 | Token | Value | Usage |
 |-------|-------|-------|
-| `--sb` | `#EDEEF2` | Sidebar background |
-| `--sb-2` | `#E3E5EC` | Sidebar hover |
-| `--sb-3` | `#D8DBE5` | Sidebar active fill, drag handles |
-| `--sb-4` | `#CDD0DC` | Deeper pressed state |
+| `--sb` | `#F3F2EC` | Sidebar background |
+| `--sb-2` | `#EAE8DF` | Hover fill |
+| `--sb-3` | `#DFDCD1` | Active fill |
+| `--sb-4` | `#D0CCBF` | Deeper pressed state |
+| `--text-sb` / `-2` / `-3` | `#1A1813` / `#57534A` / `#8A8576` | Ink text ramp on light paper |
+| `--border-sb` | `rgba(10,10,10,0.09)` | Sidebar borders / separators |
+
+### Sidebar information architecture
+
+- **Top (workspace menu)** = everything settings/account: switch workspace, then a **Settings** group (Workspace settings · Backups · API keys) and an **Account** group (New/Join workspace · Admin · Sign out). The sidebar **collapse** toggle (`«`) lives in this header row, so the search field below spans full width and lines up with the page filter.
+- **Footer** = content actions only: New page · Import · Trash.
+- The old footer "Settings" (S3 backup/restore) was renamed **Backups** and moved into the top menu to remove the clash with "Workspace settings".
 
 ### Text
 
 | Token | Value | Usage |
 |-------|-------|-------|
-| `--text` | `#0D0F14` | Primary — headings, body copy |
-| `--text-2` | `#454954` | Secondary — labels, descriptions |
-| `--text-3` | `#8C909E` | Tertiary — placeholders, hints, muted labels |
-| `--text-sb` | `#2C2F3A` | Sidebar primary text |
-| `--text-sb-2` | `#555A6A` | Sidebar secondary text |
-| `--text-sb-3` | `#9499AA` | Sidebar muted text |
+| `--text` | `#0A0A0A` | Primary — ink |
+| `--text-2` | `#3A3A38` | Secondary — labels, descriptions |
+| `--text-3` | `#8C8C88` | Tertiary — placeholders, hints |
+| `--text-sb` / `-2` / `-3` | `#1A1813` / `#57534A` / `#8A8576` | Sidebar text ramp (ink on light paper) |
 
-### Accent — Indigo
+### Accent — Electric Blue
 
-The single accent color. Used for focus rings, active states, CTAs, and interactive indicators. Never decorative.
+The single accent. Focus rings, active states, CTAs, key marks. Never decorative.
 
 | Token | Value | Usage |
 |-------|-------|-------|
-| `--accent` | `#5B5EF4` | Buttons, active borders, left-bar indicator |
-| `--accent-2` | `#4447E2` | Hover state on accent elements |
-| `--accent-dim` | `rgba(91,94,244,0.09)` | Tinted backgrounds (selected items, focus rings) |
-| `--accent-mid` | `rgba(91,94,244,0.16)` | Stronger tint (hover on already-accented items) |
-| `--accent-glow` | `rgba(91,94,244,0.22)` | Drop indicators, glow shadows |
+| `--accent` | `#2B4DFF` | Buttons, active borders, left-bar indicator, the "why" block |
+| `--accent-2` | `#1F3BD6` | Deeper blue (rarely needed — most hovers invert to ink) |
+| `--accent-dim` | `rgba(43,77,255,0.08)` | Tinted backgrounds, focus rings, inline code |
+| `--accent-mid` | `rgba(43,77,255,0.16)` | Stronger tint, text selection |
+| `--accent-glow` | `rgba(43,77,255,0.22)` | Drop indicators |
 
 ### Semantic
 
@@ -69,170 +78,142 @@ The single accent color. Used for focus rings, active states, CTAs, and interact
 | `--success` | `#16A34A` | Positive feedback |
 | `--danger` | `#DC2626` | Destructive actions, errors |
 | `--danger-dim` | `rgba(220,38,38,0.08)` | Danger hover backgrounds |
-| `--warning` | `#D97706` | Warnings (not widely used yet) |
+| `--warning` | `#D97706` | Warnings |
 
 ### Borders
 
 | Token | Value | Usage |
 |-------|-------|-------|
-| `--border` | `rgba(0,0,0,0.07)` | Default hairline — dividers, card edges |
-| `--border-mid` | `rgba(0,0,0,0.12)` | Elevated — modal borders, active inputs |
-| `--border-sb` | `rgba(0,0,0,0.08)` | Sidebar-specific borders |
+| `--border` | `rgba(10,10,10,0.10)` | Hairline — dividers, row separators, grid lines |
+| `--border-mid` | `rgba(10,10,10,0.16)` | Inputs, secondary buttons |
+| `--border-sb` | `rgba(10,10,10,0.10)` | Sidebar borders |
 
-Borders are semi-transparent so they naturally adapt to their background.
+**Structural rule:** major section dividers use a solid `2px solid var(--text)` — the defining Swiss move. Hairline `--border` is for rows and internal subdivisions.
 
 ---
 
 ## Typography
 
-Two typefaces, three contexts.
-
-### Fonts
+Three families, three jobs.
 
 | Variable | Family | Role |
 |----------|--------|------|
-| `--font-ui` | DM Sans | All UI chrome — sidebar, toolbars, labels, buttons |
-| `--font-title` | Lora (serif) | Page titles, document headings, auth headings |
-| `--font-mono` | JetBrains Mono | Code blocks, inline code, kbd hints |
+| `--font-ui` | **Archivo** | All UI chrome — sidebar, toolbars, buttons, body |
+| `--font-title` | **Bricolage Grotesque** | Display headings, page titles, brand, big numbers — usually tight + UPPERCASE |
+| `--font-mono` | **JetBrains Mono** | Labels, kickers, nav, code, kbd, "spec" annotations |
 
-Both are loaded from Google Fonts with `display=swap` in `styles.css`.
+Loaded from Google Fonts with `display=swap`.
 
-### Scale
+### Conventions
 
-| Use | Size | Weight | Notes |
-|-----|------|--------|-------|
-| Page title | `2.4em` | 700 | Lora, `letter-spacing: -0.025em` |
-| H1 in editor | `1.82em` | 700 | Lora |
-| H2 in editor | `1.38em` | 600 | Lora |
-| H3 in editor | `1.14em` | 600 | Lora |
-| Body / editor p | `15px` | 400 | DM Sans, `line-height: 1.75` |
-| UI default | `14px` | 400 | DM Sans |
-| Sidebar items | `13px` | 400/500 (selected) | DM Sans |
-| Labels / section headers | `10–12px` | 600 | DM Sans, uppercase, `letter-spacing: 0.07–0.08em` |
-| Mono / code | `13.5px` | 400 | JetBrains Mono, `line-height: 1.65` |
+- **Display headings**: Bricolage 700–800, `letter-spacing: -0.03 to -0.04em`, `text-transform: uppercase`, `line-height: 0.9–1.0`.
+- **Labels / kickers / nav / pricing annotations**: JetBrains Mono, 11–13px, `letter-spacing: 0.04–0.16em`, uppercase. Mono is the "technical voice" of the brand.
+- **Body / editor**: Archivo, 14–15px.
+- Numbers in stat/spec contexts use Bricolage for graphic impact (`€29`, `1×`, `0/mo`).
 
 ---
 
-## Spacing & Radius
+## Radius
 
-### Border radius
+Swiss = squared. Keep radii small; reserve `0` for statement surfaces (landing sections, auth card, primary CTAs).
 
 | Token | Value | Used for |
-|-------|-------|---------|
-| `--radius-sm` (implicit) | `4–5px` | Tiny elements, kbd chips |
-| `6px` | — | Sidebar nodes, buttons, inputs |
-| `8–10px` | — | Cards, modal inputs, popovers |
-| `12–14px` | — | Modals, larger cards |
-| `20px` | — | Auth card |
+|-------|-------|----------|
+| `--radius-sm` | `3px` | Buttons, inputs, chips |
+| `--radius` | `4px` | Default — cards, popovers, sidebar nodes |
+| `--radius-lg` | `6px` | Larger cards, modals |
 
-### Layout
-
-- Sidebar: `200px` min-width, `480px` max, resizable
-- Editor: `52px 96px` padding (top/bottom, left/right)
-- Editor wide mode: `28px 52px`
-- Max comfortable reading line: naturally constrained by padding — no explicit `max-width` on prose
+Hard edges (`border-radius: 0`) are intentional on: landing CTAs, the pricing sheet, the auth card, ticker.
 
 ---
 
 ## Shadows
 
-Layered with both a spread shadow and a tight drop shadow for depth without heaviness.
+Flatter than before — Swiss prefers borders over glow. Used for elevation only (modals, popovers), not for separating layout.
 
-| Token | Value | Used for |
-|-------|-------|---------|
-| `--shadow-xs` | `0 1px 2px rgba(0,0,0,0.06)` | Selected sidebar items |
-| `--shadow-sm` | `0 2px 6px … + 0 1px 2px …` | Cards on hover |
-| `--shadow-md` | `0 4px 16px … + 0 2px 4px …` | Floating elements |
-| `--shadow-lg` | `0 12px 32px … + 0 4px 8px …` | Popovers, dropdowns |
-| `--shadow-xl` | `0 24px 56px … + 0 8px 16px …` | Modals, record panel, auth card |
+| Token | Value |
+|-------|-------|
+| `--shadow-xs` | `0 1px 2px rgba(10,10,10,0.05)` |
+| `--shadow-sm` | `0 1px 3px rgba(10,10,10,0.07)` |
+| `--shadow-md` | `0 4px 14px rgba(10,10,10,0.09)` |
+| `--shadow-lg` | `0 10px 28px rgba(10,10,10,0.12)` |
+| `--shadow-xl` | `0 20px 48px rgba(10,10,10,0.16)` |
 
-Accent elements (buttons, avatars) use a colored shadow: `0 2px 10px rgba(91,94,244,0.38)`.
+**Hard offset shadow** (`Npx Npx 0 ...`) is a signature accent on statement cards (auth card uses `14px 14px 0`). Use sparingly.
 
 ---
 
 ## Motion
 
-### Easings
-
 | Variable | Value | Character |
 |----------|-------|-----------|
-| `--ease` | `cubic-bezier(0.4, 0, 0.2, 1)` | Standard — most transitions |
-| `--ease-spring` | `cubic-bezier(0.34, 1.4, 0.64, 1)` | Overshoot — modal pop-ins, empty state entrance |
+| `--ease` | `cubic-bezier(0.22, 1, 0.36, 1)` | Standard — confident, slight ease-out |
+| `--ease-spring` | `cubic-bezier(0.34, 1.4, 0.64, 1)` | Overshoot — modal pop-ins |
+| `--t` | `0.14s` | Hover/focus |
+| `--t-slow` | `0.22s` | Entrances |
 
-### Durations
-
-| Variable | Value | Used for |
-|----------|-------|---------|
-| `--t` | `0.14s` | All hover/focus state changes |
-| `--t-slow` | `0.22s` | Auth card entrance |
-
-### Keyframe animations
-
-| Name | Description |
-|------|-------------|
-| `fade-in` | Overlay backdrops (opacity 0→1 over 0.12s) |
-| `modal-pop` | Panel/card entrance — fade + slight downward translate + scale (0.97→1) |
-| `slide-from-right` | Record side panel entrance |
-| `empty-state-in` | Empty state — fade + upward translate (spring) |
-| `spin` | Loading spinners |
-
-**Principle:** one well-orchestrated entrance per UI layer. Hover transitions are fast (`0.14s`). Modals and overlays animate in once, never on repeat.
+**Principle:** one orchestrated entrance per layer (staggered reveals on landing via `lp-rise`). Hover is fast. Respect `prefers-reduced-motion`.
 
 ---
 
 ## Component Patterns
 
-### Sidebar item (page node)
+### Buttons (`components/ui/Button.tsx` → `.btn`)
 
-Three visual states:
+| Variant | Resting | Hover |
+|---------|---------|-------|
+| `primary` | electric blue fill, white text | **inverts to ink** (`--text`) |
+| `secondary` | white, `--border-mid` | **inverts to ink** |
+| `ghost` | transparent | subtle `--surface-3` fill |
+| `danger` | `--danger-dim` tint | fills solid red |
 
-| State | Background | Text | Detail |
-|-------|-----------|------|--------|
-| Default | transparent | `--text-sb-2` | — |
-| Hover | `rgba(255,255,255,0.65)` — frosted glass | `--text-sb` | — |
-| Selected | `rgba(255,255,255,0.85)` + `--shadow-xs` | `--text-sb` + `font-weight: 500` | Indigo 2.5px left bar |
+Flat (no glow), `--radius-sm`, weight 600. The invert-to-ink hover is the house style.
 
-The frosted glass hover (`rgba(255,255,255,0.65)`) lifts items off the `#EDEEF2` slate without a flat filled rectangle feel.
+### Modal (`components/ui/Modal.tsx`)
 
-### Workspace avatar
+Shared shell for the manual modals (`TrashModal`, `ApiKeysModal`, `SharePageModal`, `WorkspaceSettingsModal`, `TemplatePicker`). Renders `overlay → content → header(title + close) → body`, stops content clicks bubbling, and closes on backdrop click + Escape. Props: `title`, `onClose`, `className` (content), `bodyClassName`, `closeOnOverlay`, `ariaLabel`, `onContentKeyDown`. (The two Ark UI Dialog modals — `ImportModal`, `SettingsModal` — keep their own focus-trap shell.)
 
-Indigo gradient badge: `linear-gradient(135deg, --accent 0%, --accent-2 100%)` with a colored box-shadow. Used at two sizes: `42px` (workspace list) and `26px` (sidebar trigger).
+### Field (`components/ui/Field.tsx`)
 
-### Buttons — primary
+Label + control wrapper for `.auth-field` forms. Props: `label`, `htmlFor`, optional `accessory` (e.g. a "Forgot password?" link rendered in the `auth-field-header`), and the control as `children`.
 
-`background: --accent`, `border-radius: 10px`, colored box-shadow. Hover: `background: --accent-2`, shadow intensifies, `translateY(-1px)`. Active: translate resets.
+### Inputs / focus ring
 
-### Buttons — secondary / ghost
+`border-color: --accent` + `box-shadow: 0 0 0 3px --accent-dim`. Never a bare colored border.
 
-`background: --surface-2/3`, `border: 1px solid --border`. Hover: slightly darker surface, border darkens.
+### Section dividers
 
-### Input focus ring
+`2px solid var(--text)` between major page sections. Internal rows use hairline `--border`.
 
-`border-color: --accent` + `box-shadow: 0 0 0 3px --accent-dim`. Never just a colored border alone.
+### App sidebar (light panel)
 
-### Drop indicators (DnD)
+Light warm-paper `--sb` panel, ink `--text-sb*` text, `--accent-dim` selected node + electric-blue left bar. Low-contrast and calm against the content area; identity comes from mono section headers, crisp bordered inputs, and the blue accent rather than a dark fill.
 
-2px `--accent` line with `box-shadow: 0 0 6px --accent-glow` — visible against any surface without animation.
+### Database table (spec sheet)
+
+Column headers are JetBrains Mono, uppercase, 10.5px, with a `2px solid var(--text)` baseline rule. View switcher (Table/Board) uses an **ink-filled** active segment (`--text` bg, `--bg` text), matching the landing's "spec sheet" register.
 
 ### Modals / popovers
 
-- Backdrop: `rgba(15,18,30,0.4)` + `backdrop-filter: blur(8px)`
-- Card: white, `border: 1px solid --border-mid`, radius `14px`, `--shadow-xl`
-- Entrance: `modal-pop` keyframe (spring)
+White card, `--border-mid`, `--radius-lg`, `--shadow-xl`, `modal-pop` entrance. Backdrop blur retained.
+
+### Landing-specific (`.lp-*`)
+
+Self-contained Swiss system on the marketing page: fixed `.lp-gridlines` overlay, `.lp-kicker` mono labels, spec strip, the `~/notara.sqlite` file object, the ink ticker marquee, numbered feature index (rows invert to ink on hover), blue "why" block, and the pricing **spec sheet** (white spec column + ink price panel). Reusable across the page but scoped to it.
 
 ---
 
 ## Dos and Don'ts
 
 **Do:**
-- Use `--accent` only for interactive/semantic meaning, never purely decorative
-- Keep sidebar text in the `--text-sb-*` palette, not the content `--text-*` palette
-- Use Lora only for page-level titles and auth headings — never for UI labels
-- Add `backdrop-filter: blur` to overlays for depth
-- Derive all colors from tokens — no hardcoded hex values in components
+- Use `--accent` (blue) only for interactive/semantic meaning
+- Reach for `2px solid var(--text)` to structure a page; hairlines for rows
+- Use Bricolage uppercase for display, JetBrains Mono for labels/annotations
+- Derive all colors from tokens — no hardcoded hex in components
+- Favor borders and contrast for separation; shadows only for true elevation
 
 **Don't:**
-- Use the dark theme tokens from the first iteration (`#0C0C0C`, terracotta `#D4915C`) — those were superseded
-- Add `transition` to every property — only transition what visibly changes
-- Use `box-shadow` for layout separation — use `border` or background contrast instead
-- Introduce a second accent color without updating this document
+- Reintroduce the warm-paper/coral or indigo-on-white palettes (superseded)
+- Add a second accent color without updating this doc
+- Use large/pill radii or soft glowy shadows for layout — it breaks the Swiss read
+- Use Bricolage for body text or long copy — it's a display face

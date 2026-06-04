@@ -1,6 +1,7 @@
 import { createRoute, Link } from "@tanstack/react-router";
 import { Route as rootRoute } from "./__root.js";
 import { useState } from "react";
+import { Field } from "../components/ui/index.js";
 import { authClient } from "../auth-client.js";
 import { toaster } from "../toaster.js";
 
@@ -58,8 +59,7 @@ function ForgotPasswordPage() {
 
         {!sent ? (
           <form className="auth-form" onSubmit={handleSubmit}>
-            <div className="auth-field">
-              <label htmlFor="reset-email">Email</label>
+            <Field label="Email" htmlFor="reset-email">
               <input
                 id="reset-email"
                 type="email"
@@ -69,7 +69,7 @@ function ForgotPasswordPage() {
                 required
                 autoComplete="email"
               />
-            </div>
+            </Field>
             <button type="submit" className="auth-submit" disabled={loading}>
               {loading ? <span className="auth-spinner" /> : "Send reset link"}
             </button>

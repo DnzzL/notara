@@ -1,4 +1,5 @@
 import { useState, useEffect } from "react";
+import { Button } from "./ui/index.js";
 import { toaster } from "../toaster.js";
 import {
   DialogRoot,
@@ -188,7 +189,7 @@ export function SettingsModal({ open, onClose }: SettingsModalProps) {
         <DialogPositioner className="import-modal-positioner">
           <DialogContent className="settings-modal">
             <div className="import-modal-header">
-              <DialogTitle>Settings</DialogTitle>
+              <DialogTitle>Backups</DialogTitle>
               <DialogCloseTrigger className="import-modal-close" aria-label="Close">
                 ✕
               </DialogCloseTrigger>
@@ -299,13 +300,13 @@ export function SettingsModal({ open, onClose }: SettingsModalProps) {
                     {backupStatus === "idle" && !lastBackup && (
                       <span className="settings-last-backup">No backup yet</span>
                     )}
-                    <button
-                      className="import-modal-btn"
+                    <Button
+                      variant="secondary"
                       onClick={handleBackup}
                       disabled={backupStatus === "running"}
                     >
                       {backupStatus === "running" ? "Backing up…" : "Backup Now"}
-                    </button>
+                    </Button>
                   </div>
 
                   <div className="settings-section-title">Restore from backup</div>
@@ -342,26 +343,26 @@ export function SettingsModal({ open, onClose }: SettingsModalProps) {
                         {restoreMessage}
                       </span>
                     )}
-                    <button
-                      className="import-modal-btn"
+                    <Button
+                      variant="danger"
                       onClick={handleRestore}
                       disabled={!selectedKey || restoreStatus === "running" || restoreStatus === "done"}
                     >
                       {restoreStatus === "running" ? "Restoring…" : "Restore"}
-                    </button>
+                    </Button>
                   </div>
                 </>
               )}
 
               <div className="settings-modal-actions">
-                <button className="import-modal-btn cancel" onClick={onClose}>Cancel</button>
-                <button
-                  className="import-modal-btn primary"
+                <Button variant="secondary" onClick={onClose}>Cancel</Button>
+                <Button
+                  variant="primary"
                   onClick={handleSave}
                   disabled={saveStatus === "saving"}
                 >
                   {saveStatus === "saving" ? "Saving…" : saveStatus === "saved" ? "Saved ✓" : "Save"}
-                </button>
+                </Button>
               </div>
             </div>
           </DialogContent>

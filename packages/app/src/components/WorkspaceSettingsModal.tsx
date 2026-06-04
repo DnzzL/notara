@@ -1,4 +1,5 @@
 import { useState, useEffect } from "react";
+import { Modal, Button } from "./ui/index.js";
 import { api } from "../rpc-client.js";
 import type { Workspace, WorkspaceMember } from "@notion-alt/shared";
 import { useSession } from "../auth-client.js";
@@ -59,14 +60,7 @@ export function WorkspaceSettingsModal({ workspace, onClose }: Props) {
   const isOwner = workspace.role === "owner";
 
   return (
-    <div className="modal-overlay" onClick={onClose}>
-      <div className="modal-content" onClick={(e) => e.stopPropagation()}>
-        <div className="modal-header">
-          <h2>Workspace settings — {workspace.name}</h2>
-          <button className="modal-close" onClick={onClose}>✕</button>
-        </div>
-
-        <div className="modal-body">
+    <Modal title={`Workspace settings — ${workspace.name}`} onClose={onClose}>
         {isOwner && (
           <section className="settings-section">
             <h3>Invite members</h3>
@@ -78,18 +72,18 @@ export function WorkspaceSettingsModal({ workspace, onClose }: Props) {
                 onChange={(e) => setInviteEmail(e.target.value)}
                 className="invite-link-input"
               />
-              <button type="submit" disabled={inviteSending}>
+              <Button type="submit" variant="primary" size="sm" disabled={inviteSending}>
                 {inviteSending ? "Sending…" : inviteSent ? "Sent!" : "Send invite"}
-              </button>
+              </Button>
             </form>
             <div className="settings-subsection">
               <h4>Or share invite link</h4>
               <div className="invite-link-row">
                 <input readOnly value={inviteUrl} className="invite-link-input" />
-                <button onClick={handleCopy}>{copied ? "Copied!" : "Copy"}</button>
-                <button onClick={handleRegenerate} title="Generate a new link (old link will stop working)">
+                <Button variant="secondary" size="sm" onClick={handleCopy}>{copied ? "Copied!" : "Copy"}</Button>
+                <Button variant="secondary" size="sm" onClick={handleRegenerate} title="Generate a new link (old link will stop working)">
                   Regenerate
-                </button>
+                </Button>
               </div>
             </div>
           </section>
@@ -118,8 +112,6 @@ export function WorkspaceSettingsModal({ workspace, onClose }: Props) {
             ))}
           </ul>
         </section>
-        </div>
-      </div>
-    </div>
+    </Modal>
   );
 }

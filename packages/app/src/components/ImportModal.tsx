@@ -1,4 +1,5 @@
 import { useState, useRef, useEffect, useCallback } from "react";
+import { Button } from "./ui/index.js";
 import { getCurrentWorkspaceId } from "../rpc-client.js";
 import { toaster } from "../toaster.js";
 import {
@@ -169,14 +170,10 @@ export function ImportModal({ open, onClose }: ImportModalProps) {
                   />
 
                   <div className="import-modal-actions">
-                    <button className="import-modal-btn cancel" onClick={onClose}>Cancel</button>
-                    <button
-                      className="import-modal-btn primary"
-                      onClick={handleImport}
-                      disabled={!file}
-                    >
+                    <Button variant="secondary" onClick={onClose}>Cancel</Button>
+                    <Button variant="primary" onClick={handleImport} disabled={!file}>
                       Import
-                    </button>
+                    </Button>
                   </div>
                 </>
               )}
@@ -200,13 +197,10 @@ export function ImportModal({ open, onClose }: ImportModalProps) {
                   <span className="import-modal-icon">✗</span>
                   <p>{message}</p>
                   <div className="import-modal-actions">
-                    <button className="import-modal-btn cancel" onClick={onClose}>Close</button>
-                    <button
-                      className="import-modal-btn primary"
-                      onClick={() => { setStatus("idle"); setMessage(""); }}
-                    >
+                    <Button variant="secondary" onClick={onClose}>Close</Button>
+                    <Button variant="primary" onClick={() => { setStatus("idle"); setMessage(""); }}>
                       Try again
-                    </button>
+                    </Button>
                   </div>
                 </div>
               )}

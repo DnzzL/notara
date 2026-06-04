@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { Modal } from "./ui/index.js";
 import { api } from "../rpc-client.js";
 
 interface TemplateItem {
@@ -20,23 +21,14 @@ export function TemplatePicker({ onClose, onSelect }: Props) {
     api.listTemplates().then(setTemplates).catch(() => {});
   }, []);
 
-  const handleKey = (e: React.KeyboardEvent) => {
-    if (e.key === "Escape") onClose();
-  };
-
   return (
-    <div className="modal-overlay" onClick={onClose} onKeyDown={handleKey}>
-      <div
-        className="modal-content template-picker"
-        onClick={(e) => e.stopPropagation()}
-        role="dialog"
-        aria-label="Choose a template"
-      >
-        <div className="modal-header">
-          <h2>New page</h2>
-          <button className="modal-close" onClick={onClose}>✕</button>
-        </div>
-        <div className="modal-body template-picker-body">
+    <Modal
+      title="New page"
+      onClose={onClose}
+      className="template-picker"
+      bodyClassName="template-picker-body"
+      ariaLabel="Choose a template"
+    >
           <button
             className="template-card template-card--blank"
             onClick={() => onSelect(null)}
@@ -69,8 +61,6 @@ export function TemplatePicker({ onClose, onSelect }: Props) {
               </div>
             </>
           )}
-        </div>
-      </div>
-    </div>
+    </Modal>
   );
 }

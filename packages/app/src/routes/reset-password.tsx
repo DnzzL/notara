@@ -1,6 +1,7 @@
 import { createRoute, useNavigate, useSearch } from "@tanstack/react-router";
 import { Route as rootRoute } from "./__root.js";
 import { useState } from "react";
+import { Field } from "../components/ui/index.js";
 import { authClient } from "../auth-client.js";
 import { toaster } from "../toaster.js";
 
@@ -84,8 +85,7 @@ function ResetPasswordPage() {
 
         {!done && (
           <form className="auth-form" onSubmit={handleSubmit}>
-            <div className="auth-field">
-              <label htmlFor="new-password">New password</label>
+            <Field label="New password" htmlFor="new-password">
               <input
                 id="new-password"
                 type="password"
@@ -95,9 +95,8 @@ function ResetPasswordPage() {
                 required
                 autoComplete="new-password"
               />
-            </div>
-            <div className="auth-field">
-              <label htmlFor="confirm-password">Confirm password</label>
+            </Field>
+            <Field label="Confirm password" htmlFor="confirm-password">
               <input
                 id="confirm-password"
                 type="password"
@@ -107,7 +106,7 @@ function ResetPasswordPage() {
                 required
                 autoComplete="new-password"
               />
-            </div>
+            </Field>
             <button type="submit" className="auth-submit" disabled={loading}>
               {loading ? <span className="auth-spinner" /> : "Update password"}
             </button>
