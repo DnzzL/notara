@@ -2,7 +2,7 @@ import { createRoute, useNavigate, Link } from "@tanstack/react-router";
 import { Route as rootRoute } from "./__root.js";
 import { useState } from "react";
 import { Field } from "../components/ui/index.js";
-import { signIn, signUp } from "../auth-client.js";
+import { signIn, signUp, authClient } from "../auth-client.js";
 import { toaster } from "../toaster.js";
 
 export const Route = createRoute({
@@ -29,16 +29,20 @@ function LoginPage() {
   const [password, setPassword] = useState("");
   const [name, setName] = useState("");
   const [loading, setLoading] = useState(false);
+  const [unverifiedEmail, setUnverifiedEmail] = useState<string | null>(null);
+  const [resending, setResending] = useState(false);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
+    setUnverifiedEmail(null);
     try {
       const result = mode === "login"
         ? await signIn.email({ email, password })
         : await signUp.email({ email, password, name });
       if (result.error) {
         const unverified = result.error.code === "EMAIL_NOT_VERIFIED";
+        if (unverified) setUnverifiedEmail(email);
         toaster.create({
           title: unverified
             ? "Confirm your email first"
@@ -64,6 +68,24 @@ function LoginPage() {
 
   const handleGoogle = async () => {
     await signIn.social({ provider: "google", callbackURL: "/workspaces" });
+  };
+
+  const handleResend = async () => {
+    if (!unverifiedEmail) return;
+    setResending(true);
+    try {
+      await authClient.sendVerificationEmail({
+        email: unverifiedEmail,
+        callbackURL: "/workspaces",
+      });
+      toaster.create({
+        title: "Email sent",
+        description: `A new confirmation link is on its way to ${unverifiedEmail}.`,
+        type: "success",
+      });
+    } finally {
+      setResending(false);
+    }
   };
 
   const isLogin = mode === "login";
@@ -154,6 +176,20 @@ function LoginPage() {
             )}
           </button>
         </form>
+
+        {unverifiedEmail && (
+          <p className="auth-footer">
+            Didn't get the email?{" "}
+            <button
+              type="button"
+              className="auth-toggle"
+              onClick={handleResend}
+              disabled={resending}
+            >
+              {resending ? "Sending…" : "Resend confirmation link"}
+            </button>
+          </p>
+        )}
 
         <p className="auth-footer">
           {isLogin ? "New here?" : "Already have an account?"}{" "}
