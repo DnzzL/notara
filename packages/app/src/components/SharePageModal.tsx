@@ -6,8 +6,8 @@ import type {
   PagePermissions,
   Subject,
   WorkspaceMember,
-} from "@notion-alt/shared";
-import { encodeSubject } from "@notion-alt/shared";
+} from "@notara/shared";
+import { encodeSubject } from "@notara/shared";
 import { useSession } from "../auth-client.js";
 import { toaster } from "../toaster.js";
 

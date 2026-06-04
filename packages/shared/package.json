@@ -1,5 +1,5 @@
 {
-  "name": "@notion-alt/shared",
+  "name": "@notara/shared",
   "type": "module",
   "main": "dist/index.js",
   "types": "dist/index.d.ts",

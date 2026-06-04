@@ -70,7 +70,7 @@ New file with the globalSearch handler that queries both FTS tables:
 ```typescript
 import { Effect } from "effect";
 import { SqlClient } from "@effect/sql";
-import { SearchResult } from "@notion-alt/shared";
+import { SearchResult } from "@notara/shared";
 
 // Escape special FTS5 characters
 function escapeFtsQuery(q: string): string {
@@ -131,7 +131,7 @@ export const globalSearch = (query: string) =>
   `globalSearch: ({ query }) => Search.globalSearch(query).pipe(Effect.orDie),`
 
 ### 6. RPC Client: `packages/app/src/rpc-client.ts` (MODIFY)
-- Import `SearchResult` from `@notion-alt/shared`
+- Import `SearchResult` from `@notara/shared`
 - Replace `searchPages` method with:
   `globalSearch: (query: string) => rpcCall<SearchResult[]>("globalSearch", { query }),`
 
@@ -154,7 +154,7 @@ export const globalSearch = (query: string) =>
 Full Cmd+K modal component. Key features:
 
 - **Trigger**: `useEffect` with keydown listener for `Meta+K` (macOS) or `Ctrl+K` (Linux/Windows) and `/` when not in input
-- **Recent Pages**: Store last-5-visited page IDs in `localStorage` under `notion-alt:recentPages`. On modal open, fetch those pages to show as "Recent" section when query is empty.
+- **Recent Pages**: Store last-5-visited page IDs in `localStorage` under `notara:recentPages`. On modal open, fetch those pages to show as "Recent" section when query is empty.
 - **Search**: Call `api.globalSearch(query)` on each keystroke with 150ms debounce
 - **Results Display**: Grouped by type - "Recent" (when empty query), "Pages", "Blocks in Pages"
 - **Keyboard Navigation**: Arrow up/down to highlight, Enter to navigate to selected result
@@ -187,9 +187,9 @@ Add export for SearchModal.
 In `selectPage` method, add localStorage tracking:
 ```typescript
 // Track recently viewed pages
-const recent = JSON.parse(localStorage.getItem("notion-alt:recentPages") || "[]");
+const recent = JSON.parse(localStorage.getItem("notara:recentPages") || "[]");
 const filtered = [id, ...recent.filter((x: string) => x !== id)].slice(0, 5);
-localStorage.setItem("notion-alt:recentPages", JSON.stringify(filtered));
+localStorage.setItem("notara:recentPages", JSON.stringify(filtered));
 ```
 
 ## Build & Verify Steps

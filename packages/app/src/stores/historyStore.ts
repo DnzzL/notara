@@ -1,5 +1,5 @@
 import { create } from "zustand";
-import type { Block } from "@notion-alt/shared";
+import type { Block } from "@notara/shared";
 import { api } from "../rpc-client.js";
 import { useBlockStore } from "./blockStore.js";
 

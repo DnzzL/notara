@@ -1,6 +1,6 @@
 import { create } from "zustand";
 import { api, AccessDeniedError } from "../rpc-client.js";
-import type { Page, SearchResult, Backlink } from "@notion-alt/shared";
+import type { Page, SearchResult, Backlink } from "@notara/shared";
 import { useHistoryStore } from "./historyStore.js";
 
 export interface PageState {
@@ -63,9 +63,9 @@ export const usePageStore = create<PageState>((set, get) => ({
     }
     set({ currentPage: page });
     // Track recently viewed pages
-    const recent = JSON.parse(localStorage.getItem("notion-alt:recentPages") || "[]");
+    const recent = JSON.parse(localStorage.getItem("notara:recentPages") || "[]");
     const filtered = [page.id, ...recent.filter((x: string) => x !== page.id)].slice(0, 5);
-    localStorage.setItem("notion-alt:recentPages", JSON.stringify(filtered));
+    localStorage.setItem("notara:recentPages", JSON.stringify(filtered));
     const url = new URL(window.location.href);
     const currentPageParam = url.searchParams.get("page");
     url.searchParams.set("page", page.id);
@@ -192,7 +192,7 @@ export const usePageStore = create<PageState>((set, get) => ({
 
   loadRecentPages: async () => {
     const ids: string[] = (() => {
-      try { return JSON.parse(localStorage.getItem("notion-alt:recentPages") || "[]"); }
+      try { return JSON.parse(localStorage.getItem("notara:recentPages") || "[]"); }
       catch { return []; }
     })();
     if (ids.length === 0) { set({ recentPages: [] }); return; }

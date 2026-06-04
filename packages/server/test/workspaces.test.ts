@@ -8,7 +8,7 @@ import { PlatformDb, runPlatformMigrations } from "../src/platform-db.js";
 import * as Workspaces from "../src/handlers/workspaces.js";
 
 function makeTestPlatformDb() {
-  const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), "notion-alt-platform-test-"));
+  const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), "notara-platform-test-"));
   const filename = path.join(tmpDir, "platform.db");
   const db = new Database(filename);
   runPlatformMigrations(db);

@@ -1,6 +1,6 @@
 import { create } from "zustand";
 import { api } from "../rpc-client.js";
-import type { Database, DatabaseField, DatabaseRecord, DatabaseView } from "@notion-alt/shared";
+import type { Database, DatabaseField, DatabaseRecord, DatabaseView } from "@notara/shared";
 import type { Filter, Sort } from "../lib/filterEngine.js";
 
 type RecordWithValues = { record: DatabaseRecord; values: Record<string, unknown> };

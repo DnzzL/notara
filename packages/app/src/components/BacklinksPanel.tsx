@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { usePageStore } from "../store.js";
 import { selectPageByIdWithCascade } from "../lib/page-loader.js";
-import type { Backlink } from "@notion-alt/shared";
+import type { Backlink } from "@notara/shared";
 
 export function BacklinksPanel() {
   const currentPage = usePageStore(s => s.currentPage);

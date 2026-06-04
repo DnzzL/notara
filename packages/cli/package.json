@@ -1,5 +1,5 @@
 {
-  "name": "@notion-alt/cli",
+  "name": "@notara/cli",
   "version": "0.1.0",
   "type": "module",
   "main": "dist/main.js",

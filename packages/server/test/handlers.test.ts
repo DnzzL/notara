@@ -10,7 +10,7 @@ import * as Blocks from "../src/handlers/blocks.js";
 import * as Databases from "../src/handlers/databases.js";
 
 function makeTestDb() {
-  const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), "notion-alt-test-"));
+  const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), "notara-test-"));
   const filename = path.join(tmpDir, "test.db");
   return { filename, tmpDir };
 }

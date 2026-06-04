@@ -7,7 +7,7 @@ import {
   encodeSubject,
   type AclEntry,
   type Subject,
-} from "@notion-alt/shared";
+} from "@notara/shared";
 
 export type AclRelation = "owner" | "editor" | "viewer";
 

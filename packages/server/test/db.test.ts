@@ -7,7 +7,7 @@ import path from "node:path";
 import os from "node:os";
 
 function makeTestDb() {
-  const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), "notion-alt-test-"));
+  const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), "notara-test-"));
   const filename = path.join(tmpDir, "test.db");
   return { filename, tmpDir };
 }

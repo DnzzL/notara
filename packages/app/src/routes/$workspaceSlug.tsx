@@ -66,7 +66,7 @@ function WorkspaceLayout() {
       // 2) Last visited page in this workspace from recents.
       try {
         const recent: string[] = JSON.parse(
-          localStorage.getItem("notion-alt:recentPages") || "[]",
+          localStorage.getItem("notara:recentPages") || "[]",
         );
         const last = recent.find((id) => pages.some((p) => p.id === id));
         if (last) {

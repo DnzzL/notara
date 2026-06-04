@@ -10,7 +10,7 @@
  */
 import { usePresenceStore } from "../stores/presenceStore.js";
 import { useBlockStore } from "../stores/blockStore.js";
-import type { Block } from "@notion-alt/shared";
+import type { Block } from "@notara/shared";
 
 type StartArgs = {
   workspaceId: string;

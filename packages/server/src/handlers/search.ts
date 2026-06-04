@@ -1,6 +1,6 @@
 import { Effect } from "effect";
 import { SqlClient } from "@effect/sql";
-import { SearchResult } from "@notion-alt/shared";
+import { SearchResult } from "@notara/shared";
 
 // Escape special FTS5 characters, allow * for user-specified prefix matching
 function escapeFtsQuery(q: string): string {

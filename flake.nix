@@ -1,5 +1,5 @@
 {
-  description = "notion-alt - reproducible Nix build environment";
+  description = "notara - reproducible Nix build environment";
 
   inputs = {
     nixpkgs.url = "github:NixOS/nixpkgs/nixos-24.11";
@@ -17,7 +17,7 @@
           buildInputs = [ bun pkgs.nodejs_22 pkgs.python3 pkgs.gcc pkgs.makeWrapper ];
 
           shellHook = ''
-            echo "notion-alt dev environment"
+            echo "notara dev environment"
             echo "Bun: $(bun --version)"
             echo "Node: $(node --version)"
             echo ""
@@ -26,7 +26,7 @@
         };
 
         packages.default = pkgs.stdenv.mkDerivation {
-          name = "notion-alt";
+          name = "notara";
           src = ./.;
 
           nativeBuildInputs = [ bun pkgs.python3 pkgs.gcc ];

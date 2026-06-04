@@ -1,19 +1,47 @@
 {
-  "name": "@notion-alt/electron",
+  "name": "@notara/electron",
   "version": "0.1.0",
-  "description": "Notion Alt - Electron desktop app",
-  "author": "Notion Alt",
+  "description": "Notara — Electron desktop app",
+  "author": "Notara",
   "main": "main.js",
   "scripts": {
     "dev": "NODE_ENV=development electron .",
-    "build": "electron-builder",
+    "build": "bash ../../scripts/prepare-electron-resources.sh && bash ../../scripts/bundle-server.sh && electron-builder --mac",
     "test": "bun test"
   },
   "build": {
-    "appId": "com.notionalt.app",
-    "productName": "NotionAlt",
+    "appId": "com.notara.app",
+    "productName": "Notara",
+    "files": [
+      "main.js",
+      "!node_modules/**/*"
+    ],
+    "extraResources": [
+      {
+        "from": "resources/bun",
+        "to": "bun"
+      },
+      {
+        "from": "resources/dist/index.js",
+        "to": "dist/index.js"
+      },
+      {
+        "from": "resources/node_modules",
+        "to": "node_modules"
+      },
+      {
+        "from": "../app/dist",
+        "to": "app/dist"
+      },
+      {
+        "from": "../server/migrations",
+        "to": "migrations"
+      }
+    ],
     "mac": {
-      "target": ["dmg", "zip"]
+      "target": ["dmg", "zip"],
+      "icon": "build/icon.png",
+      "category": "public.app-category.productivity"
     }
   },
   "devDependencies": {

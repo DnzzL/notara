@@ -8,7 +8,7 @@
 import { usePageStore } from "../stores/pageStore.js";
 import { useBlockStore } from "../stores/blockStore.js";
 import { useDatabaseStore } from "../stores/databaseStore.js";
-import type { Page } from "@notion-alt/shared";
+import type { Page } from "@notara/shared";
 
 /**
  * Select a page and load its associated blocks and databases.

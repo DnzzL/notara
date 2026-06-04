@@ -1,7 +1,7 @@
 import { useState, useEffect } from "react";
 import { Modal, Button } from "./ui/index.js";
 import { useApiKeyStore } from "../store.js";
-import type { ApiKeyCreated } from "@notion-alt/shared";
+import type { ApiKeyCreated } from "@notara/shared";
 import { toaster } from "../toaster.js";
 
 interface Props {

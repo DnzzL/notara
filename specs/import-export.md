@@ -1,7 +1,7 @@
 # Spec: Import/Export Feature (TODO.md Section 6)
 
 ## Overview
-Implement import/export functionality for the Notion-alt application. This includes:
+Implement import/export functionality for the Notara application. This includes:
 - Import Notion Markdown exports
 - Import Notion CSV databases
 - Export page as Markdown

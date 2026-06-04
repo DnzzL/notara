@@ -1,12 +1,13 @@
 {
-  "name": "notion-alt",
+  "name": "notara",
   "private": true,
   "scripts": {
-    "dev:server": "bun run --filter @notion-alt/server dev",
-    "dev:app": "bun run --filter @notion-alt/app dev",
-    "dev:electron": "bun run --filter @notion-alt/electron dev",
-    "build": "bun run --filter @notion-alt/shared build && bun run --filter '*' build",
-    "db:migrate": "bun run --filter @notion-alt/server db:migrate",
+    "dev:server": "bun run --filter @notara/server dev",
+    "dev:app": "bun run --filter @notara/app dev",
+    "dev:electron": "bun run --filter @notara/electron dev",
+    "build": "bun run --filter @notara/shared build && bun run --filter '!@notara/electron' build",
+    "build:electron": "bun run --filter @notara/shared build && bun run --filter @notara/server build && bun run --filter @notara/app build && bun run --filter @notara/electron build",
+    "db:migrate": "bun run --filter @notara/server db:migrate",
     "test": "bun run --filter '*' test",
     "postinstall": "bash scripts/patch-msgpackr.sh"
   },

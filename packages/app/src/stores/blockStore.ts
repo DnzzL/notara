@@ -1,6 +1,6 @@
 import { create } from "zustand";
 import { api } from "../rpc-client.js";
-import type { Block } from "@notion-alt/shared";
+import type { Block } from "@notara/shared";
 import { useHistoryStore } from "./historyStore.js";
 
 export interface BlockState {

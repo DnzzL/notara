@@ -2,7 +2,7 @@ import { useState, useEffect, useRef } from "react";
 import { useNavigate, useParams } from "@tanstack/react-router";
 import { api, setCurrentWorkspaceId } from "../rpc-client.js";
 import { signOut } from "../auth-client.js";
-import type { Workspace } from "@notion-alt/shared";
+import type { Workspace } from "@notara/shared";
 
 interface WorkspaceSwitcherProps {
   onCollapse?: () => void;

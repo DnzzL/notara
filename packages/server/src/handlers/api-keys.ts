@@ -1,6 +1,6 @@
 import { Effect } from "effect";
 import { ulid } from "ulidx";
-import { ApiKey, ApiKeyCreated } from "@notion-alt/shared";
+import { ApiKey, ApiKeyCreated } from "@notara/shared";
 import { PlatformDb } from "../platform-db.js";
 import { generateApiKey } from "../api-v1/auth.js";
 

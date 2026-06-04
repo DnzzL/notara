@@ -1,4 +1,4 @@
-# @notion-alt/cli — `notara`
+# @notara/cli — `notara`
 
 A command-line client for Notara, built with [`@effect/cli`](https://effect.website/docs/guides/command-line). It talks to the documented REST API (`/api/v1`) using an API-key bearer token. Every command accepts `--json` for machine-readable output, which makes it convenient to drive from scripts or an LLM.
 

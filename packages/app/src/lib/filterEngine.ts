@@ -1,4 +1,4 @@
-import type { DatabaseField, DatabaseRecord } from "@notion-alt/shared";
+import type { DatabaseField, DatabaseRecord } from "@notara/shared";
 
 export type FilterOperator =
   | "contains"

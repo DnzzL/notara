@@ -1,7 +1,7 @@
 import { useState, useEffect } from "react";
 import { Modal, Button } from "./ui/index.js";
 import { api } from "../rpc-client.js";
-import type { Workspace, WorkspaceMember } from "@notion-alt/shared";
+import type { Workspace, WorkspaceMember } from "@notara/shared";
 import { useSession } from "../auth-client.js";
 import { toaster } from "../toaster.js";
 

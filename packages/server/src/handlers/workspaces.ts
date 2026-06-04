@@ -1,6 +1,6 @@
 import { Effect } from "effect";
 import { ulid } from "ulidx";
-import { Workspace, WorkspaceMember } from "@notion-alt/shared";
+import { Workspace, WorkspaceMember } from "@notara/shared";
 import { PlatformDb } from "../platform-db.js";
 import { sendEmail, BASE_URL } from "../email.js";
 
