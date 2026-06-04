@@ -146,6 +146,28 @@ Configure in the Settings panel at runtime, or pre-seed via environment variable
 
 The settings UI (⚙ Settings → S3 backup) saves these to `.data/settings.json`. Environment variables are not read at runtime for S3 — use the settings UI after first login.
 
+### PostHog (optional)
+
+Tracks usage analytics and error reports. Both server and client need their own PostHog project source. Without these, no data is sent anywhere.
+
+#### Server-side (error reporting + product events)
+
+| Variable | Default | Description |
+|----------|---------|-------------|
+| `POSTHOG_KEY` | — | PostHog project API key. When set, enables server-side error reporting and product analytics (signups, workspace creation, page creation). |
+| `POSTHOG_HOST` | `https://eu.i.posthog.com` | PostHog instance host. Change to `https://us.i.posthog.com` for US-region projects, or a self-hosted PostHog URL. |
+
+#### Client-side (frontend analytics)
+
+These are Vite environment variables — prefix them with `VITE_` and make them available to the frontend build (via `.env` or `docker compose` environment).
+
+| Variable | Default | Description |
+|----------|---------|-------------|
+| `VITE_POSTHOG_KEY` | — | PostHog project API key for the frontend. Enables pageviews, autocapture, and frontend events. |
+| `VITE_POSTHOG_HOST` | `https://eu.i.posthog.com` | PostHog instance host for the frontend. |
+
+> **Privacy:** PostHog is only loaded after the user accepts the consent banner (GDPR opt-in). The `distinctId` passed to PostHog is the user's internal ID — never an email or other PII.
+
 ### Admin panel (optional)
 
 | Variable | Description |
@@ -184,6 +206,10 @@ services:
       # ── Google OAuth (optional) ────────────────────────────────────
       # GOOGLE_CLIENT_ID: ""
       # GOOGLE_CLIENT_SECRET: ""
+
+      # ── PostHog analytics (optional) ───────────────────────────────
+      # POSTHOG_KEY: "phx_xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
+      # POSTHOG_HOST: "https://eu.i.posthog.com"
 
       # ── Admin (optional) ───────────────────────────────────────────
       # ADMIN_EMAILS: "you@example.com"

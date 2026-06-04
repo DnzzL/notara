@@ -38,9 +38,14 @@ function LoginPage() {
         ? await signIn.email({ email, password })
         : await signUp.email({ email, password, name });
       if (result.error) {
+        const unverified = result.error.code === "EMAIL_NOT_VERIFIED";
         toaster.create({
-          title: mode === "login" ? "Sign in failed" : "Registration failed",
-          description: result.error.message ?? "Something went wrong.",
+          title: unverified
+            ? "Confirm your email first"
+            : mode === "login" ? "Sign in failed" : "Registration failed",
+          description: unverified
+            ? "We just emailed you a confirmation link — click it, then sign in again."
+            : result.error.message ?? "Something went wrong.",
           type: "error",
         });
         return;
