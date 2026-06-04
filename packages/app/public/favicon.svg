@@ -1,13 +1,6 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32" fill="none">
-  <defs>
-    <linearGradient id="g" x1="0" y1="0" x2="32" y2="32" gradientUnits="userSpaceOnUse">
-      <stop offset="0" stop-color="#5B5EF4"/>
-      <stop offset="1" stop-color="#4447E2"/>
-    </linearGradient>
-  </defs>
-  <rect width="32" height="32" rx="8" fill="url(#g)"/>
-  <rect x="6" y="6" width="9" height="9" rx="2.2" fill="#fff" fill-opacity="0.9"/>
-  <rect x="17" y="6" width="9" height="9" rx="2.2" fill="#fff" fill-opacity="0.5"/>
-  <rect x="6" y="17" width="9" height="9" rx="2.2" fill="#fff" fill-opacity="0.5"/>
-  <rect x="17" y="17" width="9" height="9" rx="2.2" fill="#fff" fill-opacity="0.25"/>
+<svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 32 32" fill="none">
+  <rect x="4" y="4" width="11" height="11" rx="3" fill="#1A1A1A"/>
+  <rect x="17" y="4" width="11" height="11" rx="3" fill="#2B4DFF"/>
+  <rect x="4" y="17" width="11" height="11" rx="3" fill="#1A1A1A"/>
+  <rect x="17" y="17" width="11" height="11" rx="3" fill="#1A1A1A"/>
 </svg>

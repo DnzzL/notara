@@ -795,7 +795,7 @@ export const swaggerHtml = `<!DOCTYPE html>
     layout: "modern",
     defaultHttpClient: { targetKey: "shell", clientKey: "curl" },
     authentication: { preferredSecurityScheme: "BearerAuth" },
-    favicon: "data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 32 32%22><rect width=%2232%22 height=%2232%22 rx=%228%22 fill=%22%235B5EF4%22/><rect x=%228%22 y=%2210%22 width=%2216%22 height=%222.5%22 rx=%221.25%22 fill=%22white%22/><rect x=%228%22 y=%2215%22 width=%2212%22 height=%222%22 rx=%221%22 fill=%22white%22 opacity=%220.7%22/><rect x=%228%22 y=%2219.5%22 width=%2214%22 height=%222%22 rx=%221%22 fill=%22white%22 opacity=%220.5%22/></svg>",
+    favicon: "data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 32 32%22 fill=%22none%22%3E%3Crect x=%224%22 y=%224%22 width=%2211%22 height=%2211%22 rx=%223%22 fill=%22%231A1A1A%22/%3E%3Crect x=%2217%22 y=%224%22 width=%2211%22 height=%2211%22 rx=%223%22 fill=%22%232B4DFF%22/%3E%3Crect x=%224%22 y=%2217%22 width=%2211%22 height=%2211%22 rx=%223%22 fill=%22%231A1A1A%22/%3E%3Crect x=%2217%22 y=%2217%22 width=%2211%22 height=%2211%22 rx=%223%22 fill=%22%231A1A1A%22/%3E%3C/svg%3E",
   })}'>
   </script>
   <script src="https://cdn.jsdelivr.net/npm/@scalar/api-reference"></script>

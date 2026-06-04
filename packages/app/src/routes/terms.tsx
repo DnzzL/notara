@@ -93,7 +93,7 @@ function TermsPage() {
         <h2>10. Contact</h2>
         <p>
           Questions? Email{" "}
-          <a href="mailto:thomas.legrand@freelancerepublik.com">thomas.legrand@freelancerepublik.com</a>.
+          <a href="mailto:legrand.thomas5@hotmail.fr">legrand.thomas5@hotmail.fr</a>.
         </p>
       </article>
     </div>

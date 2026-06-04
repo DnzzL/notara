@@ -113,7 +113,7 @@ export function LandingPage() {
               >
                 Get Notara — €29
               </a>
-              <a href="#features" className="landing-cta-secondary">Index ↓</a>
+              <a href="#features" className="landing-cta-secondary">See what's inside ↓</a>
             </div>
           </div>
         </div>

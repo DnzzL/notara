@@ -327,7 +327,7 @@ Open an issue using the **Bug report** template — it asks the questions that t
 
 Open the template directly: <https://github.com/dnzzl/notara/issues/new?template=bug_report.yml>
 
-> Security vulnerabilities: please email **thomas.legrand@freelancerepublik.com** instead of opening a public issue.
+> Security vulnerabilities: please email **legrand.thomas5@hotmail.fr** instead of opening a public issue.
 
 Feature requests use the **Feature request** template. The two questions that decide whether a request lands are *what problem does it solve* and *who has that problem* — please answer those before suggesting an implementation.
 
