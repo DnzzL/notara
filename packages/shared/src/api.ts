@@ -342,6 +342,20 @@ export const AppRpc = RpcGroup.make(
     success: Schema.Struct({ revision: AclRevision }),
   }),
 
+  // Templates
+  Rpc.make("listTemplates", {
+    success: Schema.Array(Schema.Struct({
+      id: Schema.String,
+      title: Schema.String,
+      icon: Schema.String,
+      description: Schema.String,
+    })),
+  }),
+  Rpc.make("createPageFromTemplate", {
+    payload: { templateId: Schema.String, parentId: Schema.NullOr(Schema.String) },
+    success: Page,
+  }),
+
   // Import/Export
   Rpc.make("importNotion", {
     payload: { directory: Schema.String },

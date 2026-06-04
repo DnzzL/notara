@@ -2,6 +2,7 @@ import { useEffect, useState, useCallback, useRef, useMemo } from "react";
 import { useStore } from "../store.js";
 import { api } from "../rpc-client.js";
 import { WorkspaceSwitcher } from "./WorkspaceSwitcher.js";
+import { TemplatePicker } from "./TemplatePicker.js";
 import { ImportModal } from "./ImportModal.js";
 import { SettingsModal } from "./SettingsModal.js";
 import { ApiKeysModal } from "./ApiKeysModal.js";
@@ -86,12 +87,11 @@ interface SidebarProps {
 }
 
 export function Sidebar({ className, onNavigate }: SidebarProps = {}) {
-  const { pages, currentPage, selectPage, createPage, deletePage, loadPages, movePage, reorderPages, loading, setPageIcon, toggleFavorite } =
+  const { pages, currentPage, selectPage, createPage, createPageFromTemplate, deletePage, loadPages, movePage, reorderPages, loading, setPageIcon, toggleFavorite } =
     useStore();
   const [iconPickerFor, setIconPickerFor] = useState<{ pageId: string; top: number; left: number } | null>(null);
   const [searchQuery, setSearchQuery] = useState("");
-  const [isCreating, setIsCreating] = useState(false);
-  const [newPageTitle, setNewPageTitle] = useState("");
+  const [showTemplatePicker, setShowTemplatePicker] = useState(false);
   const [showImport, setShowImport] = useState(false);
   const [showSettings, setShowSettings] = useState(false);
   const [showApiKeys, setShowApiKeys] = useState(false);
@@ -327,25 +327,15 @@ export function Sidebar({ className, onNavigate }: SidebarProps = {}) {
     [filtered, pages, movePage, reorderPages],
   );
 
-  const handleCreateClick = () => {
-    setIsCreating(true);
-    setNewPageTitle("");
-  };
+  const handleCreateClick = () => setShowTemplatePicker(true);
 
-  const handleCreateSubmit = async () => {
-    const title = newPageTitle.trim() || "Untitled";
-    await createPage(title);
-    setIsCreating(false);
-    setNewPageTitle("");
-  };
-
-  const handleKeyDown = (e: React.KeyboardEvent) => {
-    if (e.key === "Enter") {
-      e.preventDefault();
-      handleCreateSubmit();
-    } else if (e.key === "Escape") {
-      setIsCreating(false);
-    }
+  const handleTemplateSelect = async (templateId: string | null) => {
+    setShowTemplatePicker(false);
+    const page = templateId
+      ? await createPageFromTemplate(templateId)
+      : await createPage("Untitled");
+    selectPage(page);
+    onNavigate?.();
   };
 
   const favorites = filtered.filter((p) => p.isFavorite);
@@ -471,22 +461,9 @@ export function Sidebar({ className, onNavigate }: SidebarProps = {}) {
           </nav>
 
           <div className="sidebar-footer">
-            {isCreating ? (
-              <input
-                type="text"
-                className="sidebar-new-input"
-                placeholder="Page title…"
-                value={newPageTitle}
-                onChange={(e) => setNewPageTitle(e.target.value)}
-                onKeyDown={handleKeyDown}
-                onBlur={handleCreateSubmit}
-                autoFocus
-              />
-            ) : (
-              <button className="sidebar-footer-btn" onClick={handleCreateClick}>
-                <span>+</span> New page
-              </button>
-            )}
+            <button className="sidebar-footer-btn" onClick={handleCreateClick}>
+              <span>+</span> New page
+            </button>
             <button className="sidebar-footer-btn" onClick={() => setShowImport(true)} title="Import Notion export">
               <span>⤓</span> Import
             </button>
@@ -538,6 +515,12 @@ export function Sidebar({ className, onNavigate }: SidebarProps = {}) {
       <SettingsModal open={showSettings} onClose={() => setShowSettings(false)} />
       {showApiKeys && <ApiKeysModal onClose={() => setShowApiKeys(false)} />}
       {showTrash && <TrashModal onClose={() => setShowTrash(false)} onChanged={loadPages} />}
+      {showTemplatePicker && (
+        <TemplatePicker
+          onClose={() => setShowTemplatePicker(false)}
+          onSelect={handleTemplateSelect}
+        />
+      )}
     </DndContext>
   );
 }

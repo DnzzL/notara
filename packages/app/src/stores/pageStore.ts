@@ -22,6 +22,7 @@ export interface PageState {
   /** Fetch a single page, returning null on 403/404. */
   fetchPage: (id: string) => Promise<Page | null>;
   createPage: (title: string, parentId?: string | null) => Promise<Page>;
+  createPageFromTemplate: (templateId: string, parentId?: string | null) => Promise<Page>;
   updatePage: (id: string, patch: { title?: string | null; icon?: string | null; coverUrl?: string | null; isFavorite?: boolean | null }) => Promise<void>;
   setPageIcon: (id: string, icon: string | null) => Promise<void>;
   toggleFavorite: (id: string) => Promise<void>;
@@ -123,6 +124,14 @@ export const usePageStore = create<PageState>((set, get) => ({
   createPage: async (title, parentId = null) => {
     const page = await api.createPage({ title, parentId });
     set((s) => ({ pages: [page, ...s.pages] }));
+    return page;
+  },
+
+  createPageFromTemplate: async (templateId, parentId = null) => {
+    const page = await api.createPageFromTemplate({ templateId, parentId });
+    // Templates may create sub-pages; reload the full tree so they appear in
+    // the sidebar and pageLink blocks can resolve their targets.
+    await get().loadPages();
     return page;
   },
 

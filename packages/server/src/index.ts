@@ -18,6 +18,7 @@ import * as ImportExport from "./handlers/importExport.js";
 import * as Upload from "./handlers/upload.js";
 import * as Workspaces from "./handlers/workspaces.js";
 import * as Onboarding from "./handlers/onboarding.js";
+import * as Templates from "./handlers/templates.js";
 import * as ApiKeys from "./handlers/api-keys.js";
 import { loadSettings, saveSettings } from "./handlers/settings.js";
 import { triggerBackup, listBackups } from "./handlers/backup.js";
@@ -950,6 +951,24 @@ const rpcHandlersLayer = AppRpc.toLayer({
       Effect.gen(function* () {
         yield* Permissions.requireWorkspaceOwner(userId, workspaceId);
         return yield* ImportExport.exportAll(outputDir);
+      }),
+    ).pipe(Effect.orDie),
+
+  listTemplates: () =>
+    withWorkspaceDb(
+      Effect.sync(() => Templates.getTemplates()),
+    ).pipe(Effect.orDie),
+
+  createPageFromTemplate: (req: { templateId: string; parentId: string | null }) =>
+    withAuthedWorkspace(({ userId, workspaceId }) =>
+      Effect.gen(function* () {
+        const page = yield* Templates.createPageFromTemplate(req);
+        track("page_created", userId, {
+          workspace_id: workspaceId,
+          page_id: page.id,
+          from_template: req.templateId,
+        });
+        return page;
       }),
     ).pipe(Effect.orDie),
 });

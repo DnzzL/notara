@@ -1,15 +1,23 @@
 {
   "name": "@notion-alt/electron",
+  "version": "0.1.0",
+  "description": "Notion Alt - Electron desktop app",
+  "author": "Notion Alt",
   "main": "main.js",
   "scripts": {
     "dev": "NODE_ENV=development electron .",
     "build": "electron-builder",
     "test": "bun test"
   },
-  "dependencies": {
-    "electron": "^33.0.0"
+  "build": {
+    "appId": "com.notionalt.app",
+    "productName": "NotionAlt",
+    "mac": {
+      "target": ["dmg", "zip"]
+    }
   },
   "devDependencies": {
+    "electron": "^33.0.0",
     "electron-builder": "^25.0.0"
   }
 }
