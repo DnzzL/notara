@@ -1,6 +1,6 @@
 import { useEffect, useState, useCallback } from "react";
 import { Modal, Button } from "./ui/index.js";
-import type { TrashContents } from "@notion-alt/shared";
+import type { TrashContents } from "@notara/shared";
 import { api } from "../rpc-client.js";
 import { toaster } from "../toaster.js";
 

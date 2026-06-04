@@ -10,7 +10,7 @@ import { importNotion } from "../src/handlers/importExport.js";
 import { mkdir, rm } from "node:fs/promises";
 
 function makeTestDb() {
-  const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), "notion-alt-test-"));
+  const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), "notara-test-"));
   const filename = path.join(tmpDir, "test.db");
   return { filename, tmpDir };
 }

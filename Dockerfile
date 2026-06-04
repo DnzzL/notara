@@ -1,8 +1,8 @@
 # ============================================================
-# notion-alt — Nix-reproducible Docker build
+# notara — Nix-reproducible Docker build
 # ============================================================
-# Build:  docker build -t notion-alt .
-# Run:    docker run -p 3000:3000 -v notion-data:/data notion-alt
+# Build:  docker build -t notara .
+# Run:    docker run -p 3000:3000 -v notion-data:/data notara
 # ============================================================
 
 # --- Stage 1: Build with Nix-pinned toolchain ---

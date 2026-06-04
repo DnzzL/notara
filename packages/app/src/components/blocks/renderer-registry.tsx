@@ -1,5 +1,5 @@
 import React from "react";
-import type { Block } from "@notion-alt/shared";
+import type { Block } from "@notara/shared";
 
 /**
  * BlockRenderer interface — each block type implements this.

@@ -1,6 +1,6 @@
 import { Effect } from "effect";
 import { SqlClient } from "@effect/sql";
-import { Page } from "@notion-alt/shared";
+import { Page } from "@notara/shared";
 import { ulid } from "ulidx";
 import { PAGE_COLS, pageFromRow } from "../mappers.js";
 

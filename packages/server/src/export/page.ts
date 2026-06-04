@@ -1,6 +1,6 @@
 import { Effect } from "effect";
 import { SqlClient } from "@effect/sql";
-import { PageExport, DatabaseCsvExport, ExportAllResult } from "@notion-alt/shared";
+import { PageExport, DatabaseCsvExport, ExportAllResult } from "@notara/shared";
 import { pageFromRow, blockFromRow, dbFromRow, fieldFromRow, recordFromRow } from "../mappers.js";
 import * as path from "node:path";
 import { mkdir, writeFile } from "node:fs/promises";

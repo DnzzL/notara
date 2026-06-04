@@ -7,7 +7,7 @@
  * Transport is fetch-based (works in browsers without Effect platform HttpClient).
  * Response types are validated through Effect's serialization protocol.
  */
-import { createTypedApiClient, type TypedApiClient } from "@notion-alt/shared";
+import { createTypedApiClient, type TypedApiClient } from "@notara/shared";
 
 export type AclRelation = "owner" | "editor" | "viewer";
 

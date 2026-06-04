@@ -41,7 +41,7 @@ const DEFAULTS: S3Settings = {
   s3Schedule: "manual",
 };
 
-const LAST_BACKUP_KEY = "notion-alt:lastBackup";
+const LAST_BACKUP_KEY = "notara:lastBackup";
 
 const SCHEDULE_LABELS: Record<BackupSchedule, string> = {
   manual: "Manual only",

@@ -211,7 +211,7 @@ Add:
 search: (query: string, limit?: number) => rpcCall<SearchResult[]>("search", { query, limit }),
 ```
 
-Also import `SearchResult` from `@notion-alt/shared`.
+Also import `SearchResult` from `@notara/shared`.
 
 ---
 
@@ -256,7 +256,7 @@ interface SearchResult {
 5. On click outside: Close modal
 
 **Recent pages tracking**:
-- Use `localStorage` key `notion-alt:recent-pages` storing JSON array of `{ pageId, pageTitle, viewedAt }`
+- Use `localStorage` key `notara:recent-pages` storing JSON array of `{ pageId, pageTitle, viewedAt }`
 - Update this list whenever a page is selected (add `selectPage` calls in pageStore or in main App)
 - On modal open with empty query, fetch these page details and show them
 
@@ -422,7 +422,7 @@ interface RecentPage {
   viewedAt: number;
 }
 
-const STORAGE_KEY = "notion-alt:recent-pages";
+const STORAGE_KEY = "notara:recent-pages";
 const MAX_RECENT = 10;
 
 export function getRecentPages(): RecentPage[] {

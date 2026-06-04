@@ -1,5 +1,5 @@
 import { Effect } from "effect";
-import { ImportResult, PageExport, DatabaseCsvExport } from "@notion-alt/shared";
+import { ImportResult, PageExport, DatabaseCsvExport } from "@notara/shared";
 import * as Import from "../import/notion.js";
 import * as Export from "../export/page.js";
 import { mkdir, rm, writeFile, readFile, readdir, unlink } from "node:fs/promises";

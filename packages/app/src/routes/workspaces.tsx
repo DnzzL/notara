@@ -4,7 +4,7 @@ import { useState, useEffect } from "react";
 import { Button } from "../components/ui/index.js";
 import { authClient, useSession } from "../auth-client.js";
 import { api } from "../rpc-client.js";
-import type { Workspace } from "@notion-alt/shared";
+import type { Workspace } from "@notara/shared";
 import { toaster } from "../toaster.js";
 
 export const Route = createRoute({

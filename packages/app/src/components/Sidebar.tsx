@@ -76,8 +76,8 @@ const pointerPos = { x: 0, y: 0 };
 /** Starting position of the drag, set on drag start. */
 const dragStartPos = { x: 0, y: 0 };
 
-const SIDEBAR_WIDTH_KEY = "notion-alt:sidebarWidth";
-const SIDEBAR_COLLAPSED_KEY = "notion-alt:sidebarCollapsed";
+const SIDEBAR_WIDTH_KEY = "notara:sidebarWidth";
+const SIDEBAR_COLLAPSED_KEY = "notara:sidebarCollapsed";
 const MIN_WIDTH = 200;
 const MAX_WIDTH = 480;
 const DEFAULT_WIDTH = 260;

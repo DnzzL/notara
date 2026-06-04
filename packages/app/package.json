@@ -1,5 +1,5 @@
 {
-  "name": "@notion-alt/app",
+  "name": "@notara/app",
   "private": true,
   "type": "module",
   "scripts": {

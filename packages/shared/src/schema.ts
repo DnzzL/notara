@@ -111,6 +111,7 @@ export class SearchResult extends Schema.Class<SearchResult>("SearchResult")({
   title: Schema.String,
   content: Schema.String,
   pageId: Schema.String,
+  isDeleted: Schema.optional(Schema.Boolean),
 }) {}
 
 /** Result of exporting a page as Markdown. */
@@ -210,7 +211,7 @@ export const AclRelation = Schema.Literal("owner", "editor", "viewer");
  *
  * On the wire and at REST boundaries we use this structured form; in storage
  * it serialises to the canonical strings `user:<id>` / `workspace:<id>#member` / `public`
- * (see `encodeSubject`/`decodeSubject` in @notion-alt/shared).
+ * (see `encodeSubject`/`decodeSubject` in @notara/shared).
  */
 export const Subject = Schema.Union(
   Schema.Struct({ type: Schema.Literal("user"), id: Schema.String }),

@@ -1,6 +1,6 @@
 import { create } from "zustand";
 import { api } from "../rpc-client.js";
-import type { ApiKey, ApiKeyCreated } from "@notion-alt/shared";
+import type { ApiKey, ApiKeyCreated } from "@notara/shared";
 
 export interface ApiKeyState {
   apiKeys: ApiKey[];

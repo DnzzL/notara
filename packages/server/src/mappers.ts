@@ -1,4 +1,4 @@
-import type { Page, Block, Database, DatabaseField, DatabaseRecord, RecordFieldValue, DatabaseView } from "@notion-alt/shared";
+import type { Page, Block, Database, DatabaseField, DatabaseRecord, RecordFieldValue, DatabaseView } from "@notara/shared";
 
 /**
  * Row mappers and their companion SELECT column constants.
