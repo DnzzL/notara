@@ -348,9 +348,9 @@ export function Sidebar({ className, onNavigate }: SidebarProps = {}) {
 
   if (collapsed) {
     return (
-      <aside className="sidebar-collapsed" aria-label="Sidebar (collapsed)">
+      <aside className="w-8 shrink-0 bg-sb border-r border-border-sb flex items-start justify-center pt-3.5" aria-label="Sidebar (collapsed)">
         <button
-          className="sidebar-collapsed-btn"
+          className="bg-transparent border-none cursor-pointer text-text-sb-3 text-[15px] px-[7px] py-[5px] rounded-lg transition-[color,background] duration-[var(--t)] ease-[var(--ease)] hover:bg-sb-2 hover:text-text-sb"
           title="Expand sidebar (⌘\\)"
           onClick={() => setCollapsed(false)}
         >
@@ -371,31 +371,31 @@ export function Sidebar({ className, onNavigate }: SidebarProps = {}) {
       onDragCancel={handleDragCancel}
     >
       <SortableContext items={treeOrder} strategy={verticalListSortingStrategy}>
-        <aside className={`sidebar${className ? ` ${className}` : ""}`} style={{ width }}>
+        <aside className={`bg-sb border-r border-border-sb flex flex-col shrink-0 relative min-w-[200px] max-w-[480px]${className ? ` ${className}` : ""}`} style={{ width }}>
           <WorkspaceSwitcher
             onCollapse={() => setCollapsed(true)}
             onOpenBackups={() => setShowSettings(true)}
             onOpenApiKeys={() => setShowApiKeys(true)}
           />
-          <div className="sidebar-header">
-            <button className="sidebar-search" onClick={openSearch} title="Open quick search">
+          <div className="sticky top-0 z-[2] bg-sb px-2.5 pt-2.5 pb-[7px] flex flex-col gap-1.5 border-b border-transparent transition-[border-color] duration-[var(--t)] ease-[var(--ease)]">
+            <button className="flex-1 flex items-center justify-between gap-2 px-2.5 py-[7px] border border-border-mid bg-surface rounded cursor-pointer text-[12.5px] text-text-sb-3 transition-[background,border-color,color] duration-[var(--t)] ease-[var(--ease)] hover:border-text hover:text-text-sb-2 [&_kbd]:font-[var(--font-mono)] [&_kbd]:text-[10px] [&_kbd]:text-text-sb-3 [&_kbd]:bg-surface-3 [&_kbd]:border [&_kbd]:border-border [&_kbd]:rounded-[3px] [&_kbd]:px-[5px] [&_kbd]:py-px" onClick={openSearch} title="Open quick search">
               <span>Search…</span>
               <kbd>⌘K</kbd>
             </button>
             <input
               type="text"
-              className="sidebar-filter"
+              className="px-2.5 py-[7px] border border-border-mid rounded text-[12.5px] bg-surface outline-none text-text-sb transition-[border-color,box-shadow] duration-[var(--t)] ease-[var(--ease)] focus:border-accent focus:shadow-[0_0_0_2px_var(--accent-dim)]"
               placeholder="Filter visible pages"
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
             />
           </div>
 
-          <nav className="sidebar-tree">
+          <nav className="flex-1 overflow-y-auto overflow-x-hidden px-1.5 pt-0.5 pb-3.5 [&::-webkit-scrollbar]:w-[3px] [&::-webkit-scrollbar-track]:bg-transparent [&::-webkit-scrollbar-thumb]:bg-sb-3 [&::-webkit-scrollbar-thumb]:rounded-[2px] [&::-webkit-scrollbar-thumb:hover]:bg-sb-4">
             {favorites.length > 0 && (
               <>
-                <div className="sidebar-section-header">Favorites</div>
-                <div className="sidebar-section">
+                <div className="[font-family:var(--font-mono)] text-[10px] font-medium uppercase tracking-[0.12em] text-text-sb-3 px-2 pt-2.5 pb-[3px] flex items-center gap-1">Favorites</div>
+                <div className="flex flex-col">
                   {favorites.map((page) => (
                     <div
                       key={"fav-" + page.id}
@@ -408,16 +408,16 @@ export function Sidebar({ className, onNavigate }: SidebarProps = {}) {
                     </div>
                   ))}
                 </div>
-                <div className="sidebar-section-header sidebar-section-header--gap">Pages</div>
+                <div className="[font-family:var(--font-mono)] text-[10px] font-medium uppercase tracking-[0.12em] text-text-sb-3 px-2 pt-2.5 pb-[3px] flex items-center gap-1 mt-1.5">Pages</div>
               </>
             )}
 
             {loading ? (
-              <div className="sidebar-hint">Loading…</div>
+              <div className="px-2 py-3 text-text-sb-3 text-[12px]">Loading…</div>
             ) : filtered.filter((p) => !p.parentId).length === 0 ? (
-              <div className="sidebar-empty">
+              <div className="px-2.5 py-3.5 text-text-sb-3 text-[12.5px] flex flex-col gap-2 items-start leading-relaxed">
                 <div>No pages yet</div>
-                <button className="sidebar-action-btn" onClick={handleCreateClick}>+ New page</button>
+                <button className="px-3 py-[5px] bg-accent text-white border-none rounded-lg cursor-pointer text-[12px] font-medium transition-opacity duration-[var(--t)] ease-[var(--ease)] hover:opacity-[0.88]" onClick={handleCreateClick}>+ New page</button>
               </div>
             ) : (
               <TreeView.Root
@@ -455,20 +455,20 @@ export function Sidebar({ className, onNavigate }: SidebarProps = {}) {
             )}
           </nav>
 
-          <div className="sidebar-footer">
-            <button className="sidebar-footer-btn" onClick={handleCreateClick}>
-              <span>+</span> New page
+          <div className="sticky bottom-0 bg-sb px-2 pt-[5px] pb-2.5 flex flex-col gap-px border-t border-border-sb">
+            <button className="flex items-center gap-2 bg-transparent border-none cursor-pointer px-2.5 py-1.5 text-[12.5px] text-text-sb-3 rounded-lg text-left transition-[background,color] duration-[var(--t)] ease-[var(--ease)] hover:bg-[rgba(10,10,10,0.05)] hover:text-text-sb" onClick={handleCreateClick}>
+              <span className="text-text-sb-3 text-[14px] w-4 text-center transition-[color] duration-[var(--t)] ease-[var(--ease)]">+</span> New page
             </button>
-            <button className="sidebar-footer-btn" onClick={() => setShowImport(true)} title="Import Notion export">
-              <span>⤓</span> Import
+            <button className="flex items-center gap-2 bg-transparent border-none cursor-pointer px-2.5 py-1.5 text-[12.5px] text-text-sb-3 rounded-lg text-left transition-[background,color] duration-[var(--t)] ease-[var(--ease)] hover:bg-[rgba(10,10,10,0.05)] hover:text-text-sb" onClick={() => setShowImport(true)} title="Import Notion export">
+              <span className="text-text-sb-3 text-[14px] w-4 text-center transition-[color] duration-[var(--t)] ease-[var(--ease)]">⤓</span> Import
             </button>
-            <button className="sidebar-footer-btn" onClick={() => setShowTrash(true)} title="Trash">
-              <span>🗑</span> Trash
+            <button className="flex items-center gap-2 bg-transparent border-none cursor-pointer px-2.5 py-1.5 text-[12.5px] text-text-sb-3 rounded-lg text-left transition-[background,color] duration-[var(--t)] ease-[var(--ease)] hover:bg-[rgba(10,10,10,0.05)] hover:text-text-sb" onClick={() => setShowTrash(true)} title="Trash">
+              <span className="text-text-sb-3 text-[14px] w-4 text-center transition-[color] duration-[var(--t)] ease-[var(--ease)]">🗑</span> Trash
             </button>
           </div>
 
           <div
-            className="sidebar-resize"
+            className="absolute top-0 right-[-3px] w-1.5 h-full cursor-col-resize z-[5] hover:[background:linear-gradient(to_right,transparent_2px,var(--accent)_2px,var(--accent)_4px,transparent_4px)] hover:opacity-35"
             onMouseDown={startResize}
             title="Drag to resize"
             aria-label="Resize sidebar"
@@ -485,12 +485,12 @@ export function Sidebar({ className, onNavigate }: SidebarProps = {}) {
 
       <DragOverlay>
         {activePageId ? (
-          <div className="sidebar-drag-overlay">
+          <div className="bg-surface border border-border-mid rounded shadow-[var(--shadow-xl)] px-3.5 py-2 min-w-[150px] max-w-[250px]">
             {(() => {
               const page = pages.find((p) => p.id === activePageId);
               if (!page) return null;
               return (
-                <div className="sidebar-drag-preview">
+                <div className="flex items-center gap-1.5 text-[13px] text-text-2 px-1.5 py-1 bg-surface-3 rounded-[5px] border border-border">
                   <span className="icon">{page.icon || "📄"}</span>
                   {page.title || "Untitled"}
                 </div>
@@ -573,7 +573,7 @@ function PageTreeNode({
   return (
     <TreeView.NodeProvider node={node} indexPath={indexPath}>
       <div ref={setNodeRef} style={style} className={depth > 0 ? "page-node-indent" : undefined}>
-        {showAbove && !isActive && <div className="sidebar-drop-indicator" />}
+        {showAbove && !isActive && <div className="h-0.5 bg-accent rounded-[1px] mx-0.5 my-px shadow-[0_0_6px_var(--accent-glow)]" />}
 
         <TreeView.Branch>
           <TreeView.BranchControl
@@ -645,7 +645,7 @@ function PageTreeNode({
           )}
         </TreeView.Branch>
 
-        {showBelow && !isActive && <div className="sidebar-drop-indicator" />}
+        {showBelow && !isActive && <div className="h-0.5 bg-accent rounded-[1px] mx-0.5 my-px shadow-[0_0_6px_var(--accent-glow)]" />}
       </div>
     </TreeView.NodeProvider>
   );

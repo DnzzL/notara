@@ -1,4 +1,5 @@
 import { useState, useCallback, useEffect, useMemo, useRef } from "react";
+import { cn } from "../ui/cn.js";
 import {
   DndContext, DragOverlay, MouseSensor, TouchSensor, useSensor, useSensors, useDroppable, closestCorners,
   type DragStartEvent, type DragOverEvent, type DragEndEvent,
@@ -11,10 +12,11 @@ import { api } from "../../rpc-client.js";
 import { SelectPill, CellDisplay } from "./CellComponents.js";
 
 export function BoardView({
-  database, fields, records, databases, onSwitchView, allRecords = {}, onOpenRecord,
+  database, fields, records, databases, currentView, onChangeView, allRecords = {}, onOpenRecord,
 }: {
   database: any; fields: any[]; records: any[]; databases: any[];
-  onSwitchView: () => void; allRecords?: Record<string, any[]>;
+  currentView: "table" | "board"; onChangeView: (v: "table" | "board") => void;
+  allRecords?: Record<string, any[]>;
   onOpenRecord?: (record: any) => void;
 }) {
   const { setBoardGroupBy, toggleBoardField, updateFieldValue, updateField, loadDbRecords, createDbRecord, loadDbFields, addSort, removeSort, setSort } = useStore();
@@ -200,8 +202,8 @@ export function BoardView({
     const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id: `column-${colName}` });
     const style: React.CSSProperties = { transform: CSS.Transform.toString(transform), transition, opacity: isDragging ? 0.5 : 1 };
     return (
-      <div ref={setNodeRef} style={style} className="board-column" data-column-id={colName}>
-        <div className="board-column-drag-handle" {...listeners} {...attributes} title="Drag to reorder column">
+      <div ref={setNodeRef} style={style} className="group min-w-[268px] max-w-[300px] bg-surface-2 border border-border rounded-[5px] px-2.5 py-3 flex flex-col max-h-[62vh] transition-[background,border-color] duration-[var(--t)] ease-[var(--ease)] relative" data-column-id={colName}>
+        <div className="absolute top-2.5 right-2 opacity-0 transition-opacity duration-[var(--t)] ease-[var(--ease)] cursor-grab p-[3px] rounded-[3px] text-text-3 flex items-center touch-action-none group-hover:opacity-100 hover:bg-surface-3 hover:text-text-2 hover:opacity-100" {...listeners} {...attributes} title="Drag to reorder column">
           <svg width="12" height="12" viewBox="0 0 16 16" fill="currentColor" style={{ opacity: 0.4 }}>
             <circle cx="5" cy="3" r="1.5" /><circle cx="11" cy="3" r="1.5" />
             <circle cx="5" cy="8" r="1.5" /><circle cx="11" cy="8" r="1.5" />
@@ -220,8 +222,8 @@ export function BoardView({
 
     return (
       <div ref={setNodeRef} style={style}>
-        <div className={`board-card ${isDragging || sd ? "board-card-dragging" : ""}${hasPage ? " board-card-has-page" : ""}`}>
-          <div className="board-card-drag-handle" {...listeners} {...attributes}>
+        <div className={cn("group bg-surface border border-border rounded py-2.5 px-3 cursor-pointer transition-[border-color,box-shadow] duration-[var(--t)] ease-[var(--ease)] relative hover:border-[rgba(43,77,255,0.25)] hover:shadow-sm", (isDragging || sd) && "opacity-30")}>
+          <div className="absolute top-2 left-1 opacity-0 transition-opacity duration-[var(--t)] ease-[var(--ease)] cursor-grab p-1 rounded-[3px] text-text-3 flex items-center touch-action-none group-hover:opacity-100 hover:bg-surface-3 hover:text-text-2" {...listeners} {...attributes}>
             <svg width="14" height="14" viewBox="0 0 16 16" fill="currentColor">
               <circle cx="5" cy="3" r="1.5" /><circle cx="11" cy="3" r="1.5" />
               <circle cx="5" cy="8" r="1.5" /><circle cx="11" cy="8" r="1.5" />
@@ -229,11 +231,11 @@ export function BoardView({
             </svg>
           </div>
           <button
-            className="board-card-open-btn"
+            className={cn("absolute top-1.5 right-1.5 bg-transparent border-none cursor-pointer text-text-3 px-1 py-0.5 text-[13px] leading-none rounded transition-[opacity,background] duration-[var(--t)] ease-[var(--ease)] z-[1] hover:bg-surface-3 hover:text-accent", hasPage ? "opacity-100" : "opacity-0 group-hover:opacity-100")}
             onClick={() => onOpenRecord?.(record.record)}
             title={hasPage ? "Open page" : "Open record"}
           >{hasPage ? "📄" : "↗"}</button>
-          <span className="board-card-title">{record.record.title}</span>
+          <span className={cn("text-[13.5px] font-medium text-text block leading-[1.45]", hasPage ? "pl-5 pr-[22px]" : "pl-5")}>{record.record.title}</span>
           <div style={{ marginTop: 8, display: "flex", flexDirection: "column", gap: 4 }}>
             {fields
               .filter((f: any) => f.id !== groupField?.id && !boardHiddenFieldIds.includes(f.id))
@@ -241,8 +243,8 @@ export function BoardView({
                 const val = record.values[f.name];
                 if (!val && f.type !== "checkbox") return null;
                 return (
-                  <div key={f.id} className="board-card-field">
-                    <span className="board-card-field-name">{f.name}</span>
+                  <div key={f.id} className="flex items-baseline gap-[5px] text-[12px]">
+                    <span className="font-medium text-text-3 shrink-0">{f.name}</span>
                     <CellDisplay field={f} value={val} databases={databases} allRecords={allRecords} />
                   </div>
                 );
@@ -255,10 +257,12 @@ export function BoardView({
 
   return (
     <DndContext sensors={sensors} collisionDetection={closestCorners} onDragStart={handleDragStart} onDragOver={handleDragOver} onDragEnd={handleDragEnd}>
-      <div className="board-view">
-        <div className="db-toolbar">
-          <button className="active" onClick={onSwitchView}>Board</button>
-          <button onClick={onSwitchView}>Table</button>
+      <div className="w-full">
+        <div className="flex gap-1.5 mb-2.5 items-center flex-wrap py-1">
+          <div className="inline-flex bg-surface-3 border border-border rounded p-0.5" role="tablist">
+            <button className={cn("bg-transparent border-none py-1 px-3 text-[12px] font-medium cursor-pointer rounded-[6px]", currentView === "table" ? "bg-text text-bg" : "text-text-3")} onClick={() => onChangeView("table")} role="tab" aria-selected={currentView === "table"}>Table</button>
+            <button className={cn("bg-transparent border-none py-1 px-3 text-[12px] font-medium cursor-pointer rounded-[6px]", currentView === "board" ? "bg-text text-bg" : "text-text-3")} onClick={() => onChangeView("board")} role="tab" aria-selected={currentView === "board"}>Board</button>
+          </div>
 
           <div style={{ marginLeft: 16, display: "flex", alignItems: "center", gap: 6, fontSize: 13, color: "#666" }}>
             <span style={{ fontWeight: 500 }}>Group by:</span>
@@ -274,27 +278,27 @@ export function BoardView({
 
           <div style={{ marginLeft: 8, position: "relative" }} ref={fieldsPickerRef}>
             <button
-              className={showFieldsPicker ? "active" : ""}
+              className="bg-transparent border-none cursor-pointer text-[12.5px] text-text-3 px-2 py-1 inline-flex items-center gap-1 rounded-[5px] transition-[background,color] duration-[var(--t)] ease-[var(--ease)] hover:bg-surface-3 hover:text-text-2"
               onClick={() => setShowFieldsPicker((v) => !v)}
             >
               Fields{boardHiddenFieldIds.length > 0 ? ` (${fields.filter((f: any) => boardHiddenFieldIds.includes(f.id)).length} hidden)` : ""}
             </button>
             {showFieldsPicker && (
-              <div className="board-fields-picker">
-                <div className="board-fields-picker-title">Card fields</div>
+              <div className="absolute top-[calc(100%+6px)] left-0 z-[200] bg-surface border border-border-mid rounded p-2.5 min-w-[200px] shadow-[var(--shadow-lg)]">
+                <div className="text-[11px] font-bold text-text-3 uppercase tracking-[0.07em] mb-2">Card fields</div>
                 {fields
                   .filter((f: any) => f.id !== groupField?.id)
                   .map((f: any) => {
                     const hidden = boardHiddenFieldIds.includes(f.id);
                     return (
-                      <label key={f.id} className="board-fields-picker-row">
+                      <label key={f.id} className="flex items-center gap-2 py-[5px] cursor-pointer text-[13px] text-text rounded-[5px]">
                         <input
                           type="checkbox"
                           checked={!hidden}
                           onChange={() => toggleBoardField(database.id, f.id)}
                         />
                         <span>{f.name}</span>
-                        <span className="board-fields-picker-type">{f.type}</span>
+                        <span className="ml-auto text-[11px] text-text-3 bg-surface-3 px-1.5 py-px rounded">{f.type}</span>
                       </label>
                     );
                   })}
@@ -306,10 +310,10 @@ export function BoardView({
           </div>
 
           <div style={{ marginLeft: 12 }}>
-            <div className="db-filter-bar">
+            <div className="flex flex-wrap gap-2 items-center">
               <span style={{ fontSize: 12, color: "#666", fontWeight: 500, marginRight: 4 }}>Sort</span>
               {activeSorts.map((sort, idx) => (
-                <div key={idx} className="db-filter-rule">
+                <div key={idx} className="flex gap-1 items-center bg-surface-2 rounded py-1 px-2 border border-border">
                   <select
                     value={sort.fieldId}
                     onChange={(e) => setSort(database.id, idx, { ...sort, fieldId: e.target.value })}
@@ -334,10 +338,10 @@ export function BoardView({
         </div>
 
         <SortableContext items={displayOrder.map((c) => `column-${c}`)} strategy={horizontalListSortingStrategy}>
-          <div className="board">
+          <div className="flex gap-3.5 pt-3 pb-5 overflow-x-auto min-h-[300px] [&::-webkit-scrollbar]:h-[5px] [&::-webkit-scrollbar-track]:bg-transparent [&::-webkit-scrollbar-thumb]:bg-surface-4 [&::-webkit-scrollbar-thumb]:rounded-[3px]">
             {displayOrder.map((colName) => (
               <SortableColumn key={colName} colName={colName}>
-                <h3 className="board-column-header">
+                <h3 className="text-[11px] text-text-3 mb-2.5 ml-0.5 font-bold tracking-[0.07em] uppercase flex items-center gap-1.5">
                   {groupField?.type === "select" && groupField.options?.includes(colName) ? (
                     <SelectPill value={colName} colorIdx={groupField.options.indexOf(colName)} />
                   ) : (<span style={{ fontSize: 13 }}>{colName}</span>)}
@@ -351,7 +355,7 @@ export function BoardView({
                   </ColumnBody>
                 </SortableContext>
                 <div style={{ padding: "8px 4px" }}>
-                  <button className="board-add-card" onClick={async () => {
+                  <button className="w-full bg-transparent border-[1.5px] border-dashed border-border-mid rounded py-[7px] px-3 text-[13px] text-text-3 cursor-pointer transition-[border-color,color] duration-[var(--t)] ease-[var(--ease)] hover:border-accent hover:text-accent" onClick={async () => {
                     const title = prompt("New record title:");
                     if (title?.trim()) {
                       await createDbRecord(database.id, title.trim());
@@ -372,10 +376,10 @@ export function BoardView({
         </SortableContext>
 
         <DragOverlay>
-          {activeRecord ? (<div className="board-card board-card-overlay">{activeRecord.title}</div>) : null}
+          {activeRecord ? (<div className="bg-surface border border-border-mid rounded py-2.5 px-3.5 shadow-[var(--shadow-xl)] max-w-[268px]">{activeRecord.title}</div>) : null}
           {activeColumnName ? (
-            <div className="board-column board-column-overlay" style={{ opacity: 0.8, pointerEvents: "none" }}>
-              <h3 className="board-column-header">
+            <div className="min-w-[268px] max-w-[300px] bg-surface border-[1.5px] border-dashed border-border-mid rounded-[5px] px-2.5 py-3 shadow-[var(--shadow-xl)]" style={{ opacity: 0.8, pointerEvents: "none" }}>
+              <h3 className="text-[11px] text-text-3 mb-2.5 ml-0.5 font-bold tracking-[0.07em] uppercase flex items-center gap-1.5">
                 {groupField?.type === "select" && groupField.options?.includes(activeColumnName) ? (
                   <SelectPill value={activeColumnName} colorIdx={groupField.options.indexOf(activeColumnName)} />
                 ) : (<span style={{ fontSize: 13 }}>{activeColumnName}</span>)}
@@ -398,7 +402,7 @@ export function BoardView({
 function ColumnBody({ colName, isOver, children }: { colName: string; isOver: boolean; children: React.ReactNode }) {
   const { setNodeRef } = useDroppable({ id: `col-${colName}` });
   return (
-    <div ref={setNodeRef} className={`board-cards-container${isOver ? " board-cards-container-over" : ""}`} id={`col-${colName}`}>
+    <div ref={setNodeRef} className={cn("flex flex-col gap-[7px] flex-1 overflow-y-auto min-h-[40px] py-0.5 [&::-webkit-scrollbar]:w-[3px] [&::-webkit-scrollbar-track]:bg-transparent [&::-webkit-scrollbar-thumb]:bg-surface-4 [&::-webkit-scrollbar-thumb]:rounded-[2px]", isOver && "bg-[rgba(43,77,255,0.06)] rounded outline-2 outline-dashed outline-border-mid -outline-offset-2")} id={`col-${colName}`}>
       {children}
     </div>
   );
@@ -424,7 +428,7 @@ function AddBoardColumn({ groupField, existingOptions, onAdded }: { groupField: 
   if (!editing) {
     return (
       <div
-        className="board-column"
+        className="min-w-[268px] max-w-[300px] bg-surface-2 border border-border rounded-[5px] px-2.5 py-3 flex flex-col max-h-[62vh] transition-[background,border-color] duration-[var(--t)] ease-[var(--ease)] relative"
         style={{ display: "flex", alignItems: "flex-start", justifyContent: "center", padding: 8, opacity: 0.6, cursor: "pointer", minWidth: 220 }}
         onClick={() => setEditing(true)}
         title="Add a new column"
@@ -434,7 +438,7 @@ function AddBoardColumn({ groupField, existingOptions, onAdded }: { groupField: 
     );
   }
   return (
-    <div className="board-column" style={{ padding: 8, minWidth: 220 }}>
+    <div className="min-w-[268px] max-w-[300px] bg-surface-2 border border-border rounded-[5px] px-2.5 py-3 flex flex-col max-h-[62vh] transition-[background,border-color] duration-[var(--t)] ease-[var(--ease)] relative" style={{ padding: 8, minWidth: 220 }}>
       <input
         ref={inputRef}
         value={value}

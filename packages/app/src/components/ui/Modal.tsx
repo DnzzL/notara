@@ -1,4 +1,5 @@
 import { useEffect, type KeyboardEvent, type ReactNode } from "react";
+import { cn } from "./cn.js";
 
 export interface ModalProps {
   /** Heading shown in the modal header. */
@@ -17,11 +18,6 @@ export interface ModalProps {
   onContentKeyDown?: (e: KeyboardEvent<HTMLDivElement>) => void;
 }
 
-/**
- * Shared overlay + content + header + body shell for the app's manual modals.
- * Handles Escape-to-close and backdrop click; content clicks are stopped so they
- * don't bubble to the overlay.
- */
 export function Modal({
   title,
   onClose,
@@ -40,24 +36,40 @@ export function Modal({
     return () => document.removeEventListener("keydown", onKey);
   }, [onClose]);
 
-  const contentClasses = ["modal-content", className].filter(Boolean).join(" ");
-  const bodyClasses = ["modal-body", bodyClassName].filter(Boolean).join(" ");
-
   return (
-    <div className="modal-overlay" onClick={closeOnOverlay ? onClose : undefined}>
+    <div
+      className="fixed inset-0 z-[1000] flex items-center justify-center p-6 bg-[rgba(15,18,30,0.45)] backdrop-blur-[6px] [animation:fade-in_0.15s_var(--ease)]"
+      onClick={closeOnOverlay ? onClose : undefined}
+    >
       <div
-        className={contentClasses}
+        className={cn(
+          "bg-surface border border-border-mid rounded-lg shadow-[var(--shadow-xl)] w-full max-w-[520px] max-h-[85vh] flex flex-col overflow-hidden [animation:modal-pop_0.2s_var(--ease-spring)]",
+          className
+        )}
         onClick={(e) => e.stopPropagation()}
         onKeyDown={onContentKeyDown}
         role="dialog"
         aria-modal="true"
         aria-label={ariaLabel}
       >
-        <div className="modal-header">
-          <h2>{title}</h2>
-          <button className="modal-close" onClick={onClose} aria-label="Close">✕</button>
+        <div className="flex items-center justify-between px-6 pt-[18px] pb-4 border-b border-border shrink-0">
+          <h2 className="text-[15px] font-semibold text-text tracking-[-0.01em]">{title}</h2>
+          <button
+            className="bg-transparent border-none text-base cursor-pointer text-text-3 px-1.5 py-[5px] rounded-lg leading-none transition-all duration-[var(--t)] ease-[var(--ease)] hover:bg-surface-3 hover:text-text"
+            onClick={onClose}
+            aria-label="Close"
+          >
+            ✕
+          </button>
         </div>
-        <div className={bodyClasses}>{children}</div>
+        <div
+          className={cn(
+            "px-6 pt-5 pb-6 overflow-y-auto flex-1 [&::-webkit-scrollbar]:w-[5px] [&::-webkit-scrollbar-track]:bg-transparent [&::-webkit-scrollbar-thumb]:bg-surface-4 [&::-webkit-scrollbar-thumb]:rounded-[3px]",
+            bodyClassName
+          )}
+        >
+          {children}
+        </div>
       </div>
     </div>
   );

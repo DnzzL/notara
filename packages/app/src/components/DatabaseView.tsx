@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback, useRef, useMemo } from "react";
+import { cn } from "./ui/cn.js";
 import {
   DndContext, DragOverlay, MouseSensor, TouchSensor, useSensor, useSensors,
   type DragEndEvent, type DragStartEvent,
@@ -109,16 +110,16 @@ function FilterBar({
   onChange: (index: number, updates: Partial<Filter>) => void;
 }) {
   if (filters.length === 0) {
-    return (<button onClick={onAdd} className="db-filter-btn">
+    return (<button onClick={onAdd} className="bg-transparent border-none cursor-pointer text-[12.5px] text-text-3 px-2 py-1 inline-flex items-center gap-1 rounded-[5px] transition-[background,color] duration-[var(--t)] ease-[var(--ease)] hover:bg-surface-3 hover:text-text-2">
       <svg width="14" height="14" viewBox="0 0 16 16" fill="currentColor">
         <path d="M2 3h12M4 8h8M6 13h4" stroke="currentColor" strokeWidth="1.5" fill="none" strokeLinecap="round" />
       </svg>Filter</button>);
   }
   return (
-    <div className="db-filter-bar">
+    <div className="flex flex-wrap gap-2 items-center">
       <span style={{ fontSize: 12, color: "#666", fontWeight: 500, marginRight: 4 }}>Filter</span>
       {filters.map((filter, idx) => (
-        <div key={idx} className="db-filter-rule">
+        <div key={idx} className="flex gap-1 items-center bg-surface-2 rounded py-1 px-2 border border-border">
           <select value={filter.fieldId} onChange={(e) => onChange(idx, { fieldId: e.target.value })}
             style={{ border: "1px solid #e9e9e7", borderRadius: 4, padding: "2px 4px", fontSize: 12, background: "#fff" }}>
             <option value="">Field</option>
@@ -138,7 +139,7 @@ function FilterBar({
           <button onClick={() => onRemove(idx)} style={{ background: "none", border: "none", cursor: "pointer", color: "#999", padding: 2, fontSize: 14 }}>&times;</button>
         </div>
       ))}
-      <button onClick={onAdd} className="db-filter-add">+ Add filter</button>
+      <button onClick={onAdd} className="bg-transparent border-none cursor-pointer text-text-3 text-[12px] px-1.5 py-1 rounded-[5px] transition-[background] duration-[var(--t)] ease-[var(--ease)] hover:bg-surface-3">+ Add filter</button>
     </div>
   );
 }
@@ -153,16 +154,16 @@ function SortBar({
   onChange: (index: number, updates: Partial<Sort>) => void;
 }) {
   if (sorts.length === 0) {
-    return (<button onClick={onAdd} className="db-filter-btn">
+    return (<button onClick={onAdd} className="bg-transparent border-none cursor-pointer text-[12.5px] text-text-3 px-2 py-1 inline-flex items-center gap-1 rounded-[5px] transition-[background,color] duration-[var(--t)] ease-[var(--ease)] hover:bg-surface-3 hover:text-text-2">
       <svg width="14" height="14" viewBox="0 0 16 16" fill="currentColor">
         <path d="M4 3v10M4 3l-2 2M4 3l2 2M12 13V3M12 13l-2-2M12 13l2-2" stroke="currentColor" strokeWidth="1.5" fill="none" strokeLinecap="round" strokeLinejoin="round" />
       </svg>Sort</button>);
   }
   return (
-    <div className="db-filter-bar">
+    <div className="flex flex-wrap gap-2 items-center">
       <span style={{ fontSize: 12, color: "#666", fontWeight: 500, marginRight: 4 }}>Sort</span>
       {sorts.map((sort, idx) => (
-        <div key={idx} className="db-filter-rule">
+        <div key={idx} className="flex gap-1 items-center bg-surface-2 rounded py-1 px-2 border border-border">
           <select value={sort.fieldId} onChange={(e) => onChange(idx, { fieldId: e.target.value })}
             style={{ border: "1px solid #e9e9e7", borderRadius: 4, padding: "2px 4px", fontSize: 12, background: "#fff" }}>
             <option value="">Field</option>
@@ -176,7 +177,7 @@ function SortBar({
           <button onClick={() => onRemove(idx)} style={{ background: "none", border: "none", cursor: "pointer", color: "#999", padding: 2, fontSize: 14 }}>&times;</button>
         </div>
       ))}
-      <button onClick={onAdd} className="db-filter-add">+ Add sort</button>
+      <button onClick={onAdd} className="bg-transparent border-none cursor-pointer text-text-3 text-[12px] px-1.5 py-1 rounded-[5px] transition-[background] duration-[var(--t)] ease-[var(--ease)] hover:bg-surface-3">+ Add sort</button>
     </div>
   );
 }
@@ -653,7 +654,7 @@ export function DatabaseView({ database, isNew }: { database: any; isNew?: boole
       <>
         <BoardView
           database={database} fields={dbFields} records={sortedRecords} databases={databases}
-          onSwitchView={() => setViewType("table")} allRecords={dbRecordCache}
+          currentView={viewType} onChangeView={setViewType} allRecords={dbRecordCache}
           onOpenRecord={handleOpenRecord}
         />
         {recordPanel}
@@ -665,10 +666,10 @@ export function DatabaseView({ database, isNew }: { database: any; isNew?: boole
     <DndContext sensors={tableSensors} onDragStart={handleRowDragStart} onDragEnd={handleRowDragEnd}>
       <div className="table-view" ref={tableWrapRef}>
         {/* Toolbar */}
-        <div className="db-toolbar">
-          <div className="db-view-switcher" role="tablist">
-            <button className="active" onClick={() => setViewType("table")} role="tab" aria-selected="true">Table</button>
-            <button onClick={() => setViewType("board")} role="tab" aria-selected="false">Board</button>
+        <div className="flex gap-1.5 mb-2.5 items-center flex-wrap py-1">
+          <div className="inline-flex bg-surface-3 border border-border rounded p-0.5" role="tablist">
+            <button className={cn("bg-transparent border-none py-1 px-3 text-[12px] font-medium cursor-pointer rounded-[6px] bg-text text-bg")} onClick={() => setViewType("table")} role="tab" aria-selected={true}>Table</button>
+            <button className={cn("bg-transparent border-none py-1 px-3 text-[12px] font-medium cursor-pointer rounded-[6px] text-text-3")} onClick={() => setViewType("board")} role="tab" aria-selected={false}>Board</button>
           </div>
 
           <div style={{ marginLeft: 16, display: "flex", alignItems: "center", gap: 12, flexWrap: "wrap" }}>
@@ -681,7 +682,7 @@ export function DatabaseView({ database, isNew }: { database: any; isNew?: boole
           <span style={{ marginLeft: "auto", fontSize: 13, color: "#666", display: "flex", alignItems: "center", gap: 8 }}>
             {database.titleHidden && (
               <button
-                className="db-filter-btn"
+                className="bg-transparent border-none cursor-pointer text-[12.5px] text-text-3 px-2 py-1 inline-flex items-center gap-1 rounded-[5px] transition-[background,color] duration-[var(--t)] ease-[var(--ease)] hover:bg-surface-3 hover:text-text-2"
                 title="Show the title column"
                 onClick={async () => { await api.updateDatabase({ id: database.id, titleHidden: false }); await loadDatabases(database.pageId); }}
               >

@@ -1,4 +1,5 @@
 import { useEffect, useRef } from "react";
+import { cn } from "./ui/cn.js";
 
 export type BlockMenuItem = {
   id: string;
@@ -48,7 +49,7 @@ export function BlockContextMenu({
   return (
     <div
       ref={ref}
-      className="block-context-menu"
+      className="bg-surface border border-border-mid rounded shadow-[var(--shadow-xl)] p-1 min-w-[200px] flex flex-col"
       style={{ position: "fixed", top, left, zIndex: 1000 }}
       role="menu"
       data-testid="block-context-menu"
@@ -58,7 +59,10 @@ export function BlockContextMenu({
           key={item.id}
           type="button"
           role="menuitem"
-          className={`block-context-menu-item${item.danger ? " danger" : ""}`}
+          className={cn(
+            "flex items-center gap-2.5 w-full px-2.5 py-[7px] border-none bg-transparent cursor-pointer text-left text-[13px] text-text-2 rounded-lg transition-[background,color] duration-[var(--t)] ease-[var(--ease)] disabled:opacity-40 disabled:cursor-default disabled:pointer-events-none hover:bg-surface-3 hover:text-text",
+            item.danger && "text-danger hover:bg-danger-dim hover:text-danger"
+          )}
           disabled={item.disabled}
           onClick={() => {
             if (item.disabled) return;
@@ -67,9 +71,17 @@ export function BlockContextMenu({
           }}
           data-testid={`block-context-menu-${item.id}`}
         >
-          {item.icon && <span className="block-context-menu-icon">{item.icon}</span>}
-          <span className="block-context-menu-label">{item.label}</span>
-          {item.shortcut && <span className="block-context-menu-shortcut">{item.shortcut}</span>}
+          {item.icon && (
+            <span className="inline-flex items-center justify-center w-[18px] h-[18px] text-[13px] shrink-0">
+              {item.icon}
+            </span>
+          )}
+          <span className="flex-1">{item.label}</span>
+          {item.shortcut && (
+            <span className="text-[11px] text-text-3 tracking-[0.04em]">
+              {item.shortcut}
+            </span>
+          )}
         </button>
       ))}
     </div>

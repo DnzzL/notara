@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import emojiData from "emojibase-data/en/data.json" with { type: "json" };
 import messages from "emojibase-data/en/messages.json" with { type: "json" };
+import { cn } from "./ui/cn.js";
 
 interface EmojiEntry {
   label: string;
@@ -33,6 +34,8 @@ const CATEGORIES = GROUP_IDS.map((gid) => ({
   name: GROUP_LABELS[gid] ?? `Group ${gid}`,
   emoji: ALL_EMOJI.filter((e) => e.group === gid),
 }));
+
+const EMOJI_BTN = "text-[19px] leading-none bg-transparent border-none cursor-pointer p-[3px] rounded transition-[background] duration-[var(--t)] ease-[var(--ease)] hover:bg-surface-3 w-9 h-9 flex items-center justify-center";
 
 interface Props {
   open: boolean;
@@ -78,45 +81,66 @@ export function EmojiPicker({ open, anchor, onClose, onSelect }: Props) {
   return (
     <div
       ref={ref}
-      className="emoji-picker"
+      className="bg-surface border border-border-mid rounded-[6px] shadow-[var(--shadow-xl)] w-[320px] max-h-[360px] flex flex-col overflow-hidden"
       style={{ position: "fixed", top: anchor.top, left: anchor.left, zIndex: 1000 }}
     >
-      <div className="emoji-picker-header">
+      {/* Header: search + remove */}
+      <div className="flex items-center gap-2 px-2 pt-2 pb-1.5 border-b border-border shrink-0">
         <input
           autoFocus
-          className="emoji-picker-search"
-          placeholder="Search..."
+          className="flex-1 px-2.5 py-1.5 border border-border rounded-[4px] text-[13px] outline-none bg-surface-2 text-text placeholder:text-text-3 focus:border-accent focus:shadow-[0_0_0_2px_var(--accent-dim)] transition-[border-color,box-shadow] duration-[var(--t)] ease-[var(--ease)]"
+          placeholder="Search emoji…"
           value={query}
           onChange={(e) => setQuery(e.target.value)}
         />
-        <button className="emoji-picker-remove" onClick={() => { onSelect(null); onClose(); }} title="Remove icon">
+        <button
+          className="shrink-0 bg-transparent border border-border rounded-[4px] text-[12px] px-2 py-1.5 cursor-pointer text-text-3 transition-[background,color,border-color] duration-[var(--t)] ease-[var(--ease)] hover:bg-surface-3 hover:text-text hover:border-border-mid leading-none"
+          onClick={() => { onSelect(null); onClose(); }}
+          title="Remove icon"
+        >
           Remove
         </button>
       </div>
-      <div className="emoji-picker-grid">
+
+      {/* Emoji grid / browse */}
+      <div className="overflow-y-auto flex-1 [&::-webkit-scrollbar]:w-[4px] [&::-webkit-scrollbar-track]:bg-transparent [&::-webkit-scrollbar-thumb]:bg-surface-4 [&::-webkit-scrollbar-thumb]:rounded-[2px]">
         {filtered ? (
           filtered.length > 0 ? (
-            filtered.map((e) => (
-              <button key={e.hexcode} className="emoji-picker-btn" onClick={() => { onSelect(e.emoji); onClose(); }} title={e.label}>
-                {e.emoji}
-              </button>
-            ))
+            <div className="grid grid-cols-8 gap-0.5 p-2">
+              {filtered.map((e) => (
+                <button
+                  key={e.hexcode}
+                  className={EMOJI_BTN}
+                  onClick={() => { onSelect(e.emoji); onClose(); }}
+                  title={e.label}
+                >
+                  {e.emoji}
+                </button>
+              ))}
+            </div>
           ) : (
-            <div className="emoji-picker-empty">No emojis found</div>
+            <div className="py-8 px-4 text-text-3 text-[13px] text-center">No emojis found</div>
           )
         ) : (
-          CATEGORIES.map((cat) => (
-            <div key={cat.name} className="emoji-picker-category">
-              <div className="emoji-picker-category-title">{cat.name}</div>
-              <div className="emoji-picker-category-grid">
-                {cat.emoji.map((e) => (
-                  <button key={e.hexcode} className="emoji-picker-btn" onClick={() => { onSelect(e.emoji); onClose(); }} title={e.label}>
-                    {e.emoji}
-                  </button>
-                ))}
+          <div className="p-2">
+            {CATEGORIES.map((cat) => (
+              <div key={cat.name} className="mb-1">
+                <div className="text-[10px] font-semibold uppercase tracking-[0.08em] text-text-3 px-1 py-1.5">{cat.name}</div>
+                <div className="grid grid-cols-8 gap-0.5">
+                  {cat.emoji.map((e) => (
+                    <button
+                      key={e.hexcode}
+                      className={EMOJI_BTN}
+                      onClick={() => { onSelect(e.emoji); onClose(); }}
+                      title={e.label}
+                    >
+                      {e.emoji}
+                    </button>
+                  ))}
+                </div>
               </div>
-            </div>
-          ))
+            ))}
+          </div>
         )}
       </div>
     </div>
