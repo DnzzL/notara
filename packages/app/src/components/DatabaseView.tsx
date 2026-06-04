@@ -6,7 +6,6 @@ import {
 } from "@dnd-kit/core";
 import { SortableContext, useSortable, verticalListSortingStrategy, horizontalListSortingStrategy } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
-import { useStore } from "../store.js";
 import { useDatabaseStore, selectFields, selectRecords, selectFilters, selectSorts } from "../stores/databaseStore.js";
 import { usePageStore } from "../stores/pageStore.js";
 import { api } from "../rpc-client.js";
@@ -298,11 +297,22 @@ function TitleCell({ recordId, title, onSave }: { recordId: string; title: strin
 // ── Main DatabaseView ─────────────────────────────────────────────────────
 
 export function DatabaseView({ database, isNew }: { database: any; isNew?: boolean }) {
-  const {
-    loadDbFields, loadDbRecords, createDbRecord, updateFieldValue,
-    createField, deleteField, deleteRecord, databases, renameDatabase, loadDatabases,
-    setFilter, setSort, addFilter, removeFilter, addSort, removeSort,
-  } = useStore();
+  const databases = useDatabaseStore(s => s.databases);
+  const loadDbFields = useDatabaseStore(s => s.loadDbFields);
+  const loadDbRecords = useDatabaseStore(s => s.loadDbRecords);
+  const createDbRecord = useDatabaseStore(s => s.createDbRecord);
+  const updateFieldValue = useDatabaseStore(s => s.updateFieldValue);
+  const createField = useDatabaseStore(s => s.createField);
+  const deleteField = useDatabaseStore(s => s.deleteField);
+  const deleteRecord = useDatabaseStore(s => s.deleteRecord);
+  const renameDatabase = useDatabaseStore(s => s.renameDatabase);
+  const loadDatabases = useDatabaseStore(s => s.loadDatabases);
+  const setFilter = useDatabaseStore(s => s.setFilter);
+  const setSort = useDatabaseStore(s => s.setSort);
+  const addFilter = useDatabaseStore(s => s.addFilter);
+  const removeFilter = useDatabaseStore(s => s.removeFilter);
+  const addSort = useDatabaseStore(s => s.addSort);
+  const removeSort = useDatabaseStore(s => s.removeSort);
 
   // Per-database state, scoped by databaseId so sibling DatabaseView instances
   // on the same page don't clobber one another.

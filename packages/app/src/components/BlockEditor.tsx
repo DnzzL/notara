@@ -11,7 +11,7 @@ import { DetailsNode, DetailsSummary, DetailsContent } from "./DetailsExtension.
 import { BlockNavigationExtension, type BlockNavigationCallbacks } from "./BlockNavigationExtension.js";
 import { PageReferenceNode, PageReferenceExtension, createPageReferenceRender } from "./PageReferenceExtension.js";
 import { api } from "../rpc-client.js";
-import { useStore } from "../store.js";
+import { usePageStore, useBlockStore, useDatabaseStore } from "../store.js";
 import { DatabaseView } from "./DatabaseView.js";
 import { SlashMenu } from "./SlashMenu.js";
 import { DndContext, type DragEndEvent, type DragStartEvent, type DragOverEvent, DragOverlay, PointerSensor, useSensor, useSensors } from "@dnd-kit/core";
@@ -25,7 +25,6 @@ import { EmojiPicker } from "./EmojiPicker.js";
 import { PageMenu } from "./PageMenu.js";
 import { getCurrentWorkspaceId } from "../rpc-client.js";
 import { uploadFile as apiUploadFile, isUploadable } from "../uploader.js";
-import { useBlockStore } from "../stores/blockStore.js";
 import { toaster } from "../toaster.js";
 import { usePresenceStore } from "../stores/presenceStore.js";
 import { startPresence, stopPresence, setFocusedBlock } from "../lib/presenceConnection.js";
@@ -377,7 +376,23 @@ function SortableBlock({
 }
 
 export function BlockEditor() {
-  const { currentPage, blocks, updateBlock, createBlock, deleteBlock, duplicateBlock, createDatabase, deleteDatabase, updatePage, setPageIcon, toggleFavorite, databases, loadDatabases, reorderBlocks, reorderDatabases, loadBlocks, accessDeniedFor } = useStore();
+  const currentPage = usePageStore(s => s.currentPage);
+  const updatePage = usePageStore(s => s.updatePage);
+  const setPageIcon = usePageStore(s => s.setPageIcon);
+  const toggleFavorite = usePageStore(s => s.toggleFavorite);
+  const accessDeniedFor = usePageStore(s => s.accessDeniedFor);
+  const blocks = useBlockStore(s => s.blocks);
+  const updateBlock = useBlockStore(s => s.updateBlock);
+  const createBlock = useBlockStore(s => s.createBlock);
+  const deleteBlock = useBlockStore(s => s.deleteBlock);
+  const duplicateBlock = useBlockStore(s => s.duplicateBlock);
+  const reorderBlocks = useBlockStore(s => s.reorderBlocks);
+  const loadBlocks = useBlockStore(s => s.loadBlocks);
+  const databases = useDatabaseStore(s => s.databases);
+  const createDatabase = useDatabaseStore(s => s.createDatabase);
+  const deleteDatabase = useDatabaseStore(s => s.deleteDatabase);
+  const loadDatabases = useDatabaseStore(s => s.loadDatabases);
+  const reorderDatabases = useDatabaseStore(s => s.reorderDatabases);
   const [uploading, setUploading] = useState(false);
   const { data: session } = useSession();
 

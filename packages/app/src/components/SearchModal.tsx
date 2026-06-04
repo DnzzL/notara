@@ -1,5 +1,6 @@
 import { useState, useEffect, useRef } from "react";
-import { useStore, usePageStore } from "../store.js";
+import { usePageStore } from "../store.js";
+import { selectPageByIdWithCascade } from "../lib/page-loader.js";
 import type { SearchResult } from "@notion-alt/shared";
 import { cn } from "./ui/cn.js";
 
@@ -17,7 +18,8 @@ function highlightText(text: string, query: string): React.ReactNode {
 }
 
 export function SearchModal() {
-  const { globalSearch, searchResults, selectPageById } = useStore();
+  const globalSearch = usePageStore(s => s.globalSearch);
+  const searchResults = usePageStore(s => s.searchResults);
   const recentPages = usePageStore(s => s.recentPages);
   const loadRecentPages = usePageStore(s => s.loadRecentPages);
   const [isOpen, setIsOpen] = useState(false);
@@ -90,7 +92,7 @@ export function SearchModal() {
   };
 
   const navigateToResult = (result: SearchResult) => {
-    selectPageById(result.pageId);
+    selectPageByIdWithCascade(result.pageId);
     setIsOpen(false);
     setQuery("");
   };

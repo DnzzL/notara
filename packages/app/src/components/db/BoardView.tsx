@@ -6,7 +6,6 @@ import {
 } from "@dnd-kit/core";
 import { SortableContext, useSortable, verticalListSortingStrategy, horizontalListSortingStrategy, arrayMove } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
-import { useStore } from "../../store.js";
 import { useDatabaseStore, selectBoardGroupBy, selectBoardHidden, selectSorts } from "../../stores/databaseStore.js";
 import { api } from "../../rpc-client.js";
 import { SelectPill, CellDisplay } from "./CellComponents.js";
@@ -19,7 +18,16 @@ export function BoardView({
   allRecords?: Record<string, any[]>;
   onOpenRecord?: (record: any) => void;
 }) {
-  const { setBoardGroupBy, toggleBoardField, updateFieldValue, updateField, loadDbRecords, createDbRecord, loadDbFields, addSort, removeSort, setSort } = useStore();
+  const setBoardGroupBy = useDatabaseStore(s => s.setBoardGroupBy);
+  const toggleBoardField = useDatabaseStore(s => s.toggleBoardField);
+  const updateFieldValue = useDatabaseStore(s => s.updateFieldValue);
+  const updateField = useDatabaseStore(s => s.updateField);
+  const loadDbRecords = useDatabaseStore(s => s.loadDbRecords);
+  const createDbRecord = useDatabaseStore(s => s.createDbRecord);
+  const loadDbFields = useDatabaseStore(s => s.loadDbFields);
+  const addSort = useDatabaseStore(s => s.addSort);
+  const removeSort = useDatabaseStore(s => s.removeSort);
+  const setSort = useDatabaseStore(s => s.setSort);
   const boardGroupByFieldId = useDatabaseStore((s) => selectBoardGroupBy(s, database.id));
   const boardHiddenFieldIds = useDatabaseStore((s) => selectBoardHidden(s, database.id));
   const activeSorts = useDatabaseStore((s) => selectSorts(s, database.id));

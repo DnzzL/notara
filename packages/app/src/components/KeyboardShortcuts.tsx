@@ -1,5 +1,5 @@
 import { useEffect } from "react";
-import { useStore } from "../store.js";
+import { usePageStore, useBlockStore } from "../store.js";
 import { useHistoryStore } from "../stores/historyStore.js";
 
 /**
@@ -12,7 +12,10 @@ import { useHistoryStore } from "../stores/historyStore.js";
  * carrying data-block-index on .block-node.
  */
 export function KeyboardShortcuts() {
-  const { currentPage, blocks, createBlock, reorderBlocks } = useStore();
+  const currentPage = usePageStore(s => s.currentPage);
+  const blocks = useBlockStore(s => s.blocks);
+  const createBlock = useBlockStore(s => s.createBlock);
+  const reorderBlocks = useBlockStore(s => s.reorderBlocks);
 
   useEffect(() => {
     const focusedBlockIndex = (): number | null => {

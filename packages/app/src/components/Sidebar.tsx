@@ -1,5 +1,6 @@
 import { useEffect, useState, useCallback, useRef, useMemo } from "react";
-import { useStore } from "../store.js";
+import { usePageStore } from "../store.js";
+import { selectPageWithCascade } from "../lib/page-loader.js";
 import { api } from "../rpc-client.js";
 import { WorkspaceSwitcher } from "./WorkspaceSwitcher.js";
 import { TemplatePicker } from "./TemplatePicker.js";
@@ -87,8 +88,17 @@ interface SidebarProps {
 }
 
 export function Sidebar({ className, onNavigate }: SidebarProps = {}) {
-  const { pages, currentPage, selectPage, createPage, createPageFromTemplate, deletePage, loadPages, movePage, reorderPages, loading, setPageIcon, toggleFavorite } =
-    useStore();
+  const pages = usePageStore(s => s.pages);
+  const currentPage = usePageStore(s => s.currentPage);
+  const loading = usePageStore(s => s.loading);
+  const createPage = usePageStore(s => s.createPage);
+  const createPageFromTemplate = usePageStore(s => s.createPageFromTemplate);
+  const deletePage = usePageStore(s => s.deletePage);
+  const loadPages = usePageStore(s => s.loadPages);
+  const movePage = usePageStore(s => s.movePage);
+  const reorderPages = usePageStore(s => s.reorderPages);
+  const setPageIcon = usePageStore(s => s.setPageIcon);
+  const toggleFavorite = usePageStore(s => s.toggleFavorite);
   const [iconPickerFor, setIconPickerFor] = useState<{ pageId: string; top: number; left: number } | null>(null);
   const [searchQuery, setSearchQuery] = useState("");
   const [showTemplatePicker, setShowTemplatePicker] = useState(false);
@@ -334,7 +344,7 @@ export function Sidebar({ className, onNavigate }: SidebarProps = {}) {
     const page = templateId
       ? await createPageFromTemplate(templateId)
       : await createPage("Untitled");
-    selectPage(page);
+    selectPageWithCascade(page);
     onNavigate?.();
   };
 
@@ -400,7 +410,7 @@ export function Sidebar({ className, onNavigate }: SidebarProps = {}) {
                     <div
                       key={"fav-" + page.id}
                       className={`page-node ${currentPage?.id === page.id ? "selected" : ""}`}
-                      onClick={() => { selectPage(page); onNavigate?.(); }}
+                      onClick={() => { selectPageWithCascade(page); onNavigate?.(); }}
                     >
                       <span className="page-node-spacer" />
                       <span className="icon">{page.icon || "📄"}</span>
@@ -430,7 +440,7 @@ export function Sidebar({ className, onNavigate }: SidebarProps = {}) {
                   const id = val[0];
                   if (id) {
                     const page = pageMap.get(id);
-                    if (page) { selectPage(page); onNavigate?.(); }
+                    if (page) { selectPageWithCascade(page); onNavigate?.(); }
                   }
                 }}
               >

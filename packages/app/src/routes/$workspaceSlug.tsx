@@ -7,7 +7,6 @@ import { Sidebar } from "../components/Sidebar.js";
 import { BlockEditor } from "../components/BlockEditor.js";
 import { SearchModal } from "../components/SearchModal.js";
 import { KeyboardShortcuts } from "../components/KeyboardShortcuts.js";
-import { useStore } from "../store.js";
 import { usePageStore } from "../stores/pageStore.js";
 import { selectPageByIdWithCascade } from "../lib/page-loader.js";
 
@@ -45,7 +44,7 @@ function HamburgerIcon() {
 }
 
 function WorkspaceLayout() {
-  const { loadPages } = useStore();
+  const loadPages = usePageStore(s => s.loadPages);
   const { workspaceSlug } = useParams({ from: "/$workspaceSlug" });
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const closeSidebar = () => setSidebarOpen(false);
