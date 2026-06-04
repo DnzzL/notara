@@ -2042,8 +2042,8 @@ select, input, textarea, button { font-family: var(--font-ui); }
 
 /* Pricing */
 .landing-pricing { padding: 80px 24px; }
-.landing-pricing-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 24px; max-width: 680px; margin: 0 auto; }
-.landing-plan { background: var(--surface); border: 1px solid var(--border); border-radius: 16px; padding: 32px; display: flex; flex-direction: column; gap: 20px; }
+.landing-pricing-grid { display: flex; justify-content: center; flex-wrap: wrap; gap: 24px; max-width: 680px; margin: 0 auto; }
+.landing-plan { background: var(--surface); border: 1px solid var(--border); border-radius: 16px; padding: 32px; display: flex; flex-direction: column; gap: 20px; flex: 0 1 360px; min-width: 280px; }
 .landing-plan--highlight { border-color: rgba(91,94,244,0.35); box-shadow: 0 0 0 1px rgba(91,94,244,0.15), var(--shadow-md); }
 .landing-plan-name { font-size: 13px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.08em; color: var(--text-3); }
 .landing-plan-price { font-family: var(--font-title); font-size: 36px; font-weight: 700; color: var(--text); letter-spacing: -0.03em; line-height: 1; }
@@ -2067,7 +2067,7 @@ select, input, textarea, button { font-family: var(--font-ui); }
   .landing-hero { grid-template-columns: 1fr; padding: 48px 20px 32px; gap: 32px; }
   .landing-preview { display: none; } /* hide app mockup on small screens */
   .landing-features-grid { grid-template-columns: 1fr; gap: 14px; }
-  .landing-pricing-grid { grid-template-columns: 1fr; }
+  .landing-pricing-grid .landing-plan { flex: 1 1 100%; min-width: 0; }
   .landing-nav-links .landing-nav-link { display: none; } /* hide text nav on mobile */
   .landing-section-title { font-size: 24px; }
   .landing-footer-inner { flex-direction: column; gap: 12px; text-align: center; }
