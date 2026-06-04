@@ -913,7 +913,46 @@ body {
 .editor .ProseMirror ul.task-list li.task-item[checked] > div,
 .editor .ProseMirror ul.task-list li.task-item[data-checked] > div { text-decoration: line-through; color: var(--text-3); }
 
-/* Details */
+/* Details / toggle (rendered via DetailsExtension node view as .toggle-block) */
+.editor .ProseMirror .toggle-block {
+  position: relative;
+  background: #F7F8FC;
+  border-radius: 8px;
+  padding: 10px 14px 10px 34px;
+  margin-bottom: 8px;
+  border: 1px solid var(--border);
+}
+.editor .ProseMirror .toggle-chevron {
+  position: absolute;
+  left: 11px;
+  top: 11px;
+  width: 16px;
+  height: 16px;
+  padding: 0;
+  border: none;
+  background: none;
+  cursor: pointer;
+  color: var(--text-3);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 4px;
+}
+.editor .ProseMirror .toggle-chevron:hover { background: var(--surface-3); color: var(--text-2); }
+.editor .ProseMirror .toggle-chevron::before {
+  content: "▶";
+  font-size: 9px;
+  line-height: 1;
+  transition: transform 0.12s var(--ease);
+}
+.editor .ProseMirror .toggle-block[data-open="true"] .toggle-chevron::before { transform: rotate(90deg); }
+.editor .ProseMirror .toggle-block summary { cursor: text; font-weight: 500; font-size: 14px; list-style: none; }
+.editor .ProseMirror .toggle-block summary::-webkit-details-marker { display: none; }
+.editor .ProseMirror .toggle-block summary::marker { content: ""; }
+.editor .ProseMirror .toggle-block [data-details-content] { padding: 6px 0 2px; color: var(--text-2); font-size: 14px; }
+.editor .ProseMirror .toggle-block[data-open="false"] [data-details-content] { display: none; }
+
+/* Read-only / serialized <details> fallback (search, exports) */
 .editor .ProseMirror details {
   background: #F7F8FC;
   border-radius: 8px;
@@ -1518,6 +1557,28 @@ body {
 .block-file-download { font-size: 12px; color: var(--accent); text-decoration: none; flex-shrink: 0; padding: 4px 10px; border: 1px solid var(--accent-dim); border-radius: 6px; transition: background var(--t) var(--ease); }
 .block-file-download:hover { background: var(--accent-dim); text-decoration: none; }
 .block-file-placeholder { padding: 9px 14px; margin: 4px 0; border: 1px dashed var(--border-mid); border-radius: 8px; font-size: 13px; color: var(--text-3); }
+
+/* ── Template picker ── */
+.template-picker { width: 480px; max-width: calc(100vw - 32px); }
+.template-picker-body { display: flex; flex-direction: column; gap: 6px; padding-bottom: 8px; }
+.template-picker-divider { font-size: 11px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.07em; color: var(--text-3); padding: 10px 0 4px; }
+.template-card-grid { display: flex; flex-direction: column; gap: 4px; }
+.template-card {
+  display: flex; align-items: center; gap: 12px;
+  width: 100%; padding: 10px 12px; border-radius: 8px;
+  border: 1px solid transparent; background: none;
+  cursor: pointer; text-align: left;
+  transition: background var(--t) var(--ease), border-color var(--t) var(--ease);
+  font-family: var(--font-ui);
+}
+.template-card:hover { background: var(--surface-2); border-color: var(--border); }
+.template-card:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+.template-card--blank { border-color: var(--border); background: var(--surface-2); }
+.template-card--blank:hover { background: var(--surface-3); }
+.template-card-icon { font-size: 22px; flex-shrink: 0; width: 32px; text-align: center; }
+.template-card-text { display: flex; flex-direction: column; gap: 1px; min-width: 0; }
+.template-card-text strong { font-size: 13.5px; font-weight: 600; color: var(--text); }
+.template-card-text span { font-size: 12px; color: var(--text-3); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 
 /* ── Settings modal ── */
 .settings-modal { background: var(--surface); border: 1px solid var(--border-mid); border-radius: 14px; box-shadow: var(--shadow-xl); width: 480px; max-width: calc(100vw - 32px); max-height: 85vh; display: flex; flex-direction: column; }

@@ -183,10 +183,13 @@ export function LandingPage() {
         <div className="landing-section-inner landing-why-inner">
           <h2 className="landing-section-title">Why source-available, not free open-source?</h2>
           <p className="landing-why-body">
-            Honest answer: I'd rather make a modest living building Notara than abandon it in six months.
-            You receive the full source on purchase, you can read it, modify it for your own use, and walk
-            away with your data any time — but it isn't free for the world to fork into a competing service.
-            That trade keeps Notara alive, keeps support real, and keeps your data yours.
+            Honest framing: this is a compromise. Pure open-source brings a flood of issues, support
+            requests, and forks that a one-person project can't absorb without dying inside a year.
+            Pure closed-source breaks the promise that your data and tools are yours. Source-available
+            sits between the two — paying buyers get the full source, the right to read it, modify
+            it for their own use, and walk away with their data any time. In exchange I get a small,
+            sustainable customer base I can actually support over the long run, instead of an audience
+            I can't serve. That trade is what keeps Notara alive past month six.
           </p>
           <p className="landing-why-signoff">
             — Thomas Legrand, sole developer ·{" "}
