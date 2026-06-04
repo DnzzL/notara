@@ -2,9 +2,18 @@ import { Effect } from "effect";
 import { SqlClient } from "@effect/sql";
 import { SearchResult } from "@notion-alt/shared";
 
-// Escape special FTS5 characters
+// Escape special FTS5 characters, allow * for user-specified prefix matching
 function escapeFtsQuery(q: string): string {
-  return q.replace(/["<>~*()]/g, "");
+  return q.replace(/["<>~()]/g, "");
+}
+
+// Build a prefix-matching FTS5 query by appending * to each word
+function prefixQuery(q: string): string {
+  return q
+    .split(/\s+/)
+    .filter(Boolean)
+    .map((w) => w.replace(/\*+$/, "") + "*")
+    .join(" ");
 }
 
 export const globalSearch = (query: string) =>
@@ -13,14 +22,15 @@ export const globalSearch = (query: string) =>
     const safeQuery = escapeFtsQuery(query.trim());
     if (!safeQuery) return [];
 
+    const ftsQuery = prefixQuery(safeQuery);
     const results: SearchResult[] = [];
 
-    // 1. Search pages by title via FTS
+    // 1. Search pages by title via FTS (including deleted)
     const pageRows = yield* sql`
-      SELECT p.id, p.title, '' as content, p.id as "pageId"
+      SELECT p.id, p.title, '' as content, p.id as "pageId", p.is_deleted as "isDeleted"
       FROM pages p
       JOIN pages_fts fts ON fts.rowid = p.rowid
-      WHERE pages_fts MATCH ${safeQuery} AND p.is_deleted = 0
+      WHERE pages_fts MATCH ${ftsQuery}
       ORDER BY fts.rank
       LIMIT 20
     `;
@@ -29,16 +39,17 @@ export const globalSearch = (query: string) =>
         type: "page", id: r.id as string,
         title: r.title as string, content: "",
         pageId: r.pageId as string,
+        isDeleted: Boolean(r.isDeleted),
       }));
     }
 
-    // 2. Search blocks by content via FTS, join with pages for title
+    // 2. Search blocks by content via FTS, join with pages for title (including deleted)
     const blockRows = yield* sql`
-      SELECT b.id, p.title as "pageTitle", b.content, b.page_id as "pageId"
+      SELECT b.id, p.title as "pageTitle", b.content, b.page_id as "pageId", p.is_deleted as "isDeleted"
       FROM blocks b
       JOIN blocks_fts fts ON fts.rowid = b.rowid
       JOIN pages p ON b.page_id = p.id
-      WHERE blocks_fts MATCH ${safeQuery} AND p.is_deleted = 0
+      WHERE blocks_fts MATCH ${ftsQuery}
       ORDER BY fts.rank
       LIMIT 30
     `;
@@ -48,6 +59,7 @@ export const globalSearch = (query: string) =>
         title: r.pageTitle as string,
         content: (r.content as string).slice(0, 200),
         pageId: r.pageId as string,
+        isDeleted: Boolean(r.isDeleted),
       }));
     }
 

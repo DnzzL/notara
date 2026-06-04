@@ -111,6 +111,7 @@ export class SearchResult extends Schema.Class<SearchResult>("SearchResult")({
   title: Schema.String,
   content: Schema.String,
   pageId: Schema.String,
+  isDeleted: Schema.optional(Schema.Boolean),
 }) {}
 
 /** Result of exporting a page as Markdown. */
