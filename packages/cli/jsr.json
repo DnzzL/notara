@@ -1,6 +1,7 @@
 {
   "name": "@notara/cli",
   "version": "0.1.0",
+  "license": "Notara Commercial License",
   "exports": "./src/main.ts",
   "bin": {
     "notara": "./src/main.ts"
