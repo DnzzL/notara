@@ -1,12 +1,12 @@
 {
   "name": "@notara/cli",
   "version": "0.1.0",
-  "license": "Notara Commercial License",
+  "license": "MIT",
   "exports": "./src/main.ts",
   "bin": {
     "notara": "./src/main.ts"
   },
   "publish": {
-    "include": ["src", "README.md", "jsr.json"]
+    "include": ["src", "README.md", "LICENSE", "jsr.json"]
   }
 }
