@@ -15,7 +15,7 @@ import * as Upload from "./handlers/upload.js";
 import { loadSettings, saveSettings } from "./handlers/settings.js";
 import { triggerBackup, listBackups } from "./handlers/backup.js";
 import { restoreBackup } from "./handlers/restore.js";
-import { AppRpc } from "@notion-alt/shared";
+import { AppRpc } from "@notara/shared";
 import { registerV1Routes } from "./api-v1/routes.js";
 import { rpcHandlersLayer } from "./rpc-handlers.js";
 import { auth } from "./auth.js";

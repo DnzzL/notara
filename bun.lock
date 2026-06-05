@@ -22,7 +22,7 @@
         "@dnd-kit/sortable": "^10.0.0",
         "@effect/rpc": "^0.65.0",
         "@effect/rpc-http": "^0.42.0",
-        "@notion-alt/shared": "workspace:*",
+        "@notara/shared": "workspace:*",
         "@tailwindcss/vite": "^4.3.0",
         "@tanstack/react-router": "^1.170.5",
         "@tanstack/router-devtools": "^1.167.0",

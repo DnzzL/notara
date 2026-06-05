@@ -5,7 +5,7 @@
  * RPC routing.
  */
 import { Effect } from "effect";
-import { AppRpc, RecordFieldValue } from "@notion-alt/shared";
+import { AppRpc, RecordFieldValue } from "@notara/shared";
 import { track } from "./observability.js";
 import { presence } from "./presence/index.js";
 import { getSessionUser, withWorkspaceDb, withAuthedWorkspace } from "./workspace-context.js";

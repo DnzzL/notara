@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef } from "react";
 import { usePageStore } from "../store.js";
 import { selectPageByIdWithCascade } from "../lib/page-loader.js";
-import type { SearchResult } from "@notion-alt/shared";
+import type { SearchResult } from "@notara/shared";
 import { cn } from "./ui/cn.js";
 
 function highlightText(text: string, query: string): React.ReactNode {
