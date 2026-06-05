@@ -40,6 +40,10 @@ const features = [
     desc: "Deleted something by mistake? Everything goes to the trash first — restore in a click, or let it purge after your retention window.",
   },
   {
+    title: "Desktop app",
+    desc: "Native Electron app for macOS. Lives in your dock, works offline, syncs to your server. Web client also included — pick the interface you prefer.",
+  },
+  {
     title: "Open REST API",
     desc: "Full HTTP API with API-key auth. Automate from scripts, CI, or any client. OpenAPI spec included.",
     docsHref: "/api/docs",
@@ -56,7 +60,7 @@ const planFeatures = [
   "Unlimited workspaces & members",
   "Commercial use",
   "Lifetime updates",
-  "Reply-to-a-human support",
+  "Feature requests & bug reports",
 ];
 
 export function LandingPage() {
@@ -83,6 +87,15 @@ export function LandingPage() {
             <a href="#why" className="landing-nav-link">Why</a>
             <a href="#pricing" className="landing-nav-link">Pricing</a>
             <Link to="/login" className="landing-nav-cta">Sign in →</Link>
+            <a
+              href={POLAR_CHECKOUT_URL}
+              className="landing-nav-buy"
+              target="_blank"
+              rel="noopener noreferrer"
+              onClick={onCheckoutClick("hero")}
+            >
+              Buy — €29
+            </a>
           </div>
         </div>
       </nav>
@@ -92,28 +105,40 @@ export function LandingPage() {
         <div className="lp-wrap">
           <div className="lp-hero-tag lp-reveal" style={{ animationDelay: ".05s" }}>
             <span className="sq" />
-            <span className="lp-kicker">Early-bird · first 500 buyers · <b>€29 forever</b></span>
+          <span className="lp-kicker">First 500 buyers · <b>€29 forever</b> · <span className="lp-badge">001/500</span></span>
           </div>
           <h1 className="landing-headline lp-reveal" style={{ animationDelay: ".12s" }}>
             The notes app<br />you <span className="out">actually</span> <span className="blue">own.</span>
           </h1>
           <div className="lp-hero-lower">
-            <p className="lp-reveal" style={{ animationDelay: ".24s" }}>
-              A self-hostable Notion alternative. Block editor, inline databases,
-              real-time collaboration — living in a single file on your own server.
-              Pay once. Keep the source. Walk away whenever you like.
-            </p>
-            <div className="landing-hero-ctas lp-reveal" style={{ animationDelay: ".34s" }}>
-              <a
-                href={POLAR_CHECKOUT_URL}
-                className="landing-cta-primary"
-                target="_blank"
-                rel="noopener noreferrer"
-                onClick={onCheckoutClick("hero")}
-              >
-                Get Notara — €29
-              </a>
-              <a href="#features" className="landing-cta-secondary">See what's inside ↓</a>
+            <div className="lp-hero-text">
+              <p className="lp-reveal" style={{ animationDelay: ".24s" }}>
+                A Notion alternative you can touch. Desktop app, block editor,
+                inline databases, real-time collaboration — all backed by a single SQLite
+                file on your own server. Pay once. Keep the source. Walk away whenever you like.
+              </p>
+              <div className="landing-hero-ctas lp-reveal" style={{ animationDelay: ".34s" }}>
+                <a
+                  href={POLAR_CHECKOUT_URL}
+                  className="landing-cta-primary"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  onClick={onCheckoutClick("hero")}
+                >
+                  Get Notara — €29
+                </a>
+                <a href="#features" className="landing-cta-secondary">See the app →</a>
+              </div>
+            </div>
+            <div className="lp-hero-visual lp-reveal" style={{ animationDelay: ".24s" }}>
+              <video
+                src="/notara-hero.mp4"
+                autoPlay
+                loop
+                muted
+                playsInline
+                poster="/notara-hero-poster.jpg"
+              />
             </div>
           </div>
         </div>
@@ -125,7 +150,7 @@ export function LandingPage() {
           <div className="lp-spec"><div className="num">1<span className="u">×</span></div><div className="lbl">SQLite file · your data</div></div>
           <div className="lp-spec"><div className="num">0<span className="u">/mo</span></div><div className="lbl">Subscriptions, forever</div></div>
           <div className="lp-spec"><div className="num">∞</div><div className="lbl">Workspaces &amp; members</div></div>
-          <div className="lp-spec"><div className="num">€29</div><div className="lbl">Once · first 500 buyers</div></div>
+          <div className="lp-spec"><div className="num">€29</div><div className="lbl">Only 500 · ever</div></div>
         </div>
       </section>
 
@@ -168,7 +193,7 @@ export function LandingPage() {
         <div className="lp-wrap">
           <div className="lp-feat-head">
             <h2 className="landing-section-title">Everything you need<br />Nothing you don't</h2>
-            <span className="lp-kicker">Index · 01—09</span>
+            <span className="lp-kicker">Index · 01—10</span>
           </div>
           {features.map((f, i) => (
             <div key={f.title} className="lp-feat-row">
@@ -185,10 +210,37 @@ export function LandingPage() {
         </div>
       </section>
 
+      {/* For developers */}
+      <section className="landing-dev">
+        <div className="lp-wrap landing-dev-in">
+          <span className="lp-kicker"><b>02</b> · For developers & AI agents</span>
+          <h2>Automate everything.<br />Your tools &mdash; your way.</h2>
+          <div className="lp-dev-examples">
+            <div className="lp-dev-ex">
+              <div className="lp-dev-cmd">notara pages list --json | jq '.title'</div>
+              <div className="lp-dev-desc">Pipe your entire wiki into any script or AI agent</div>
+            </div>
+            <div className="lp-dev-ex">
+              <div className="lp-dev-cmd">curl -X POST $HOST/api/pages \<br />&nbsp;&nbsp;-H "X-Api-Key: $KEY" -d '{'{'}&quot;title&quot;:&quot;...&quot;{'}'}</div>
+              <div className="lp-dev-desc">Create pages from CI/CD, bots, or agent workflows</div>
+            </div>
+            <div className="lp-dev-ex">
+              <div className="lp-dev-cmd"><span className="lp-dev-openapi">openapi.yaml</span> &middot; 30+ endpoints</div>
+              <div className="lp-dev-desc">Full REST API &mdash; read, write, search, manage. API-key auth.</div>
+            </div>
+            <div className="lp-dev-ex">
+              <div className="lp-dev-cmd"><a href="https://jsr.io/@notara/cli" target="_blank" rel="noopener noreferrer" className="lp-dev-jsr">@notara/cli</a> on JSR</div>
+              <div className="lp-dev-desc">Install via <code>npx jsr add @notara/cli</code> &mdash; pipe JSON, automate, script.</div>
+            </div>
+          </div>
+          <a href="/api/docs" className="landing-dev-link">Browse the API docs →</a>
+        </div>
+      </section>
+
       {/* Why source-available */}
       <section id="why" className="landing-why">
         <div className="lp-wrap lp-why-in">
-          <span className="lp-kicker"><b>02</b> · A note from the developer</span>
+          <span className="lp-kicker"><b>03</b> · A note from the developer</span>
           <h2>Why source-available, not free open-source?</h2>
           <p className="landing-why-body">
             Honest framing: this is a compromise. Pure open-source brings a flood of issues and forks
@@ -211,7 +263,7 @@ export function LandingPage() {
       <section id="pricing" className="landing-pricing">
         <div className="lp-wrap">
           <div className="lp-price-head">
-            <span className="lp-kicker"><b>03</b> · One price · yours forever</span>
+            <span className="lp-kicker"><b>04</b> · One price · yours forever</span>
             <h2>No tiers.<br />No renewals.</h2>
             <p className="sub">€29 one-time for the first 500 buyers — about three months of Notion, then never again. Lifetime updates included.</p>
           </div>
