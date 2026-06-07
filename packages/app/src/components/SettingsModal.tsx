@@ -54,9 +54,10 @@ const SCHEDULE_LABELS: Record<BackupSchedule, string> = {
 interface SettingsModalProps {
   open: boolean;
   onClose: () => void;
+  onStartTour?: () => void;
 }
 
-export function SettingsModal({ open, onClose }: SettingsModalProps) {
+export function SettingsModal({ open, onClose, onStartTour }: SettingsModalProps) {
   const [settings, setSettings] = useState<S3Settings>(DEFAULTS);
   const [saveStatus, setSaveStatus] = useState<"idle" | "saving" | "saved" | "error">("idle");
   const [backupStatus, setBackupStatus] = useState<"idle" | "running" | "success" | "error">("idle");
@@ -189,14 +190,26 @@ export function SettingsModal({ open, onClose }: SettingsModalProps) {
         <DialogPositioner className="import-modal-positioner">
           <DialogContent className="settings-modal">
             <div className="import-modal-header">
-              <DialogTitle>Backups</DialogTitle>
+              <DialogTitle>Settings</DialogTitle>
               <DialogCloseTrigger className="import-modal-close" aria-label="Close">
                 ✕
               </DialogCloseTrigger>
             </div>
 
             <div className="settings-modal-body">
-              <div className="settings-section-title">Backup to S3</div>
+              <div className="settings-section-title">Welcome</div>
+              <button
+                className="flex items-center gap-2 bg-transparent border border-[var(--border-mid)] cursor-pointer px-3 py-2 text-[13px] text-[var(--text-2)] rounded-lg w-full text-left transition-[background,color] duration-[var(--t)] ease-[var(--ease)] hover:bg-[var(--accent-dim)] hover:border-[var(--accent)] hover:text-[var(--text-sb)]"
+                onClick={() => { onStartTour?.(); onClose(); }}
+              >
+                <svg width="16" height="16" viewBox="0 0 14 14" fill="none" aria-hidden="true">
+                  <circle cx="7" cy="7" r="5.5" stroke="currentColor" strokeWidth="1.2"/>
+                  <path d="M7 4v4M7 9.5v.5" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round"/>
+                </svg>
+                Take the onboarding tour
+              </button>
+
+              <div className="settings-section-title" style={{ marginTop: 24 }}>Backup to S3</div>
 
               <label className="settings-toggle-row">
                 <input
