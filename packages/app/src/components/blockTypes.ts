@@ -88,6 +88,7 @@ export const BLOCK_TYPE_CONFIG: Record<string, BlockTypeConfig> = {
   pageLink: { placeholder: "", defaultContent: "", splitBehavior: "normal", rendersCustom: true },
   toggle:   { placeholder: "", defaultContent: "", splitBehavior: "normal", rendersCustom: false },
   callout:  { placeholder: "", defaultContent: "", splitBehavior: "normal", rendersCustom: false },
+  people:   { placeholder: "", defaultContent: "", splitBehavior: "normal", rendersCustom: true },
 };
 
 const DETAILS_CONTENT =
@@ -110,4 +111,5 @@ export const SLASH_COMMANDS: SlashCommandDef[] = [
   { id: "code",     icon: "</>",name: "Code Block",    shortcut: "```",       defaultContent: "<pre><code></code></pre>" },
   { id: "database", icon: "🗃️", name: "Database",      shortcut: "/database", defaultContent: null },
   { id: "pageLink", icon: "🔗", name: "Link to page",  shortcut: "/page",     defaultContent: null },
+  { id: "people",   icon: "👤", name: "People",        shortcut: "/people",   defaultContent: null },
 ];

@@ -36,6 +36,7 @@ export class Block extends Schema.Class<Block>("Block")({
     "pageLink",
     "toggle",
     "callout",
+    "people",
   ),
   content: Schema.String,
   parentId: Schema.NullOr(Schema.String),

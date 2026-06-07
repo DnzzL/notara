@@ -622,6 +622,9 @@ export function BlockEditor() {
       // Insert an empty pageLink block; PageLinkBlock auto-opens a picker
       // for blocks with no target yet, and persists the selected pageId.
       await createBlock({ pageId: currentPage.id, type: "pageLink", content: "", index: currentBlock.index + 1, parentId: null });
+    } else if (command === "people") {
+      // Insert an empty people block; PeopleBlock auto-opens a picker.
+      await createBlock({ pageId: currentPage.id, type: "people", content: "[]", index: currentBlock.index + 1, parentId: null });
     }
   }, [currentPage, sortedBlocks, updateBlock, createBlock, createDatabase, loadDatabases]);
 

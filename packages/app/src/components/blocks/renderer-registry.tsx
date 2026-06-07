@@ -52,8 +52,10 @@ import { DividerBlock } from "./divider-block.js";
 import { ImageBlock } from "./image-block.js";
 import { PdfBlock } from "./pdf-block.js";
 import { FileBlock } from "./file-block.js";
+import { PeopleBlock } from "./people-block.js";
 
 registerBlockRenderer("divider", DividerBlock);
 registerBlockRenderer("image", ImageBlock);
 registerBlockRenderer("pdf", PdfBlock);
 registerBlockRenderer("file", FileBlock);
+registerBlockRenderer("people", PeopleBlock);
