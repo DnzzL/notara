@@ -7,6 +7,7 @@ import { Sidebar } from "../components/Sidebar.js";
 import { BlockEditor } from "../components/BlockEditor.js";
 import { SearchModal } from "../components/SearchModal.js";
 import { KeyboardShortcuts } from "../components/KeyboardShortcuts.js";
+import { OnboardingTour, isTourCompleted } from "../components/OnboardingTour.js";
 import { usePageStore } from "../stores/pageStore.js";
 import { selectPageByIdWithCascade } from "../lib/page-loader.js";
 
@@ -47,6 +48,8 @@ function WorkspaceLayout() {
   const loadPages = usePageStore(s => s.loadPages);
   const { workspaceSlug } = useParams({ from: "/$workspaceSlug" });
   const [sidebarOpen, setSidebarOpen] = useState(false);
+  const [tourAutoStart, setTourAutoStart] = useState(false);
+  const [tourStartKey, setTourStartKey] = useState(0);
   const closeSidebar = () => setSidebarOpen(false);
 
   useEffect(() => {
@@ -81,6 +84,13 @@ function WorkspaceLayout() {
     return () => { cancelled = true; };
   }, [workspaceSlug]);
 
+  // Auto-start onboarding tour on first visit
+  useEffect(() => {
+    if (!isTourCompleted()) {
+      setTourAutoStart(true);
+    }
+  }, []);
+
   // Close sidebar on escape
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => { if (e.key === "Escape") closeSidebar(); };
@@ -110,6 +120,7 @@ function WorkspaceLayout() {
       <Sidebar
         className={sidebarOpen ? "sidebar--open" : ""}
         onNavigate={closeSidebar}
+        onStartTour={() => setTourStartKey((k) => k + 1)}
       />
 
       <div style={{ display: "flex", flexDirection: "column", flex: 1, minWidth: 0 }}>
@@ -130,6 +141,7 @@ function WorkspaceLayout() {
 
       <SearchModal />
       <KeyboardShortcuts />
+      <OnboardingTour autoStart={tourAutoStart} startKey={tourStartKey} />
     </div>
   );
 }
