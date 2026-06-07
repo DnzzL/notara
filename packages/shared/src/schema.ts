@@ -102,6 +102,7 @@ export class Backlink extends Schema.Class<Backlink>("Backlink")({
   blockId: Schema.String,
   pageId: Schema.String,
   pageTitle: Schema.String,
+  blockType: Schema.String,
   content: Schema.String,
 }) {}
 

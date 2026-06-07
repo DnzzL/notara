@@ -53,9 +53,11 @@ export function BacklinksPanel() {
 }
 
 function BacklinkItem({ backlink, onNavigate }: { backlink: Backlink; onNavigate: (id: string) => void }) {
-  const snippet = backlink.content.length > 100
-    ? backlink.content.slice(0, 100) + "..."
-    : backlink.content;
+  const snippet = backlink.blockType === "pageLink"
+    ? "🔗 Linked page"
+    : backlink.content.length > 100
+      ? backlink.content.slice(0, 100) + "..."
+      : backlink.content;
 
   return (
     <button className="backlink-item" onClick={() => onNavigate(backlink.pageId)}
