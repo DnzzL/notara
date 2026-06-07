@@ -4,4 +4,5 @@ dist/
 *.db
 .DS_Store
 .factory/settings.json
+.pi/extensions/emdash-hook.ts
 .claude/settings.local.json

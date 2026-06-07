@@ -85,9 +85,10 @@ const DEFAULT_WIDTH = 260;
 interface SidebarProps {
   className?: string;
   onNavigate?: () => void;
+  onStartTour?: () => void;
 }
 
-export function Sidebar({ className, onNavigate }: SidebarProps = {}) {
+export function Sidebar({ className, onNavigate, onStartTour }: SidebarProps = {}) {
   const pages = usePageStore(s => s.pages);
   const currentPage = usePageStore(s => s.currentPage);
   const loading = usePageStore(s => s.loading);
@@ -381,14 +382,14 @@ export function Sidebar({ className, onNavigate }: SidebarProps = {}) {
       onDragCancel={handleDragCancel}
     >
       <SortableContext items={treeOrder} strategy={verticalListSortingStrategy}>
-        <aside className={`bg-sb border-r border-border-sb flex flex-col shrink-0 relative min-w-[200px] max-w-[480px]${className ? ` ${className}` : ""}`} style={{ width }}>
+        <aside data-sidebar className={`bg-sb border-r border-border-sb flex flex-col shrink-0 relative min-w-[200px] max-w-[480px]${className ? ` ${className}` : ""}`} style={{ width }}>
           <WorkspaceSwitcher
             onCollapse={() => setCollapsed(true)}
             onOpenBackups={() => setShowSettings(true)}
             onOpenApiKeys={() => setShowApiKeys(true)}
           />
           <div className="sticky top-0 z-[2] bg-sb px-2.5 pt-2.5 pb-[7px] flex flex-col gap-1.5 border-b border-transparent transition-[border-color] duration-[var(--t)] ease-[var(--ease)]">
-            <button className="flex-1 flex items-center justify-between gap-2 px-2.5 py-[7px] border border-border-mid bg-surface rounded cursor-pointer text-[12.5px] text-text-sb-3 transition-[background,border-color,color] duration-[var(--t)] ease-[var(--ease)] hover:border-text hover:text-text-sb-2 [&_kbd]:font-[var(--font-mono)] [&_kbd]:text-[10px] [&_kbd]:text-text-sb-3 [&_kbd]:bg-surface-3 [&_kbd]:border [&_kbd]:border-border [&_kbd]:rounded-[3px] [&_kbd]:px-[5px] [&_kbd]:py-px" onClick={openSearch} title="Open quick search">
+            <button data-search-trigger className="flex-1 flex items-center justify-between gap-2 px-2.5 py-[7px] border border-border-mid bg-surface rounded cursor-pointer text-[12.5px] text-text-sb-3 transition-[background,border-color,color] duration-[var(--t)] ease-[var(--ease)] hover:border-text hover:text-text-sb-2 [&_kbd]:font-[var(--font-mono)] [&_kbd]:text-[10px] [&_kbd]:text-text-sb-3 [&_kbd]:bg-surface-3 [&_kbd]:border [&_kbd]:border-border [&_kbd]:rounded-[3px] [&_kbd]:px-[5px] [&_kbd]:py-px" onClick={openSearch} title="Open quick search">
               <span>Search…</span>
               <kbd>⌘K</kbd>
             </button>
@@ -466,7 +467,7 @@ export function Sidebar({ className, onNavigate }: SidebarProps = {}) {
           </nav>
 
           <div className="sticky bottom-0 bg-sb px-2 pt-[5px] pb-2.5 flex flex-col gap-px border-t border-border-sb">
-            <button className="flex items-center gap-2 bg-transparent border-none cursor-pointer px-2.5 py-1.5 text-[12.5px] text-text-sb-3 rounded-lg text-left transition-[background,color] duration-[var(--t)] ease-[var(--ease)] hover:bg-[rgba(10,10,10,0.05)] hover:text-text-sb" onClick={handleCreateClick}>
+            <button data-new-page className="flex items-center gap-2 bg-transparent border-none cursor-pointer px-2.5 py-1.5 text-[12.5px] text-text-sb-3 rounded-lg text-left transition-[background,color] duration-[var(--t)] ease-[var(--ease)] hover:bg-[rgba(10,10,10,0.05)] hover:text-text-sb" onClick={handleCreateClick}>
               <span className="text-text-sb-3 text-[14px] w-4 text-center transition-[color] duration-[var(--t)] ease-[var(--ease)]">+</span> New page
             </button>
             <button className="flex items-center gap-2 bg-transparent border-none cursor-pointer px-2.5 py-1.5 text-[12.5px] text-text-sb-3 rounded-lg text-left transition-[background,color] duration-[var(--t)] ease-[var(--ease)] hover:bg-[rgba(10,10,10,0.05)] hover:text-text-sb" onClick={() => setShowImport(true)} title="Import Notion export">
@@ -511,7 +512,7 @@ export function Sidebar({ className, onNavigate }: SidebarProps = {}) {
       </DragOverlay>
 
       <ImportModal open={showImport} onClose={() => setShowImport(false)} />
-      <SettingsModal open={showSettings} onClose={() => setShowSettings(false)} />
+      <SettingsModal open={showSettings} onClose={() => setShowSettings(false)} onStartTour={onStartTour} />
       {showApiKeys && <ApiKeysModal onClose={() => setShowApiKeys(false)} />}
       {showTrash && <TrashModal onClose={() => setShowTrash(false)} onChanged={loadPages} />}
       {showTemplatePicker && (
