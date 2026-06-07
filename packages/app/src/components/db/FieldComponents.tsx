@@ -9,7 +9,7 @@ import { Popover, optionColor } from "./CellComponents.js";
 import { api } from "../../rpc-client.js";
 import { usePageStore } from "../../stores/pageStore.js";
 
-export type FieldType = "text" | "number" | "select" | "multiSelect" | "date" | "checkbox" | "relation" | "page" | "formula";
+export type FieldType = "text" | "number" | "select" | "multiSelect" | "date" | "checkbox" | "relation" | "page" | "formula" | "people";
 
 interface FieldTypeInfo {
   type: FieldType;
@@ -27,12 +27,13 @@ export const FIELD_TYPES: FieldTypeInfo[] = [
   { type: "page", label: "Page link", icon: "📄" },
   { type: "relation", label: "Relation", icon: "🔗" },
   { type: "formula", label: "Formula", icon: "ƒ" },
+  { type: "people", label: "People", icon: "👤" },
 ];
 
 // ── Column Header with Menu ───────────────────────────────────────────────
 
 export function ColumnHeader({
-  field, onRename, onDelete, onOptions, onEditFormula, onChangeType, onSortAsc, onSortDesc, onFilter,
+  field, onRename, onDelete, onOptions, onEditFormula, onChangeType, onSortAsc, onSortDesc, onFilter, onDuplicate,
   isTitle, width, onResize, sortDir, sortIndex, onHeaderClick,
   dragRef, dragStyle, dragListeners, dragAttributes,
 }: {

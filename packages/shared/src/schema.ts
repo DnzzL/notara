@@ -55,7 +55,7 @@ export class Database extends Schema.Class<Database>("Database")({
 }) {}
 
 export const DatabaseFieldType = Schema.Literal(
-  "text", "number", "select", "multiSelect", "date", "checkbox", "relation", "page", "formula",
+  "text", "number", "select", "multiSelect", "date", "checkbox", "relation", "page", "formula", "people",
 );
 
 export class DatabaseField extends Schema.Class<DatabaseField>("DatabaseField")({
