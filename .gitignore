@@ -3,3 +3,5 @@ dist/
 .data/
 *.db
 .DS_Store
+.factory/settings.json
+.claude/settings.local.json
