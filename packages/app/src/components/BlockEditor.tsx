@@ -622,6 +622,9 @@ export function BlockEditor() {
       // Insert an empty pageLink block; PageLinkBlock auto-opens a picker
       // for blocks with no target yet, and persists the selected pageId.
       await createBlock({ pageId: currentPage.id, type: "pageLink", content: "", index: currentBlock.index + 1, parentId: null });
+    } else if (command === "people") {
+      // Insert an empty people block; PeopleBlock auto-opens a picker.
+      await createBlock({ pageId: currentPage.id, type: "people", content: "[]", index: currentBlock.index + 1, parentId: null });
     }
   }, [currentPage, sortedBlocks, updateBlock, createBlock, createDatabase, loadDatabases]);
 
@@ -846,6 +849,21 @@ export function BlockEditor() {
       <SortableContext items={allItems.map((item) => item.id)} strategy={verticalListSortingStrategy}>
         <div
           className="main"
+          onClick={(e) => {
+            // Navigate when clicking inline [[page]] references
+            const target = (e.target as HTMLElement).closest("span[data-page-ref]");
+            if (target) {
+              const pageId = target.getAttribute("data-page-ref");
+              if (pageId) {
+                e.preventDefault();
+                e.stopPropagation();
+                const url = new URL(window.location.href);
+                url.searchParams.set("page", pageId);
+                window.history.pushState({ pageId }, "", url);
+                window.dispatchEvent(new PopStateEvent("popstate"));
+              }
+            }
+          }}
           onDragOver={(e) => {
             if (e.dataTransfer.types.includes("Files")) {
               e.preventDefault();
@@ -924,30 +942,10 @@ export function BlockEditor() {
 
 
           <div className="editor">
-            {allItems.map((item, index) => {
-              if (item.type === "database") {
-                const db = databases.find((d) => `db-${d.id}` === item.id);
-                if (!db) return null;
-                return (
-                  <SortableBlock
-                    key={item.id}
-                    id={item.id}
-                    showDropIndicator={dropIndicatorIndex === index}
-                    isDragging={activeBlockId === item.id}
-                    onDragStart={() => setActiveBlockId(item.id)}
-                    onOpenMenu={(x, y) => setDbMenu({ dbId: db.id, blockId: null, x, y })}
-                    blockType="database"
-                  >
-                    <DatabaseView database={db} isNew={db.id === newDbId} />
-                  </SortableBlock>
-                );
-              }
-
-              const block = sortedBlocks.find((b) => b.id === item.id);
-              if (!block) return null;
-
-              // Inline database block: block.content holds the dbId, look up
-              // the database and render it at this position in the body.
+            {/* ── Blocks ── */}
+            {sortedBlocks.map((block, _blockIndex) => {
+              const blockIndex = _blockIndex;
+              // Inline database block: block.content holds the dbId.
               if (block.type === "database") {
                 const db = databases.find((d) => d.id === block.content);
                 if (!db) return null;
@@ -955,7 +953,7 @@ export function BlockEditor() {
                   <SortableBlock
                     key={block.id}
                     id={block.id}
-                    showDropIndicator={dropIndicatorIndex === index}
+                    showDropIndicator={dropIndicatorIndex === blockIndex}
                     isDragging={activeBlockId === block.id}
                     onDragStart={() => setActiveBlockId(block.id)}
                     onOpenMenu={(x, y) => setDbMenu({ dbId: db.id, blockId: block.id, x, y })}
@@ -966,14 +964,13 @@ export function BlockEditor() {
                 );
               }
 
-              // Page-link block: block.content is the target pageId. Renders
-              // as a clickable row (icon + title) that navigates on click.
+              // Page-link block.
               if (block.type === "pageLink") {
                 return (
                   <SortableBlock
                     key={block.id}
                     id={block.id}
-                    showDropIndicator={dropIndicatorIndex === index}
+                    showDropIndicator={dropIndicatorIndex === blockIndex}
                     isDragging={activeBlockId === block.id}
                     onDragStart={() => setActiveBlockId(block.id)}
                     onInsertBelow={() => insertBlockAfter(sortedBlocks.indexOf(block))}
@@ -991,16 +988,14 @@ export function BlockEditor() {
                 );
               }
 
-              // Custom-rendered blocks (image, pdf, file, divider) —
-              // render directly without SingleBlockEditor to avoid
-              // TipTap wrapping raw JSON content in <p> tags.
+              // Custom-rendered blocks (image, pdf, file, divider, people, etc.)
               if (hasBlockRenderer(block.type)) {
                 const Renderer = getBlockRenderer(block.type)!;
                 return (
                   <SortableBlock
                     key={block.id}
                     id={block.id}
-                    showDropIndicator={dropIndicatorIndex === index}
+                    showDropIndicator={dropIndicatorIndex === blockIndex}
                     isDragging={activeBlockId === block.id}
                     onDragStart={() => setActiveBlockId(block.id)}
                     onInsertBelow={() => insertBlockAfter(sortedBlocks.indexOf(block))}
@@ -1018,7 +1013,7 @@ export function BlockEditor() {
                 );
               }
 
-              const blockIndex = sortedBlocks.indexOf(block);
+              // Standard TipTap-editable blocks.
               const callbacks: BlockNavigationCallbacks = {
                 navigateToBlock: (targetIdx, cursorPos) => navigateToBlock(targetIdx, cursorPos),
                 mergeWithPrevious: () => mergeWithPrevious(blockIndex),
@@ -1031,7 +1026,7 @@ export function BlockEditor() {
                 <SortableBlock
                   key={block.id}
                   id={block.id}
-                  showDropIndicator={dropIndicatorIndex === index}
+                  showDropIndicator={dropIndicatorIndex === blockIndex}
                   isDragging={activeBlockId === block.id}
                   onDragStart={() => setActiveBlockId(block.id)}
                   onInsertBelow={() => insertBlockAfter(blockIndex)}
@@ -1055,18 +1050,64 @@ export function BlockEditor() {
               );
             })}
 
-            {/* Empty state: no blocks yet */}
+            {/* ── Add-block bar (between blocks and orphan databases) ── */}
+            {sortedBlocks.length > 0 && (
+              <button
+                className="add-block-bar"
+                type="button"
+                onClick={async (e) => {
+                  e.stopPropagation();
+                  try {
+                    const lastBlock = sortedBlocks[sortedBlocks.length - 1];
+                    const block = await createBlock({
+                      pageId: currentPage.id, type: "paragraph", content: "<p></p>",
+                      index: lastBlock ? lastBlock.index + 1 : 0, parentId: null,
+                    });
+                    if (block?.id) focusBlockWhenReady(block.id, "start");
+                  } catch (err) {
+                    toaster.create({ title: "Failed to create block", description: String(err), type: "error" });
+                  }
+                }}
+              >
+                <span className="add-block-bar-icon">+</span>
+                <span>New block</span>
+              </button>
+            )}
+
+            {/* ── Orphan databases (not pointed at by an inline database block) ── */}
+            {orphanDatabases.map((db) => (
+              <SortableBlock
+                key={`db-${db.id}`}
+                id={`db-${db.id}`}
+                showDropIndicator={dropIndicatorIndex === sortedBlocks.length + orphanDatabases.indexOf(db)}
+                isDragging={activeBlockId === `db-${db.id}`}
+                onDragStart={() => setActiveBlockId(`db-${db.id}`)}
+                onOpenMenu={(x, y) => setDbMenu({ dbId: db.id, blockId: null, x, y })}
+                blockType="database"
+              >
+                <DatabaseView database={db} isNew={db.id === newDbId} />
+              </SortableBlock>
+            ))}
+
+            {/* ── Empty state ── */}
             {sortedBlocks.length === 0 && databases.length === 0 && (
               <div
                 className="block-node empty-block"
                 onClick={async () => {
-                  await createBlock({
-                    pageId: currentPage.id, type: "paragraph", content: "<p></p>", index: 0, parentId: null,
-                  });
+                  try {
+                    const block = await createBlock({
+                      pageId: currentPage.id, type: "paragraph", content: "<p></p>", index: 0, parentId: null,
+                    });
+                    if (block?.id) focusBlockWhenReady(block.id, "start");
+                  } catch (err) {
+                    toaster.create({ title: "Failed to create block", description: String(err), type: "error" });
+                  }
                 }}
-                style={{ cursor: "text" }}
               >
-                Click here or press '/' to start editing...
+                <div className="empty-block-inner">
+                  <span>This page is empty</span>
+                  <button className="empty-block-btn" type="button">+ New block</button>
+                </div>
               </div>
             )}
 
@@ -1101,6 +1142,32 @@ export function BlockEditor() {
               />
             )}
           </div>
+
+          {/* Mobile floating action button — always within reach while scrolling */}
+          {sortedBlocks.length > 0 && (
+            <button
+              className="fab-add-block"
+              type="button"
+              aria-label="Add block"
+              onClick={async (e) => {
+                e.stopPropagation();
+                try {
+                  const lastBlock = sortedBlocks[sortedBlocks.length - 1];
+                  const block = await createBlock({
+                    pageId: currentPage.id, type: "paragraph", content: "<p></p>",
+                    index: lastBlock ? lastBlock.index + 1 : 0, parentId: null,
+                  });
+                  if (block?.id) focusBlockWhenReady(block.id, "start");
+                } catch (err) {
+                  toaster.create({ title: "Failed to create block", description: String(err), type: "error" });
+                }
+              }}
+            >
+              <svg width="20" height="20" viewBox="0 0 20 20" fill="none">
+                <path d="M10 4v12M4 10h12" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
+              </svg>
+            </button>
+          )}
 
           {/* Backlinks Panel */}
           <BacklinksPanel />

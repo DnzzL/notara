@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef, useLayoutEffect } from "react";
 import { createPortal } from "react-dom";
-import { api } from "../../rpc-client.js";
+import { api, getCurrentWorkspaceId } from "../../rpc-client.js";
 import { usePageStore } from "../../stores/pageStore.js";
 import { tryEvaluate } from "../../lib/formula.js";
 
@@ -276,6 +276,17 @@ export function CellDisplay({
     );
   }
 
+  if (field.type === "people") {
+    let userIds: string[] = [];
+    try { userIds = Array.isArray(value) ? value : (typeof value === "string" ? JSON.parse(value) : []); } catch { /* ignore */ }
+    if (!userIds.length) return <span style={{ color: "#d3d1cb" }}>&nbsp;</span>;
+    return (
+      <div style={{ display: "flex", gap: 6, flexWrap: "wrap", padding: "2px 0", alignItems: "center" }}>
+        {userIds.map((uid) => <PeopleChip key={uid} userId={uid} />)}
+      </div>
+    );
+  }
+
   if (field.type === "relation") {
     let vals: string[] = [];
     try { vals = Array.isArray(value) ? value : (typeof value === "string" ? JSON.parse(value) : []); } catch { /* ignore */ }
@@ -388,6 +399,103 @@ function RelationChip({
   );
 }
 
+// ── People Chip ─────────────────────────────────────────────────────────────
+
+/** Inline avatar + name chip for a workspace member. Fetches member info from
+ *  the workspace members cache. */
+export function PeopleChip({ userId }: { userId: string }) {
+  const [member, setMember] = useState<{ name: string } | null>(null);
+
+  useEffect(() => {
+    const wsId = getCurrentWorkspaceId();
+    if (!wsId) return;
+    api.getWorkspaceMembers({ workspaceId: wsId }).then((members) => {
+      const m = members.find((x: any) => x.userId === userId);
+      if (m) setMember(m);
+    }).catch(() => { /* ignore */ });
+  }, [userId]);
+
+  const name = member?.name || userId.slice(0, 8);
+  const initial = name.charAt(0).toUpperCase();
+
+  return (
+    <span className="db-people-chip" title={name}>
+      <span className="db-people-chip-avatar">{initial}</span>
+      <span className="db-people-chip-name">{name}</span>
+    </span>
+  );
+}
+
+// ── People Picker ───────────────────────────────────────────────────────────
+
+function PeoplePicker({
+  value, onSave, onClose,
+}: {
+  value: string[];
+  onSave: (val: string) => void;
+  onClose: () => void;
+}) {
+  const [members, setMembers] = useState<Array<{ userId: string; name: string; email: string }>>([]);
+  const [query, setQuery] = useState("");
+
+  useEffect(() => {
+    const wsId = getCurrentWorkspaceId();
+    if (!wsId) return;
+    api.getWorkspaceMembers({ workspaceId: wsId }).then(setMembers).catch(() => { /* ignore */ });
+  }, []);
+
+  const q = query.trim().toLowerCase();
+  const visible = q
+    ? members.filter((m) => m.name.toLowerCase().includes(q) || m.email.toLowerCase().includes(q))
+    : members;
+
+  const toggle = (uid: string) => {
+    const next = value.includes(uid) ? value.filter((x) => x !== uid) : [...value, uid];
+    onSave(JSON.stringify(next));
+  };
+
+  return (
+    <CellAnchoredPopover onClose={onClose} minWidth={260}>
+      <input
+        autoFocus
+        className="db-cell-popover-search"
+        placeholder="Search people…"
+        value={query}
+        onChange={(e) => setQuery(e.target.value)}
+        onKeyDown={(e) => { if (e.key === "Escape") { e.preventDefault(); onClose(); } }}
+      />
+      <div className="db-cell-popover-list">
+        {visible.length === 0 ? (
+          <div style={{ padding: "8px 12px", color: "#888", fontSize: 13 }}>No people found</div>
+        ) : visible.map((m) => {
+          const selected = value.includes(m.userId);
+          return (
+            <div
+              key={m.userId}
+              className="db-cell-popover-item"
+              style={{ background: selected ? "rgba(0,0,0,0.05)" : undefined }}
+              onClick={() => toggle(m.userId)}
+            >
+              <span style={{
+                display: "inline-flex", alignItems: "center", justifyContent: "center",
+                width: 22, height: 22, borderRadius: "50%", background: "#e3e2e0",
+                fontSize: 11, fontWeight: 600, color: "#37352f", flexShrink: 0,
+              }}>
+                {m.name.charAt(0).toUpperCase()}
+              </span>
+              <span style={{ fontSize: 13, flex: 1, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                {m.name}
+              </span>
+              <span style={{ fontSize: 11, color: "#999", marginRight: 4 }}>{m.email}</span>
+              {selected && <span style={{ color: "#2eaadc", fontSize: 14 }}>✓</span>}
+            </div>
+          );
+        })}
+      </div>
+    </CellAnchoredPopover>
+  );
+}
+
 // ── Select / Multi-select Popover (with inline create) ───────────────────
 
 function SelectPopover({
@@ -411,6 +519,9 @@ function SelectPopover({
   const exact = options.some((o) => o.toLowerCase() === q.toLowerCase());
   const canCreate = q.length > 0 && !exact;
 
+  const hasValue = field.type !== "multiSelect" && !!currentArr[0];
+  const isEmptyQuery = q.length === 0;
+
   const choose = (opt: string) => {
     if (field.type === "multiSelect") {
       const next = currentArr.includes(opt) ? currentArr.filter((s) => s !== opt) : [...currentArr, opt];
@@ -418,6 +529,11 @@ function SelectPopover({
     } else {
       onSave(opt);
     }
+    setQuery("");
+  };
+
+  const clear = () => {
+    onSave("");
     setQuery("");
   };
 
@@ -441,12 +557,19 @@ function SelectPopover({
           if (e.key === "Escape") { e.preventDefault(); onCancel(); }
           else if (e.key === "Enter") {
             e.preventDefault();
+            if (hasValue && isEmptyQuery) { clear(); return; }
             if (filtered.length > 0) choose(filtered[0]);
             else if (canCreate) create();
           }
         }}
       />
       <div className="db-cell-popover-list">
+        {hasValue && isEmptyQuery && (
+          <div className="db-cell-popover-item" onClick={clear} style={{ borderBottom: "1px solid #f0f0f0", marginBottom: 2 }}>
+            <span style={{ fontSize: 14, opacity: 0.5 }}>✕</span>
+            <span style={{ fontSize: 13, color: "#888" }}>Clear</span>
+          </div>
+        )}
         {filtered.map((opt) => {
           const i = options.indexOf(opt);
           const isSelected = field.type === "multiSelect" ? currentArr.includes(opt) : currentArr[0] === opt;
@@ -470,7 +593,7 @@ function SelectPopover({
             <span style={{ fontSize: 13 }}>Create <strong>"{q}"</strong></span>
           </div>
         )}
-        {filtered.length === 0 && !canCreate && (
+        {filtered.length === 0 && !canCreate && !hasValue && (
           <div style={{ padding: "8px 12px", color: "#888", fontSize: 13 }}>No options</div>
         )}
       </div>
@@ -697,6 +820,16 @@ export function InlineCellEditor({
       <RelationPicker field={field}
         value={typeof value === "string" ? (() => { try { return JSON.parse(value); } catch { return []; } })() : (Array.isArray(value) ? value : [])}
         onSave={onSave} onClose={onCancel} databases={databases} allRecords={allRecords} />
+    );
+  }
+
+  if (field.type === "people") {
+    return (
+      <PeoplePicker
+        value={typeof value === "string" ? (() => { try { return JSON.parse(value); } catch { return []; } })() : (Array.isArray(value) ? value : [])}
+        onSave={onSave}
+        onClose={onCancel}
+      />
     );
   }
 

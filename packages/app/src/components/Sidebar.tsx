@@ -359,9 +359,9 @@ export function Sidebar({ className, onNavigate, onStartTour }: SidebarProps = {
 
   if (collapsed) {
     return (
-      <aside className="w-8 shrink-0 bg-sb border-r border-border-sb flex items-start justify-center pt-3.5" aria-label="Sidebar (collapsed)">
+      <aside className="w-6 shrink-0 bg-sb border-r border-border-sb flex flex-col items-center pt-3 gap-1" aria-label="Sidebar (collapsed)">
         <button
-          className="bg-transparent border-none cursor-pointer text-text-sb-3 text-[15px] px-[7px] py-[5px] rounded-lg transition-[color,background] duration-[var(--t)] ease-[var(--ease)] hover:bg-sb-2 hover:text-text-sb"
+          className="bg-transparent border-none cursor-pointer text-text-sb-3 text-[13px] px-[5px] py-[3px] rounded-lg transition-[color,background] duration-[var(--t)] ease-[var(--ease)] hover:bg-sb-2 hover:text-text-sb"
           title="Expand sidebar (⌘\\)"
           onClick={() => setCollapsed(false)}
         >

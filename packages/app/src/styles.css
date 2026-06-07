@@ -525,7 +525,7 @@ body {
 ══════════════════════════════════════════════════════════════════════ */
 .main {
   flex: 1;
-  padding: 52px 96px;
+  padding: 40px 52px;
   overflow-y: auto;
   background: var(--bg-editor);
 }
@@ -533,7 +533,7 @@ body {
 .main::-webkit-scrollbar-track { background: transparent; }
 .main::-webkit-scrollbar-thumb { background: var(--sb-3); border-radius: 3px; }
 .main::-webkit-scrollbar-thumb:hover { background: var(--sb-4); }
-.main.wide { padding: 28px 52px; }
+.main.wide { padding: 24px 28px; }
 
 /* ── Page header ── */
 .page-header { display: flex; align-items: center; gap: 10px; margin-bottom: 28px; }
@@ -927,6 +927,21 @@ body {
   box-shadow: 0 1px 0 var(--border-mid);
 }
 .empty-state-hint-sep { color: var(--border-mid); font-size: 16px; line-height: 1; }
+/* Empty page block state — prominent call-to-action */
+.empty-block { display: flex; align-items: center; justify-content: center; min-height: 100px; text-align: center; border-radius: var(--radius-md); border: 2px dashed var(--border-mid); transition: border-color var(--t) var(--ease), background var(--t) var(--ease); cursor: pointer; }
+.empty-block:hover { border-color: var(--accent); background: var(--accent-dim); }
+.empty-block-inner { display: flex; flex-direction: column; align-items: center; gap: 8px; }
+.empty-block-inner span { font-size: 14px; color: var(--text-3); }
+/* Persistent add-block button at bottom of page */
+.add-block-bar { display: flex; align-items: center; gap: 8px; padding: 6px 0 6px 52px; margin-top: 4px; opacity: 0.35; cursor: pointer; transition: opacity var(--t) var(--ease); border: none; background: none; width: 100%; text-align: left; font-size: 14px; color: var(--text-3); }
+.add-block-bar:hover { opacity: 0.7; }
+.add-block-bar:active { opacity: 1; }
+.add-block-bar-icon { display: inline-flex; align-items: center; justify-content: center; width: 24px; height: 24px; border-radius: 50%; border: 1.5px solid var(--border-mid); font-size: 16px; line-height: 1; flex-shrink: 0; transition: border-color var(--t) var(--ease); }
+.add-block-bar:hover .add-block-bar-icon { border-color: var(--accent); }
+@media (max-width: 880px) {
+  .empty-block { min-height: 80px; }
+  .add-block-bar { padding-left: 12px; opacity: 0.6; }
+}
 
 /* ── Block drag & drop ── */
 .sortable-block-wrapper { position: relative; display: flex; flex-direction: column; }
@@ -983,20 +998,23 @@ body {
 .db-table { width: 100%; border-collapse: collapse; table-layout: auto; }
 .db-table thead th {
   background: var(--surface-2);
-  font-family: var(--font-mono); font-weight: 500; font-size: 10.5px;
-  letter-spacing: 0.06em; text-transform: uppercase; color: var(--text-3);
+  font-family: var(--font-ui); font-weight: 600; font-size: 11.5px;
+  letter-spacing: 0; text-transform: none; color: var(--text-2);
   border-bottom: 1px solid var(--text);
-  position: sticky; top: 0; z-index: 2; text-align: left;
+  position: sticky; top: 0; z-index: 3; text-align: left;
 }
-.db-col-header { position: relative; padding: 7px 12px; vertical-align: middle; }
+.db-table tfoot { position: sticky; bottom: 0; z-index: 3; }
+.db-table tfoot td { background: var(--surface-2); }
+.db-col-header { position: relative; padding: 6px 10px; vertical-align: middle; border-right: 1px solid var(--border); }
+.db-col-header:last-child { border-right: none; }
 .db-col-header:hover { background: var(--surface-3); }
 .db-col-header:hover .db-col-arrow { opacity: 0.5 !important; }
-.db-col-header:hover .db-col-drag-handle { opacity: 0.4 !important; }
-.db-col-drag-handle:hover { opacity: 0.8 !important; }
-.db-col-drag-handle { touch-action: none; }
+.db-col-header:hover .db-col-drag-handle { color: var(--text-3) !important; }
+.db-col-drag-handle:hover { color: var(--text) !important; }
+.db-col-drag-handle { touch-action: none; user-select: none; }
 .db-col-resize-handle { position: absolute; right: 0; top: 0; bottom: 0; width: 6px; cursor: col-resize; z-index: 3; }
 .db-col-resize-handle:hover { background: var(--accent); opacity: 0.3; }
-.db-col-header-content { display: flex; align-items: center; gap: 5px; cursor: pointer; user-select: none; }
+.db-col-header-content { display: flex; align-items: center; gap: 8px; cursor: pointer; user-select: none; padding-left: 18px; }
 .db-menu-item {
   padding: 6px 10px; border-radius: 6px; cursor: pointer; font-size: 13px;
   color: var(--text-2); display: flex; align-items: center; gap: 6px;
@@ -1009,14 +1027,15 @@ body {
 .db-table-row { transition: background var(--t) var(--ease); }
 .db-table-row:hover { background: var(--surface-2); }
 .db-row-dragging { background: var(--surface-3) !important; opacity: 0.6; }
-.db-drag-header { width: 28px; }
-.db-drag-cell { width: 28px; padding: 4px 2px; vertical-align: middle; position: relative; }
-.db-drag-handle { display: flex; align-items: center; justify-content: center; cursor: grab; color: var(--text-3); padding: 4px; border-radius: 3px; transition: color var(--t) var(--ease), background var(--t) var(--ease); touch-action: none; }
-.db-drag-handle:hover { color: var(--text-3); background: var(--surface-3); }
-.db-drag-handle:active { cursor: grabbing; }
+.db-drag-header { width: 44px; min-width: 44px; }
+.db-drag-cell { width: 44px; min-width: 44px; padding: 4px 2px; vertical-align: middle; position: relative; }
+.db-drag-handle { display: flex; align-items: center; justify-content: center; cursor: grab; color: var(--text-3); padding: 4px 2px; border-radius: 4px; transition: color var(--t) var(--ease), background var(--t) var(--ease); touch-action: none; user-select: none; font-size: 16px; line-height: 1; letter-spacing: 1px; }
+.db-drag-handle:hover { background: var(--surface-3); }
+.db-drag-handle:active { cursor: grabbing; color: var(--text); }
 .db-delete-btn { position: absolute; top: 4px; right: 4px; background: none; border: none; cursor: pointer; color: var(--text-3); font-size: 15px; padding: 2px 6px; border-radius: 5px; transition: all var(--t) var(--ease); line-height: 1; }
 .db-delete-btn:hover { color: var(--danger); background: var(--danger-dim); }
-.db-cell { padding: 3px 6px; border-bottom: 1px solid var(--border); vertical-align: middle; min-height: 32px; position: relative; }
+.db-cell { padding: 3px 8px; border-bottom: 1px solid var(--border); border-right: 1px solid var(--border); vertical-align: middle; min-height: 32px; position: relative; }
+.db-cell:last-child { border-right: none; }
 .db-cell-popover {
   background: var(--surface); border: 1px solid var(--border-mid);
   border-radius: 4px; box-shadow: var(--shadow-lg);
@@ -1053,10 +1072,35 @@ body {
 .db-page-chip:hover { background: var(--surface-4); color: var(--text); }
 .db-page-chip-icon { opacity: 0.7; }
 .db-relation-chip { display: inline-block; background: var(--accent-dim); border: 1px solid rgba(43,77,255,0.2); color: var(--accent-2); border-radius: 5px; padding: 2px 8px; font-size: 12.5px; max-width: 200px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; cursor: pointer; }
+.db-people-chip { display: inline-flex; align-items: center; gap: 5px; background: var(--surface-3); border: 1px solid var(--border); border-radius: 20px; padding: 1px 8px 1px 3px; font-size: 12.5px; max-width: 200px; color: var(--text-2); }
+.db-people-chip-avatar { display: inline-flex; align-items: center; justify-content: center; width: 20px; height: 20px; border-radius: 50%; background: var(--accent-dim); color: var(--accent-2); font-size: 10px; font-weight: 600; flex-shrink: 0; }
+.db-people-chip-name { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+/* People block (inline page block for people assignment) */
+.people-block { padding: 4px 0; }
+.people-block-chips { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; }
+.people-block-chip { display: inline-flex; align-items: center; gap: 5px; background: var(--surface-3); border: 1px solid var(--border); border-radius: 20px; padding: 2px 8px 2px 3px; font-size: 13px; cursor: default; color: var(--text-2); transition: background var(--t) var(--ease); }
+.people-block-chip:hover { background: var(--surface-4); }
+.people-block-chip-avatar { display: inline-flex; align-items: center; justify-content: center; width: 22px; height: 22px; border-radius: 50%; background: var(--accent-dim); color: var(--accent-2); font-size: 11px; font-weight: 600; flex-shrink: 0; }
+.people-block-chip-name { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.people-block-chip-remove { background: none; border: none; cursor: pointer; color: var(--text-3); font-size: 14px; padding: 0 0 0 4px; line-height: 1; opacity: 0; transition: opacity var(--t) var(--ease); }
+.people-block-chip:hover .people-block-chip-remove { opacity: 1; }
+.people-block-add-btn { background: none; border: 1.5px dashed var(--border-mid); border-radius: 20px; width: 28px; height: 28px; display: inline-flex; align-items: center; justify-content: center; cursor: pointer; color: var(--text-3); font-size: 16px; transition: border-color var(--t) var(--ease), color var(--t) var(--ease); }
+.people-block-add-btn:hover { border-color: var(--accent); color: var(--accent); }
+.people-block-picker { background: var(--surface); border: 1px solid var(--border-mid); border-radius: 8px; padding: 6px; box-shadow: var(--shadow-lg); max-height: 280px; display: flex; flex-direction: column; }
+.people-block-picker-input { width: 100%; border: 1px solid var(--border); border-radius: 6px; padding: 6px 8px; font-size: 13px; outline: none; background: var(--surface-2); color: var(--text); box-sizing: border-box; }
+.people-block-picker-list { flex: 1; overflow-y: auto; margin-top: 4px; }
+.people-block-picker-empty { padding: 10px 8px; color: var(--text-3); font-size: 13px; }
+.people-block-picker-item { display: flex; align-items: center; gap: 8px; width: 100%; padding: 5px 8px; background: none; border: none; border-radius: 4px; cursor: pointer; text-align: left; font-size: 13px; color: var(--text); transition: background var(--t) var(--ease); }
+.people-block-picker-item:hover { background: var(--surface-3); }
+.people-block-picker-avatar { display: inline-flex; align-items: center; justify-content: center; width: 24px; height: 24px; border-radius: 50%; background: var(--accent-dim); color: var(--accent-2); font-size: 11px; font-weight: 600; flex-shrink: 0; }
+.people-block-picker-name { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.people-block-picker-email { font-size: 11px; color: var(--text-3); }
+.people-block-picker-check { color: var(--accent); font-size: 14px; }
+.people-block-picker-done { width: 100%; margin-top: 4px; padding: 6px; border: none; border-radius: 6px; background: var(--accent); color: var(--bg); font-size: 13px; font-weight: 500; cursor: pointer; }
 
-/* Touch devices — reveal db drag handles that default to opacity:0 */
+/* Touch devices — reveal db drag handles that default to subtle on desktop */
 @media (hover: none), (pointer: coarse) {
-  .db-col-drag-handle { opacity: 0.4 !important; }
+  .db-col-drag-handle { color: var(--text-3) !important; }
   .db-drag-handle { color: var(--text-3); }
 }
 
@@ -1801,13 +1845,37 @@ select, input, textarea, button { font-family: var(--font-ui); }
   .sb-item, .sb-action-btn, .sb-icon-btn { min-height: 44px; }
 
   /* Reduce main content padding so databases have room to breathe */
-  .main { padding: 20px 14px; }
-  .main.wide { padding: 16px 10px; }
+  .main { padding: 16px 12px; }
+  .main.wide { padding: 12px 8px; }
 
-  /* Hide block gutters (drag handles) on mobile — no hover state anyway */
-  .block-gutter { display: none; }
+  /* Hide drag handles on mobile — no hover state anyway, but keep the + insert button */
+  .block-gutter .drag-handle-wrapper { display: none; }
+  .block-gutter { opacity: 1; }
+  .block-insert-btn { display: flex; }
 }
-
+/* Floating add-block button */
+.fab-add-block {
+  display: none;
+  position: fixed;
+  bottom: 24px;
+  right: 20px;
+  z-index: 1000;
+  width: 52px;
+  height: 52px;
+  border-radius: 50%;
+  border: none;
+  background: var(--text);
+  color: var(--bg);
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  box-shadow: 0 4px 16px rgba(0,0,0,0.2);
+  transition: transform var(--t) var(--ease), opacity var(--t) var(--ease);
+}
+.fab-add-block:active { transform: scale(0.92); }
+@media (max-width: 880px) {
+  .fab-add-block { display: flex; }
+}
 /* Hide mobile topbar on desktop */
 .mobile-topbar { display: none; }
 .mobile-menu-btn { display: none; }

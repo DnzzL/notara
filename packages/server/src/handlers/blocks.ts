@@ -86,17 +86,19 @@ export const reorderBlocks = (pageId: string, blockIds: string[]) =>
 export const getBacklinks = (pageId: string) =>
   Effect.gen(function* () {
     const sql = yield* SqlClient.SqlClient;
-    const rows = yield* sql<{ blockId: string; pageId: string; pageTitle: string; content: string }>`
-      SELECT b.id as "blockId", b.page_id as "pageId", p.title as "pageTitle", b.content
+    const rows = yield* sql<{ blockId: string; pageId: string; pageTitle: string; blockType: string; content: string }>`
+      SELECT b.id as "blockId", b.page_id as "pageId", p.title as "pageTitle", b.type as "blockType", b.content
       FROM blocks b
       JOIN pages p ON b.page_id = p.id
-      WHERE b.content LIKE ${`%data-page-ref="${pageId}"%`}
+      WHERE (b.content LIKE ${`%data-page-ref="${pageId}"%`}
+         OR (b.type = 'pageLink' AND b.content = ${pageId}))
         AND p.is_deleted = 0
     `;
     return rows.map(r => new Backlink({
       blockId: r.blockId,
       pageId: r.pageId,
       pageTitle: r.pageTitle,
+      blockType: r.blockType,
       content: r.content,
     }));
   });

@@ -36,6 +36,7 @@ export class Block extends Schema.Class<Block>("Block")({
     "pageLink",
     "toggle",
     "callout",
+    "people",
   ),
   content: Schema.String,
   parentId: Schema.NullOr(Schema.String),
@@ -54,7 +55,7 @@ export class Database extends Schema.Class<Database>("Database")({
 }) {}
 
 export const DatabaseFieldType = Schema.Literal(
-  "text", "number", "select", "multiSelect", "date", "checkbox", "relation", "page", "formula",
+  "text", "number", "select", "multiSelect", "date", "checkbox", "relation", "page", "formula", "people",
 );
 
 export class DatabaseField extends Schema.Class<DatabaseField>("DatabaseField")({
@@ -101,6 +102,7 @@ export class Backlink extends Schema.Class<Backlink>("Backlink")({
   blockId: Schema.String,
   pageId: Schema.String,
   pageTitle: Schema.String,
+  blockType: Schema.String,
   content: Schema.String,
 }) {}
 
