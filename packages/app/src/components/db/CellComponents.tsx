@@ -519,6 +519,9 @@ function SelectPopover({
   const exact = options.some((o) => o.toLowerCase() === q.toLowerCase());
   const canCreate = q.length > 0 && !exact;
 
+  const hasValue = field.type !== "multiSelect" && !!currentArr[0];
+  const isEmptyQuery = q.length === 0;
+
   const choose = (opt: string) => {
     if (field.type === "multiSelect") {
       const next = currentArr.includes(opt) ? currentArr.filter((s) => s !== opt) : [...currentArr, opt];
@@ -526,6 +529,11 @@ function SelectPopover({
     } else {
       onSave(opt);
     }
+    setQuery("");
+  };
+
+  const clear = () => {
+    onSave("");
     setQuery("");
   };
 
@@ -549,12 +557,19 @@ function SelectPopover({
           if (e.key === "Escape") { e.preventDefault(); onCancel(); }
           else if (e.key === "Enter") {
             e.preventDefault();
+            if (hasValue && isEmptyQuery) { clear(); return; }
             if (filtered.length > 0) choose(filtered[0]);
             else if (canCreate) create();
           }
         }}
       />
       <div className="db-cell-popover-list">
+        {hasValue && isEmptyQuery && (
+          <div className="db-cell-popover-item" onClick={clear} style={{ borderBottom: "1px solid #f0f0f0", marginBottom: 2 }}>
+            <span style={{ fontSize: 14, opacity: 0.5 }}>✕</span>
+            <span style={{ fontSize: 13, color: "#888" }}>Clear</span>
+          </div>
+        )}
         {filtered.map((opt) => {
           const i = options.indexOf(opt);
           const isSelected = field.type === "multiSelect" ? currentArr.includes(opt) : currentArr[0] === opt;
@@ -578,7 +593,7 @@ function SelectPopover({
             <span style={{ fontSize: 13 }}>Create <strong>"{q}"</strong></span>
           </div>
         )}
-        {filtered.length === 0 && !canCreate && (
+        {filtered.length === 0 && !canCreate && !hasValue && (
           <div style={{ padding: "8px 12px", color: "#888", fontSize: 13 }}>No options</div>
         )}
       </div>

@@ -46,6 +46,7 @@ export function ColumnHeader({
   onSortAsc?: () => void;
   onSortDesc?: () => void;
   onFilter?: () => void;
+  onDuplicate?: () => void;
   isTitle?: boolean;
   width?: number;
   onResize?: (fieldId: string, delta: number) => void;
@@ -121,7 +122,7 @@ export function ColumnHeader({
           {...(dragAttributes || {})}
           className="db-col-drag-handle"
           title="Drag to reorder"
-          style={{ position: "absolute", left: 2, top: "50%", transform: "translateY(-50%)", cursor: "grab", opacity: 0, transition: "opacity 0.15s", padding: "0 2px", fontSize: 10, lineHeight: 1 }}
+          style={{ position: "absolute", left: 0, top: "50%", transform: "translateY(-50%)", cursor: "grab", padding: "4px 3px", fontSize: 14, lineHeight: 1, color: "#9b9a97" }}
           onClick={(e) => e.stopPropagation()}
         >⋮⋮</span>
       )}
@@ -218,6 +219,9 @@ export function ColumnHeader({
             )}
             {onEditFormula && field.type === "formula" && (
               <div className="db-menu-item" onClick={() => { handleMenuClose(); onEditFormula(); }}>Edit formula</div>
+            )}
+            {onDuplicate && (
+              <div className="db-menu-item" onClick={() => { handleMenuClose(); onDuplicate(); }}>Duplicate</div>
             )}
             <div className="db-menu-item" onClick={() => setEditing(true)}>Rename</div>
             <div className="db-menu-item db-menu-item--danger" onClick={() => { onDelete(); handleMenuClose(); }}>Delete</div>
@@ -414,92 +418,96 @@ export function AddFieldPopover({
 
   return (
     <Popover triggerRect={triggerRect} onClose={onClose} minWidth={300}>
-      <div style={{ padding: 4 }}>
-        <div style={{ fontSize: 13, fontWeight: 600, marginBottom: 12 }}>New property</div>
-        <input ref={nameRef} placeholder="Property name" value={name} onChange={(e) => setName(e.target.value)}
-          onKeyDown={(e) => { if (e.key === "Enter") handleCreate(); }}
-          style={{ width: "100%", border: "1px solid #e9e9e7", borderRadius: 4, padding: "6px 8px", fontSize: 13, marginBottom: 12, outline: "none", boxSizing: "border-box" }} />
+      <div style={{ padding: 4, display: "flex", flexDirection: "column", maxHeight: "calc(70vh - 16px)" }}>
+        <div style={{ flex: 1, overflowY: "auto", minHeight: 0 }}>
+          <div style={{ fontSize: 13, fontWeight: 600, marginBottom: 12 }}>New property</div>
+          <input ref={nameRef} placeholder="Property name" value={name} onChange={(e) => setName(e.target.value)}
+            onKeyDown={(e) => { if (e.key === "Enter") handleCreate(); }}
+            style={{ width: "100%", border: "1px solid #e9e9e7", borderRadius: 4, padding: "6px 8px", fontSize: 13, marginBottom: 12, outline: "none", boxSizing: "border-box" }} />
 
-        <div style={{ fontSize: 11, color: "#999", marginBottom: 6, fontWeight: 500 }}>TYPE</div>
-        <div style={{ display: "flex", flexDirection: "column", gap: 2, marginBottom: 12 }}>
-          {FIELD_TYPES.map((ft) => (
-            <div key={ft.type} style={{
-              display: "flex", alignItems: "center", gap: 8, padding: "5px 8px", borderRadius: 4,
-              cursor: "pointer", background: type === ft.type ? "rgba(0,0,0,0.05)" : "transparent", fontSize: 13,
-            }} onClick={() => setType(ft.type)}>
-              <span style={{ width: 20, textAlign: "center", fontSize: 11, opacity: 0.6 }}>{ft.icon}</span>
-              <span>{ft.label}</span>
-              {type === ft.type && <span style={{ marginLeft: "auto", color: "#2eaadc", fontSize: 12 }}>✓</span>}
-            </div>
-          ))}
-        </div>
+          <div style={{ fontSize: 11, color: "#999", marginBottom: 6, fontWeight: 500 }}>TYPE</div>
+          <div style={{ display: "flex", flexDirection: "column", gap: 2, marginBottom: 12 }}>
+            {FIELD_TYPES.map((ft) => (
+              <div key={ft.type} style={{
+                display: "flex", alignItems: "center", gap: 8, padding: "5px 8px", borderRadius: 4,
+                cursor: "pointer", background: type === ft.type ? "rgba(0,0,0,0.05)" : "transparent", fontSize: 13,
+              }} onClick={() => setType(ft.type)}>
+                <span style={{ width: 20, textAlign: "center", fontSize: 11, opacity: 0.6 }}>{ft.icon}</span>
+                <span>{ft.label}</span>
+                {type === ft.type && <span style={{ marginLeft: "auto", color: "#2eaadc", fontSize: 12 }}>✓</span>}
+              </div>
+            ))}
+          </div>
 
-        {(type === "select" || type === "multiSelect") && (
-          <div style={{ marginBottom: 12, borderTop: "1px solid #f0f0f0", paddingTop: 8 }}>
-            <div style={{ fontSize: 11, color: "#999", marginBottom: 6, fontWeight: 500 }}>OPTIONS</div>
-            <div style={{ display: "flex", flexDirection: "column", gap: 3 }}>
-              {options.map((opt, i) => {
-                const c = optionColor(i);
-                return (
-                  <div key={opt} style={{ display: "flex", alignItems: "center", gap: 6, padding: "2px 4px" }}>
-                    <span style={{ display: "inline-block", background: c.bg, borderRadius: 3, width: 14, height: 14 }} />
-                    <span style={{ fontSize: 13, flex: 1 }}>{opt}</span>
-                    <button onClick={() => setOptions(options.filter((o) => o !== opt))}
-                      style={{ background: "none", border: "none", cursor: "pointer", color: "#ccc", fontSize: 14, padding: 2, lineHeight: 1 }}>×</button>
-                  </div>
-                );
-              })}
-              <div style={{ display: "flex", alignItems: "center", gap: 6, padding: "2px 4px" }}>
-                <span style={{ opacity: 0.5, fontSize: 12 }}>+</span>
-                <input value={optionInput} onChange={(e) => setOptionInput(e.target.value)}
-                  onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); handleAddOption(); } }}
-                  placeholder="Add option"
-                  style={{ flex: 1, border: "none", outline: "none", fontSize: 13, padding: "2px 0" }} />
+          {(type === "select" || type === "multiSelect") && (
+            <div style={{ marginBottom: 12, borderTop: "1px solid #f0f0f0", paddingTop: 8 }}>
+              <div style={{ fontSize: 11, color: "#999", marginBottom: 6, fontWeight: 500 }}>OPTIONS</div>
+              <div style={{ display: "flex", flexDirection: "column", gap: 3 }}>
+                {options.map((opt, i) => {
+                  const c = optionColor(i);
+                  return (
+                    <div key={opt} style={{ display: "flex", alignItems: "center", gap: 6, padding: "2px 4px" }}>
+                      <span style={{ display: "inline-block", background: c.bg, borderRadius: 3, width: 14, height: 14 }} />
+                      <span style={{ fontSize: 13, flex: 1 }}>{opt}</span>
+                      <button onClick={() => setOptions(options.filter((o) => o !== opt))}
+                        style={{ background: "none", border: "none", cursor: "pointer", color: "#ccc", fontSize: 14, padding: 2, lineHeight: 1 }}>×</button>
+                    </div>
+                  );
+                })}
+                <div style={{ display: "flex", alignItems: "center", gap: 6, padding: "2px 4px" }}>
+                  <span style={{ opacity: 0.5, fontSize: 12 }}>+</span>
+                  <input value={optionInput} onChange={(e) => setOptionInput(e.target.value)}
+                    onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); handleAddOption(); } }}
+                    placeholder="Add option"
+                    style={{ flex: 1, border: "none", outline: "none", fontSize: 13, padding: "2px 0" }} />
+                </div>
               </div>
             </div>
-          </div>
-        )}
+          )}
 
-        {type === "formula" && (
-          <div style={{ marginBottom: 12, borderTop: "1px solid #f0f0f0", paddingTop: 8 }}>
-            <div style={{ fontSize: 11, color: "#999", marginBottom: 6, fontWeight: 500 }}>EXPRESSION</div>
-            <textarea
-              value={formula}
-              onChange={(e) => setFormula(e.target.value)}
-              placeholder={`e.g. prop("Price") * prop("Qty")`}
-              rows={3}
-              style={{ width: "100%", border: "1px solid #e9e9e7", borderRadius: 4, padding: "6px 8px", fontSize: 12, outline: "none", boxSizing: "border-box", fontFamily: "ui-monospace, SFMono-Regular, Menlo, monospace", resize: "vertical" }}
-            />
-            <div style={{ fontSize: 10, color: "#999", marginTop: 4 }}>
-              Refs: <code>prop("Field Name")</code> · Ops: <code>+ - * /</code> · Fns: <code>if, sum, round, min, max</code>
+          {type === "formula" && (
+            <div style={{ marginBottom: 12, borderTop: "1px solid #f0f0f0", paddingTop: 8 }}>
+              <div style={{ fontSize: 11, color: "#999", marginBottom: 6, fontWeight: 500 }}>EXPRESSION</div>
+              <textarea
+                value={formula}
+                onChange={(e) => setFormula(e.target.value)}
+                placeholder={`e.g. prop("Price") * prop("Qty")`}
+                rows={3}
+                style={{ width: "100%", border: "1px solid #e9e9e7", borderRadius: 4, padding: "6px 8px", fontSize: 12, outline: "none", boxSizing: "border-box", fontFamily: "ui-monospace, SFMono-Regular, Menlo, monospace", resize: "vertical" }}
+              />
+              <div style={{ fontSize: 10, color: "#999", marginTop: 4 }}>
+                Refs: <code>prop("Field Name")</code> · Ops: <code>+ - * /</code> · Fns: <code>if, sum, round, min, max</code>
+              </div>
             </div>
-          </div>
-        )}
+          )}
 
-        {type === "relation" && (
-          <div style={{ marginBottom: 12, borderTop: "1px solid #f0f0f0", paddingTop: 8 }}>
-            <div style={{ fontSize: 11, color: "#999", marginBottom: 6, fontWeight: 500 }}>RELATE TO</div>
-            <select value={relationTarget || ""} onChange={(e) => setRelationTarget(e.target.value || null)}
-              style={{ width: "100%", border: "1px solid #e9e9e7", borderRadius: 4, padding: "6px 8px", fontSize: 13, boxSizing: "border-box" }}>
-              <option value="">Select a database…</option>
-              {allDbs.map((db) => {
-                const page = pages.find((p) => p.id === db.pageId);
-                const pageTitle = page?.title || "Untitled page";
-                return (
-                  <option key={db.id} value={db.id}>
-                    {db.name} — {pageTitle}
-                  </option>
-                );
-              })}
-            </select>
-          </div>
-        )}
+          {type === "relation" && (
+            <div style={{ marginBottom: 12, borderTop: "1px solid #f0f0f0", paddingTop: 8 }}>
+              <div style={{ fontSize: 11, color: "#999", marginBottom: 6, fontWeight: 500 }}>RELATE TO</div>
+              <select value={relationTarget || ""} onChange={(e) => setRelationTarget(e.target.value || null)}
+                style={{ width: "100%", border: "1px solid #e9e9e7", borderRadius: 4, padding: "6px 8px", fontSize: 13, boxSizing: "border-box" }}>
+                <option value="">Select a database…</option>
+                {allDbs.map((db) => {
+                  const page = pages.find((p) => p.id === db.pageId);
+                  const pageTitle = page?.title || "Untitled page";
+                  return (
+                    <option key={db.id} value={db.id}>
+                      {db.name} — {pageTitle}
+                    </option>
+                  );
+                })}
+              </select>
+            </div>
+          )}
+        </div>
 
-        <button onClick={handleCreate} style={{
-          width: "100%", background: "#2eaadc", color: "#fff", border: "none", borderRadius: 4,
-          padding: "7px 12px", fontSize: 13, fontWeight: 500, cursor: name.trim() ? "pointer" : "not-allowed",
-          opacity: name.trim() ? 1 : 0.5,
-        }}>Create</button>
+        <div style={{ flexShrink: 0, paddingTop: 8, borderTop: "1px solid #f0f0f0", marginTop: 8 }}>
+          <button onClick={handleCreate} style={{
+            width: "100%", background: "#2eaadc", color: "#fff", border: "none", borderRadius: 4,
+            padding: "7px 12px", fontSize: 13, fontWeight: 500, cursor: name.trim() ? "pointer" : "not-allowed",
+            opacity: name.trim() ? 1 : 0.5,
+          }}>Create</button>
+        </div>
       </div>
     </Popover>
   );

@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback, useRef, useMemo } from "react";
 import { cn } from "./ui/cn.js";
 import {
-  DndContext, DragOverlay, MouseSensor, TouchSensor, useSensor, useSensors,
+  DndContext, DragOverlay, PointerSensor, useSensor, useSensors,
   type DragEndEvent, type DragStartEvent,
 } from "@dnd-kit/core";
 import { SortableContext, useSortable, verticalListSortingStrategy, horizontalListSortingStrategy } from "@dnd-kit/sortable";
@@ -210,13 +210,7 @@ function SortableRow({
           style={{ opacity: hovered || selected ? 1 : 0, marginRight: 2, cursor: "pointer" }}
           title="Select row (Shift+click for range)"
         />
-        <div className="db-drag-handle" {...listeners} {...attributes}>
-          <svg width="12" height="12" viewBox="0 0 16 16" fill="currentColor">
-            <circle cx="5" cy="3" r="1.5" /><circle cx="11" cy="3" r="1.5" />
-            <circle cx="5" cy="8" r="1.5" /><circle cx="11" cy="8" r="1.5" />
-            <circle cx="5" cy="13" r="1.5" /><circle cx="11" cy="13" r="1.5" />
-          </svg>
-        </div>
+        <div className="db-drag-handle" {...listeners} {...attributes}>⋮⋮</div>
         <button
           className="db-row-open-btn"
           style={{ opacity: hovered || hasPage ? 1 : 0 }}
@@ -576,11 +570,9 @@ export function DatabaseView({ database, isNew }: { database: any; isNew?: boole
     if (e.key === "Escape") setIsEditingName(false);
   };
 
-  // Table DnD — MouseSensor for pointer, TouchSensor (long-press) so mobile
-  // touch-scroll isn't mistaken for a row drag.
+  // Table DnD — PointerSensor for pointer and touch.
   const tableSensors = useSensors(
-    useSensor(MouseSensor, { activationConstraint: { distance: 8 } }),
-    useSensor(TouchSensor, { activationConstraint: { delay: 200, tolerance: 6 } }),
+    useSensor(PointerSensor, { activationConstraint: { distance: 4 } }),
   );
   const handleRowDragStart = useCallback(({ active }: DragStartEvent) => setActiveRowId(String(active.id)), []);
   const handleRowDragEnd = useCallback(async ({ active, over }: DragEndEvent) => {
@@ -598,8 +590,7 @@ export function DatabaseView({ database, isNew }: { database: any; isNew?: boole
 
   // Column DnD (reorder headers).
   const colSensors = useSensors(
-    useSensor(MouseSensor, { activationConstraint: { distance: 6 } }),
-    useSensor(TouchSensor, { activationConstraint: { delay: 200, tolerance: 6 } }),
+    useSensor(PointerSensor, { activationConstraint: { distance: 6 } }),
   );
   const handleColDragStart = useCallback(({ active }: DragStartEvent) => setActiveColId(String(active.id)), []);
   const handleColDragEnd = useCallback(async ({ active, over }: DragEndEvent) => {
@@ -707,8 +698,7 @@ export function DatabaseView({ database, isNew }: { database: any; isNew?: boole
         </div>
 
         {/* Table */}
-        <DndContext sensors={colSensors} onDragStart={handleColDragStart} onDragEnd={handleColDragEnd}>
-        <div style={{ overflowX: "auto" }}>
+        <div style={{ overflowX: "auto", overflowY: "auto", maxHeight: "calc(100vh - 200px)" }}>
           <table className="db-table">
             <thead>
               <tr>
@@ -723,6 +713,7 @@ export function DatabaseView({ database, isNew }: { database: any; isNew?: boole
                     onResize={handleColumnResize}
                   />
                 )}
+                <DndContext sensors={colSensors} onDragStart={handleColDragStart} onDragEnd={handleColDragEnd}>
                 <SortableContext items={dbFields.map((f: any) => f.id)} strategy={horizontalListSortingStrategy}>
                   {dbFields.map((f: any) => (
                     <DraggableColumnHeader
@@ -737,10 +728,12 @@ export function DatabaseView({ database, isNew }: { database: any; isNew?: boole
                       onSortAsc={() => addSort(database.id, { fieldId: f.id, direction: "asc" })}
                       onSortDesc={() => addSort(database.id, { fieldId: f.id, direction: "desc" })}
                       onFilter={() => addFilter(database.id, { fieldId: f.id, operator: "contains", value: "" })}
+                      onDuplicate={() => handleAddField(f.name + " (copy)", f.type, f.options || undefined, f.relationTargetDbId || null, f.formula || null)}
                       width={columnWidths[f.id]} onResize={handleColumnResize}
                     />
                   ))}
                 </SortableContext>
+                </DndContext>
                 <th style={{ width: 40 }}>
                   <button ref={addFieldBtnRef} onClick={() => setShowAddField(true)} className="db-add-col-btn" title="Add property">+</button>
                 </th>
@@ -859,7 +852,6 @@ export function DatabaseView({ database, isNew }: { database: any; isNew?: boole
             )}
           </table>
         </div>
-        </DndContext>
 
         {showAddField && (<AddFieldPopover triggerRect={addFieldBtnRef.current?.getBoundingClientRect() ?? null} onClose={() => setShowAddField(false)} onAdd={handleAddField} />)}
 
