@@ -67,6 +67,7 @@ const mimeTypes: Record<string, string> = {
   ".pdf": "application/pdf",
   ".woff": "font/woff",
   ".woff2": "font/woff2",
+  ".webmanifest": "application/manifest+json",
 };
 
 // ── Env validation ────────────────────────────────────────────────────────────
@@ -434,8 +435,16 @@ const staticFilesRoute = Effect.gen(function* () {
     const contentType = mimeTypes[ext] || "application/octet-stream";
     const content = fs.readFileSync(filePath);
 
+    // Service worker must be served with no-cache so browsers check for updates.
+    const additionalHeaders: Record<string, string> = {};
+    const baseName = path.basename(filePath);
+    if (baseName === "sw.js") {
+      additionalHeaders["Cache-Control"] = "no-cache, no-store, must-revalidate";
+      additionalHeaders["Service-Worker-Allowed"] = "/";
+    }
+
     return HttpServerResponse.uint8Array(new Uint8Array(content), {
-      headers: { "Content-Type": contentType, ...corsHeaders },
+      headers: { "Content-Type": contentType, ...corsHeaders, ...additionalHeaders },
     });
   }));
 });
