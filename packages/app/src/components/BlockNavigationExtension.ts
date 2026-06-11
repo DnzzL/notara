@@ -1,10 +1,15 @@
-import { Extension } from "@tiptap/core";
+import { Extension, type Editor } from "@tiptap/core";
 import { BLOCK_TYPE_CONFIG } from "./blockTypes.js";
+import { splitInlineHTML } from "./blockEditing.js";
 
 /** Callback invoked when the editor requests an inter-block operation. */
 export interface BlockNavigationCallbacks {
-  /** Move focus to the block with the given index. cursorPosition: 'start' | 'end'. */
-  navigateToBlock?: (targetIndex: number, cursorPosition: "start" | "end") => void;
+  /**
+   * Move focus to the block at `targetIndex`, entering from `edge`. When `x`
+   * (the caret's screen x-coordinate) is given, the caret is placed at the
+   * same horizontal position so vertical movement keeps its column.
+   */
+  navigateToBlock?: (targetIndex: number, edge: "top" | "bottom", x?: number) => void;
 
   /** Merge the current block with the previous block. Called on Backspace at position 0. */
   mergeWithPrevious?: () => void;
@@ -61,7 +66,7 @@ export const BlockNavigationExtension = Extension.create<{
 
         // If cursor is at the end of the document (end of this block), navigate to next block
         if (pos >= docSize - 1 && blockIndex < totalBlocks - 1) {
-          navigateToBlock?.(blockIndex + 1, "start");
+          navigateToBlock?.(blockIndex + 1, "top", caretX(editor, pos));
           return true;
         }
         return false;
@@ -74,7 +79,7 @@ export const BlockNavigationExtension = Extension.create<{
 
         // If cursor is at the start of the document (start of this block), navigate to previous block
         if (pos <= 1 && blockIndex > 0) {
-          navigateToBlock?.(blockIndex - 1, "end");
+          navigateToBlock?.(blockIndex - 1, "bottom", caretX(editor, pos));
           return true;
         }
         return false;
@@ -154,80 +159,36 @@ export const BlockNavigationExtension = Extension.create<{
   },
 });
 
-/** Split HTML at cursor position for a paragraph block. */
-function splitAtCursor(
-  editor: { getText: () => string },
-  cursorPos: number,
-): { before: string; after: string } {
-  const fullText = editor.getText();
-  const textSplitPoint = Math.max(0, cursorPos - 1);
-  const textBefore = fullText.slice(0, textSplitPoint);
-  const textAfter = fullText.slice(textSplitPoint);
-
-  return {
-    before: `<p>${textBefore}</p>`,
-    after: `<p>${textAfter}</p>`,
-  };
-}
-
-/** Split heading content at cursor - returns heading + paragraph. */
-function splitHeadingAtCursor(
-  editor: { getHTML: () => string; getText: () => string },
-  cursorPos: number,
-  docSize: number,
-): { before: string; after: string } {
-  if (cursorPos >= docSize - 1) {
-    return { before: editor.getHTML(), after: "<p></p>" };
+/** Screen x-coordinate of the caret, for column-preserving navigation. */
+function caretX(editor: Editor, pos: number): number | undefined {
+  try {
+    return editor.view.coordsAtPos(pos).left;
+  } catch {
+    return undefined;
   }
-
-  const fullText = editor.getText();
-  const textSplitPoint = Math.max(0, cursorPos - 1);
-  const textBefore = fullText.slice(0, textSplitPoint);
-  const textAfter = fullText.slice(textSplitPoint);
-
-  const level = getHeadingLevel(editor.getHTML());
-  return {
-    before: `<h${level}>${textBefore}</h${level}>`,
-    after: `<p>${textAfter}</p>`,
-  };
 }
 
-/** Extract heading level from HTML string. */
-function getHeadingLevel(html: string): string {
-  const m = html.match(/<h(\d)/);
-  return m ? m[1] : "1";
+/** Split a paragraph block at the cursor, preserving inline marks. */
+function splitAtCursor(editor: Editor, cursorPos: number): { before: string; after: string } {
+  const { before, after } = splitInlineHTML(editor, cursorPos);
+  return { before: `<p>${before}</p>`, after: `<p>${after}</p>` };
 }
 
-/** Split list item at cursor into two list items. */
-function splitListAtCursor(
-  editor: { getHTML: () => string; getText: () => string },
-  cursorPos: number,
-  listType: string,
-): { before: string; after: string } {
-  const fullText = editor.getText();
-  const textSplitPoint = Math.max(0, cursorPos - 1);
-  const textBefore = fullText.slice(0, textSplitPoint);
-  const textAfter = fullText.slice(textSplitPoint);
-
+/** Split a list item at the cursor into two items, preserving inline marks. */
+function splitListAtCursor(editor: Editor, cursorPos: number, listType: string): { before: string; after: string } {
+  const { before, after } = splitInlineHTML(editor, cursorPos);
   const tag = listType === "numberedList" ? "ol" : "ul";
   return {
-    before: `<${tag}><li>${textBefore}</li></${tag}>`,
-    after: `<${tag}><li>${textAfter}</li></${tag}>`,
+    before: `<${tag}><li>${before}</li></${tag}>`,
+    after: `<${tag}><li>${after}</li></${tag}>`,
   };
 }
 
-/** Split todo item at cursor into two todo items. */
-function splitTodoAtCursor(
-  editor: { getHTML: () => string; getText: () => string },
-  cursorPos: number,
-): { before: string; after: string } {
-  const fullText = editor.getText();
-  const textSplitPoint = Math.max(0, cursorPos - 1);
-  const textBefore = fullText.slice(0, textSplitPoint);
-  const textAfter = fullText.slice(textSplitPoint);
-
+/** Split a todo item at the cursor into two items, preserving inline marks. */
+function splitTodoAtCursor(editor: Editor, cursorPos: number): { before: string; after: string } {
+  const { before, after } = splitInlineHTML(editor, cursorPos);
   return {
-    before: `<ul class="task-list"><li data-checked="false">${textBefore}</li></ul>`,
-    after: `<ul class="task-list"><li data-checked="false">${textAfter}</li></ul>`,
+    before: `<ul data-type="taskList"><li data-type="taskItem" data-checked="false">${before}</li></ul>`,
+    after: `<ul data-type="taskList"><li data-type="taskItem" data-checked="false">${after}</li></ul>`,
   };
 }
