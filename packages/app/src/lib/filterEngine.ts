@@ -6,12 +6,45 @@ export type FilterOperator =
   | "is"
   | "is_not"
   | "is_empty"
-  | "is_not_empty";
+  | "is_not_empty"
+  | "gt"
+  | "lt"
+  | "gte"
+  | "lte"
+  | "before"
+  | "after";
 
 export interface Filter {
   fieldId: string;
   operator: FilterOperator;
   value: string;
+}
+
+export const OPERATOR_LABELS: Record<FilterOperator, string> = {
+  contains: "Contains",
+  does_not_contain: "Does not contain",
+  is: "Is",
+  is_not: "Is not",
+  is_empty: "Is empty",
+  is_not_empty: "Is not empty",
+  gt: ">",
+  lt: "<",
+  gte: "≥",
+  lte: "≤",
+  before: "Before",
+  after: "After",
+};
+
+/** Operators offered for a given field type — drives the smart filter UI. */
+export function operatorsForFieldType(type: string): FilterOperator[] {
+  switch (type) {
+    case "number":      return ["is", "is_not", "gt", "lt", "gte", "lte", "is_empty", "is_not_empty"];
+    case "select":      return ["is", "is_not", "is_empty", "is_not_empty"];
+    case "multiSelect": return ["contains", "does_not_contain", "is_empty", "is_not_empty"];
+    case "checkbox":    return ["is"];
+    case "date":        return ["is", "before", "after", "is_empty", "is_not_empty"];
+    default:            return ["contains", "does_not_contain", "is", "is_not", "is_empty", "is_not_empty"];
+  }
 }
 
 export interface Sort {
@@ -39,6 +72,12 @@ export function applyFilters(
       case "is_not":           return String(val ?? "").toLowerCase() !== fv;
       case "is_empty":         return !val || val === "" || val === "[]" || val === "null";
       case "is_not_empty":     return Boolean(val) && val !== "" && val !== "[]" && val !== "null";
+      case "gt":               return Number(val) >  Number(filter.value);
+      case "lt":               return Number(val) <  Number(filter.value);
+      case "gte":              return Number(val) >= Number(filter.value);
+      case "lte":              return Number(val) <= Number(filter.value);
+      case "before":           return val != null && val !== "" && new Date(String(val)) <  new Date(filter.value);
+      case "after":            return val != null && val !== "" && new Date(String(val)) >  new Date(filter.value);
       default:                 return true;
     }
   }));

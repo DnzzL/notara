@@ -58,6 +58,7 @@ export interface DatabaseState {
   removeSort: (databaseId: string, index: number) => void;
   clearFilters: (databaseId: string) => void;
   clearSorts: (databaseId: string) => void;
+  hydrateView: (databaseId: string, view: { filters: Filter[]; sorts: Sort[]; groupBy: string | null; boardHidden: string[] }) => void;
 }
 
 export const useDatabaseStore = create<DatabaseState>((set, get) => ({
@@ -198,6 +199,12 @@ export const useDatabaseStore = create<DatabaseState>((set, get) => ({
   })),
   clearFilters: (databaseId) => set((s) => ({ filtersByDb: { ...s.filtersByDb, [databaseId]: [] } })),
   clearSorts: (databaseId) => set((s) => ({ sortsByDb: { ...s.sortsByDb, [databaseId]: [] } })),
+  hydrateView: (databaseId, view) => set((s) => ({
+    filtersByDb: { ...s.filtersByDb, [databaseId]: view.filters },
+    sortsByDb: { ...s.sortsByDb, [databaseId]: view.sorts },
+    boardGroupByDb: { ...s.boardGroupByDb, [databaseId]: view.groupBy },
+    boardHiddenByDb: { ...s.boardHiddenByDb, [databaseId]: view.boardHidden },
+  })),
 }));
 
 // Per-database selector helpers — return stable empty refs when unloaded.

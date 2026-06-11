@@ -6,9 +6,10 @@ import {
 } from "@dnd-kit/core";
 import { SortableContext, useSortable, verticalListSortingStrategy, horizontalListSortingStrategy, arrayMove } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
-import { useDatabaseStore, selectBoardGroupBy, selectBoardHidden, selectSorts } from "../../stores/databaseStore.js";
+import { useDatabaseStore, selectBoardGroupBy, selectBoardHidden, selectSorts, selectFilters } from "../../stores/databaseStore.js";
 import { api } from "../../rpc-client.js";
 import { SelectPill, CellDisplay } from "./CellComponents.js";
+import { FilterBar, SortBar, makeDefaultFilter } from "./QueryBar.js";
 
 export function BoardView({
   database, fields, records, databases, currentView, onChangeView, allRecords = {}, onOpenRecord,
@@ -28,9 +29,13 @@ export function BoardView({
   const addSort = useDatabaseStore(s => s.addSort);
   const removeSort = useDatabaseStore(s => s.removeSort);
   const setSort = useDatabaseStore(s => s.setSort);
+  const addFilter = useDatabaseStore(s => s.addFilter);
+  const removeFilter = useDatabaseStore(s => s.removeFilter);
+  const setFilter = useDatabaseStore(s => s.setFilter);
   const boardGroupByFieldId = useDatabaseStore((s) => selectBoardGroupBy(s, database.id));
   const boardHiddenFieldIds = useDatabaseStore((s) => selectBoardHidden(s, database.id));
   const activeSorts = useDatabaseStore((s) => selectSorts(s, database.id));
+  const activeFilters = useDatabaseStore((s) => selectFilters(s, database.id));
   const [showFieldsPicker, setShowFieldsPicker] = useState(false);
   const fieldsPickerRef = useRef<HTMLDivElement>(null);
 
@@ -317,29 +322,19 @@ export function BoardView({
             )}
           </div>
 
-          <div style={{ marginLeft: 12 }}>
-            <div className="flex flex-wrap gap-2 items-center">
-              <span style={{ fontSize: 12, color: "#666", fontWeight: 500, marginRight: 4 }}>Sort</span>
-              {activeSorts.map((sort, idx) => (
-                <div key={idx} className="flex gap-1 items-center bg-surface-2 rounded py-1 px-2 border border-border">
-                  <select
-                    value={sort.fieldId}
-                    onChange={(e) => setSort(database.id, idx, { ...sort, fieldId: e.target.value })}
-                  >
-                    {fields.map((f: any) => (<option key={f.id} value={f.id}>{f.name}</option>))}
-                  </select>
-                  <select
-                    value={sort.direction}
-                    onChange={(e) => setSort(database.id, idx, { ...sort, direction: e.target.value as "asc" | "desc" })}
-                  >
-                    <option value="asc">Ascending</option>
-                    <option value="desc">Descending</option>
-                  </select>
-                  <button onClick={() => removeSort(database.id, idx)}>×</button>
-                </div>
-              ))}
-              <button onClick={() => addSort(database.id, { fieldId: fields[0]?.id || "", direction: "asc" })}>+ Add sort</button>
-            </div>
+          <div style={{ marginLeft: 12, display: "flex", alignItems: "center", gap: 12, flexWrap: "wrap" }}>
+            <FilterBar
+              fields={fields} filters={activeFilters}
+              onAdd={() => addFilter(database.id, makeDefaultFilter(fields[0]))}
+              onRemove={(idx) => removeFilter(database.id, idx)}
+              onChange={(idx, updates) => { const ex = activeFilters[idx]; setFilter(database.id, idx, { ...ex, ...updates }); }}
+            />
+            <SortBar
+              fields={fields} sorts={activeSorts}
+              onAdd={() => addSort(database.id, { fieldId: fields[0]?.id || "", direction: "asc" })}
+              onRemove={(idx) => removeSort(database.id, idx)}
+              onChange={(idx, updates) => { const ex = activeSorts[idx]; setSort(database.id, idx, { ...ex, ...updates }); }}
+            />
           </div>
 
           <span style={{ marginLeft: "auto", fontSize: 13, color: "#666" }}>{database.name}</span>

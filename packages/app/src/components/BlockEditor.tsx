@@ -96,6 +96,7 @@ function SingleBlockEditor({
   const isPendingRef = useRef(false);
   const contentRef = useRef(block.content);
   contentRef.current = block.content;
+  const [focused, setFocused] = useState(false);
 
   const lockedByUserId = usePresenceStore((s) => s.locks.get(block.id) ?? null);
   const lockedByName = usePresenceStore((s) => s.others.find((u) => u.userId === lockedByUserId)?.name ?? null);
@@ -127,8 +128,8 @@ function SingleBlockEditor({
     content: blockContent(block),
     autofocus: false,
     editorProps: {},
-    onFocus: () => { setFocusedBlock(block.id); },
-    onBlur: () => { setFocusedBlock(null); },
+    onFocus: () => { setFocused(true); setFocusedBlock(block.id); },
+    onBlur: () => { setFocused(false); setFocusedBlock(null); },
     onUpdate: ({ editor: ed }) => {
       detectSlashCommand(ed);
       clearTimeout(debounceRef.current);
@@ -261,7 +262,7 @@ function SingleBlockEditor({
           {lockedByName.slice(0, 1).toUpperCase()}
         </span>
       )}
-      {editor && (
+      {editor && focused && (
         <BubbleMenu editor={editor} tippyOptions={{ duration: 100, placement: "top" }}>
           <div className="bubble-menu">
             <button onClick={() => (editor.chain().focus() as any).toggleBold().run()} className={editor.isActive("bold") ? "active" : ""} title="Bold (Cmd+B)"><b>B</b></button>

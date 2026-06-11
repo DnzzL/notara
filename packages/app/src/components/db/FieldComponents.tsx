@@ -83,7 +83,8 @@ export function ColumnHeader({
           <div className="db-col-resize-handle" onMouseDown={(e) => {
             e.preventDefault(); e.stopPropagation();
             const startX = e.clientX;
-            const onMove = (ev: MouseEvent) => { onResize("__title__", ev.clientX - startX); };
+            const startWidth = (e.currentTarget as HTMLElement).closest("th")?.getBoundingClientRect().width ?? (width || 200);
+            const onMove = (ev: MouseEvent) => { onResize("__title__", startWidth + (ev.clientX - startX)); };
             const onUp = () => { document.removeEventListener("mousemove", onMove); document.removeEventListener("mouseup", onUp); };
             document.addEventListener("mousemove", onMove); document.addEventListener("mouseup", onUp);
           }} />
@@ -155,7 +156,8 @@ export function ColumnHeader({
         <div className="db-col-resize-handle" onMouseDown={(e) => {
           e.preventDefault(); e.stopPropagation();
           const startX = e.clientX;
-          const onMove = (ev: MouseEvent) => { onResize(field.id, ev.clientX - startX); };
+          const startWidth = (e.currentTarget as HTMLElement).closest("th")?.getBoundingClientRect().width ?? (width || 150);
+          const onMove = (ev: MouseEvent) => { onResize(field.id, startWidth + (ev.clientX - startX)); };
           const onUp = () => { document.removeEventListener("mousemove", onMove); document.removeEventListener("mouseup", onUp); };
           document.addEventListener("mousemove", onMove); document.addEventListener("mouseup", onUp);
         }} />

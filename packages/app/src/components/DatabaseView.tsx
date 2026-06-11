@@ -6,13 +6,14 @@ import {
 } from "@dnd-kit/core";
 import { SortableContext, useSortable, verticalListSortingStrategy, horizontalListSortingStrategy } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
-import { useDatabaseStore, selectFields, selectRecords, selectFilters, selectSorts } from "../stores/databaseStore.js";
+import { useDatabaseStore, selectFields, selectRecords, selectFilters, selectSorts, selectBoardGroupBy, selectBoardHidden } from "../stores/databaseStore.js";
 import { usePageStore } from "../stores/pageStore.js";
 import { api } from "../rpc-client.js";
-import { applyFiltersAndSorts, type Filter, type Sort, type FilterOperator } from "../lib/filterEngine.js";
+import { applyFiltersAndSorts } from "../lib/filterEngine.js";
 import { tryEvaluate } from "../lib/formula.js";
 import { CellDisplay, InlineCellEditor, Popover } from "./db/CellComponents.js";
 import { ColumnHeader, AddFieldPopover, OptionsEditor, FormulaEditor, type FieldType } from "./db/FieldComponents.js";
+import { FilterBar, SortBar, makeDefaultFilter } from "./db/QueryBar.js";
 import { BoardView } from "./db/BoardView.js";
 import { RecordPanel } from "./db/RecordPanel.js";
 
@@ -95,88 +96,6 @@ function ColumnFooter({
         {numeric && <option value="min">Min</option>}
         {numeric && <option value="max">Max</option>}
       </select>
-    </div>
-  );
-}
-
-// ── Filter Bar ────────────────────────────────────────────────────────────
-
-function FilterBar({
-  fields, filters, onAdd, onRemove, onChange,
-}: {
-  fields: any[]; filters: Filter[];
-  onAdd: () => void; onRemove: (index: number) => void;
-  onChange: (index: number, updates: Partial<Filter>) => void;
-}) {
-  if (filters.length === 0) {
-    return (<button onClick={onAdd} className="bg-transparent border-none cursor-pointer text-[12.5px] text-text-3 px-2 py-1 inline-flex items-center gap-1 rounded-[5px] transition-[background,color] duration-[var(--t)] ease-[var(--ease)] hover:bg-surface-3 hover:text-text-2">
-      <svg width="14" height="14" viewBox="0 0 16 16" fill="currentColor">
-        <path d="M2 3h12M4 8h8M6 13h4" stroke="currentColor" strokeWidth="1.5" fill="none" strokeLinecap="round" />
-      </svg>Filter</button>);
-  }
-  return (
-    <div className="flex flex-wrap gap-2 items-center">
-      <span style={{ fontSize: 12, color: "#666", fontWeight: 500, marginRight: 4 }}>Filter</span>
-      {filters.map((filter, idx) => (
-        <div key={idx} className="flex gap-1 items-center bg-surface-2 rounded py-1 px-2 border border-border">
-          <select value={filter.fieldId} onChange={(e) => onChange(idx, { fieldId: e.target.value })}
-            style={{ border: "1px solid #e9e9e7", borderRadius: 4, padding: "2px 4px", fontSize: 12, background: "#fff" }}>
-            <option value="">Field</option>
-            {fields.map((f) => (<option key={f.id} value={f.id}>{f.name}</option>))}
-          </select>
-          <select value={filter.operator} onChange={(e) => onChange(idx, { operator: e.target.value as FilterOperator })}
-            style={{ border: "1px solid #e9e9e7", borderRadius: 4, padding: "2px 4px", fontSize: 12, background: "#fff" }}>
-            <option value="contains">Contains</option>
-            <option value="does_not_contain">Does not contain</option>
-            <option value="is">Is</option>
-            <option value="is_not">Is not</option>
-            <option value="is_empty">Is empty</option>
-            <option value="is_not_empty">Is not empty</option>
-          </select>
-          <input value={filter.value} onChange={(e) => onChange(idx, { value: e.target.value })}
-            placeholder="Value" style={{ border: "1px solid #e9e9e7", borderRadius: 4, padding: "2px 6px", fontSize: 12, outline: "none", width: 100 }} />
-          <button onClick={() => onRemove(idx)} style={{ background: "none", border: "none", cursor: "pointer", color: "#999", padding: 2, fontSize: 14 }}>&times;</button>
-        </div>
-      ))}
-      <button onClick={onAdd} className="bg-transparent border-none cursor-pointer text-text-3 text-[12px] px-1.5 py-1 rounded-[5px] transition-[background] duration-[var(--t)] ease-[var(--ease)] hover:bg-surface-3">+ Add filter</button>
-    </div>
-  );
-}
-
-// ── Sort Bar ──────────────────────────────────────────────────────────────
-
-function SortBar({
-  fields, sorts, onAdd, onRemove, onChange,
-}: {
-  fields: any[]; sorts: Sort[];
-  onAdd: () => void; onRemove: (index: number) => void;
-  onChange: (index: number, updates: Partial<Sort>) => void;
-}) {
-  if (sorts.length === 0) {
-    return (<button onClick={onAdd} className="bg-transparent border-none cursor-pointer text-[12.5px] text-text-3 px-2 py-1 inline-flex items-center gap-1 rounded-[5px] transition-[background,color] duration-[var(--t)] ease-[var(--ease)] hover:bg-surface-3 hover:text-text-2">
-      <svg width="14" height="14" viewBox="0 0 16 16" fill="currentColor">
-        <path d="M4 3v10M4 3l-2 2M4 3l2 2M12 13V3M12 13l-2-2M12 13l2-2" stroke="currentColor" strokeWidth="1.5" fill="none" strokeLinecap="round" strokeLinejoin="round" />
-      </svg>Sort</button>);
-  }
-  return (
-    <div className="flex flex-wrap gap-2 items-center">
-      <span style={{ fontSize: 12, color: "#666", fontWeight: 500, marginRight: 4 }}>Sort</span>
-      {sorts.map((sort, idx) => (
-        <div key={idx} className="flex gap-1 items-center bg-surface-2 rounded py-1 px-2 border border-border">
-          <select value={sort.fieldId} onChange={(e) => onChange(idx, { fieldId: e.target.value })}
-            style={{ border: "1px solid #e9e9e7", borderRadius: 4, padding: "2px 4px", fontSize: 12, background: "#fff" }}>
-            <option value="">Field</option>
-            {fields.map((f) => (<option key={f.id} value={f.id}>{f.name}</option>))}
-          </select>
-          <select value={sort.direction} onChange={(e) => onChange(idx, { direction: e.target.value as "asc" | "desc" })}
-            style={{ border: "1px solid #e9e9e7", borderRadius: 4, padding: "2px 4px", fontSize: 12, background: "#fff" }}>
-            <option value="asc">Ascending</option>
-            <option value="desc">Descending</option>
-          </select>
-          <button onClick={() => onRemove(idx)} style={{ background: "none", border: "none", cursor: "pointer", color: "#999", padding: 2, fontSize: 14 }}>&times;</button>
-        </div>
-      ))}
-      <button onClick={onAdd} className="bg-transparent border-none cursor-pointer text-text-3 text-[12px] px-1.5 py-1 rounded-[5px] transition-[background] duration-[var(--t)] ease-[var(--ease)] hover:bg-surface-3">+ Add sort</button>
     </div>
   );
 }
@@ -307,6 +226,7 @@ export function DatabaseView({ database, isNew }: { database: any; isNew?: boole
   const removeFilter = useDatabaseStore(s => s.removeFilter);
   const addSort = useDatabaseStore(s => s.addSort);
   const removeSort = useDatabaseStore(s => s.removeSort);
+  const hydrateView = useDatabaseStore(s => s.hydrateView);
 
   // Per-database state, scoped by databaseId so sibling DatabaseView instances
   // on the same page don't clobber one another.
@@ -314,11 +234,16 @@ export function DatabaseView({ database, isNew }: { database: any; isNew?: boole
   const records = useDatabaseStore((s) => selectRecords(s, database.id));
   const activeFilters = useDatabaseStore((s) => selectFilters(s, database.id));
   const activeSorts = useDatabaseStore((s) => selectSorts(s, database.id));
+  const boardGroupByFieldId = useDatabaseStore((s) => selectBoardGroupBy(s, database.id));
+  const boardHiddenFieldIds = useDatabaseStore((s) => selectBoardHidden(s, database.id));
 
   const loadPages = usePageStore((s) => s.loadPages);
   const selectPageByIdWithCascade = (id: string) => import("../lib/page-loader.js").then(m => m.selectPageByIdWithCascade(id));
 
-  const [viewType, setViewType] = useState<"table" | "board">("table");
+  const [viewType, setViewType] = useState<"table" | "board">(() => {
+    try { return JSON.parse(localStorage.getItem(`db-view:${database.id}`) || "{}").viewType === "board" ? "board" : "table"; }
+    catch { return "table"; }
+  });
   const [newTitle, setNewTitle] = useState("");
   const [editingCell, setEditingCell] = useState<{ recordId: string; fieldId: string } | null>(null);
   const [showAddField, setShowAddField] = useState(false);
@@ -392,6 +317,39 @@ export function DatabaseView({ database, isNew }: { database: any; isNew?: boole
       return next;
     });
   }, [database.id]);
+
+  // Saved default view (à la Notion): the active view type, filters, sorts,
+  // board grouping and hidden card fields are persisted per database in
+  // localStorage and restored on load. Mirrors the footer-aggs pattern above.
+  const viewRestoredRef = useRef(false);
+  useEffect(() => {
+    viewRestoredRef.current = false;
+    try {
+      const raw = localStorage.getItem(`db-view:${database.id}`);
+      if (raw) {
+        const v = JSON.parse(raw);
+        setViewType(v.viewType === "board" ? "board" : "table");
+        hydrateView(database.id, {
+          filters: Array.isArray(v.filters) ? v.filters : [],
+          sorts: Array.isArray(v.sorts) ? v.sorts : [],
+          groupBy: v.groupBy ?? null,
+          boardHidden: Array.isArray(v.boardHidden) ? v.boardHidden : [],
+        });
+      }
+    } catch { /* ignore */ }
+  }, [database.id, hydrateView]);
+
+  useEffect(() => {
+    // Skip the first run after a (re)mount/restore so we don't overwrite the
+    // saved config with empty defaults before hydrateView has applied.
+    if (!viewRestoredRef.current) { viewRestoredRef.current = true; return; }
+    try {
+      localStorage.setItem(`db-view:${database.id}`, JSON.stringify({
+        viewType, filters: activeFilters, sorts: activeSorts,
+        groupBy: boardGroupByFieldId, boardHidden: boardHiddenFieldIds,
+      }));
+    } catch { /* ignore */ }
+  }, [database.id, viewType, activeFilters, activeSorts, boardGroupByFieldId, boardHiddenFieldIds]);
 
   const sortedRecords = useMemo(
     () => applyFiltersAndSorts(records, dbFields, activeFilters, activeSorts),
@@ -553,11 +511,8 @@ export function DatabaseView({ database, isNew }: { database: any; isNew?: boole
     await loadDbRecords(database.id);
   };
 
-  const handleColumnResize = useCallback((fieldId: string, delta: number) => {
-    setColumnWidths((prev) => {
-      const current = prev[fieldId] || 0;
-      return { ...prev, [fieldId]: Math.max(80, current + delta) };
-    });
+  const handleColumnResize = useCallback((fieldId: string, width: number) => {
+    setColumnWidths((prev) => ({ ...prev, [fieldId]: Math.max(80, Math.round(width)) }));
   }, []);
 
   const handleNameSave = async () => {
@@ -674,7 +629,7 @@ export function DatabaseView({ database, isNew }: { database: any; isNew?: boole
           </div>
 
           <div style={{ marginLeft: 16, display: "flex", alignItems: "center", gap: 12, flexWrap: "wrap" }}>
-            <FilterBar fields={dbFields} filters={activeFilters} onAdd={() => addFilter(database.id, { fieldId: dbFields[0]?.id || "", operator: "contains", value: "" })}
+            <FilterBar fields={dbFields} filters={activeFilters} onAdd={() => addFilter(database.id, makeDefaultFilter(dbFields[0]))}
               onRemove={(idx) => removeFilter(database.id, idx)} onChange={(idx, updates) => { const ex = activeFilters[idx]; setFilter(database.id, idx, { ...ex, ...updates }); }} />
             <SortBar fields={dbFields} sorts={activeSorts} onAdd={() => addSort(database.id, { fieldId: dbFields[0]?.id || "", direction: "asc" })}
               onRemove={(idx) => removeSort(database.id, idx)} onChange={(idx, updates) => { const ex = activeSorts[idx]; setSort(database.id, idx, { ...ex, ...updates }); }} />
