@@ -8,6 +8,7 @@ import Image from "@tiptap/extension-image";
 import Placeholder from "@tiptap/extension-placeholder";
 import { BubbleMenu } from "@tiptap/react";
 import { DetailsNode, DetailsSummary, DetailsContent } from "./DetailsExtension.js";
+import { CalloutNode } from "./CalloutExtension.js";
 import { BlockNavigationExtension, type BlockNavigationCallbacks } from "./BlockNavigationExtension.js";
 import { PageReferenceNode, PageReferenceExtension, createPageReferenceRender } from "./PageReferenceExtension.js";
 import { api } from "../rpc-client.js";
@@ -32,6 +33,7 @@ import { useSession } from "../auth-client.js";
 import { PresenceAvatars } from "./PresenceAvatars.js";
 import { getBlockRenderer, hasBlockRenderer } from "./blocks/renderer-registry.js";
 import { PageLinkBlock } from "./blocks/page-link-block.js";
+import { requestFocus, applyFocus, consumeFocus, subscribeFocus, extractInlineHTML } from "./blockEditing.js";
 
 /** Placeholder text shown on empty blocks, keyed by block type. */
 function placeholderForType(blockType: string): string {
@@ -53,6 +55,7 @@ function sharedExtensions(blockType: string) {
     DetailsNode,
     DetailsContent,
     DetailsSummary,
+    CalloutNode,
     PageReferenceNode,
   ];
 }
@@ -170,34 +173,10 @@ function SingleBlockEditor({
     } catch { /* coordsAtPos may throw mid-transaction */ }
   }
 
-  // Focus this editor when a block-focus event targets this block
-  // Also handle block-focus-new for newly created blocks (focused by index)
+  // Slash-command editor edits. `block-strip-slash` removes the trailing
+  // `/query`; `block-set-content` applies an in-place command's content (the
+  // editor is focused, so the content-sync effect below won't do it for us).
   useEffect(() => {
-    const handler = (e: Event) => {
-      const detail = (e as CustomEvent).detail;
-      if (detail.blockId === block.id && editor) {
-        if (detail.cursorPosition === "end") {
-          const end = Math.max(1, editor.state.doc.content.size - 1);
-          editor.commands.setTextSelection(end);
-        } else {
-          editor.commands.setTextSelection(1);
-        }
-        editor.commands.focus();
-      }
-    };
-    const handlerNew = (e: Event) => {
-      const detail = (e as CustomEvent).detail;
-      // Focus by index for newly created blocks
-      if (detail.index === blockIndex && editor) {
-        if (detail.cursorPosition === "end") {
-          const end = Math.max(1, editor.state.doc.content.size - 1);
-          editor.commands.setTextSelection(end);
-        } else {
-          editor.commands.setTextSelection(1);
-        }
-        editor.commands.focus();
-      }
-    };
     const handlerStripSlash = (e: Event) => {
       const detail = (e as CustomEvent).detail;
       if (detail.blockId !== block.id || !editor) return;
@@ -208,15 +187,21 @@ function SingleBlockEditor({
         editor.chain().focus().deleteRange({ from: from - match[0].length, to: from }).run();
       }
     };
-    window.addEventListener("block-focus", handler);
-    window.addEventListener("block-focus-new", handlerNew);
-    window.addEventListener("block-strip-slash", handlerStripSlash);
-    return () => {
-      window.removeEventListener("block-focus", handler);
-      window.removeEventListener("block-focus-new", handlerNew);
-      window.removeEventListener("block-strip-slash", handlerStripSlash);
+    const handlerSetContent = (e: Event) => {
+      const detail = (e as CustomEvent).detail;
+      if (detail.blockId !== block.id || !editor) return;
+      editor.commands.setContent(detail.content, false);
+      const end = Math.max(1, editor.state.doc.content.size - 1);
+      editor.commands.setTextSelection(end);
+      editor.commands.focus();
     };
-  }, [block.id, blockIndex, editor]);
+    window.addEventListener("block-strip-slash", handlerStripSlash);
+    window.addEventListener("block-set-content", handlerSetContent);
+    return () => {
+      window.removeEventListener("block-strip-slash", handlerStripSlash);
+      window.removeEventListener("block-set-content", handlerSetContent);
+    };
+  }, [block.id, editor]);
 
   // Sync content when block changes externally (merge/split, or remote edit).
   // Skip when this block is focused locally — the editor has newer content.
@@ -229,6 +214,22 @@ function SingleBlockEditor({
     if (current !== expected) {
       editor.commands.setContent(expected, false);
     }
+  }, [block.id, block.content, editor]);
+
+  // Consume pending focus requests. Declared after the content-sync effect so
+  // that, on a re-render that updates content (merge/split), the editor already
+  // holds the fresh HTML before we place the caret. The store guard prevents
+  // acting on stale content when a sync is still pending.
+  useEffect(() => {
+    if (!editor) return;
+    const tryConsume = () => {
+      const stored = useBlockStore.getState().blocks.find((b) => b.id === block.id);
+      if (!stored || editor.getHTML() !== blockContent(stored)) return;
+      const target = consumeFocus(block.id);
+      if (target) applyFocus(editor, target);
+    };
+    tryConsume();
+    return subscribeFocus(tryConsume);
   }, [block.id, block.content, editor]);
 
   // Reflect remote lock: non-editable while another user holds the block.
@@ -470,65 +471,46 @@ export function BlockEditor() {
 
   // ── Inter-block operations ────────────────────────────────────────
 
-  /** Move focus to target block. */
-  const navigateToBlock = useCallback((targetIndex: number, cursorPosition: "start" | "end") => {
+  /** Move focus to target block, optionally preserving the caret's column. */
+  const navigateToBlock = useCallback((targetIndex: number, edge: "top" | "bottom", x?: number) => {
     const targetBlock = sortedBlocks[targetIndex];
-    if (targetBlock) {
-      window.dispatchEvent(new CustomEvent("block-focus", {
-        detail: { blockId: targetBlock.id, cursorPosition },
-      }));
-    }
+    if (!targetBlock) return;
+    if (x != null) requestFocus(targetBlock.id, { kind: "column", x, edge });
+    else requestFocus(targetBlock.id, { kind: edge === "top" ? "start" : "end" });
   }, [sortedBlocks]);
 
-  /** Merge current block with previous. */
+  /** Merge current block with previous, preserving inline formatting. */
   const mergeWithPrevious = useCallback(async (blockIndex: number) => {
     if (blockIndex <= 0) return;
     const current = sortedBlocks[blockIndex];
     const prev = sortedBlocks[blockIndex - 1];
     if (!current || !prev) return;
 
-    // Extract text content from both blocks and merge
-    const prevText = stripHtml(prev.content || defaultContentForType(prev.type));
-    const currentText = stripHtml(current.content || defaultContentForType(current.type));
-    const mergedText = prevText + currentText;
+    // Concatenate inline content (marks intact), then re-wrap in prev's tag.
+    const prevInner = extractInlineHTML(prev.content || defaultContentForType(prev.type));
+    const currentInner = extractInlineHTML(current.content || defaultContentForType(current.type));
+    const mergedInner = prevInner + currentInner;
 
     // Preserve the previous block's type
     let mergedHtml: string;
     if (prev.type.startsWith("heading")) {
       const level = getHeadingLevel(prev.content || defaultContentForType(prev.type));
-      mergedHtml = `<h${level}>${mergedText}</h${level}>`;
+      mergedHtml = `<h${level}>${mergedInner}</h${level}>`;
     } else if (prev.type === "blockquote") {
-      mergedHtml = `<blockquote>${mergedText}</blockquote>`;
+      mergedHtml = `<blockquote>${mergedInner}</blockquote>`;
     } else if (prev.type === "code") {
-      mergedHtml = `<pre><code>${mergedText}</code></pre>`;
+      mergedHtml = `<pre><code>${mergedInner}</code></pre>`;
     } else {
-      mergedHtml = `<p>${mergedText}</p>`;
+      mergedHtml = `<p>${mergedInner}</p>`;
     }
+
+    // Caret lands at the seam — the text length of prev's content.
+    const seam = stripHtml(prevInner).length;
 
     await updateBlock(prev.id, mergedHtml);
     await deleteBlock(current.id);
-
-    // Focus the previous block at the merge point
-    setTimeout(() => {
-      window.dispatchEvent(new CustomEvent("block-focus", {
-        detail: { blockId: prev.id, cursorPosition: "end" },
-      }));
-    }, 50);
+    requestFocus(prev.id, { kind: "offset", offset: seam });
   }, [sortedBlocks, updateBlock, deleteBlock]);
-
-  /** Focus a block by ID once its editor has mounted. */
-  const focusBlockWhenReady = (blockId: string, cursorPosition: "start" | "end" = "start") => {
-    let tries = 0;
-    const tick = () => {
-      window.dispatchEvent(new CustomEvent("block-focus", {
-        detail: { blockId, cursorPosition },
-      }));
-      tries += 1;
-      // Editor may not have mounted yet on first dispatch; retry a few times.
-      if (tries < 6) setTimeout(tick, 30);
-    };
-    tick();
-  };
 
   /** Split the current block. beforeContent stays, afterContent becomes new block. */
   const splitBlock = useCallback(async (blockIndex: number, beforeContent: string, afterContent: string, newBlockType?: string) => {
@@ -550,7 +532,7 @@ export function BlockEditor() {
       parentId: null,
     });
 
-    if (newBlock?.id) focusBlockWhenReady(newBlock.id, "start");
+    if (newBlock?.id) requestFocus(newBlock.id, { kind: "start" });
   }, [sortedBlocks, currentPage, updateBlock, createBlock]);
 
   /** Insert a new empty paragraph after this block. */
@@ -566,7 +548,7 @@ export function BlockEditor() {
       parentId: null,
     });
 
-    if (newBlock?.id) focusBlockWhenReady(newBlock.id, "start");
+    if (newBlock?.id) requestFocus(newBlock.id, { kind: "start" });
   }, [sortedBlocks, currentPage, createBlock]);
 
   /** Update a block's content (for debounced saves). */
@@ -607,8 +589,13 @@ export function BlockEditor() {
     const def = SLASH_COMMANDS.find(c => c.id === command);
 
     if (def?.defaultContent !== null && def?.defaultContent !== undefined) {
-      // Standard commands: update current block content in place.
+      // Standard commands: update current block content in place. The block
+      // stays focused, so push the content into the editor directly — the
+      // focus-guarded content-sync effect won't reflect a store-only update.
       await updateBlock(currentBlock.id, def.defaultContent);
+      window.dispatchEvent(new CustomEvent("block-set-content", {
+        detail: { blockId: currentBlock.id, content: def.defaultContent },
+      }));
     } else if (command === "database") {
       const db = await createDatabase(currentPage.id, "Untitled");
       await loadDatabases(currentPage.id);
@@ -1016,7 +1003,7 @@ export function BlockEditor() {
 
               // Standard TipTap-editable blocks.
               const callbacks: BlockNavigationCallbacks = {
-                navigateToBlock: (targetIdx, cursorPos) => navigateToBlock(targetIdx, cursorPos),
+                navigateToBlock,
                 mergeWithPrevious: () => mergeWithPrevious(blockIndex),
                 splitBlock: (before, after, newType) => splitBlock(blockIndex, before, after, newType),
                 insertBlockAfter: () => insertBlockAfter(blockIndex),
@@ -1064,7 +1051,7 @@ export function BlockEditor() {
                       pageId: currentPage.id, type: "paragraph", content: "<p></p>",
                       index: lastBlock ? lastBlock.index + 1 : 0, parentId: null,
                     });
-                    if (block?.id) focusBlockWhenReady(block.id, "start");
+                    if (block?.id) requestFocus(block.id, { kind: "start" });
                   } catch (err) {
                     toaster.create({ title: "Failed to create block", description: String(err), type: "error" });
                   }
@@ -1099,7 +1086,7 @@ export function BlockEditor() {
                     const block = await createBlock({
                       pageId: currentPage.id, type: "paragraph", content: "<p></p>", index: 0, parentId: null,
                     });
-                    if (block?.id) focusBlockWhenReady(block.id, "start");
+                    if (block?.id) requestFocus(block.id, { kind: "start" });
                   } catch (err) {
                     toaster.create({ title: "Failed to create block", description: String(err), type: "error" });
                   }
@@ -1158,7 +1145,7 @@ export function BlockEditor() {
                     pageId: currentPage.id, type: "paragraph", content: "<p></p>",
                     index: lastBlock ? lastBlock.index + 1 : 0, parentId: null,
                   });
-                  if (block?.id) focusBlockWhenReady(block.id, "start");
+                  if (block?.id) requestFocus(block.id, { kind: "start" });
                 } catch (err) {
                   toaster.create({ title: "Failed to create block", description: String(err), type: "error" });
                 }

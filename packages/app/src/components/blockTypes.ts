@@ -76,7 +76,7 @@ export const BLOCK_TYPE_CONFIG: Record<string, BlockTypeConfig> = {
   },
   todo: {
     placeholder: "To-do",
-    defaultContent: '<ul class="task-list"><li data-checked="false"></li></ul>',
+    defaultContent: '<ul data-type="taskList"><li data-type="taskItem" data-checked="false"><p></p></li></ul>',
     splitBehavior: "todo",
     rendersCustom: false,
   },
@@ -87,12 +87,14 @@ export const BLOCK_TYPE_CONFIG: Record<string, BlockTypeConfig> = {
   database: { placeholder: "", defaultContent: "", splitBehavior: "normal", rendersCustom: true },
   pageLink: { placeholder: "", defaultContent: "", splitBehavior: "normal", rendersCustom: true },
   toggle:   { placeholder: "", defaultContent: "", splitBehavior: "normal", rendersCustom: false },
-  callout:  { placeholder: "", defaultContent: "", splitBehavior: "normal", rendersCustom: false },
+  callout:  { placeholder: "", defaultContent: '<div data-callout><div class="callout-text"></div></div>', splitBehavior: "normal", rendersCustom: false },
   people:   { placeholder: "", defaultContent: "", splitBehavior: "normal", rendersCustom: true },
 };
 
 const DETAILS_CONTENT =
   '<details open=""><summary>Toggle</summary><div data-details-content=""><p></p></div></details>';
+
+const CALLOUT_CONTENT = '<div data-callout><div class="callout-text"></div></div>';
 
 /** All slash menu commands in display order. */
 export const SLASH_COMMANDS: SlashCommandDef[] = [
@@ -102,9 +104,9 @@ export const SLASH_COMMANDS: SlashCommandDef[] = [
   { id: "heading2", icon: "H2", name: "Heading 2",     shortcut: "##",        defaultContent: "<h2></h2>" },
   { id: "heading3", icon: "H3", name: "Heading 3",     shortcut: "###",       defaultContent: "<h3></h3>" },
   { id: "quote",    icon: '"',  name: "Quote",         shortcut: '"',         defaultContent: "<blockquote></blockquote>" },
-  { id: "callout",  icon: "💡", name: "Callout",       shortcut: "/callout",  defaultContent: DETAILS_CONTENT },
+  { id: "callout",  icon: "💡", name: "Callout",       shortcut: "/callout",  defaultContent: CALLOUT_CONTENT },
   { id: "divider",  icon: "—",  name: "Divider",       shortcut: "---",       defaultContent: null },
-  { id: "todo",     icon: "☐",  name: "Todo List",     shortcut: "[]",        defaultContent: '<ul class="task-list"><li data-checked="false"></li></ul>' },
+  { id: "todo",     icon: "☐",  name: "Todo List",     shortcut: "[]",        defaultContent: '<ul data-type="taskList"><li data-type="taskItem" data-checked="false"><p></p></li></ul>' },
   { id: "toggle",   icon: "▶",  name: "Toggle",        shortcut: "/toggle",   defaultContent: DETAILS_CONTENT },
   { id: "bullet",   icon: "•",  name: "Bullet List",   shortcut: "-",         defaultContent: "<ul><li></li></ul>" },
   { id: "numbered", icon: "1.", name: "Numbered List", shortcut: "1.",        defaultContent: "<ol><li></li></ol>" },

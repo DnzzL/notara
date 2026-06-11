@@ -762,6 +762,31 @@ body {
 .editor .ProseMirror .toggle-block [data-details-content] { padding: 6px 0 2px; color: var(--text-2); font-size: 14px; }
 .editor .ProseMirror .toggle-block[data-open="false"] [data-details-content] { display: none; }
 
+/* Callout (static highlighted box, rendered via CalloutExtension as .callout-block) */
+.editor .ProseMirror .callout-block {
+  display: flex;
+  gap: 10px;
+  padding: 12px 14px;
+  margin: 4px 0;
+  background: var(--surface-2);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+}
+.editor .ProseMirror .callout-icon {
+  flex: none;
+  font-size: 16px;
+  line-height: 1.6;
+  user-select: none;
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  padding: 0 2px;
+  border-radius: var(--radius-sm);
+  transition: background var(--t) var(--ease);
+}
+.editor .ProseMirror .callout-icon:hover { background: var(--surface-3); }
+.editor .ProseMirror .callout-text { flex: 1; min-width: 0; }
+
 /* Read-only / serialized <details> fallback (search, exports) */
 .editor .ProseMirror details {
   background: var(--surface-2);
