@@ -32,9 +32,6 @@ const workspacesDir = process.env.DATA_DIR
   ? path.join(process.env.DATA_DIR, "workspaces")
   : path.join(__dirname, "../../../.data", "workspaces");
 
-const connectionCache = new Map<string, Layer.Layer<SqlClientType.SqlClient>>();
-
-
 type WorkspaceLayer = Layer.Layer<SqlClientType.SqlClient, ConfigError>;
 
 export class WorkspaceDb extends Context.Tag("WorkspaceDb")<
