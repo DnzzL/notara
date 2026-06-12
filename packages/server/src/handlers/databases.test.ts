@@ -19,7 +19,7 @@ const setupDB = Effect.gen(function* () {
       parent_id TEXT REFERENCES pages(id),
       icon TEXT,
       cover_url TEXT,
-      sort_order REAL NOT NULL DEFAULT 0,
+      sort_order INTEGER NOT NULL DEFAULT 0,
       is_deleted INTEGER NOT NULL DEFAULT 0,
       is_favorite INTEGER NOT NULL DEFAULT 0,
       created_at TEXT NOT NULL DEFAULT (datetime('now')),
@@ -33,7 +33,7 @@ const setupDB = Effect.gen(function* () {
       page_id TEXT NOT NULL REFERENCES pages(id),
       name TEXT NOT NULL DEFAULT '',
       is_deleted INTEGER NOT NULL DEFAULT 0,
-      sort_order REAL NOT NULL DEFAULT 0,
+      sort_order INTEGER NOT NULL DEFAULT 0,
       title_label TEXT NOT NULL DEFAULT 'Name',
       title_hidden INTEGER NOT NULL DEFAULT 0,
       deleted_at TEXT
@@ -45,7 +45,7 @@ const setupDB = Effect.gen(function* () {
       database_id TEXT NOT NULL REFERENCES databases(id),
       title TEXT NOT NULL DEFAULT '',
       description TEXT,
-      sort_order REAL NOT NULL DEFAULT 0,
+      sort_order INTEGER NOT NULL DEFAULT 0,
       is_deleted INTEGER NOT NULL DEFAULT 0,
       created_at TEXT NOT NULL DEFAULT (datetime('now')),
       deleted_at TEXT,
@@ -61,7 +61,7 @@ const setupDB = Effect.gen(function* () {
       options TEXT,
       relation_target_db_id TEXT,
       formula TEXT,
-      sort_order REAL NOT NULL DEFAULT 0
+      sort_order INTEGER NOT NULL DEFAULT 0
     )
   `;
   yield* sql`
