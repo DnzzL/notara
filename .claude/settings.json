@@ -1,0 +1,11 @@
+{
+  "mcpServers": {
+    "backlog": {
+      "command": "backlog",
+      "args": ["mcp", "start"],
+      "env": {
+        "BACKLOG_CWD": "/Users/thomas/Projects/personal/notion-alt"
+      }
+    }
+  }
+}
