@@ -396,6 +396,11 @@ const staticFilesRoute = Effect.gen(function* () {
       return HttpServerResponse.text("Not found", { status: 404, headers: corsHeaders });
     }
 
+    // Validate filename to prevent path traversal
+    if (!/^[a-zA-Z0-9._-]+$/.test(fileName)) {
+      return HttpServerResponse.text("Not found", { status: 404, headers: corsHeaders });
+    }
+
     const dataDir = process.env.DATA_DIR
       ? path.join(process.env.DATA_DIR, "attachments")
       : path.join(rootDir, ".data", "attachments");
