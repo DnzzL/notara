@@ -2,6 +2,7 @@ import { create } from "zustand";
 import { api, AccessDeniedError } from "../rpc-client.js";
 import type { Page, SearchResult, Backlink } from "@notara/shared";
 import { useHistoryStore } from "./historyStore.js";
+import { toaster } from "../toaster.js";
 
 export interface PageState {
   pages: Page[];
@@ -52,7 +53,7 @@ export const usePageStore = create<PageState>((set, get) => ({
       const pages = await api.listPages();
       set({ pages, loading: false });
     } catch (e) {
-      console.error("Failed to load pages:", e);
+      toaster.create({ type: "error", title: "Failed to load pages", description: String(e) });
       set({ loading: false });
     }
   },
@@ -92,7 +93,7 @@ export const usePageStore = create<PageState>((set, get) => ({
         if (e instanceof AccessDeniedError) {
           set({ accessDeniedFor: id, currentPage: null });
         } else {
-          console.error("Failed to load page:", e);
+          toaster.create({ type: "error", title: "Failed to load page", description: String(e) });
         }
       }
     }
@@ -115,7 +116,7 @@ export const usePageStore = create<PageState>((set, get) => ({
         if (e instanceof AccessDeniedError) {
           set({ accessDeniedFor: id, currentPage: null });
         } else {
-          console.error("[pageStore] Failed to load page:", e);
+          toaster.create({ type: "error", title: "Failed to load page", description: String(e) });
         }
       }
     }
@@ -218,7 +219,7 @@ export const usePageStore = create<PageState>((set, get) => ({
       if (e instanceof AccessDeniedError) {
         set({ accessDeniedFor: id, currentPage: null });
       } else {
-        console.error("Failed to fetch page:", e);
+        toaster.create({ type: "error", title: "Failed to fetch page", description: String(e) });
       }
       return null;
     }

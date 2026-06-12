@@ -17,6 +17,8 @@ export const securityHeaders: Record<string, string> = {
   "Referrer-Policy": "strict-origin-when-cross-origin",
   "X-XSS-Protection": "0",
   "Permissions-Policy": "camera=(), microphone=(), geolocation=()",
+  "Content-Security-Policy":
+    "default-src 'self'; script-src 'self' https://eu.i.posthog.com; style-src 'self' 'unsafe-inline'; connect-src 'self' https://eu.i.posthog.com wss:; img-src 'self' data: blob:; font-src 'self'; frame-ancestors 'none'; form-action 'self'",
 };
 
 export const corsHeaders: Record<string, string> = {
