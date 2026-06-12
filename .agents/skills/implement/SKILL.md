@@ -13,7 +13,9 @@ Take a well-defined task and ship it.
 2. **Pick one** — the user tells you which, or take the highest-priority unstarted task.
 3. **Read the task** — `backlog task NOT-NNN --plain` for full context (description, ACs, notes).
 4. **Implement** — explore the codebase, write code, run tests.
-5. **Mark done** — `backlog task edit NOT-NNN -s "done" --check-ac 1 --check-ac 2`
+5. **Commit** — `git add -A && git commit -m "<type>: <description> (NOT-NNN)"`
+   where `<type>` matches conventional commits (`fix`, `feat`, `test`, `chore`, etc.).
+6. **Mark done** — `backlog task edit NOT-NNN -s "done" --check-ac 1 --check-ac 2`
    (check each acceptance criterion that passes).
 
 ## If you get stuck
