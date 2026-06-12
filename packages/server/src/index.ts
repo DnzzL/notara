@@ -343,7 +343,8 @@ const staticFilesRoute = Effect.gen(function* () {
 
   // File upload route. Client sends raw bytes; metadata travels in headers.
   // Headers: X-Page-Id, X-File-Name (URL-encoded), Content-Type (MIME).
-  yield* router.add("POST", "/api/upload", Effect.gen(function* () {
+  // Rate-limited to 60 req/min per IP.
+  const uploadInner = Effect.gen(function* () {
     const request = yield* HttpServerRequest.HttpServerRequest;
     const pageId = request.headers["x-page-id"];
     const fileNameRaw = request.headers["x-file-name"];
@@ -385,7 +386,12 @@ const staticFilesRoute = Effect.gen(function* () {
         headers: { "Content-Type": "application/json", ...corsHeaders },
       });
     })
-  ));
+  );
+  yield* router.add("POST", "/api/upload", Effect.gen(function* () {
+    const req = yield* HttpServerRequest.HttpServerRequest;
+    if (!checkRateLimit(`${getIp(req)}:upload`, 60)) return tooManyRequests(60);
+    return yield* uploadInner;
+  }));
 
   // Attachment serving route
   yield* router.add("GET", "/attachments/:fileName", Effect.gen(function* () {
