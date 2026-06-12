@@ -116,10 +116,19 @@ const staticFilesRoute = Effect.gen(function* () {
     });
   }).pipe(
     Effect.catchAllCause((cause) => {
-      const msg = cause._tag === "Fail" ? String(cause.error) : cause.toString();
-      reportError(cause._tag === "Fail" ? cause.error : new Error(msg));
-      return HttpServerResponse.text(JSON.stringify({ error: msg }), {
-        status: 500, headers: { "Content-Type": "application/json", ...corsHeaders },
+      if (cause._tag === "Fail") {
+        const msg = String(cause.error);
+        reportError(cause.error);
+        return HttpServerResponse.text(JSON.stringify({ error: msg }), {
+          status: 500, headers: { "Content-Type": "application/json", ...corsHeaders },
+        });
+      }
+      reportError(new Error(cause.toString()));
+      return Effect.gen(function* () {
+        yield* Effect.logError("Unhandled error", cause);
+        return HttpServerResponse.text(JSON.stringify({ error: "Something went wrong" }), {
+          status: 500, headers: { "Content-Type": "application/json", ...corsHeaders },
+        });
       });
     })
   );
@@ -157,10 +166,19 @@ const staticFilesRoute = Effect.gen(function* () {
     });
   }).pipe(
     Effect.catchAllCause((cause) => {
-      const msg = cause._tag === "Fail" ? String(cause.error) : cause.toString();
-      reportError(cause._tag === "Fail" ? cause.error : new Error(msg));
-      return HttpServerResponse.text(JSON.stringify({ error: msg }), {
-        status: 500, headers: { "Content-Type": "application/json", ...corsHeaders },
+      if (cause._tag === "Fail") {
+        const msg = String(cause.error);
+        reportError(cause.error);
+        return HttpServerResponse.text(JSON.stringify({ error: msg }), {
+          status: 500, headers: { "Content-Type": "application/json", ...corsHeaders },
+        });
+      }
+      reportError(new Error(cause.toString()));
+      return Effect.gen(function* () {
+        yield* Effect.logError("Unhandled error", cause);
+        return HttpServerResponse.text(JSON.stringify({ error: "Something went wrong" }), {
+          status: 500, headers: { "Content-Type": "application/json", ...corsHeaders },
+        });
       });
     })
   ));
@@ -173,10 +191,19 @@ const staticFilesRoute = Effect.gen(function* () {
     });
   }).pipe(
     Effect.catchAllCause((cause) => {
-      const msg = cause._tag === "Fail" ? String(cause.error) : cause.toString();
-      reportError(cause._tag === "Fail" ? cause.error : new Error(msg));
-      return HttpServerResponse.text(JSON.stringify({ error: msg }), {
-        status: 500, headers: { "Content-Type": "application/json", ...corsHeaders },
+      if (cause._tag === "Fail") {
+        const msg = String(cause.error);
+        reportError(cause.error);
+        return HttpServerResponse.text(JSON.stringify({ error: msg }), {
+          status: 500, headers: { "Content-Type": "application/json", ...corsHeaders },
+        });
+      }
+      reportError(new Error(cause.toString()));
+      return Effect.gen(function* () {
+        yield* Effect.logError("Unhandled error", cause);
+        return HttpServerResponse.text(JSON.stringify({ error: "Something went wrong" }), {
+          status: 500, headers: { "Content-Type": "application/json", ...corsHeaders },
+        });
       });
     })
   ));
@@ -210,10 +237,19 @@ const staticFilesRoute = Effect.gen(function* () {
     });
   }).pipe(
     Effect.catchAllCause((cause) => {
-      const msg = cause._tag === "Fail" ? String(cause.error) : cause.toString();
-      reportError(cause._tag === "Fail" ? cause.error : new Error(msg));
-      return HttpServerResponse.text(JSON.stringify({ error: msg }), {
-        status: 500, headers: { "Content-Type": "application/json", ...corsHeaders },
+      if (cause._tag === "Fail") {
+        const msg = String(cause.error);
+        reportError(cause.error);
+        return HttpServerResponse.text(JSON.stringify({ error: msg }), {
+          status: 500, headers: { "Content-Type": "application/json", ...corsHeaders },
+        });
+      }
+      reportError(new Error(cause.toString()));
+      return Effect.gen(function* () {
+        yield* Effect.logError("Unhandled error", cause);
+        return HttpServerResponse.text(JSON.stringify({ error: "Something went wrong" }), {
+          status: 500, headers: { "Content-Type": "application/json", ...corsHeaders },
+        });
       });
     })
   )));
@@ -237,10 +273,19 @@ const staticFilesRoute = Effect.gen(function* () {
     });
   }).pipe(
     Effect.catchAllCause((cause) => {
-      const msg = cause._tag === "Fail" ? String(cause.error) : cause.toString();
-      reportError(cause._tag === "Fail" ? cause.error : new Error(msg));
-      return HttpServerResponse.text(JSON.stringify({ error: msg }), {
-        status: 500, headers: { "Content-Type": "application/json", ...corsHeaders },
+      if (cause._tag === "Fail") {
+        const msg = String(cause.error);
+        reportError(cause.error);
+        return HttpServerResponse.text(JSON.stringify({ error: msg }), {
+          status: 500, headers: { "Content-Type": "application/json", ...corsHeaders },
+        });
+      }
+      reportError(new Error(cause.toString()));
+      return Effect.gen(function* () {
+        yield* Effect.logError("Unhandled error", cause);
+        return HttpServerResponse.text(JSON.stringify({ error: "Something went wrong" }), {
+          status: 500, headers: { "Content-Type": "application/json", ...corsHeaders },
+        });
       });
     })
   )));
@@ -286,8 +331,8 @@ const staticFilesRoute = Effect.gen(function* () {
       });
     }
     platformDb.prepare("DELETE FROM workspace_members WHERE user_id = ?").run(userId);
-    platformDb.prepare(`DELETE FROM "user" WHERE id = ?`).run(userId);
-    return HttpServerResponse.text(JSON.stringify({ deleted: true }), {
+    yield* Effect.logInfo("User deactivated", userId);
+    return HttpServerResponse.text(JSON.stringify({ deactivated: true }), {
       headers: { "Content-Type": "application/json", ...corsHeaders },
     });
   })));
@@ -332,11 +377,19 @@ const staticFilesRoute = Effect.gen(function* () {
     }), { headers: { "Content-Type": "application/json", ...corsHeaders } });
   }).pipe(
     Effect.catchAllCause((cause) => {
-      const msg = cause._tag === "Fail"
-        ? String(cause.error)
-        : cause.toString();
-      return HttpServerResponse.text(JSON.stringify({ error: msg }), {
-        status: 500, headers: { "Content-Type": "application/json", ...corsHeaders },
+      if (cause._tag === "Fail") {
+        const msg = String(cause.error);
+        reportError(cause.error);
+        return HttpServerResponse.text(JSON.stringify({ error: msg }), {
+          status: 500, headers: { "Content-Type": "application/json", ...corsHeaders },
+        });
+      }
+      reportError(new Error(cause.toString()));
+      return Effect.gen(function* () {
+        yield* Effect.logError("Unhandled error", cause);
+        return HttpServerResponse.text(JSON.stringify({ error: "Something went wrong" }), {
+          status: 500, headers: { "Content-Type": "application/json", ...corsHeaders },
+        });
       });
     })
   ));
@@ -380,10 +433,19 @@ const staticFilesRoute = Effect.gen(function* () {
     });
   }).pipe(
     Effect.catchAllCause((cause) => {
-      const msg = cause._tag === "Fail" ? String(cause.error) : cause.toString();
-      return HttpServerResponse.text(JSON.stringify({ error: msg }), {
-        status: 500,
-        headers: { "Content-Type": "application/json", ...corsHeaders },
+      if (cause._tag === "Fail") {
+        const msg = String(cause.error);
+        reportError(cause.error);
+        return HttpServerResponse.text(JSON.stringify({ error: msg }), {
+          status: 500, headers: { "Content-Type": "application/json", ...corsHeaders },
+        });
+      }
+      reportError(new Error(cause.toString()));
+      return Effect.gen(function* () {
+        yield* Effect.logError("Unhandled error", cause);
+        return HttpServerResponse.text(JSON.stringify({ error: "Something went wrong" }), {
+          status: 500, headers: { "Content-Type": "application/json", ...corsHeaders },
+        });
       });
     })
   );
