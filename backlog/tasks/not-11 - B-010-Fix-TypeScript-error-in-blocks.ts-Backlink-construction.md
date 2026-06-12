@@ -1,10 +1,11 @@
 ---
 id: NOT-11
 title: 'B-010: Fix TypeScript error in blocks.ts Backlink construction'
-status: ready for agent
-assignee: []
+status: done
+assignee:
+  - '@thomas'
 created_date: '2026-06-12 13:55'
-updated_date: '2026-06-12 14:05'
+updated_date: '2026-06-12 14:13'
 labels:
   - bug
 dependencies: []
@@ -25,3 +26,15 @@ error TS2353: Object literal may only specify known properties, and 'blockType' 
 - [x] #1 bun --bun tsc --noEmit -p packages/server passes with no errors
 - [x] #2 Backlink instances still contain blockType at runtime
 <!-- AC:END -->
+
+## Implementation Plan
+
+<!-- SECTION:PLAN:BEGIN -->
+1. Rebuild shared package to include blockType in Backlink schema dist\n2. Verify tsc passes
+<!-- SECTION:PLAN:END -->
+
+## Implementation Notes
+
+<!-- SECTION:NOTES:BEGIN -->
+The row type annotation in blocks.ts already included blockType. The issue was a stale @notara/shared dist artifact. Running 'bun run build' rebuilds the shared package and resolves the TS error. Verified full build passes.
+<!-- SECTION:NOTES:END -->

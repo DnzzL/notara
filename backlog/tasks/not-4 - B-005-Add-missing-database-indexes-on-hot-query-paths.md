@@ -1,10 +1,11 @@
 ---
 id: NOT-4
 title: 'B-005: Add missing database indexes on hot query paths'
-status: ready for agent
-assignee: []
+status: done
+assignee:
+  - '@thomas'
 created_date: '2026-06-12 13:55'
-updated_date: '2026-06-12 14:05'
+updated_date: '2026-06-12 14:14'
 labels:
   - enhancement
 dependencies: []
@@ -27,3 +28,15 @@ Several heavily-queried columns lack indexes:\n- pages.parent_id (used in getDes
 - [x] #3 bun --bun tsc --noEmit -p packages/server passes
 - [x] #4 bun test packages/server/test passes
 <!-- AC:END -->
+
+## Implementation Plan
+
+<!-- SECTION:PLAN:BEGIN -->
+1. Create migration 015 with CREATE INDEX IF NOT EXISTS for pages.parent_id, pages.is_deleted, pages.deleted_at, databases.page_id, database_records.database_id\n2. Verify tsc and tests pass
+<!-- SECTION:PLAN:END -->
+
+## Implementation Notes
+
+<!-- SECTION:NOTES:BEGIN -->
+Created migration 015 with indexes on pages.parent_id, pages.is_deleted, pages.deleted_at, databases.page_id, database_records.database_id
+<!-- SECTION:NOTES:END -->

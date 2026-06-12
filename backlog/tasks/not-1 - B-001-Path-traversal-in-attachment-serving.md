@@ -1,10 +1,10 @@
 ---
 id: NOT-1
 title: 'B-001: Path traversal in attachment serving'
-status: ready for agent
+status: done
 assignee: []
 created_date: '2026-06-12 13:54'
-updated_date: '2026-06-12 14:05'
+updated_date: '2026-06-12 14:11'
 labels:
   - bug
 dependencies: []
@@ -27,3 +27,9 @@ The GET /attachments/:fileName route passes user-supplied fileName directly to p
 - [x] #3 bun --bun tsc --noEmit -p packages/server passes
 - [x] #4 bun test packages/server/test passes
 <!-- AC:END -->
+
+## Implementation Notes
+
+<!-- SECTION:NOTES:BEGIN -->
+Added filename validation regex /^[a-zA-Z0-9._-]+$/ before path construction
+<!-- SECTION:NOTES:END -->

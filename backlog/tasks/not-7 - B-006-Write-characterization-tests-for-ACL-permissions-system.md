@@ -1,10 +1,11 @@
 ---
 id: NOT-7
 title: 'B-006: Write characterization tests for ACL/permissions system'
-status: ready for agent
-assignee: []
+status: done
+assignee:
+  - '@thomas'
 created_date: '2026-06-12 13:55'
-updated_date: '2026-06-12 14:05'
+updated_date: '2026-06-12 14:21'
 labels:
   - enhancement
 dependencies: []
@@ -26,3 +27,15 @@ The entire Zanzibar-style ACL system (resolveEffectiveRelation, checkPagePermiss
 - [x] #2 Tests use the existing TestDbLayer pattern from handlers.test.ts
 - [x] #3 bun test packages/server/test passes with new tests
 <!-- AC:END -->
+
+## Implementation Plan
+
+<!-- SECTION:PLAN:BEGIN -->
+1. Study the permissions module to understand ACL resolution\n2. Write characterization tests covering workspace owner, member with no ACL, explicit viewer/editor/owner, ancestor ACL inheritance, blocked-by-ancestor, subject matching, write+readback roundtrip, revision bumps\n3. Verify tests pass
+<!-- SECTION:PLAN:END -->
+
+## Implementation Notes
+
+<!-- SECTION:NOTES:BEGIN -->
+Added 18 characterization tests covering all ACL resolution scenarios
+<!-- SECTION:NOTES:END -->

@@ -1,10 +1,11 @@
 ---
 id: NOT-8
 title: 'B-009: Remove unused connectionCache in db.ts'
-status: ready for agent
-assignee: []
+status: done
+assignee:
+  - '@thomas'
 created_date: '2026-06-12 13:55'
-updated_date: '2026-06-12 14:05'
+updated_date: '2026-06-12 14:12'
 labels:
   - enhancement
 dependencies: []
@@ -26,3 +27,9 @@ const connectionCache = new Map<...>() is declared at packages/server/src/db.ts:
 - [x] #2 bun --bun tsc --noEmit -p packages/server passes
 - [x] #3 bun test packages/server/test passes
 <!-- AC:END -->
+
+## Implementation Plan
+
+<!-- SECTION:PLAN:BEGIN -->
+1. Remove unused connectionCache variable from db.ts\n2. Verify tsc and tests pass
+<!-- SECTION:PLAN:END -->

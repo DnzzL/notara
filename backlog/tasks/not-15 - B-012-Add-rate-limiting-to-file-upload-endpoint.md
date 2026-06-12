@@ -1,10 +1,11 @@
 ---
 id: NOT-15
 title: 'B-012: Add rate limiting to file upload endpoint'
-status: ready for agent
-assignee: []
+status: done
+assignee:
+  - '@thomas'
 created_date: '2026-06-12 13:56'
-updated_date: '2026-06-12 14:05'
+updated_date: '2026-06-12 14:14'
 labels:
   - enhancement
 dependencies: []
@@ -27,3 +28,15 @@ POST /api/upload has no rate limiting. For a self-hosted instance this is self-p
 - [x] #3 bun --bun tsc --noEmit -p packages/server passes
 - [x] #4 bun test packages/server/test passes
 <!-- AC:END -->
+
+## Implementation Plan
+
+<!-- SECTION:PLAN:BEGIN -->
+1. Add IP-based rate limiter to POST /api/upload endpoint\n2. Match the existing auth mutation pattern (checkRateLimit + getIp)\n3. Return 429 after exceeding limit\n4. Verify with tsc and tests
+<!-- SECTION:PLAN:END -->
+
+## Implementation Notes
+
+<!-- SECTION:NOTES:BEGIN -->
+Added IP-based rate limiting (60 req/min) to POST /api/upload matching the auth mutation pattern
+<!-- SECTION:NOTES:END -->

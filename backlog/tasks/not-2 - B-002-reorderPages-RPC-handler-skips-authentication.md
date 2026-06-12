@@ -1,10 +1,11 @@
 ---
 id: NOT-2
 title: 'B-002: reorderPages RPC handler skips authentication'
-status: ready for agent
-assignee: []
+status: done
+assignee:
+  - '@thomas'
 created_date: '2026-06-12 13:55'
-updated_date: '2026-06-12 14:05'
+updated_date: '2026-06-12 14:12'
 labels:
   - bug
 dependencies: []
@@ -27,3 +28,15 @@ The reorderPages handler is the only RPC handler that uses withWorkspaceDb direc
 - [x] #3 bun --bun tsc --noEmit -p packages/server passes
 - [x] #4 bun test packages/server/test passes
 <!-- AC:END -->
+
+## Implementation Plan
+
+<!-- SECTION:PLAN:BEGIN -->
+1. Replace withWorkspaceDb with withAuthedWorkspace in reorderPages handler\n2. Add page-permission check for editor role\n3. Verify with tsc and tests
+<!-- SECTION:PLAN:END -->
+
+## Implementation Notes
+
+<!-- SECTION:NOTES:BEGIN -->
+Replaced withWorkspaceDb with withAuthedWorkspace + page permission check for editor role
+<!-- SECTION:NOTES:END -->

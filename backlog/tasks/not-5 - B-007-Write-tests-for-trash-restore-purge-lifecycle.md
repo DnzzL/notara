@@ -1,10 +1,11 @@
 ---
 id: NOT-5
 title: 'B-007: Write tests for trash/restore/purge lifecycle'
-status: ready for agent
-assignee: []
+status: done
+assignee:
+  - '@thomas'
 created_date: '2026-06-12 13:55'
-updated_date: '2026-06-12 14:05'
+updated_date: '2026-06-12 14:17'
 labels:
   - enhancement
 dependencies: []
@@ -27,3 +28,15 @@ The soft-delete -> restore -> permanent-purge lifecycle is entirely untested. Th
 - [x] #2 Tests use existing TestDbLayer pattern
 - [x] #3 bun test packages/server/test passes with new tests
 <!-- AC:END -->
+
+## Implementation Plan
+
+<!-- SECTION:PLAN:BEGIN -->
+1. Examine existing test patterns in handlers.test.ts\n2. Write tests covering trash lifecycle: soft-delete page, listTrash, restore, permanent purge, purgeExpired, purge record with backing page\n3. Verify tests pass
+<!-- SECTION:PLAN:END -->
+
+## Implementation Notes
+
+<!-- SECTION:NOTES:BEGIN -->
+Added 10 tests covering trash lifecycle: soft-delete page/listTrash/restore, purge page/database/record, purgeExpired with retention, record with backing page, non-trashed items not in trash
+<!-- SECTION:NOTES:END -->
