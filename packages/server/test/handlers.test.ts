@@ -1,5 +1,6 @@
 import { describe, test, expect, afterEach } from "bun:test";
 import { Effect, Layer } from "effect";
+import { SqlClient } from "@effect/sql";
 import { SqliteClient } from "@effect/sql-sqlite-bun";
 import { Database } from "bun:sqlite";
 import fs from "node:fs";
@@ -878,6 +879,393 @@ describe("Page References (Backlinks)", () => {
       const pageIds = backlinks.map(b => b.pageId);
       expect(pageIds).toContain(pageA.id);
       expect(pageIds).toContain(pageC.id);
+    } finally {
+      cleanup(tmpDir);
+    }
+  });
+});
+
+// ---------- Trash / Restore / Purge Lifecycle ----------
+
+describe("Trash lifecycle", () => {
+  test("should soft-delete page and show in trash", async () => {
+    const { filename, tmpDir } = makeTestDb();
+    try {
+      runMigrations(filename);
+      const page = await Pages.createPage({ title: "Trash Me", parentId: null }).pipe(
+        Effect.provide(TestDbLayer(filename)),
+        Effect.runPromise,
+      );
+
+      // Soft-delete
+      await Pages.deletePage(page.id).pipe(
+        Effect.provide(TestDbLayer(filename)),
+        Effect.runPromise,
+      );
+
+      // Should disappear from regular listing
+      const pages = await Pages.listPages.pipe(
+        Effect.provide(TestDbLayer(filename)),
+        Effect.runPromise,
+      );
+      expect(pages.length).toBe(0);
+
+      // Should appear in trash
+      const trash = await Databases.listTrash.pipe(
+        Effect.provide(TestDbLayer(filename)),
+        Effect.runPromise,
+      );
+      expect(trash.pages.length).toBe(1);
+      expect(trash.pages[0].id).toBe(page.id);
+      expect(trash.pages[0].title).toBe("Trash Me");
+      expect(trash.pages[0].deletedAt).not.toBeNull();
+    } finally {
+      cleanup(tmpDir);
+    }
+  });
+
+  test("should restore trashed page", async () => {
+    const { filename, tmpDir } = makeTestDb();
+    try {
+      runMigrations(filename);
+      const page = await Pages.createPage({ title: "Restore Me", parentId: null }).pipe(
+        Effect.provide(TestDbLayer(filename)),
+        Effect.runPromise,
+      );
+      await Pages.deletePage(page.id).pipe(
+        Effect.provide(TestDbLayer(filename)),
+        Effect.runPromise,
+      );
+
+      // Restore
+      const result = await Pages.restorePage(page.id).pipe(
+        Effect.provide(TestDbLayer(filename)),
+        Effect.runPromise,
+      );
+      expect(result.restored).toBe(true);
+
+      // Should be back in regular listing
+      const pages = await Pages.listPages.pipe(
+        Effect.provide(TestDbLayer(filename)),
+        Effect.runPromise,
+      );
+      expect(pages.length).toBe(1);
+      expect(pages[0].id).toBe(page.id);
+      expect(pages[0].isDeleted).toBe(false);
+
+      // Should be gone from trash
+      const trash = await Databases.listTrash.pipe(
+        Effect.provide(TestDbLayer(filename)),
+        Effect.runPromise,
+      );
+      expect(trash.pages.length).toBe(0);
+    } finally {
+      cleanup(tmpDir);
+    }
+  });
+
+  test("should restore trashed record with backing page", async () => {
+    const { filename, tmpDir } = makeTestDb();
+    try {
+      runMigrations(filename);
+      const page = await Pages.createPage({ title: "DB Host", parentId: null }).pipe(
+        Effect.provide(TestDbLayer(filename)),
+        Effect.runPromise,
+      );
+      const db = await Databases.createDatabase({ pageId: page.id, name: "Tasks" }).pipe(
+        Effect.provide(TestDbLayer(filename)),
+        Effect.runPromise,
+      );
+      const record = await Databases.createRecord({ databaseId: db.id, title: "Record to Trash" }).pipe(
+        Effect.provide(TestDbLayer(filename)),
+        Effect.runPromise,
+      );
+      // Create backing page
+      const opened = await Databases.openRecordAsPage(record.id).pipe(
+        Effect.provide(TestDbLayer(filename)),
+        Effect.runPromise,
+      );
+
+      // Soft-delete the record (also trashes its backing page)
+      await Databases.deleteRecord(record.id).pipe(
+        Effect.provide(TestDbLayer(filename)),
+        Effect.runPromise,
+      );
+
+      // Record should be in trash
+      const trashBefore = await Databases.listTrash.pipe(
+        Effect.provide(TestDbLayer(filename)),
+        Effect.runPromise,
+      );
+      expect(trashBefore.records.length).toBe(1);
+
+      // Restore the record (should also restore its backing page)
+      const restoreResult = await Databases.restoreRecord(record.id).pipe(
+        Effect.provide(TestDbLayer(filename)),
+        Effect.runPromise,
+      );
+      expect(restoreResult.restored).toBe(true);
+
+      // Record should be back in listing
+      const records = await Databases.listRecords(db.id).pipe(
+        Effect.provide(TestDbLayer(filename)),
+        Effect.runPromise,
+      );
+      expect(records.length).toBe(1);
+      expect(records[0].id).toBe(record.id);
+    } finally {
+      cleanup(tmpDir);
+    }
+  });
+
+  test("should purge page and all children", async () => {
+    const { filename, tmpDir } = makeTestDb();
+    try {
+      runMigrations(filename);
+      const page = await Pages.createPage({ title: "Purge Me", parentId: null }).pipe(
+        Effect.provide(TestDbLayer(filename)),
+        Effect.runPromise,
+      );
+      // Add a block
+      await Blocks.createBlock({
+        pageId: page.id, type: "paragraph", content: "<p>Child block</p>", index: 0, parentId: null,
+      }).pipe(Effect.provide(TestDbLayer(filename)), Effect.runPromise);
+      // Add a database with a record
+      const db = await Databases.createDatabase({ pageId: page.id, name: "Sub DB" }).pipe(
+        Effect.provide(TestDbLayer(filename)),
+        Effect.runPromise,
+      );
+      await Databases.createField({
+        databaseId: db.id, name: "Name", type: "text", options: null, relationTargetDbId: null,
+      }).pipe(Effect.provide(TestDbLayer(filename)), Effect.runPromise);
+      const record = await Databases.createRecord({ databaseId: db.id, title: "Sub Record" }).pipe(
+        Effect.provide(TestDbLayer(filename)),
+        Effect.runPromise,
+      );
+
+      // Purge
+      await Databases.purgePage(page.id).pipe(
+        Effect.provide(TestDbLayer(filename)),
+        Effect.runPromise,
+      );
+
+      // Page should be gone
+      const pages = await Pages.listPages.pipe(
+        Effect.provide(TestDbLayer(filename)),
+        Effect.runPromise,
+      );
+      expect(pages.length).toBe(0);
+
+      // Database should be gone
+      const dbs = await Databases.listDatabases(page.id).pipe(
+        Effect.provide(TestDbLayer(filename)),
+        Effect.runPromise,
+      );
+      expect(dbs.length).toBe(0);
+
+      // Verify via raw SQL that related data is gone
+      const counts = await Effect.gen(function* () {
+        const sql = yield* SqlClient.SqlClient;
+        const blocks = yield* sql`SELECT COUNT(*) as cnt FROM blocks WHERE page_id = ${page.id}`;
+        const recs = yield* sql`SELECT COUNT(*) as cnt FROM database_records WHERE database_id = ${db.id}`;
+        return { blocks: Number(blocks[0].cnt), recs: Number(recs[0].cnt) };
+      }).pipe(
+        Effect.provide(TestDbLayer(filename)),
+        Effect.runPromise,
+      );
+      expect(counts.blocks).toBe(0);
+      expect(counts.recs).toBe(0);
+    } finally {
+      cleanup(tmpDir);
+    }
+  });
+
+  test("should purge database and all children", async () => {
+    const { filename, tmpDir } = makeTestDb();
+    try {
+      runMigrations(filename);
+      const page = await Pages.createPage({ title: "DB Host", parentId: null }).pipe(
+        Effect.provide(TestDbLayer(filename)),
+        Effect.runPromise,
+      );
+      const db = await Databases.createDatabase({ pageId: page.id, name: "To Purge" }).pipe(
+        Effect.provide(TestDbLayer(filename)),
+        Effect.runPromise,
+      );
+      await Databases.createField({
+        databaseId: db.id, name: "Label", type: "text", options: null, relationTargetDbId: null,
+      }).pipe(Effect.provide(TestDbLayer(filename)), Effect.runPromise);
+      const record = await Databases.createRecord({ databaseId: db.id, title: "Record A" }).pipe(
+        Effect.provide(TestDbLayer(filename)),
+        Effect.runPromise,
+      );
+
+      await Databases.purgeDatabase(db.id).pipe(
+        Effect.provide(TestDbLayer(filename)),
+        Effect.runPromise,
+      );
+
+      // Database should be gone
+      const dbs = await Databases.listDatabases(page.id).pipe(
+        Effect.provide(TestDbLayer(filename)),
+        Effect.runPromise,
+      );
+      expect(dbs.length).toBe(0);
+
+      // Record should be gone
+      const records = await Databases.listRecords(db.id).pipe(
+        Effect.provide(TestDbLayer(filename)),
+        Effect.runPromise,
+      );
+      expect(records.length).toBe(0);
+    } finally {
+      cleanup(tmpDir);
+    }
+  });
+
+  test("should purge expired items", async () => {
+    const { filename, tmpDir } = makeTestDb();
+    try {
+      runMigrations(filename);
+      const page = await Pages.createPage({ title: "Expired", parentId: null }).pipe(
+        Effect.provide(TestDbLayer(filename)),
+        Effect.runPromise,
+      );
+
+      // Manually set deleted_at far in the past (bypassing the normal soft-delete)
+      const rawDb = new Database(filename);
+      rawDb.exec(`UPDATE pages SET is_deleted = 1, deleted_at = '2020-01-01T00:00:00.000Z' WHERE id = '${page.id}'`);
+      rawDb.close();
+
+      // Purge expired (retentionDays=0 means everything past-deleted is eligible)
+      const result = await Databases.purgeExpired(0).pipe(
+        Effect.provide(TestDbLayer(filename)),
+        Effect.runPromise,
+      );
+      expect(result.pages).toBe(1);
+
+      // Page should be permanently gone
+      const pages = await Pages.listPages.pipe(
+        Effect.provide(TestDbLayer(filename)),
+        Effect.runPromise,
+      );
+      expect(pages.length).toBe(0);
+    } finally {
+      cleanup(tmpDir);
+    }
+  });
+
+  test("should purge record with backing page", async () => {
+    const { filename, tmpDir } = makeTestDb();
+    try {
+      runMigrations(filename);
+      const page = await Pages.createPage({ title: "Host", parentId: null }).pipe(
+        Effect.provide(TestDbLayer(filename)),
+        Effect.runPromise,
+      );
+      const db = await Databases.createDatabase({ pageId: page.id, name: "Data" }).pipe(
+        Effect.provide(TestDbLayer(filename)),
+        Effect.runPromise,
+      );
+      const record = await Databases.createRecord({ databaseId: db.id, title: "With Backing" }).pipe(
+        Effect.provide(TestDbLayer(filename)),
+        Effect.runPromise,
+      );
+      // Create a backing page for the record
+      const opened = await Databases.openRecordAsPage(record.id).pipe(
+        Effect.provide(TestDbLayer(filename)),
+        Effect.runPromise,
+      );
+      expect(opened.pageId).toBeDefined();
+
+      // Purge the record
+      await Databases.purgeRecord(record.id).pipe(
+        Effect.provide(TestDbLayer(filename)),
+        Effect.runPromise,
+      );
+
+      // Record should be gone
+      const records = await Databases.listRecords(db.id).pipe(
+        Effect.provide(TestDbLayer(filename)),
+        Effect.runPromise,
+      );
+      expect(records.length).toBe(0);
+
+      // Backing page should also be purged
+      const pages = await Pages.listPages.pipe(
+        Effect.provide(TestDbLayer(filename)),
+        Effect.runPromise,
+      );
+      expect(pages.length).toBe(1); // Only the host page remains
+      expect(pages[0].id).toBe(page.id);
+    } finally {
+      cleanup(tmpDir);
+    }
+  });
+
+  test("should soft-delete database and restore it", async () => {
+    const { filename, tmpDir } = makeTestDb();
+    try {
+      runMigrations(filename);
+      const page = await Pages.createPage({ title: "Host", parentId: null }).pipe(
+        Effect.provide(TestDbLayer(filename)),
+        Effect.runPromise,
+      );
+      const db = await Databases.createDatabase({ pageId: page.id, name: "To Trash" }).pipe(
+        Effect.provide(TestDbLayer(filename)),
+        Effect.runPromise,
+      );
+
+      // Soft-delete
+      await Databases.deleteDatabase(db.id).pipe(
+        Effect.provide(TestDbLayer(filename)),
+        Effect.runPromise,
+      );
+
+      // Should show in trash
+      const trash = await Databases.listTrash.pipe(
+        Effect.provide(TestDbLayer(filename)),
+        Effect.runPromise,
+      );
+      expect(trash.databases.length).toBe(1);
+      expect(trash.databases[0].id).toBe(db.id);
+
+      // Restore
+      const result = await Databases.restoreDatabase(db.id).pipe(
+        Effect.provide(TestDbLayer(filename)),
+        Effect.runPromise,
+      );
+      expect(result.restored).toBe(true);
+
+      // Should be back in listing
+      const dbs = await Databases.listDatabases(page.id).pipe(
+        Effect.provide(TestDbLayer(filename)),
+        Effect.runPromise,
+      );
+      expect(dbs.length).toBe(1);
+      expect(dbs[0].id).toBe(db.id);
+    } finally {
+      cleanup(tmpDir);
+    }
+  });
+
+  test("should not list non-trashed items in trash", async () => {
+    const { filename, tmpDir } = makeTestDb();
+    try {
+      runMigrations(filename);
+      const page = await Pages.createPage({ title: "Active", parentId: null }).pipe(
+        Effect.provide(TestDbLayer(filename)),
+        Effect.runPromise,
+      );
+
+      // Active page should not show in trash
+      const trash = await Databases.listTrash.pipe(
+        Effect.provide(TestDbLayer(filename)),
+        Effect.runPromise,
+      );
+      expect(trash.pages.length).toBe(0);
+      expect(trash.databases.length).toBe(0);
+      expect(trash.records.length).toBe(0);
     } finally {
       cleanup(tmpDir);
     }
