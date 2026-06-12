@@ -80,7 +80,15 @@ export const rpcHandlersLayer = AppRpc.toLayer({
         return yield* Pages.movePage(req);
       }),
     ).pipe(Effect.orDie),
-  reorderPages: ({ parentId, pageIds }) => withWorkspaceDb(Pages.reorderPages({ parentId, pageIds: [...pageIds] })).pipe(Effect.orDie),
+  reorderPages: ({ parentId, pageIds }) =>
+    withAuthedWorkspace(({ userId, workspaceId }) =>
+      Effect.gen(function* () {
+        if (parentId !== null) {
+          yield* Permissions.checkPagePermission(userId, workspaceId, parentId, "editor");
+        }
+        return yield* Pages.reorderPages({ parentId, pageIds: [...pageIds] });
+      }),
+    ).pipe(Effect.orDie),
 
   listBlocks: ({ pageId }) =>
     withAuthedWorkspace(({ userId, workspaceId }) =>
