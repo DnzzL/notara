@@ -1,12 +1,13 @@
 ---
 id: NOT-14
 title: 'B-014: Admin user deletion leaves orphaned workspaces'
-status: needs human validation
+status: ready for agent
 assignee: []
 created_date: '2026-06-12 13:56'
-updated_date: '2026-06-12 14:05'
+updated_date: '2026-06-12 15:54'
 labels:
   - bug
+  - ready-for-agent
 dependencies: []
 references:
   - 'packages/server/src/index.ts:175-179'
@@ -30,5 +31,10 @@ Deleting a user from the admin panel removes membership rows but leaves owned wo
 ## Implementation Notes
 
 <!-- SECTION:NOTES:BEGIN -->
-Three approaches: (a) transfer ownership to another user before deleting, (b) cascade-delete the workspace DB files, (c) just log a warning. What should happen to the workspace data when the sole owner is deleted?
+Decision: Zanzibar principle — never cascade-delete owned resources. Instead of hard-deleting user row, just remove workspace memberships and stop there. User row stays (inert), workspace ownership preserved, no orphaned workspaces. Better Auth still validates session but user has no workspace access → sees empty dashboard.
+
+Changes needed:
+1. In admin DELETE /api/admin/users/:userId — remove the second DELETE ("user") line. Keep workspace_members removal.
+2. Optionally add Effect.logInfo('User deactivated', userId) to acknowledge the action.
+3. No migration needed, no schema change. The admin response can say 'deactivated' instead of 'deleted'.
 <!-- SECTION:NOTES:END -->

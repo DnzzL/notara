@@ -1,12 +1,13 @@
 ---
 id: NOT-9
 title: 'B-008: Zustand stores swallow all errors silently'
-status: needs human validation
+status: ready for agent
 assignee: []
 created_date: '2026-06-12 13:55'
-updated_date: '2026-06-12 14:05'
+updated_date: '2026-06-12 15:54'
 labels:
   - enhancement
+  - ready-for-agent
 dependencies: []
 references:
   - packages/app/src/stores/pageStore.ts
@@ -32,5 +33,7 @@ Every async action in Zustand stores wraps errors in try/catch that only calls c
 ## Implementation Notes
 
 <!-- SECTION:NOTES:BEGIN -->
-Two possible UX patterns: (a) add an error field to each Zustand store and surface via a Toaster component, (b) use an error boundary at the app level. Which pattern fits the existing app architecture?
+Decision: Replace console.error with toaster.create in pageStore.ts. App already has Ark UI toaster (toaster.ts + Toaster.tsx) rendered in layout. Import toaster from '../toaster.js' and call toaster.create({ type:'error', title:'Failed to load pages', description: String(e) }) in each catch block.
+
+Only pageStore.ts has try/catch with console.error — blockStore.ts and databaseStore.ts have no try/catch blocks. For blockStore and databaseStore, errors propagate as unhandled rejections (still invisible to user). Consider adding a global unhandled rejection handler that shows a toast as a follow-up.
 <!-- SECTION:NOTES:END -->

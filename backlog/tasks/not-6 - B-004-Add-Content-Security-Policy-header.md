@@ -1,12 +1,13 @@
 ---
 id: NOT-6
 title: 'B-004: Add Content-Security-Policy header'
-status: needs human validation
+status: ready for agent
 assignee: []
 created_date: '2026-06-12 13:55'
-updated_date: '2026-06-12 14:05'
+updated_date: '2026-06-12 15:54'
 labels:
   - enhancement
+  - ready-for-agent
 dependencies: []
 references:
   - 'packages/server/src/middleware.ts:15-19'
@@ -32,5 +33,16 @@ The securityHeaders object includes X-Content-Type-Options, X-Frame-Options, Ref
 ## Implementation Notes
 
 <!-- SECTION:NOTES:BEGIN -->
-CSP policy suggested in description may break inline styles used by TipTap editor and PostHog analytics. Needs a human to: (1) confirm the policy is safe, (2) run the app and check for violations before marking ready.
+Decision: Add CSP to securityHeaders in middleware.ts. No Google Fonts in app — fonts are self-hosted. PostHog from eu.i.posthog.com. Policy:
+
+default-src 'self';
+script-src 'self' https://eu.i.posthog.com;
+style-src 'self' 'unsafe-inline';
+connect-src 'self' https://eu.i.posthog.com wss:;
+img-src 'self' data: blob:;
+font-src 'self';
+frame-ancestors 'none';
+form-action 'self'
+
+Test that all app pages load without CSP violations, TipTap editor still works, PostHog analytics fires.
 <!-- SECTION:NOTES:END -->

@@ -1,12 +1,13 @@
 ---
 id: NOT-12
 title: 'B-015: Improve error detail in catchAllCause 500 responses'
-status: needs human validation
+status: ready for agent
 assignee: []
 created_date: '2026-06-12 13:56'
-updated_date: '2026-06-12 14:05'
+updated_date: '2026-06-12 15:54'
 labels:
   - enhancement
+  - ready-for-agent
 dependencies: []
 references:
   - packages/server/src/index.ts
@@ -31,5 +32,9 @@ Many route handlers wrap in catchAllCause and return generic 500 JSON. Defects p
 ## Implementation Notes
 
 <!-- SECTION:NOTES:BEGIN -->
-Task says 'non-production environments' — how does this codebase detect dev vs prod? Check for NODE_ENV, a build flag, or something custom? Needs a human to confirm the detection mechanism before implementing.
+Decision: Fix catchAllCause in index.ts HTTP routes (import-notion, settings, backup trigger, backup list, backup restore — 5 instances) to:
+1. For Fail (expected errors like validation): pass through message as-is (already done in most places)
+2. For defects (unexpected errors): log via Effect.logError('Unhandled error', cause) and return JSON { error: 'Something went wrong' } with status 500 — currently leaks stack traces via cause.toString()
+
+RPC handlers NOT in scope (they use Effect.orDie pattern which is a separate concern).
 <!-- SECTION:NOTES:END -->

@@ -1,12 +1,13 @@
 ---
 id: NOT-3
 title: 'B-003: Uploaded SVGs can execute scripts via attachment serving'
-status: needs human validation
+status: ready for agent
 assignee: []
 created_date: '2026-06-12 13:55'
-updated_date: '2026-06-12 14:05'
+updated_date: '2026-06-12 15:54'
 labels:
   - bug
+  - ready-for-agent
 dependencies: []
 references:
   - packages/server/src/handlers/upload.ts
@@ -32,5 +33,5 @@ Upload endpoint accepts any file type. Static server maps .svg -> image/svg+xml.
 ## Implementation Notes
 
 <!-- SECTION:NOTES:BEGIN -->
-Three fix options, needs a decision: (a) remove image/svg+xml from MIME map so SVGs download instead of rendering inline, (b) sanitize SVGs on upload to strip scripts, (c) serve with Content-Disposition: attachment. Which approach?
+Decision: Remove .svg from the server's MIME map in index.ts:65. Upload handler still accepts image/svg+xml, but static server won't serve it with that Content-Type — browsers will download SVGs instead of rendering them inline, defusing the XSS. Images (png/jpg/webp/gif) stay in the MIME map and render inline as before.
 <!-- SECTION:NOTES:END -->
