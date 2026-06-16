@@ -1,10 +1,10 @@
 ---
 id: NOT-21
 title: 'Fix sidebar page reordering: drag and drop is unreliable and hard to aim'
-status: ready for agent
+status: done
 assignee: []
 created_date: '2026-06-16 16:05'
-updated_date: '2026-06-16 16:08'
+updated_date: '2026-06-16 17:44'
 labels:
   - frontend
   - sidebar
@@ -23,8 +23,8 @@ The sidebar uses dnd-kit (SortableContext + DndContext) with a custom drag-over 
 
 ## Acceptance Criteria
 <!-- AC:BEGIN -->
-- [ ] #1 Replace the three-zone manual targeting with a simpler model (e.g., rely more on dnd-kit's built-in sorting and only use nest on explicit modifier key or a separate drop zone)
-- [ ] #2 Fix the pointerPos / dragStartPos timing issue where onDragOver can read stale coordinates
-- [ ] #3 Add a visual preview of where the page will land that updates reliably during drag
-- [ ] #4 Ensure reorder-within-siblings (same parent) works precisely — no off-by-one splice errors
+- [x] #1 Replace the three-zone manual targeting with a simpler model (e.g., rely more on dnd-kit's built-in sorting and only use nest on explicit modifier key or a separate drop zone)
+- [x] #2 Fix the pointerPos / dragStartPos timing issue where onDragOver can read stale coordinates
+- [x] #3 Add a visual preview of where the page will land that updates reliably during drag
+- [x] #4 Ensure reorder-within-siblings (same parent) works precisely — no off-by-one splice errors
 <!-- AC:END -->

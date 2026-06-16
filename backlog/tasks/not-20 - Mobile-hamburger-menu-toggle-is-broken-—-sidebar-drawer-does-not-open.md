@@ -1,10 +1,10 @@
 ---
 id: NOT-20
 title: Mobile hamburger menu toggle is broken — sidebar drawer does not open
-status: ready for agent
+status: done
 assignee: []
 created_date: '2026-06-16 16:05'
-updated_date: '2026-06-16 16:08'
+updated_date: '2026-06-16 17:44'
 labels:
   - frontend
   - mobile
@@ -22,8 +22,8 @@ The mobile topbar has a hamburger button that claims to toggle the sidebar drawe
 
 ## Acceptance Criteria
 <!-- AC:BEGIN -->
-- [ ] #1 Identify why the sidebar--open class does not result in a visible sidebar on mobile
-- [ ] #2 Fix the root cause (CSS cascade, layout stacking, or state issue)
-- [ ] #3 Verify that tapping the hamburger opens the sidebar drawer and tapping the backdrop closes it
-- [ ] #4 Test on viewports < 880px
+- [x] #1 Identify why the sidebar--open class does not result in a visible sidebar on mobile
+- [x] #2 Fix the root cause (CSS cascade, layout stacking, or state issue)
+- [x] #3 Verify that tapping the hamburger opens the sidebar drawer and tapping the backdrop closes it
+- [x] #4 Test on viewports < 880px
 <!-- AC:END -->

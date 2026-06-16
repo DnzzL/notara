@@ -15,7 +15,6 @@ import { Portal } from "@ark-ui/react/portal";
 import {
   DndContext,
   type DragEndEvent,
-  type DragMoveEvent,
   type DragOverEvent,
   type DragStartEvent,
   PointerSensor,
@@ -70,11 +69,6 @@ function buildTreeOrder(pages: any[]): string[] {
   walk(pages.filter((p) => !p.parentId));
   return order;
 }
-
-/** Shared pointer position tracker — updated by onDragMove, read by onDragOver/onDragEnd. */
-const pointerPos = { x: 0, y: 0 };
-/** Starting position of the drag, set on drag start. */
-const dragStartPos = { x: 0, y: 0 };
 
 const SIDEBAR_WIDTH_KEY = "notara:sidebarWidth";
 const SIDEBAR_COLLAPSED_KEY = "notara:sidebarCollapsed";
@@ -159,8 +153,8 @@ export function Sidebar({ className, onNavigate, onStartTour }: SidebarProps = {
   };
 
   const [activePageId, setActivePageId] = useState<string | null>(null);
-  const [dragOverTarget, setDragOverTarget] = useState<{ id: string; position: "above" | "below" | "nest" } | null>(null);
-  const dragOverTargetRef = useRef<{ id: string; position: "above" | "below" | "nest" } | null>(null);
+  const [dragOverTarget, setDragOverTarget] = useState<{ id: string; isNest: boolean } | null>(null);
+  const isAltHeldRef = useRef(false);
 
   // Track expanded nodes — initialised to all page IDs once pages load
   const [expandedValue, setExpandedValue] = useState<string[]>([]);
@@ -206,6 +200,32 @@ export function Sidebar({ className, onNavigate, onStartTour }: SidebarProps = {
     });
   }, [currentPage?.id]);
 
+  // Track Alt/Option key during drag for nesting
+  useEffect(() => {
+    if (!activePageId) {
+      isAltHeldRef.current = false;
+      return;
+    }
+    const onKeyDown = (e: KeyboardEvent) => {
+      if (e.key === "Alt") {
+        isAltHeldRef.current = true;
+        setDragOverTarget((prev) => (prev ? { ...prev, isNest: true } : null));
+      }
+    };
+    const onKeyUp = (e: KeyboardEvent) => {
+      if (e.key === "Alt") {
+        isAltHeldRef.current = false;
+        setDragOverTarget((prev) => (prev ? { ...prev, isNest: false } : null));
+      }
+    };
+    window.addEventListener("keydown", onKeyDown);
+    window.addEventListener("keyup", onKeyUp);
+    return () => {
+      window.removeEventListener("keydown", onKeyDown);
+      window.removeEventListener("keyup", onKeyUp);
+    };
+  }, [activePageId]);
+
   const treeOrder = buildTreeOrder(filtered);
 
   const pageMap = useMemo(() => {
@@ -230,110 +250,76 @@ export function Sidebar({ className, onNavigate, onStartTour }: SidebarProps = {
     useSensor(PointerSensor, { activationConstraint: { distance: 5 } }),
   );
 
-  const handleDragStart = ({ active, activatorEvent }: DragStartEvent) => {
+  const handleDragStart = ({ active }: DragStartEvent) => {
     setActivePageId(active.id as string);
-    let startX = 0, startY = 0;
-    if (activatorEvent instanceof MouseEvent || activatorEvent instanceof PointerEvent) {
-      startX = activatorEvent.clientX;
-      startY = activatorEvent.clientY;
-    } else if (active.rect.current.translated) {
-      const rect = active.rect.current.translated;
-      startX = rect.left + rect.width / 2;
-      startY = rect.top + rect.height / 2;
-    }
-    dragStartPos.x = startX;
-    dragStartPos.y = startY;
-    pointerPos.x = startX;
-    pointerPos.y = startY;
   };
-
-  const handleDragMove = useCallback(({ delta }: DragMoveEvent) => {
-    if (delta) {
-      pointerPos.x = dragStartPos.x + delta.x;
-      pointerPos.y = dragStartPos.y + delta.y;
-    }
-  }, []);
 
   const handleDragCancel = () => {
     setActivePageId(null);
     setDragOverTarget(null);
-    dragOverTargetRef.current = null;
   };
 
   const handleDragOver = useCallback(({ over }: DragOverEvent) => {
     if (!over) {
       setDragOverTarget(null);
-      dragOverTargetRef.current = null;
       return;
     }
-    const overId = String(over.id);
-    const rect = over.rect;
-    if (!rect) {
-      setDragOverTarget(null);
-      dragOverTargetRef.current = null;
-      return;
-    }
-    const { x, y } = pointerPos;
-    if (y < rect.top || y > rect.bottom || x < rect.left || x > rect.right) {
-      setDragOverTarget(null);
-      dragOverTargetRef.current = null;
-      return;
-    }
-    const nestZoneLeft = rect.left + rect.width * 0.4;
-    let target: { id: string; position: "above" | "below" | "nest" };
-    if (x >= nestZoneLeft) {
-      target = { id: overId, position: "nest" };
-    } else {
-      const midY = rect.top + rect.height / 2;
-      target = { id: overId, position: y < midY ? "above" : "below" };
-    }
-    dragOverTargetRef.current = target;
-    setDragOverTarget(target);
+    setDragOverTarget({ id: String(over.id), isNest: isAltHeldRef.current });
   }, []);
 
   const handleDragEnd = useCallback(
     async ({ active, over }: DragEndEvent) => {
-      const target = dragOverTargetRef.current;
       setActivePageId(null);
       setDragOverTarget(null);
-      dragOverTargetRef.current = null;
 
       if (!over || active.id === over.id) return;
 
       const draggedId = String(active.id);
-      const targetId = String(over.id);
-      const position = target?.position ?? "above";
+      const overId = String(over.id);
 
       const draggedPage = filtered.find((p) => p.id === draggedId);
-      const targetPage = filtered.find((p) => p.id === targetId);
+      const targetPage = filtered.find((p) => p.id === overId);
       if (!draggedPage || !targetPage) return;
 
+      // Prevent dropping on own descendants
       const descendants = getDescendants(draggedId, pages);
-      if (descendants.has(targetId)) return;
+      if (descendants.has(overId)) return;
 
-      if (position === "nest") {
-        await movePage(draggedId, targetId);
-      } else {
-        const targetParentId = targetPage.parentId || null;
-        const parentId = draggedPage.parentId || null;
+      if (isAltHeldRef.current) {
+        // Nest: move dragged page under target page
+        await movePage(draggedId, overId);
+        return;
+      }
 
-        if (parentId === targetParentId) {
-          const siblings = filtered
-            .filter((p) => (p.parentId || null) === parentId)
-            .map((p) => p.id);
-          const draggedIdx = siblings.indexOf(draggedId);
-          const targetIdx = siblings.indexOf(targetId);
-          if (draggedIdx !== -1 && targetIdx !== -1) {
-            siblings.splice(draggedIdx, 1);
-            const newTargetIdx = siblings.indexOf(targetId);
-            const insertIdx = position === "above" ? newTargetIdx : newTargetIdx + 1;
-            siblings.splice(insertIdx, 0, draggedId);
-            await reorderPages(parentId, siblings);
-            return;
-          }
-        }
+      // Default: reorder as sibling of target (placed before over item)
+      const targetParentId = targetPage.parentId ?? null;
+      const draggedParentId = draggedPage.parentId ?? null;
+
+      // If dragging across parents, first move to target's parent
+      if (draggedParentId !== targetParentId) {
         await movePage(draggedId, targetParentId);
       }
+
+      // Get all siblings of the target parent (from pre-move closure state)
+      const siblings = filtered
+        .filter((p) => (p.parentId ?? null) === targetParentId)
+        .map((p) => p.id);
+
+      // Remove dragged from its current position (no-op if cross-parent move)
+      const withoutDragged = siblings.filter((id) => id !== draggedId);
+
+      // Find where to insert: before the over item
+      const overIdx = withoutDragged.indexOf(overId);
+      if (overIdx === -1) return;
+
+      // Insert dragged before the over item
+      const newOrder = [
+        ...withoutDragged.slice(0, overIdx),
+        draggedId,
+        ...withoutDragged.slice(overIdx),
+      ];
+
+      await reorderPages(targetParentId, newOrder);
     },
     [filtered, pages, movePage, reorderPages],
   );
@@ -376,7 +362,6 @@ export function Sidebar({ className, onNavigate, onStartTour }: SidebarProps = {
       sensors={sensors}
       collisionDetection={closestCenter}
       onDragStart={handleDragStart}
-      onDragMove={handleDragMove}
       onDragOver={handleDragOver}
       onDragEnd={handleDragEnd}
       onDragCancel={handleDragCancel}
@@ -500,10 +485,12 @@ export function Sidebar({ className, onNavigate, onStartTour }: SidebarProps = {
             {(() => {
               const page = pages.find((p) => p.id === activePageId);
               if (!page) return null;
+              const isNesting = dragOverTarget?.isNest ?? false;
               return (
                 <div className="flex items-center gap-1.5 text-[13px] text-text-2 px-1.5 py-1 bg-surface-3 rounded-[5px] border border-border">
                   <span className="icon">{page.icon || "📄"}</span>
                   {page.title || "Untitled"}
+                  {isNesting && <span className="text-[10px] font-medium text-accent ml-1 px-1.5 py-0.5 bg-accent-dim/30 rounded-[3px]">Nest</span>}
                 </div>
               );
             })()}
@@ -531,7 +518,7 @@ interface PageTreeNodeProps {
   node: TreeNodeData;
   indexPath: number[];
   pageMap: Map<string, any>;
-  dragOverTarget: { id: string; position: "above" | "below" | "nest" } | null;
+  dragOverTarget: { id: string; isNest: boolean } | null;
   activePageId: string | null;
   onDelete: (id: string) => void;
   onToggleFavorite: (id: string) => void;
@@ -567,9 +554,8 @@ function PageTreeNode({
     opacity: isDragging ? 0.3 : 1,
   };
 
-  const showAbove = dragOverTarget?.id === node.id && dragOverTarget?.position === "above";
-  const showBelow = dragOverTarget?.id === node.id && dragOverTarget?.position === "below";
-  const isNestTarget = dragOverTarget?.id === node.id && dragOverTarget?.position === "nest";
+  const isHovered = dragOverTarget?.id === node.id;
+  const isNestTarget = isHovered && dragOverTarget?.isNest === true;
   const isActive = activePageId === node.id;
   const hasChildren = (node.children?.length ?? 0) > 0;
 
@@ -584,11 +570,10 @@ function PageTreeNode({
   return (
     <TreeView.NodeProvider node={node} indexPath={indexPath}>
       <div ref={setNodeRef} style={style} className={depth > 0 ? "page-node-indent" : undefined}>
-        {showAbove && !isActive && <div className="h-0.5 bg-accent rounded-[1px] mx-0.5 my-px shadow-[0_0_6px_var(--accent-glow)]" />}
 
         <TreeView.Branch>
           <TreeView.BranchControl
-            className={`page-node${isNestTarget ? " nest-target" : ""}`}
+            className={`page-node${isHovered ? (isNestTarget ? " nest-target" : " drag-hover") : ""}`}
             onClick={(e: React.MouseEvent) => e.preventDefault()}
           >
             <div
@@ -655,8 +640,6 @@ function PageTreeNode({
             </TreeView.BranchContent>
           )}
         </TreeView.Branch>
-
-        {showBelow && !isActive && <div className="h-0.5 bg-accent rounded-[1px] mx-0.5 my-px shadow-[0_0_6px_var(--accent-glow)]" />}
       </div>
     </TreeView.NodeProvider>
   );

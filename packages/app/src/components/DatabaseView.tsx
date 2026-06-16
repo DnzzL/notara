@@ -12,11 +12,13 @@ import { api } from "../rpc-client.js";
 import { applyFiltersAndSorts } from "../lib/filterEngine.js";
 import { tryEvaluate } from "../lib/formula.js";
 import { CellDisplay, InlineCellEditor, Popover } from "./db/CellComponents.js";
-import { ColumnHeader, AddFieldPopover, OptionsEditor, FormulaEditor, type FieldType } from "./db/FieldComponents.js";
+import { ColumnHeader, AddFieldPopover, OptionsEditor, FormulaEditor, getDefaultWidthForType, type FieldType } from "./db/FieldComponents.js";
 import { FilterBar, SortBar, makeDefaultFilter } from "./db/QueryBar.js";
 import { BoardView } from "./db/BoardView.js";
 import { RecordPanel } from "./db/RecordPanel.js";
 import { ViewSwitcher } from "./db/ViewSwitcher.js";
+
+const COL_WIDTHS_STORAGE_KEY_PREFIX = "db-col-widths:";
 
 // ── Column Footer (summary aggregations, à la Notion) ───────────────────────
 
@@ -256,7 +258,17 @@ export function DatabaseView({ database, isNew }: { database: any; isNew?: boole
   const [activeRowId, setActiveRowId] = useState<string | null>(null);
   const [activeColId, setActiveColId] = useState<string | null>(null);
   const [openRecordId, setOpenRecordId] = useState<string | null>(null);
-  const [columnWidths, setColumnWidths] = useState<Record<string, number>>({});
+  const [columnWidths, setColumnWidths] = useState<Record<string, number>>(() => {
+    try {
+      const raw = localStorage.getItem(COL_WIDTHS_STORAGE_KEY_PREFIX + database.id);
+      if (raw) return JSON.parse(raw);
+    } catch { /* ignore */ }
+    return {};
+  });
+  const [compactMode, setCompactMode] = useState<boolean>(() => {
+    try { return localStorage.getItem(`db-compact:${database.id}`) === "true"; }
+    catch { return false; }
+  });
   const [dbRecordCache, setDbRecordCache] = useState<Record<string, any[]>>({});
   /** Keyboard-focused cell `{row, col}`. `col` indexes into [titleCol?, ...dbFields]. */
   const [focusedCell, setFocusedCell] = useState<{ row: number; col: number } | null>(null);
@@ -482,8 +494,12 @@ export function DatabaseView({ database, isNew }: { database: any; isNew?: boole
   };
 
   const handleColumnResize = useCallback((fieldId: string, width: number) => {
-    setColumnWidths((prev) => ({ ...prev, [fieldId]: Math.max(80, Math.round(width)) }));
-  }, []);
+    setColumnWidths((prev) => {
+      const next = { ...prev, [fieldId]: Math.max(80, Math.round(width)) };
+      try { localStorage.setItem(COL_WIDTHS_STORAGE_KEY_PREFIX + database.id, JSON.stringify(next)); } catch { /* ignore */ }
+      return next;
+    });
+  }, [database.id]);
 
   const handleNameSave = async () => {
     if (dbName.trim() && dbName !== database.name) await renameDatabase(database.id, dbName.trim());
@@ -687,7 +703,10 @@ export function DatabaseView({ database, isNew }: { database: any; isNew?: boole
                     hasPage={!!record.pageId}
                   >
                     {!database.titleHidden && (
-                      <td className="db-cell db-title-cell" style={columnWidths["__title__"] ? { minWidth: columnWidths["__title__"], width: columnWidths["__title__"] } : undefined}>
+                      <td className="db-cell db-title-cell" style={(() => {
+                        const w = columnWidths["__title__"];
+                        return w ? { minWidth: w, width: w } : { minWidth: 180, width: getDefaultWidthForType("text") };
+                      })()}>
                         <TitleCell
                           recordId={record.id}
                           title={record.title}

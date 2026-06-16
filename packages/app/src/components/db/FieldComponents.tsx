@@ -30,6 +30,23 @@ export const FIELD_TYPES: FieldTypeInfo[] = [
   { type: "people", label: "People", icon: "👤" },
 ];
 
+// ── Default column widths by field type ──────────────────────────────
+const DEFAULT_WIDTH_BY_TYPE: Record<string, number> = {
+  text: 120,
+  number: 90,
+  select: 120,
+  multiSelect: 140,
+  date: 130,
+  checkbox: 80,
+  page: 120,
+  relation: 140,
+  formula: 120,
+  people: 140,
+};
+export function getDefaultWidthForType(type: string): number {
+  return DEFAULT_WIDTH_BY_TYPE[type] ?? 120;
+}
+
 // ── Column Header with Menu ───────────────────────────────────────────────
 
 export function ColumnHeader({
@@ -73,8 +90,9 @@ export function ColumnHeader({
   const handleMenuClose = () => { setShowMenu(false); setEditing(false); setChangingType(false); };
 
   if (isTitle) {
+    const defaultW = getDefaultWidthForType("text");
     return (
-      <th className="db-col-header" data-field-id="__title__" style={{ minWidth: width || 200, width: width || undefined }}>
+      <th className="db-col-header db-title-cell" data-field-id="__title__" style={{ minWidth: width || 180, width: width || defaultW }}>
         <div ref={triggerRef} className="db-col-header-content" onClick={() => setShowMenu(!showMenu)}>
           <span style={{ opacity: 0.7, fontSize: 14 }}>🌐</span>
           <span style={{ fontWeight: 500, overflow: "hidden", textOverflow: "ellipsis" }}>{field.name}</span>
@@ -108,6 +126,7 @@ export function ColumnHeader({
     );
   }
 
+  const defaultW = getDefaultWidthForType(field.type);
   const sortGlyph = sortDir === "asc" ? "↑" : sortDir === "desc" ? "↓" : null;
 
   return (
@@ -115,7 +134,7 @@ export function ColumnHeader({
       ref={dragRef as any}
       className="db-col-header"
       data-field-id={field.id}
-      style={{ minWidth: width || 150, width: width || undefined, ...(dragStyle || {}) }}
+      style={{ minWidth: width || defaultW, width: width || defaultW, ...(dragStyle || {}) }}
     >
       {dragListeners && (
         <span
@@ -225,6 +244,7 @@ export function ColumnHeader({
             {onDuplicate && (
               <div className="db-menu-item" onClick={() => { handleMenuClose(); onDuplicate(); }}>Duplicate</div>
             )}
+            <div className="db-menu-item" onClick={() => { onDelete(); handleMenuClose(); }}>Hide column</div>
             <div className="db-menu-item" onClick={() => setEditing(true)}>Rename</div>
             <div className="db-menu-item db-menu-item--danger" onClick={() => { onDelete(); handleMenuClose(); }}>Delete</div>
           </div>

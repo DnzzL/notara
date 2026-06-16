@@ -3,10 +3,10 @@ id: NOT-18
 title: >-
   Mobile view: database tables lack responsive layout, causing excessive
   horizontal spacing
-status: ready for agent
+status: done
 assignee: []
 created_date: '2026-06-16 16:05'
-updated_date: '2026-06-16 16:08'
+updated_date: '2026-06-16 17:44'
 labels:
   - frontend
   - mobile
@@ -25,8 +25,8 @@ On mobile (below 880px), the database table view has no responsive treatment —
 
 ## Acceptance Criteria
 <!-- AC:BEGIN -->
-- [ ] #1 Make the database table horizontally scrollable on mobile (overflow-x: auto on a wrapper)
-- [ ] #2 Set reasonable default/max column widths for mobile so content doesn't stretch the viewport
-- [ ] #3 Add a responsive column strategy: at least the title column should be sticky, remaining columns scroll
-- [ ] #4 Verify the fix on viewport widths from 320px to 880px
+- [x] #1 Make the database table horizontally scrollable on mobile (overflow-x: auto on a wrapper)
+- [x] #2 Set reasonable default/max column widths for mobile so content doesn't stretch the viewport
+- [x] #3 Add a responsive column strategy: at least the title column should be sticky, remaining columns scroll
+- [x] #4 Verify the fix on viewport widths from 320px to 880px
 <!-- AC:END -->

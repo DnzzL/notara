@@ -316,6 +316,10 @@ body {
   box-shadow: 0 0 0 2px var(--accent-mid);
   border-radius: 6px;
 }
+.page-node.drag-hover {
+  background: var(--sb-2);
+  border-radius: 6px;
+}
 
 /* Page node menu */
 .page-node-menu {
@@ -1877,6 +1881,15 @@ select, input, textarea, button { font-family: var(--font-ui); }
   .block-gutter .drag-handle-wrapper { display: none; }
   .block-gutter { opacity: 1; }
   .block-insert-btn { display: flex; }
+
+  /* Database table — horizontal scroll + sticky title on mobile */
+  .table-view { overflow-x: auto; }
+  .db-table { table-layout: fixed; width: max-content; min-width: 100%; }
+  .db-cell { min-width: 110px; max-width: 200px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .db-title-cell { position: sticky; left: 44px; z-index: 2; background: var(--surface); box-shadow: 2px 0 6px rgba(0,0,0,0.06); }
+  .db-table thead .db-title-cell { z-index: 4; }
+  .db-drag-header { position: sticky; left: 0; z-index: 3; background: var(--surface-2); }
+  .db-drag-cell { position: sticky; left: 0; z-index: 2; background: var(--surface); }
 }
 /* Floating add-block button */
 .fab-add-block {
