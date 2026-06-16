@@ -777,10 +777,19 @@ export function BlockEditor() {
   // `database` block are skipped here so we don't double-render them
   // (once inline, once at the bottom). Anything left over is appended.
   const orphanDatabases = databases.filter((db) => !inlineDbIds.has(db.id));
-  const allItems = [...sortedBlocks, ...orphanDatabases.map((db) => ({
+  // Filter out inline database blocks whose target database is missing/deleted,
+  // so SortableContext items match exactly what SortableBlock nodes are mounted
+  // (a dangling id with no DOM node causes dnd-kit to crash on drag).
+  const visibleBlocks = sortedBlocks.filter((block) => {
+    if (block.type === "database") {
+      return databases.some((d) => d.id === block.content);
+    }
+    return true;
+  });
+  const allItems = [...visibleBlocks, ...orphanDatabases.map((db) => ({
     id: `db-${db.id}`,
     type: "database" as const,
-    index: orphanDatabases.indexOf(db) + sortedBlocks.length,
+    index: orphanDatabases.indexOf(db) + visibleBlocks.length,
   }))];
 
   if (!currentPage && accessDeniedFor) {
@@ -1067,7 +1076,7 @@ export function BlockEditor() {
               <SortableBlock
                 key={`db-${db.id}`}
                 id={`db-${db.id}`}
-                showDropIndicator={dropIndicatorIndex === sortedBlocks.length + orphanDatabases.indexOf(db)}
+                showDropIndicator={dropIndicatorIndex === visibleBlocks.length + orphanDatabases.indexOf(db)}
                 isDragging={activeBlockId === `db-${db.id}`}
                 onDragStart={() => setActiveBlockId(`db-${db.id}`)}
                 onOpenMenu={(x, y) => setDbMenu({ dbId: db.id, blockId: null, x, y })}
