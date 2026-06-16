@@ -13,7 +13,15 @@ export const Route = createRoute({
     if (!session?.data) return { loggedIn: false };
     const workspaces = await api.getMyWorkspaces();
     if (workspaces.length > 0) {
-      throw redirect({ to: "/$workspaceSlug", params: { workspaceSlug: workspaces[0].slug } });
+      // Restore last-active workspace from localStorage, fall back to first workspace
+      const lastSlug = (() => {
+        try { return localStorage.getItem("notara:lastWorkspace"); }
+        catch { return null; }
+      })();
+      const target = lastSlug && workspaces.some((w) => w.slug === lastSlug)
+        ? lastSlug
+        : workspaces[0].slug;
+      throw redirect({ to: "/$workspaceSlug", params: { workspaceSlug: target } });
     }
     throw redirect({ to: "/workspaces" });
   },

@@ -181,8 +181,23 @@ export const AppRpc = RpcGroup.make(
       name: Schema.String,
       type: Schema.Literal("table", "board"),
       groupByFieldId: Schema.NullOr(Schema.String),
+      config: Schema.optional(Schema.String),
     },
     success: DatabaseView,
+  }),
+  Rpc.make("updateView", {
+    payload: {
+      id: Schema.String,
+      name: Schema.optional(Schema.String),
+      type: Schema.optional(Schema.Literal("table", "board")),
+      groupByFieldId: Schema.optional(Schema.NullOr(Schema.String)),
+      config: Schema.optional(Schema.String),
+    },
+    success: DatabaseView,
+  }),
+  Rpc.make("deleteView", {
+    payload: { id: Schema.String },
+    success: Schema.Struct({ deleted: Schema.Boolean }),
   }),
   Rpc.make("updateField", {
     payload: {

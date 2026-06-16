@@ -132,7 +132,8 @@ export function valueFromRow(r: unknown): RecordFieldValue {
 export const VIEW_COLS = `id, database_id as "databaseId", name, type,
   group_by_field_id as "groupByFieldId",
   sort_field_id as "sortFieldId",
-  sort_order as "sortOrder"`;
+  sort_order as "sortOrder",
+  config`;
 
 export function viewFromRow(r: unknown): DatabaseView {
   const row = r as Record<string, unknown>;
@@ -144,5 +145,6 @@ export function viewFromRow(r: unknown): DatabaseView {
     groupByFieldId: (row.groupByFieldId as string | null) ?? null,
     sortFieldId: (row.sortFieldId as string | null) ?? null,
     sortOrder: (row.sortOrder as "asc" | "desc") ?? "asc",
+    config: (row.config as string) ?? "{}",
   };
 }

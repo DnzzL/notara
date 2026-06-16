@@ -1,10 +1,10 @@
 ---
 id: NOT-9
 title: 'B-008: Zustand stores swallow all errors silently'
-status: ready for agent
+status: done
 assignee: []
 created_date: '2026-06-12 13:55'
-updated_date: '2026-06-12 15:54'
+updated_date: '2026-06-12 17:03'
 labels:
   - enhancement
   - ready-for-agent
@@ -25,10 +25,12 @@ Every async action in Zustand stores wraps errors in try/catch that only calls c
 
 ## Acceptance Criteria
 <!-- AC:BEGIN -->
-- [ ] #1 Network error when loading pages shows a visible error to user
-- [ ] #2 Successful retry clears the error
-- [ ] #3 bun --bun tsc --noEmit -p packages/app passes (ignoring pre-existing)
+- [x] #1 Network error when loading pages shows a visible error to user
+- [x] #2 Successful retry clears the error
+- [x] #3 bun --bun tsc --noEmit -p packages/app passes (ignoring pre-existing)
 <!-- AC:END -->
+
+
 
 ## Implementation Notes
 

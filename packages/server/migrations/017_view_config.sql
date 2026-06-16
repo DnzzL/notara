@@ -1,0 +1,1 @@
+ALTER TABLE database_views ADD COLUMN config TEXT NOT NULL DEFAULT '{}';

@@ -63,11 +63,17 @@ export const usePageStore = create<PageState>((set, get) => ({
       useHistoryStore.getState().resetFor(page.id);
     }
     set({ currentPage: page });
-    // Track recently viewed pages
+    // Track last viewed page per workspace and persist last-active workspace
+    const url = new URL(window.location.href);
+    const slug = url.pathname.split("/").filter(Boolean)[0];
+    if (slug) {
+      localStorage.setItem(`notara:lastPage:${slug}`, page.id);
+      localStorage.setItem("notara:lastWorkspace", slug);
+    }
+    // Keep flat recentPages list for the search modal's "recent pages" section
     const recent = JSON.parse(localStorage.getItem("notara:recentPages") || "[]");
     const filtered = [page.id, ...recent.filter((x: string) => x !== page.id)].slice(0, 5);
     localStorage.setItem("notara:recentPages", JSON.stringify(filtered));
-    const url = new URL(window.location.href);
     const currentPageParam = url.searchParams.get("page");
     url.searchParams.set("page", page.id);
     if (currentPageParam !== page.id) {

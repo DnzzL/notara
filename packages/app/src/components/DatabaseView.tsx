@@ -16,6 +16,7 @@ import { ColumnHeader, AddFieldPopover, OptionsEditor, FormulaEditor, type Field
 import { FilterBar, SortBar, makeDefaultFilter } from "./db/QueryBar.js";
 import { BoardView } from "./db/BoardView.js";
 import { RecordPanel } from "./db/RecordPanel.js";
+import { ViewSwitcher } from "./db/ViewSwitcher.js";
 
 // ── Column Footer (summary aggregations, à la Notion) ───────────────────────
 
@@ -213,6 +214,7 @@ export function DatabaseView({ database, isNew }: { database: any; isNew?: boole
   const databases = useDatabaseStore(s => s.databases);
   const loadDbFields = useDatabaseStore(s => s.loadDbFields);
   const loadDbRecords = useDatabaseStore(s => s.loadDbRecords);
+  const loadDbViews = useDatabaseStore(s => s.loadDbViews);
   const createDbRecord = useDatabaseStore(s => s.createDbRecord);
   const updateFieldValue = useDatabaseStore(s => s.updateFieldValue);
   const createField = useDatabaseStore(s => s.createField);
@@ -268,6 +270,7 @@ export function DatabaseView({ database, isNew }: { database: any; isNew?: boole
   useEffect(() => {
     loadDbFields(database.id);
     loadDbRecords(database.id);
+    loadDbViews(database.id);
     databases.forEach(async (db: any) => {
       if (!dbRecordCache[db.id]) {
         try {
@@ -317,39 +320,6 @@ export function DatabaseView({ database, isNew }: { database: any; isNew?: boole
       return next;
     });
   }, [database.id]);
-
-  // Saved default view (à la Notion): the active view type, filters, sorts,
-  // board grouping and hidden card fields are persisted per database in
-  // localStorage and restored on load. Mirrors the footer-aggs pattern above.
-  const viewRestoredRef = useRef(false);
-  useEffect(() => {
-    viewRestoredRef.current = false;
-    try {
-      const raw = localStorage.getItem(`db-view:${database.id}`);
-      if (raw) {
-        const v = JSON.parse(raw);
-        setViewType(v.viewType === "board" ? "board" : "table");
-        hydrateView(database.id, {
-          filters: Array.isArray(v.filters) ? v.filters : [],
-          sorts: Array.isArray(v.sorts) ? v.sorts : [],
-          groupBy: v.groupBy ?? null,
-          boardHidden: Array.isArray(v.boardHidden) ? v.boardHidden : [],
-        });
-      }
-    } catch { /* ignore */ }
-  }, [database.id, hydrateView]);
-
-  useEffect(() => {
-    // Skip the first run after a (re)mount/restore so we don't overwrite the
-    // saved config with empty defaults before hydrateView has applied.
-    if (!viewRestoredRef.current) { viewRestoredRef.current = true; return; }
-    try {
-      localStorage.setItem(`db-view:${database.id}`, JSON.stringify({
-        viewType, filters: activeFilters, sorts: activeSorts,
-        groupBy: boardGroupByFieldId, boardHidden: boardHiddenFieldIds,
-      }));
-    } catch { /* ignore */ }
-  }, [database.id, viewType, activeFilters, activeSorts, boardGroupByFieldId, boardHiddenFieldIds]);
 
   const sortedRecords = useMemo(
     () => applyFiltersAndSorts(records, dbFields, activeFilters, activeSorts),
@@ -623,6 +593,7 @@ export function DatabaseView({ database, isNew }: { database: any; isNew?: boole
       <div className="table-view" ref={tableWrapRef}>
         {/* Toolbar */}
         <div className="flex gap-1.5 mb-2.5 items-center flex-wrap py-1">
+          <ViewSwitcher databaseId={database.id} currentViewType={viewType} />
           <div className="inline-flex bg-surface-3 border border-border rounded p-0.5" role="tablist">
             <button className={cn("bg-transparent border-none py-1 px-3 text-[12px] font-medium cursor-pointer rounded-[6px] bg-text text-bg")} onClick={() => setViewType("table")} role="tab" aria-selected={true}>Table</button>
             <button className={cn("bg-transparent border-none py-1 px-3 text-[12px] font-medium cursor-pointer rounded-[6px] text-text-3")} onClick={() => setViewType("board")} role="tab" aria-selected={false}>Board</button>

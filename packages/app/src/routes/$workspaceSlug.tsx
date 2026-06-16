@@ -66,14 +66,11 @@ function WorkspaceLayout() {
         selectPageByIdWithCascade(pageParam);
         return;
       }
-      // 2) Last visited page in this workspace from recents.
+      // 2) Last visited page in this workspace from per-workspace storage.
       try {
-        const recent: string[] = JSON.parse(
-          localStorage.getItem("notara:recentPages") || "[]",
-        );
-        const last = recent.find((id) => pages.some((p) => p.id === id));
-        if (last) {
-          selectPageByIdWithCascade(last);
+        const lastPageId = localStorage.getItem(`notara:lastPage:${workspaceSlug}`);
+        if (lastPageId && pages.some((p) => p.id === lastPageId)) {
+          selectPageByIdWithCascade(lastPageId);
           return;
         }
       } catch { /* ignore corrupt localStorage */ }

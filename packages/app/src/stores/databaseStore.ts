@@ -17,6 +17,8 @@ export interface DatabaseState {
   databases: Database[];
   currentDb: Database | null;
   dbViews: DatabaseView[];
+  /** Per-database views map (databaseId -> views) so sibling instances don't clash. */
+  dbViewsByDb: Record<string, DatabaseView[]>;
 
   // Per-database state, keyed by databaseId. A page renders many DatabaseView
   // instances at once, so these MUST NOT be a single shared slot — otherwise
@@ -28,6 +30,8 @@ export interface DatabaseState {
   sortsByDb: Record<string, Sort[]>;
   boardGroupByDb: Record<string, string | null>;
   boardHiddenByDb: Record<string, string[]>;
+  /** The active saved view id (null = 'All' default) */
+  activeViewIdByDb: Record<string, string | null>;
 
   loadDatabases: (pageId: string) => Promise<void>;
   createDatabase: (pageId: string, name: string) => Promise<any>;
@@ -47,6 +51,10 @@ export interface DatabaseState {
   reorderRecords: (databaseId: string, recordIds: string[]) => Promise<void>;
 
   loadDbViews: (databaseId: string) => Promise<void>;
+  createView: (databaseId: string, name: string, type: "table" | "board", groupByFieldId: string | null, config?: string) => Promise<DatabaseView>;
+  updateView: (id: string, updates: { name?: string; type?: "table" | "board"; groupByFieldId?: string | null; config?: string }) => Promise<void>;
+  deleteView: (databaseId: string, viewId: string) => Promise<void>;
+  switchView: (databaseId: string, view: DatabaseView | null) => void;
 
   setBoardGroupBy: (databaseId: string, fieldId: string | null) => void;
   toggleBoardField: (databaseId: string, fieldId: string) => void;
@@ -65,12 +73,14 @@ export const useDatabaseStore = create<DatabaseState>((set, get) => ({
   databases: [],
   currentDb: null,
   dbViews: [],
+  dbViewsByDb: {},
   fieldsByDb: {},
   recordsByDb: {},
   filtersByDb: {},
   sortsByDb: {},
   boardGroupByDb: {},
   boardHiddenByDb: {},
+  activeViewIdByDb: {},
 
   loadDatabases: async (pageId) => {
     const databases = await api.listDatabases({ pageId });
@@ -163,7 +173,75 @@ export const useDatabaseStore = create<DatabaseState>((set, get) => ({
 
   loadDbViews: async (databaseId) => {
     const views = await api.listViews({ databaseId });
-    set({ dbViews: views });
+    set((s) => ({
+      dbViewsByDb: { ...s.dbViewsByDb, [databaseId]: views },
+      dbViews: views,
+    }));
+  },
+
+  createView: async (databaseId, name, type, groupByFieldId, config) => {
+    const view = await api.createView({ databaseId, name, type, groupByFieldId, config: config ?? undefined });
+    set((s) => ({
+      dbViewsByDb: { ...s.dbViewsByDb, [databaseId]: [...(s.dbViewsByDb[databaseId] || []), view] },
+      dbViews: [...s.dbViews, view],
+    }));
+    return view;
+  },
+
+  updateView: async (id, updates) => {
+    const view = await api.updateView({ id, ...updates });
+    set((s) => {
+      // Find which database this view belongs to
+      let dbId = "";
+      for (const [db, views] of Object.entries(s.dbViewsByDb)) {
+        if (views.some((v) => v.id === id)) { dbId = db; break; }
+      }
+      if (!dbId) return {};
+      return {
+        dbViewsByDb: {
+          ...s.dbViewsByDb,
+          [dbId]: (s.dbViewsByDb[dbId] || []).map((v) => (v.id === id ? view : v)),
+        },
+        dbViews: s.dbViews.map((v) => (v.id === id ? view : v)),
+      };
+    });
+  },
+
+  deleteView: async (databaseId, viewId) => {
+    await api.deleteView({ id: viewId });
+    set((s) => ({
+      dbViewsByDb: {
+        ...s.dbViewsByDb,
+        [databaseId]: (s.dbViewsByDb[databaseId] || []).filter((v) => v.id !== viewId),
+      },
+      dbViews: s.dbViews.filter((v) => v.id !== viewId),
+      activeViewIdByDb: s.activeViewIdByDb[databaseId] === viewId
+        ? { ...s.activeViewIdByDb, [databaseId]: null }
+        : s.activeViewIdByDb,
+    }));
+  },
+
+  switchView: (databaseId, view) => {
+    if (!view) {
+      // Reset to 'All' — clear filters/sorts/group-by/boardHidden
+      set((s) => ({
+        filtersByDb: { ...s.filtersByDb, [databaseId]: [] },
+        sortsByDb: { ...s.sortsByDb, [databaseId]: [] },
+        boardGroupByDb: { ...s.boardGroupByDb, [databaseId]: null },
+        boardHiddenByDb: { ...s.boardHiddenByDb, [databaseId]: [] },
+        activeViewIdByDb: { ...s.activeViewIdByDb, [databaseId]: null },
+      }));
+      return;
+    }
+    // Apply the saved view's configuration
+    const config = parseViewConfig(view.config);
+    set((s) => ({
+      filtersByDb: { ...s.filtersByDb, [databaseId]: config.filters },
+      sortsByDb: { ...s.sortsByDb, [databaseId]: config.sorts },
+      boardGroupByDb: { ...s.boardGroupByDb, [databaseId]: view.groupByFieldId },
+      boardHiddenByDb: { ...s.boardHiddenByDb, [databaseId]: config.boardHidden },
+      activeViewIdByDb: { ...s.activeViewIdByDb, [databaseId]: view.id },
+    }));
   },
 
   // View state mutators — all scoped to a single databaseId.
@@ -214,3 +292,24 @@ export const selectFilters = (s: DatabaseState, dbId: string) => s.filtersByDb[d
 export const selectSorts = (s: DatabaseState, dbId: string) => s.sortsByDb[dbId] || EMPTY_SORTS;
 export const selectBoardGroupBy = (s: DatabaseState, dbId: string) => s.boardGroupByDb[dbId] ?? null;
 export const selectBoardHidden = (s: DatabaseState, dbId: string) => s.boardHiddenByDb[dbId] || EMPTY_HIDDEN;
+export const selectDbViews = (s: DatabaseState, dbId: string) => s.dbViewsByDb[dbId] || [];
+export const selectActiveViewId = (s: DatabaseState, dbId: string) => s.activeViewIdByDb[dbId] ?? null;
+
+/** Parse view config JSON safely. */
+export function parseViewConfig(config: string): { filters: Filter[]; sorts: Sort[]; boardHidden: string[] } {
+  try {
+    const parsed = JSON.parse(config);
+    return {
+      filters: Array.isArray(parsed.filters) ? parsed.filters : [],
+      sorts: Array.isArray(parsed.sorts) ? parsed.sorts : [],
+      boardHidden: Array.isArray(parsed.boardHidden) ? parsed.boardHidden : [],
+    };
+  } catch {
+    return { filters: [], sorts: [], boardHidden: [] };
+  }
+}
+
+/** Serialize current view state to JSON string. */
+export function serializeViewConfig(filters: Filter[], sorts: Sort[], boardHidden: string[]): string {
+  return JSON.stringify({ filters, sorts, boardHidden });
+}

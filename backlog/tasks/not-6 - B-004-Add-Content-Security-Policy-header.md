@@ -1,10 +1,10 @@
 ---
 id: NOT-6
 title: 'B-004: Add Content-Security-Policy header'
-status: ready for agent
+status: done
 assignee: []
 created_date: '2026-06-12 13:55'
-updated_date: '2026-06-12 15:54'
+updated_date: '2026-06-12 17:03'
 labels:
   - enhancement
   - ready-for-agent
@@ -23,12 +23,14 @@ The securityHeaders object includes X-Content-Type-Options, X-Frame-Options, Ref
 
 ## Acceptance Criteria
 <!-- AC:BEGIN -->
-- [ ] #1 All app pages load without CSP violations in browser console
-- [ ] #2 Inline styles in TipTap editor still work
-- [ ] #3 PostHog analytics still loads
-- [ ] #4 bun --bun tsc --noEmit -p packages/server passes
-- [ ] #5 bun test packages/server/test passes
+- [x] #1 All app pages load without CSP violations in browser console
+- [x] #2 Inline styles in TipTap editor still work
+- [x] #3 PostHog analytics still loads
+- [x] #4 bun --bun tsc --noEmit -p packages/server passes
+- [x] #5 bun test packages/server/test passes
 <!-- AC:END -->
+
+
 
 ## Implementation Notes
 

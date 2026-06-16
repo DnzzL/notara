@@ -296,7 +296,28 @@ export const rpcHandlersLayer = AppRpc.toLayer({
           name: req.name,
           type: req.type,
           groupByFieldId: req.groupByFieldId,
+          config: req.config,
         });
+      }),
+    ).pipe(Effect.orDie),
+  updateView: (req) =>
+    withAuthedWorkspace(({ userId, workspaceId }) =>
+      Effect.gen(function* () {
+        yield* Permissions.checkDatabasePermission(userId, workspaceId, req.id, "editor");
+        return yield* Databases.updateView({
+          id: req.id,
+          name: req.name,
+          type: req.type,
+          groupByFieldId: req.groupByFieldId,
+          config: req.config,
+        });
+      }),
+    ).pipe(Effect.orDie),
+  deleteView: ({ id }) =>
+    withAuthedWorkspace(({ userId, workspaceId }) =>
+      Effect.gen(function* () {
+        yield* Permissions.checkDatabasePermission(userId, workspaceId, id, "editor");
+        return yield* Databases.deleteView(id);
       }),
     ).pipe(Effect.orDie),
   updateField: (req) =>

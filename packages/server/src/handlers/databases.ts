@@ -425,16 +425,50 @@ export const reorderDatabases = (req: { pageId: string; databaseIds: string[] })
 export const createView = (req: {
   databaseId: string; name: string; type: string;
   groupByFieldId: string | null;
+  config?: string;
 }) => Effect.gen(function* () {
   const sql = yield* SqlClient.SqlClient;
   const id = ulid();
   const rows = yield* sql`
-    INSERT INTO database_views (id, database_id, name, type, group_by_field_id, sort_order)
-    VALUES (${id}, ${req.databaseId}, ${req.name}, ${req.type}, ${req.groupByFieldId}, 'asc')
+    INSERT INTO database_views (id, database_id, name, type, group_by_field_id, sort_order, config)
+    VALUES (${id}, ${req.databaseId}, ${req.name}, ${req.type}, ${req.groupByFieldId}, 'asc', ${req.config ?? '{}'})
     RETURNING ${sql.unsafe(VIEW_COLS)}
   `;
   return viewFromRow(rows[0]);
 });
+
+export const updateView = (req: {
+  id: string; name?: string; type?: string;
+  groupByFieldId?: string | null; config?: string;
+}) => Effect.gen(function* () {
+  const sql = yield* SqlClient.SqlClient;
+  const existing = yield* sql`
+    SELECT name, type, group_by_field_id as "groupByFieldId", config
+    FROM database_views WHERE id = ${req.id}
+  `;
+  if (existing.length === 0) return yield* Effect.fail(new Error(`View ${req.id} not found`));
+  const cur = existing[0] as any;
+  const newName = req.name ?? cur.name;
+  const newType = req.type ?? cur.type;
+  const newGroupBy = req.groupByFieldId === undefined ? cur.groupByFieldId : req.groupByFieldId;
+  const newConfig = req.config ?? cur.config;
+  const rows = yield* sql`
+    UPDATE database_views
+    SET name = ${newName}, type = ${newType},
+        group_by_field_id = ${newGroupBy}, config = ${newConfig}
+    WHERE id = ${req.id}
+    RETURNING ${sql.unsafe(VIEW_COLS)}
+  `;
+  if (rows.length === 0) return yield* Effect.fail(new Error(`View ${req.id} not found`));
+  return viewFromRow(rows[0]);
+});
+
+export const deleteView = (id: string) =>
+  Effect.gen(function* () {
+    const sql = yield* SqlClient.SqlClient;
+    yield* sql`DELETE FROM database_views WHERE id = ${id}`;
+    return { deleted: true };
+  });
 
 // ── Trash: restore / permanent purge / sweep ────────────────────────────────────
 
