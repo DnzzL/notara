@@ -1,9 +1,10 @@
 ---
 id: NOT-23
 title: dnd-kit SortableContext items desync with conditional null block render
-status: ready for agent
+status: done
 assignee: []
 created_date: '2026-06-16 16:14'
+updated_date: '2026-06-16 16:45'
 labels:
   - bug
 dependencies: []
@@ -21,8 +22,8 @@ Potential React-vs-DOM reconciliation conflict in the block list. In BlockEditor
 
 ## Acceptance Criteria
 <!-- AC:BEGIN -->
-- [ ] #1 SortableContext items array always matches exactly the set of SortableBlock nodes actually mounted in the DOM (no id without a mounted node, no mounted node without an id)
-- [ ] #2 An inline database block referencing a missing/deleted database no longer leaves a dangling id in the sortable list (either it is filtered out of allItems consistently, or it renders a real placeholder SortableBlock)
-- [ ] #3 Dragging blocks on a page that contains a database block with a missing target does not throw or misplace blocks
-- [ ] #4 App type-check passes (ignoring pre-existing errors)
+- [x] #1 SortableContext items array always matches exactly the set of SortableBlock nodes actually mounted in the DOM (no id without a mounted node, no mounted node without an id)
+- [x] #2 An inline database block referencing a missing/deleted database no longer leaves a dangling id in the sortable list (either it is filtered out of allItems consistently, or it renders a real placeholder SortableBlock)
+- [x] #3 Dragging blocks on a page that contains a database block with a missing target does not throw or misplace blocks
+- [x] #4 App type-check passes (ignoring pre-existing errors)
 <!-- AC:END -->
