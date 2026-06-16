@@ -1,10 +1,10 @@
 ---
 id: NOT-16
 title: Save and load filtered database views (like Notion views)
-status: ready for agent
+status: done
 assignee: []
 created_date: '2026-06-16 16:05'
-updated_date: '2026-06-16 16:08'
+updated_date: '2026-06-16 16:45'
 labels:
   - frontend
   - database
@@ -23,9 +23,9 @@ Currently filters, sorts, board group-by, and hidden fields exist only in-memory
 
 ## Acceptance Criteria
 <!-- AC:BEGIN -->
-- [ ] #1 Build a view switcher UI above the database (dropdown showing saved views + 'Add view')
-- [ ] #2 Add 'Save as view' action that persists current filters/sorts/group-by/hidden-fields as a named view via the API
-- [ ] #3 Loading a saved view applies all its settings (filters, sorts, board configuration)
-- [ ] #4 Support renaming and deleting saved views from the switcher
-- [ ] #5 Default view ('All') always exists and cannot be deleted
+- [x] #1 Build a view switcher UI above the database (dropdown showing saved views + 'Add view')
+- [x] #2 Add 'Save as view' action that persists current filters/sorts/group-by/hidden-fields as a named view via the API
+- [x] #3 Loading a saved view applies all its settings (filters, sorts, board configuration)
+- [x] #4 Support renaming and deleting saved views from the switcher
+- [x] #5 Default view ('All') always exists and cannot be deleted
 <!-- AC:END -->

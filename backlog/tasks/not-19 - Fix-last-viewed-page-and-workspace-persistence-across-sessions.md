@@ -1,10 +1,10 @@
 ---
 id: NOT-19
 title: Fix last-viewed page and workspace persistence across sessions
-status: ready for agent
+status: done
 assignee: []
 created_date: '2026-06-16 16:05'
-updated_date: '2026-06-16 16:08'
+updated_date: '2026-06-16 16:45'
 labels:
   - frontend
   - persistence
@@ -23,8 +23,8 @@ When navigating back to the app after closing/reloading, the last viewed page an
 
 ## Acceptance Criteria
 <!-- AC:BEGIN -->
-- [ ] #1 Add per-workspace last viewed page storage (e.g., notara:lastPage:{workspaceId}) instead of the flat recentPages list
-- [ ] #2 Persist the last-active workspace slug to localStorage so the root route redirects there first
-- [ ] #3 Ensure the URL page param is synced to session restore (not just pushState)
-- [ ] #4 Test the full flow: reload, close/open tab, switch workspaces and come back
+- [x] #1 Add per-workspace last viewed page storage (e.g., notara:lastPage:{workspaceId}) instead of the flat recentPages list
+- [x] #2 Persist the last-active workspace slug to localStorage so the root route redirects there first
+- [x] #3 Ensure the URL page param is synced to session restore (not just pushState)
+- [x] #4 Test the full flow: reload, close/open tab, switch workspaces and come back
 <!-- AC:END -->
