@@ -20,7 +20,7 @@ export class AccessDeniedError extends Error {
   }
 }
 
-/** Heuristic: pick a 403 out of a serialized Effect failure cause. */
+/** Heuristic: pick a 403 out of a serialized Effect failure cause or defect. */
 function looksLike403(cause: unknown): boolean {
   const s = typeof cause === "string" ? cause : JSON.stringify(cause);
   return (
@@ -29,6 +29,17 @@ function looksLike403(cause: unknown): boolean {
     s.includes("Not a member of this workspace") ||
     s.includes("Workspace owner role required")
   );
+}
+
+/** Extract a human-readable message from a Defect payload. */
+function defectMessage(defect: unknown): string {
+  if (typeof defect === "string") return defect;
+  if (defect && typeof defect === "object") {
+    const d = defect as Record<string, unknown>;
+    if (typeof d.message === "string") return d.message;
+    return JSON.stringify(defect);
+  }
+  return "Unknown server error";
 }
 
 const API_URL = "/api";
@@ -66,19 +77,37 @@ async function rpcCall<T>(method: string, payload: Record<string, unknown>): Pro
   }
 
   const results = await response.json();
-  const result = (results as Array<{ requestId: string; _tag: string; exit: { _tag: string; value?: T; cause?: unknown } }>).find(
-    (r) => r.requestId === id,
-  );
-  if (!result) throw new Error(`RPC ${method}: no response for id ${id}`);
 
-  if (result._tag === "Exit" && result.exit._tag === "Failure") {
-    if (looksLike403(result.exit.cause)) {
-      throw new AccessDeniedError();
+  // Try to find an Exit response matching our request ID (success or typed failure)
+  const exitResult = (results as Array<{ requestId: string; _tag: string; exit: { _tag: string; value?: T; cause?: unknown } }>).find(
+    (r) => r.requestId === id && r._tag === "Exit",
+  );
+
+  if (exitResult) {
+    if (exitResult.exit._tag === "Failure") {
+      if (looksLike403(exitResult.exit.cause)) {
+        throw new AccessDeniedError();
+      }
+      throw new Error(`RPC ${method} error: ${JSON.stringify(exitResult.exit.cause)}`);
     }
-    throw new Error(`RPC ${method} error: ${JSON.stringify(result.exit.cause)}`);
+    return exitResult.exit.value as T;
   }
 
-  return result.exit.value as T;
+  // If no Exit matched, check for a Defect (handler used Effect.orDie, which
+  // converts failures to defects — the RPC framework sends these without a
+  // matching requestId). Extract the error from the defect payload.
+  const defectResult = (results as Array<{ _tag: string; defect?: unknown }>).find(
+    (r) => r._tag === "Defect",
+  );
+  if (defectResult && defectResult.defect !== undefined) {
+    const defect = defectResult.defect;
+    if (looksLike403(defect)) {
+      throw new AccessDeniedError();
+    }
+    throw new Error(defectMessage(defect));
+  }
+
+  throw new Error(`RPC ${method}: no response for id ${id}`);
 }
 
 /**

@@ -13,6 +13,15 @@ as a task immediately:
 backlog task create "<title>" -s "needs-triage" --priority <low|medium|high> -l <bug|enhancement> -d "<description>" --ac "<ac 1>"
 ```
 
+## Skills
+
+### to-backlog-issues
+
+- **Location:** `.agents/skills/to-issues/SKILL.md`
+- **Use when:** Breaking a plan, spec, or PRD into independently-grabbable backlog tasks using vertical slices
+- **Run via:** `/skill:to-backlog-issues` or ask the agent to "break this into issues"
+- Automatically publishes tickets to backlog.md via the backlog CLI, assigning `ready for agent` or `needs human validation` based on clarity of scope
+
 ## 1. Think Before Coding
 
 **Don't assume. Don't hide confusion. Surface tradeoffs.**

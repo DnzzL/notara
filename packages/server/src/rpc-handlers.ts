@@ -504,7 +504,7 @@ export const rpcHandlersLayer = AppRpc.toLayer({
       ),
     ).pipe(Effect.orDie),
   writePagePermissions: ({ pageId, set, remove, ifRevision }) =>
-    withAuthedWorkspace(({ userId, workspaceId }) =>
+    withAuthedWorkspace(({ userId, workspaceId, role }) =>
       Effect.gen(function* () {
         yield* Permissions.checkPagePermission(userId, workspaceId, pageId, "owner");
         return yield* Permissions.writePagePermissions({
@@ -512,6 +512,7 @@ export const rpcHandlersLayer = AppRpc.toLayer({
           set,
           remove,
           ifRevision,
+          callerWorkspaceRole: role,
         });
       }),
     ).pipe(Effect.orDie),

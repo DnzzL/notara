@@ -414,6 +414,10 @@ export const writePagePermissions = (input: {
   set: ReadonlyArray<{ subject: Subject; relation: AclRelation }>;
   remove: ReadonlyArray<{ subject: Subject }>;
   ifRevision?: string;
+  /** When set to "owner", skips the "must keep at least one explicit owner"
+   *  guard because workspace owners retain implicit owner access through
+   *  their workspace role and can never get locked out. */
+  callerWorkspaceRole?: "owner" | "member";
 }) =>
   Effect.gen(function* () {
     const sql = yield* SqlClient.SqlClient;
@@ -452,11 +456,19 @@ export const writePagePermissions = (input: {
         // Post-condition: if any entries remain, at least one must be `owner`.
         // (Fully clearing the ACL is allowed — the page falls back to
         // workspace-default access, which is the documented unlock semantics.)
+        //
+        // Workspace owners are exempt: they have implicit owner access via
+        // their workspace role (see resolveEffectiveRelation), so they can
+        // never be locked out even without an explicit ACL entry.
         const remaining = (yield* sql.unsafe(
           `SELECT relation FROM acl_tuples WHERE resource_type = 'page' AND resource_id = ?`,
           [pageId],
         )) as unknown as { relation: string }[];
-        if (remaining.length > 0 && !remaining.some((r) => r.relation === "owner")) {
+        if (
+          remaining.length > 0 &&
+          !remaining.some((r) => r.relation === "owner") &&
+          input.callerWorkspaceRole !== "owner"
+        ) {
           return yield* Effect.fail(
             new ApiError({
               status: 409,
