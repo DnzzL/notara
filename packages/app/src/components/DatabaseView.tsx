@@ -693,7 +693,7 @@ export function DatabaseView({ database, isNew }: { database: any; isNew?: boole
                     />
                   ))}
                 </SortableContext>
-                <th style={{ width: 40 }}>
+                <th style={{ width: 40, position: 'sticky', right: 0, background: 'var(--bg)', borderLeft: '1px solid var(--border)', zIndex: 2 }}>
                   <button ref={addFieldBtnRef} onClick={() => setShowAddField(true)} className="bg-transparent border-none cursor-pointer text-[16px] text-text-3 px-2 py-0.5 rounded-[5px] transition-[all] duration-[var(--t)] ease-[var(--ease)] hover:text-text-2 hover:bg-surface-3" title="Add property">+</button>
                 </th>
               </tr>
@@ -763,7 +763,7 @@ export function DatabaseView({ database, isNew }: { database: any; isNew?: boole
                         </td>
                       );
                     })}
-                    <td />
+                    <td style={{ position: 'sticky', right: 0, background: 'var(--bg)', zIndex: 2 }} />
                   </SortableRow>
                 ))}
                 <tr>
@@ -808,7 +808,7 @@ export function DatabaseView({ database, isNew }: { database: any; isNew?: boole
                       />
                     </td>
                   ))}
-                  <td style={{ borderTop: "1px solid #e9e9e7" }} />
+                  <td style={{ borderTop: "1px solid #e9e9e7", position: 'sticky', right: 0, background: 'var(--bg)', zIndex: 2 }} />
                 </tr>
               </tfoot>
             )}
