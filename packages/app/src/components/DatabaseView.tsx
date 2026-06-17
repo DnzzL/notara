@@ -6,7 +6,7 @@ import {
 } from "@dnd-kit/core";
 import { SortableContext, useSortable, verticalListSortingStrategy, horizontalListSortingStrategy } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
-import { useDatabaseStore, selectFields, selectRecords, selectFilters, selectSorts, selectBoardGroupBy, selectBoardHidden } from "../stores/databaseStore.js";
+import { useDatabaseStore, selectFields, selectRecords, selectFilters, selectSorts, selectBoardGroupBy, selectBoardHidden, selectActiveViewId, selectDbViews } from "../stores/databaseStore.js";
 import { usePageStore } from "../stores/pageStore.js";
 import { api } from "../rpc-client.js";
 import { applyFiltersAndSorts } from "../lib/filterEngine.js";
@@ -231,6 +231,7 @@ export function DatabaseView({ database, isNew }: { database: any; isNew?: boole
   const addSort = useDatabaseStore(s => s.addSort);
   const removeSort = useDatabaseStore(s => s.removeSort);
   const hydrateView = useDatabaseStore(s => s.hydrateView);
+  const updateView = useDatabaseStore(s => s.updateView);
 
   // Per-database state, scoped by databaseId so sibling DatabaseView instances
   // on the same page don't clobber one another.
@@ -240,13 +241,24 @@ export function DatabaseView({ database, isNew }: { database: any; isNew?: boole
   const activeSorts = useDatabaseStore((s) => selectSorts(s, database.id));
   const boardGroupByFieldId = useDatabaseStore((s) => selectBoardGroupBy(s, database.id));
   const boardHiddenFieldIds = useDatabaseStore((s) => selectBoardHidden(s, database.id));
+  const activeViewId = useDatabaseStore((s) => selectActiveViewId(s, database.id));
+  const dbViews = useDatabaseStore((s) => selectDbViews(s, database.id));
 
   const loadPages = usePageStore((s) => s.loadPages);
   const selectPageByIdWithCascade = (id: string) => import("../lib/page-loader.js").then(m => m.selectPageByIdWithCascade(id));
 
-  const [viewType, setViewType] = useState<"table" | "board">(() => {
-    try { return JSON.parse(localStorage.getItem(`db-view:${database.id}`) || "{}").viewType === "board" ? "board" : "table"; }
-    catch { return "table"; }
+  const [viewType, setViewType] = useState<string>(() => {
+    // Try the active saved view first, then fall back to localStorage
+    const avId = useDatabaseStore.getState().activeViewIdByDb[database.id];
+    if (avId) {
+      const views = useDatabaseStore.getState().dbViewsByDb[database.id] || [];
+      const active = views.find((v: any) => v.id === avId);
+      if (active?.type) return active.type;
+    }
+    try {
+      const stored: any = JSON.parse(localStorage.getItem(`db-view:${database.id}`) || "{}");
+      return stored.viewType === "board" ? "board" : "table";
+    } catch { return "table"; }
   });
   const [newTitle, setNewTitle] = useState("");
   const [editingCell, setEditingCell] = useState<{ recordId: string; fieldId: string } | null>(null);
@@ -316,6 +328,22 @@ export function DatabaseView({ database, isNew }: { database: any; isNew?: boole
       ).catch(() => { /* ignore */ });
     }
   }, [dbFields, dbRecordCache]);
+
+  // Sync viewType when switching saved views
+  useEffect(() => {
+    if (!activeViewId) {
+      // Reset to 'All' — use localStorage fallback
+      try {
+        const stored = JSON.parse(localStorage.getItem(`db-view:${database.id}`) || "{}");
+        setViewType(stored.viewType === "board" ? "board" : "table");
+      } catch { setViewType("table"); }
+      return;
+    }
+    const view = dbViews.find(v => v.id === activeViewId);
+    if (view?.type && view.type !== viewType) {
+      setViewType(view.type);
+    }
+  }, [activeViewId, dbViews]);
 
   // Per-column footer summaries (Count / Sum / …), persisted locally per database.
   const [footerAggs, setFooterAggs] = useState<Record<string, AggType>>({});
@@ -615,7 +643,7 @@ export function DatabaseView({ database, isNew }: { database: any; isNew?: boole
       <>
         <BoardView
           database={database} fields={dbFields} records={sortedRecords} databases={databases}
-          currentView={viewType} onChangeView={setViewType} allRecords={dbRecordCache}
+          currentView={viewType as "table" | "board"} onChangeView={setViewType as (v: "table" | "board") => void} allRecords={dbRecordCache}
           onOpenRecord={handleOpenRecord}
         />
         {recordPanel}
@@ -628,10 +656,18 @@ export function DatabaseView({ database, isNew }: { database: any; isNew?: boole
       <div ref={tableWrapRef}>
         {/* Toolbar */}
         <div className="flex gap-1.5 mb-2.5 items-center flex-wrap py-1">
-          <ViewSwitcher databaseId={database.id} currentViewType={viewType} />
+          <ViewSwitcher databaseId={database.id} currentViewType={viewType as "table" | "board"} />
           <div className="inline-flex bg-surface-3 border border-border rounded p-0.5" role="tablist">
-            <button className={cn("bg-transparent border-none py-1 px-3 text-[12px] font-medium cursor-pointer rounded-[6px] bg-text text-bg")} onClick={() => setViewType("table")} role="tab" aria-selected={true}>Table</button>
-            <button className={cn("bg-transparent border-none py-1 px-3 text-[12px] font-medium cursor-pointer rounded-[6px] text-text-3")} onClick={() => setViewType("board")} role="tab" aria-selected={false}>Board</button>
+            <button className={cn("bg-transparent border-none py-1 px-3 text-[12px] font-medium cursor-pointer rounded-[6px]", viewType === "table" ? "bg-text text-bg" : "text-text-3")} onClick={() => {
+              setViewType("table");
+              localStorage.setItem(`db-view:${database.id}`, JSON.stringify({ viewType: "table" }));
+              if (activeViewId) updateView(activeViewId, { type: "table" });
+            }} role="tab" aria-selected={viewType === "table"}>Table</button>
+            <button className={cn("bg-transparent border-none py-1 px-3 text-[12px] font-medium cursor-pointer rounded-[6px]", viewType === "board" ? "bg-text text-bg" : "text-text-3")} onClick={() => {
+              setViewType("board");
+              localStorage.setItem(`db-view:${database.id}`, JSON.stringify({ viewType: "board" }));
+              if (activeViewId) updateView(activeViewId, { type: "board" });
+            }} role="tab" aria-selected={viewType === "board"}>Board</button>
           </div>
 
           <div style={{ marginLeft: 16, display: "flex", alignItems: "center", gap: 12, flexWrap: "wrap" }}>
