@@ -1,9 +1,11 @@
 ---
 id: NOT-31
 title: Fix 'Calculate' table footer column alignment in database view
-status: ready for agent
-assignee: []
+status: done
+assignee:
+  - '@thomas'
 created_date: '2026-06-17 13:15'
+updated_date: '2026-06-17 14:06'
 labels:
   - frontend
 dependencies: []
@@ -20,7 +22,19 @@ Fix: Align footer cell layout (td padding, text position, width constraints) wit
 
 ## Acceptance Criteria
 <!-- AC:BEGIN -->
-- [ ] #1 Footer aggregate values are horizontally aligned with their respective column's content
-- [ ] #2 Custom column widths are respected in the footer row
-- [ ] #3 The footer row is visually consistent with the data rows (padding, font size)
+- [x] #1 Footer aggregate values are horizontally aligned with their respective column's content
+- [x] #2 Custom column widths are respected in the footer row
+- [x] #3 The footer row is visually consistent with the data rows (padding, font size)
 <!-- AC:END -->
+
+## Implementation Plan
+
+<!-- SECTION:PLAN:BEGIN -->
+1. Examine ColumnFooter component in DatabaseView.tsx to understand current layout\n2. Align footer cell padding/alignment with data cell classes (px-2 py-1.5)\n3. Make the footer title column respect custom column widths\n4. Ensure visual consistency between footer and data rows
+<!-- SECTION:PLAN:END -->
+
+## Implementation Notes
+
+<!-- SECTION:NOTES:BEGIN -->
+Fixed ColumnFooter alignment: removed fixed height:32 and paddingRight:8, added Tailwind padding classes (px-2 py-1.5 for title, px-2 py-[3px] for fields) matching data cells. Footer title now respects custom column widths.
+<!-- SECTION:NOTES:END -->

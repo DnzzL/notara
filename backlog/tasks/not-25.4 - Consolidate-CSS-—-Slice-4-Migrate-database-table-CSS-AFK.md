@@ -1,10 +1,10 @@
 ---
 id: NOT-25.4
 title: 'Consolidate CSS — Slice 4: Migrate database table CSS (AFK)'
-status: ready for agent
+status: done
 assignee: []
 created_date: '2026-06-16 16:34'
-updated_date: '2026-06-17 10:14'
+updated_date: '2026-06-17 14:03'
 labels:
   - enhancement
 dependencies: []

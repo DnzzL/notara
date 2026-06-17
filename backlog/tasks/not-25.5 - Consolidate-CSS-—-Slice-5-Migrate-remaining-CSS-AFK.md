@@ -1,10 +1,10 @@
 ---
 id: NOT-25.5
 title: 'Consolidate CSS — Slice 5: Migrate remaining CSS (AFK)'
-status: ready for agent
+status: done
 assignee: []
 created_date: '2026-06-16 16:34'
-updated_date: '2026-06-17 10:14'
+updated_date: '2026-06-17 14:03'
 labels:
   - enhancement
 dependencies: []
@@ -28,8 +28,10 @@ CSS classes to migrate: .import-modal, .import-modal-*, .page-reference-*, .back
 - [x] #3 All .backlinks-* CSS migrated
 - [x] #4 All .page-link-block-* CSS migrated
 - [x] #5 Migrated CSS removed from styles.css
-- [ ] #6 No visual regressions — modals, references, backlinks render identically before/after
+- [x] #6 No visual regressions — modals, references, backlinks render identically before/after
 <!-- AC:END -->
+
+
 
 ## Implementation Plan
 

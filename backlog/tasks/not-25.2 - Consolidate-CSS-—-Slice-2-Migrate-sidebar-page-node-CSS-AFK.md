@@ -1,10 +1,10 @@
 ---
 id: NOT-25.2
 title: 'Consolidate CSS — Slice 2: Migrate sidebar/page-node CSS (AFK)'
-status: ready for agent
+status: done
 assignee: []
 created_date: '2026-06-16 16:34'
-updated_date: '2026-06-17 10:14'
+updated_date: '2026-06-17 14:03'
 labels:
   - enhancement
 dependencies: []
@@ -27,8 +27,10 @@ CSS classes to migrate: .page-node, .page-node-*, .workspace-switcher, .workspac
 - [x] #2 All .workspace-switcher CSS migrated to Tailwind utilities
 - [x] #3 All .sidebar-*, .page-menu-*, .page-fav-* CSS migrated to Tailwind utilities
 - [x] #4 Migrated CSS removed from styles.css
-- [ ] #5 No visual regressions — sidebar renders identically before/after
+- [x] #5 No visual regressions — sidebar renders identically before/after
 <!-- AC:END -->
+
+
 
 ## Implementation Plan
 

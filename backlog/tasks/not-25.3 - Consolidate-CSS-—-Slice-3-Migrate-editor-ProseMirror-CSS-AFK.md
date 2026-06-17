@@ -1,10 +1,10 @@
 ---
 id: NOT-25.3
 title: 'Consolidate CSS — Slice 3: Migrate editor/ProseMirror CSS (AFK)'
-status: ready for agent
+status: done
 assignee: []
 created_date: '2026-06-16 16:34'
-updated_date: '2026-06-17 10:14'
+updated_date: '2026-06-17 14:03'
 labels:
   - enhancement
 dependencies: []
@@ -28,8 +28,10 @@ CSS classes to migrate: .editor, .editor .ProseMirror, .editor .ProseMirror h1/h
 - [x] #3 All empty-state, empty-block, add-block-bar CSS migrated
 - [x] #4 All block drag-and-drop CSS (.sortable-block-wrapper, .block-container, etc.) migrated
 - [x] #5 Migrated CSS removed from styles.css
-- [ ] #6 No visual regressions — editor renders identically before/after
+- [x] #6 No visual regressions — editor renders identically before/after
 <!-- AC:END -->
+
+
 
 ## Implementation Plan
 

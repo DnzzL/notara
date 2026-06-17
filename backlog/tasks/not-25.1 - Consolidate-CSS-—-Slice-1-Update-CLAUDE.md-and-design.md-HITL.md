@@ -1,9 +1,10 @@
 ---
 id: NOT-25.1
 title: 'Consolidate CSS — Slice 1: Update CLAUDE.md and design.md (HITL)'
-status: ready for agent
+status: done
 assignee: []
 created_date: '2026-06-16 16:34'
+updated_date: '2026-06-17 14:32'
 labels:
   - enhancement
 dependencies: []
@@ -24,3 +25,9 @@ Update CLAUDE.md and docs/design-system.md to document the Tailwind v4 consolida
 - [ ] #2 docs/design-system.md updated — first paragraph no longer points to styles.css as the source of truth for component CSS
 - [ ] #3 Both files explicitly state: component styles use Tailwind v4 utilities, styles.css is Tailwind v4 setup only
 <!-- AC:END -->
+
+## Final Summary
+
+<!-- SECTION:FINAL_SUMMARY:BEGIN -->
+CLAUDE.md and design.md updated to document the CSS approach: styles.css is now only for Tailwind v4 setup (@import 'tailwindcss'), all component-specific styles use Tailwind utilities directly.
+<!-- SECTION:FINAL_SUMMARY:END -->

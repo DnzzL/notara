@@ -1,9 +1,11 @@
 ---
 id: NOT-34
 title: Move onboarding tour out of the Backups/settings context into Help menu
-status: ready for agent
-assignee: []
+status: done
+assignee:
+  - '@thomas'
 created_date: '2026-06-17 13:15'
+updated_date: '2026-06-17 14:04'
 labels:
   - frontend
 dependencies: []
@@ -26,7 +28,19 @@ Fix (option b): Move the "Take the onboarding tour" button to a different locati
 
 ## Acceptance Criteria
 <!-- AC:BEGIN -->
-- [ ] #1 The 'Take the onboarding tour' button is no longer displayed in the backups/settings modal
-- [ ] #2 The onboarding tour is accessible from a logical location in the sidebar (e.g., a Help or ? menu item)
-- [ ] #3 Backups menu and settings modal remain otherwise unchanged
+- [x] #1 The 'Take the onboarding tour' button is no longer displayed in the backups/settings modal
+- [x] #2 The onboarding tour is accessible from a logical location in the sidebar (e.g., a Help or ? menu item)
+- [x] #3 Backups menu and settings modal remain otherwise unchanged
 <!-- AC:END -->
+
+## Implementation Plan
+
+<!-- SECTION:PLAN:BEGIN -->
+1. Remove 'Welcome' section and onboarding tour button from SettingsModal.tsx\n2. Add 'Help' sidebar button (with ? icon) that triggers the tour in Sidebar.tsx\n3. Update tour text in OnboardingTour.tsx to reference 'Help menu' instead of 'Settings'
+<!-- SECTION:PLAN:END -->
+
+## Implementation Notes
+
+<!-- SECTION:NOTES:BEGIN -->
+Removed 'Welcome' section with onboarding tour button from SettingsModal.tsx. Added '?' Help button in sidebar bottom nav that triggers onStartTour. Updated tour final step text to reference 'Help menu' instead of 'Settings'.
+<!-- SECTION:NOTES:END -->
