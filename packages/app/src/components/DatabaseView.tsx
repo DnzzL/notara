@@ -75,7 +75,7 @@ function ColumnFooter({
     : "";
 
   return (
-    <div style={{ position: "relative", display: "flex", alignItems: "center", justifyContent: "flex-end", gap: 4, height: 32, paddingRight: 8 }}>
+    <div style={{ position: "relative", display: "flex", alignItems: "center", justifyContent: "flex-end", gap: 4 }}>
       {agg === "none" ? (
         <span style={{ fontSize: 12, color: "#c7c6c2" }}>Calculate</span>
       ) : (
@@ -788,7 +788,10 @@ export function DatabaseView({ database, isNew }: { database: any; isNew?: boole
                 <tr>
                   <td style={{ borderTop: "1px solid #e9e9e7" }} />
                   {!database.titleHidden && (
-                    <td style={{ borderTop: "1px solid #e9e9e7" }}>
+                    <td className="px-2 py-1.5 align-middle" style={{ borderTop: "1px solid #e9e9e7", ...(() => {
+                      const w = columnWidths["__title__"];
+                      return w ? { minWidth: w, width: w } : { minWidth: 180, width: getDefaultWidthForType("text") };
+                    })() }}>
                       <ColumnFooter
                         field={{ id: "__title__", name: database.titleLabel || "Name", type: "text" }}
                         rows={sortedRecords}
@@ -798,16 +801,19 @@ export function DatabaseView({ database, isNew }: { database: any; isNew?: boole
                       />
                     </td>
                   )}
-                  {dbFields.map((field: any) => (
-                    <td key={field.id} style={{ borderTop: "1px solid #e9e9e7" }}>
-                      <ColumnFooter
-                        field={field}
-                        rows={sortedRecords}
-                        agg={footerAggs[field.id] ?? "none"}
-                        onChange={(a) => setFooterAgg(field.id, a)}
-                      />
-                    </td>
-                  ))}
+                  {dbFields.map((field: any) => {
+                    const colW = columnWidths[field.id];
+                    return (
+                      <td key={field.id} className="px-2 py-[3px] align-middle" style={{ borderTop: "1px solid #e9e9e7", ...(colW ? { minWidth: colW, width: colW } : {}) }}>
+                        <ColumnFooter
+                          field={field}
+                          rows={sortedRecords}
+                          agg={footerAggs[field.id] ?? "none"}
+                          onChange={(a) => setFooterAgg(field.id, a)}
+                        />
+                      </td>
+                    );
+                  })}
                   <td style={{ borderTop: "1px solid #e9e9e7", position: 'sticky', right: 0, background: 'var(--bg)', zIndex: 2 }} />
                 </tr>
               </tfoot>
