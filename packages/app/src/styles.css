@@ -254,8 +254,142 @@ body {
   box-shadow: var(--shadow-md);
   border: 1px solid var(--border);
 }
+.ProseMirror img.ProseMirror-selectednode { outline: 2px solid var(--accent); }
+
+/* ── Editor content nodes (rendered inside .ProseMirror; not inlineable) ── */
+/* Task list */
+.editor .ProseMirror ul.task-list { list-style: none; padding-left: 0; }
+.editor .ProseMirror ul.task-list li.task-item {
+  display: flex; align-items: flex-start; gap: 9px; margin-bottom: 5px; list-style: none;
+}
+.editor .ProseMirror ul.task-list li.task-item label { display: flex; align-items: center; margin-top: 5px; cursor: pointer; }
+.editor .ProseMirror ul.task-list li.task-item input[type="checkbox"] { width: 15px; height: 15px; cursor: pointer; accent-color: var(--accent); border-radius: 3px; }
+.editor .ProseMirror ul.task-list li.task-item[checked] > div,
+.editor .ProseMirror ul.task-list li.task-item[data-checked] > div { text-decoration: line-through; color: var(--text-3); }
+
+/* Details / toggle (rendered via DetailsExtension node view as .toggle-block) */
+.editor .ProseMirror .toggle-block {
+  position: relative;
+  background: var(--surface-2);
+  border-radius: 4px;
+  padding: 10px 14px 10px 34px;
+  margin-bottom: 8px;
+  border: 1px solid var(--border);
+}
+.editor .ProseMirror .toggle-chevron {
+  position: absolute;
+  left: 11px;
+  top: 11px;
+  width: 16px;
+  height: 16px;
+  padding: 0;
+  border: none;
+  background: none;
+  cursor: pointer;
+  color: var(--text-3);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 4px;
+}
+.editor .ProseMirror .toggle-chevron:hover { background: var(--surface-3); color: var(--text-2); }
+.editor .ProseMirror .toggle-chevron::before {
+  content: "▶";
+  font-size: 9px;
+  line-height: 1;
+  transition: transform 0.12s var(--ease);
+}
+.editor .ProseMirror .toggle-block[data-open="true"] .toggle-chevron::before { transform: rotate(90deg); }
+.editor .ProseMirror .toggle-block summary { cursor: text; font-weight: 500; font-size: 14px; list-style: none; }
+.editor .ProseMirror .toggle-block summary::-webkit-details-marker { display: none; }
+.editor .ProseMirror .toggle-block summary::marker { content: ""; }
+.editor .ProseMirror .toggle-block [data-details-content] { padding: 6px 0 2px; color: var(--text-2); font-size: 14px; }
+.editor .ProseMirror .toggle-block[data-open="false"] [data-details-content] { display: none; }
+
+/* Callout (static highlighted box, rendered via CalloutExtension as .callout-block) */
+.editor .ProseMirror .callout-block {
+  display: flex;
+  gap: 10px;
+  padding: 12px 14px;
+  margin: 4px 0;
+  background: var(--surface-2);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+}
+.editor .ProseMirror .callout-icon {
+  flex: none;
+  font-size: 16px;
+  line-height: 1.6;
+  user-select: none;
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  padding: 0 2px;
+  border-radius: var(--radius-sm);
+  transition: background var(--t) var(--ease);
+}
+.editor .ProseMirror .callout-icon:hover { background: var(--surface-3); }
+.editor .ProseMirror .callout-text { flex: 1; min-width: 0; }
+
+/* Read-only / serialized <details> fallback (search, exports) */
+.editor .ProseMirror details {
+  background: var(--surface-2);
+  border-radius: 4px;
+  padding: 10px 14px;
+  margin-bottom: 8px;
+  border: 1px solid var(--border);
+}
+.editor .ProseMirror details summary { cursor: pointer; font-weight: 500; font-size: 14px; list-style-position: inside; }
+.editor .ProseMirror details summary::-webkit-details-marker { color: var(--text-3); }
+.editor .ProseMirror details .details-content { padding: 8px 0 4px 20px; color: var(--text-2); font-size: 14px; }
+
+/* Placeholder (injected by TipTap Placeholder extension — uses attr(data-placeholder)) */
+.ProseMirror p.is-editor-empty:first-child::before,
+.ProseMirror.is-editor-empty > *:first-child::before {
+  content: attr(data-placeholder); float: left; color: var(--text-3); pointer-events: none; height: 0;
+}
+.ProseMirror h1.is-empty::before, .ProseMirror h2.is-empty::before, .ProseMirror h3.is-empty::before,
+.ProseMirror blockquote.is-empty p::before, .ProseMirror pre.is-empty code::before {
+  content: attr(data-placeholder); color: var(--text-3); pointer-events: none; float: left; height: 0;
+}
+
+/* Page reference (@mention inline span in content) */
+.page-reference { color: var(--accent-2); background: var(--accent-dim); padding: 2px 6px; border-radius: 4px; cursor: pointer; font-weight: 500; text-decoration: none; display: inline; transition: background var(--t) var(--ease); }
+.page-reference:hover { background: var(--accent-mid); }
+
+/* Bubble menu (TipTap floating toolbar) */
+.bubble-menu {
+  display: flex;
+  gap: 1px;
+  background: var(--text);
+  color: #fff;
+  border-radius: 4px;
+  padding: 4px;
+  box-shadow: var(--shadow-lg);
+}
+.bubble-menu button {
+  background: none;
+  border: none;
+  color: rgba(255,255,255,0.75);
+  cursor: pointer;
+  padding: 5px 8px;
+  border-radius: 5px;
+  font-size: 13px;
+  min-width: 26px;
+  transition: background var(--t) var(--ease), color var(--t) var(--ease);
+}
+.bubble-menu button:hover { background: rgba(255,255,255,0.12); color: #fff; }
+.bubble-menu button.active { background: rgba(255,255,255,0.18); color: #fff; }
+.bubble-menu code { font-family: var(--font-mono); font-size: 12px; }
+
+/* Block wrapper (locked state targets the inner ProseMirror) */
+.block-node { position: relative; }
+.block-node--locked { opacity: 0.7; }
+.block-node--locked .ProseMirror { cursor: not-allowed; background: rgba(0, 0, 0, 0.02); border-radius: 4px; }
 @keyframes empty-state-in {
   from { opacity: 0; transform: translateY(12px); }
+  to { opacity: 1; transform: translateY(0); }
+}
 @keyframes slide-from-right { from { transform: translateX(40px); opacity: 0; } to { transform: translateX(0); opacity: 1; } }
 
 /* ── Upload toast ── */

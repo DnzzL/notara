@@ -569,15 +569,15 @@ function PageTreeNode({
 
   return (
     <TreeView.NodeProvider node={node} indexPath={indexPath}>
-      <div ref={setNodeRef} style={style} className={depth > 0 ? "page-node-indent" : undefined}>
+      <div ref={setNodeRef} style={style} className={depth > 0 ? "relative before:content-[''] before:absolute before:left-[7px] before:top-0 before:bottom-0 before:w-px before:bg-border-sb" : undefined}>
 
         <TreeView.Branch>
           <TreeView.BranchControl
-            className={`page-node${isHovered ? (isNestTarget ? " nest-target" : " drag-hover") : ""}`}
+            className={`group relative flex items-center gap-0.5 min-h-[28px] px-1 rounded-lg text-[13px] text-text-sb-2 cursor-pointer transition-[background,color] duration-[var(--t)] ease-[var(--ease)] hover:bg-[rgba(10,10,10,0.045)] hover:text-text-sb${isHovered ? (isNestTarget ? " bg-accent-dim rounded-lg shadow-[0_0_0_2px_var(--accent-mid)]" : " bg-sb-2 rounded-lg") : ""}`}
             onClick={(e: React.MouseEvent) => e.preventDefault()}
           >
             <div
-              className="page-drag-handle"
+              className="flex items-center justify-center w-4 h-4 cursor-grab opacity-0 transition-opacity duration-[var(--t)] ease-[var(--ease)] shrink-0 rounded-[3px] text-text-sb-3 text-[10px] leading-none select-none group-hover:opacity-100 hover:bg-sb-3 hover:text-text-sb-2 active:cursor-grabbing"
               onMouseDown={(e: React.MouseEvent) => e.stopPropagation()}
               {...listeners}
               {...attributes}
@@ -586,7 +586,7 @@ function PageTreeNode({
               ⋮⋮
             </div>
 
-            <TreeView.BranchIndicator className="page-node-chevron" asChild>
+            <TreeView.BranchIndicator className="inline-flex items-center justify-center w-3.5 h-3.5 text-[8px] text-text-sb-3 cursor-pointer transition-[transform,color] duration-[var(--t)] ease-[var(--ease)] shrink-0 rounded-[3px] data-[state=open]:rotate-90 data-[state=closed]:rotate-0 hover:text-text-sb-2 hover:bg-sb-2" asChild>
               <span>▶</span>
             </TreeView.BranchIndicator>
 
@@ -660,7 +660,7 @@ function PageActionMenu({ page, onDelete, onToggleFavorite, onIconClick, iconRef
     <Menu.Root lazyMount unmountOnExit>
       <Menu.Trigger asChild>
         <button
-          className="page-node-action"
+          className="bg-transparent border-none cursor-pointer text-text-sb-3 px-1 py-px text-[14px] leading-none rounded ml-auto opacity-0 transition-opacity duration-[var(--t)] ease-[var(--ease)] shrink-0 group-hover:opacity-100 focus:opacity-100 data-[state=open]:opacity-100 hover:bg-sb-3 hover:text-text-sb"
           onClick={(e) => e.stopPropagation()}
           title="More actions"
         >
@@ -670,19 +670,20 @@ function PageActionMenu({ page, onDelete, onToggleFavorite, onIconClick, iconRef
       <Portal>
         <Menu.Positioner>
           <Menu.Content
-            className="page-node-menu"
+            className="bg-surface border border-border-mid rounded-lg shadow-[var(--shadow-lg)] min-w-[210px] p-1.5 z-[200] outline-none! flex flex-col gap-0.5 [animation:modal-pop_0.12s_var(--ease-spring)]"
             onClick={(e: React.MouseEvent) => e.stopPropagation()}
           >
             <Menu.Item
               value="favorite"
-              className="page-node-menu-item"
+              className="flex items-center gap-2.5 w-full bg-transparent border-none text-left px-2.5 py-2 text-[13px] rounded-md cursor-pointer text-text-2 [font-family:var(--font-ui)] transition-[background,color] duration-[var(--t)] ease-[var(--ease)] hover:bg-surface-3 hover:text-text data-[highlighted]:bg-surface-3 data-[highlighted]:text-text data-[highlighted]:outline-none"
               onSelect={() => onToggleFavorite(page.id)}
             >
+              <span className="w-4 text-center text-[13px] leading-none shrink-0">{page.isFavorite ? "★" : "☆"}</span>
               {page.isFavorite ? "Remove from favorites" : "Add to favorites"}
             </Menu.Item>
             <Menu.Item
               value="icon"
-              className="page-node-menu-item"
+              className="flex items-center gap-2.5 w-full bg-transparent border-none text-left px-2.5 py-2 text-[13px] rounded-md cursor-pointer text-text-2 [font-family:var(--font-ui)] transition-[background,color] duration-[var(--t)] ease-[var(--ease)] hover:bg-surface-3 hover:text-text data-[highlighted]:bg-surface-3 data-[highlighted]:text-text data-[highlighted]:outline-none"
               onSelect={() => {
                 if (iconRef.current) {
                   const rect = iconRef.current.getBoundingClientRect();
@@ -690,13 +691,16 @@ function PageActionMenu({ page, onDelete, onToggleFavorite, onIconClick, iconRef
                 }
               }}
             >
+              <span className="w-4 text-center text-[13px] leading-none shrink-0">😀</span>
               Change icon
             </Menu.Item>
+            <div role="separator" className="h-px bg-border my-1 -mx-1.5" />
             <Menu.Item
               value="delete"
-              className="page-node-menu-item page-node-menu-danger"
+              className="flex items-center gap-2.5 w-full bg-transparent border-none text-left px-2.5 py-2 text-[13px] rounded-md cursor-pointer text-danger [font-family:var(--font-ui)] transition-[background,color] duration-[var(--t)] ease-[var(--ease)] hover:bg-danger-dim hover:text-danger data-[highlighted]:bg-danger-dim data-[highlighted]:text-danger data-[highlighted]:outline-none"
               onSelect={() => onDelete(page.id)}
             >
+              <span className="w-4 text-center text-[13px] leading-none shrink-0">🗑</span>
               Delete
             </Menu.Item>
           </Menu.Content>

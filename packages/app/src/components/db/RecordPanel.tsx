@@ -107,7 +107,7 @@ export function RecordPanel({
             return (
               <div key={field.id} className="contents">
                 <div className="text-text-3 text-[12.5px] pt-[7px]">{field.name}</div>
-                <div className="relative min-h-[28px]">
+                <div className="record-panel-prop-value relative min-h-[28px]">
                   {isEditing ? (
                     <InlineCellEditor
                       field={field as any}

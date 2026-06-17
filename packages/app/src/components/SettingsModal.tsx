@@ -186,12 +186,12 @@ export function SettingsModal({ open, onClose, onStartTour }: SettingsModalProps
       unmountOnExit
     >
       <Portal>
-        <DialogBackdrop className="import-modal-overlay" />
-        <DialogPositioner className="import-modal-positioner">
+        <DialogBackdrop className="fixed inset-0 bg-[rgba(15,18,30,0.4)] backdrop-blur-[6px] z-[1000] [animation:fade-in_0.14s_var(--ease)]" />
+        <DialogPositioner className="fixed inset-0 z-[1001] flex items-center justify-center p-6">
           <DialogContent className="settings-modal">
-            <div className="import-modal-header">
+            <div className="flex items-center justify-between px-5 py-4 border-b border-border">
               <DialogTitle>Settings</DialogTitle>
-              <DialogCloseTrigger className="import-modal-close" aria-label="Close">
+              <DialogCloseTrigger className="bg-transparent border-none text-[17px] cursor-pointer text-text-3 p-[5px] rounded-[5px] transition-all duration-[var(--t)] ease-[var(--ease)] hover:bg-surface-3 hover:text-text disabled:opacity-35 disabled:cursor-default" aria-label="Close">
                 ✕
               </DialogCloseTrigger>
             </div>

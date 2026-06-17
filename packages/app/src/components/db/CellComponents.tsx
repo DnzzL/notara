@@ -159,7 +159,7 @@ export function CellAnchoredPopover({
       {createPortal(
         <div
           ref={popRef}
-          className="db-cell-popover"
+          className="bg-surface border border-border-mid rounded shadow-[var(--shadow-lg)] p-1 max-h-[360px] overflow-y-auto"
           style={{
             position: "fixed",
             top: pos?.top ?? -9999,
@@ -343,11 +343,11 @@ function PageChip({ pageId }: { pageId: string }) {
   };
   return (
     <span
-      className="db-page-chip"
+      className="inline-flex items-center gap-1 bg-surface-3 border border-border rounded-[5px] px-2 py-0.5 text-[12.5px] cursor-pointer max-w-[200px] overflow-hidden text-ellipsis whitespace-nowrap text-text-2 transition-[background,color] duration-[var(--t)] ease-[var(--ease)] hover:bg-surface-4 hover:text-text"
       onClick={onClick}
       title={`${title} — ${navigator.platform.includes("Mac") ? "⌘" : "Ctrl"}-click to open`}
     >
-      <span className="db-page-chip-icon">{icon}</span>
+      <span className="opacity-70">{icon}</span>
       <span>{title}</span>
     </span>
   );
@@ -390,7 +390,7 @@ function RelationChip({
 
   return (
     <span
-      className="db-relation-chip"
+      className="inline-block bg-accent-dim border border-[rgba(43,77,255,0.2)] text-accent-2 rounded-[5px] px-2 py-0.5 text-[12.5px] max-w-[200px] overflow-hidden text-ellipsis whitespace-nowrap cursor-pointer"
       onClick={onClick}
       title={`${title} — ${navigator.platform.includes("Mac") ? "⌘" : "Ctrl"}-click to open`}
     >
@@ -419,9 +419,9 @@ export function PeopleChip({ userId }: { userId: string }) {
   const initial = name.charAt(0).toUpperCase();
 
   return (
-    <span className="db-people-chip" title={name}>
-      <span className="db-people-chip-avatar">{initial}</span>
-      <span className="db-people-chip-name">{name}</span>
+    <span className="inline-flex items-center gap-[5px] bg-surface-3 border border-border rounded-[20px] py-px pl-[3px] pr-2 text-[12.5px] max-w-[200px] text-text-2" title={name}>
+      <span className="inline-flex items-center justify-center w-5 h-5 rounded-full bg-accent-dim text-accent-2 text-[10px] font-semibold shrink-0">{initial}</span>
+      <span className="overflow-hidden text-ellipsis whitespace-nowrap">{name}</span>
     </span>
   );
 }

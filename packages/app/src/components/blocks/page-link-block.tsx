@@ -27,10 +27,10 @@ export function PageLinkBlock({ block, onUpdateBlock }: BlockRendererProps) {
       : pages.filter((p) => !p.isDeleted)
     ).slice(0, 20);
     return (
-      <div className="page-link-picker" onMouseDown={(e) => e.stopPropagation()}>
+      <div className="flex flex-col w-[320px] max-w-full bg-surface border border-border-mid rounded shadow-[var(--shadow-md)] p-1.5" onMouseDown={(e) => e.stopPropagation()}>
         <input
           autoFocus
-          className="page-link-picker-input"
+          className="border border-border rounded-lg px-2 py-[7px] text-[13px] outline-none bg-surface-2 text-text [font-family:var(--font-ui)] focus:border-accent"
           placeholder="Link to page\u2026"
           value={query}
           onChange={(e) => setQuery(e.target.value)}
@@ -43,13 +43,13 @@ export function PageLinkBlock({ block, onUpdateBlock }: BlockRendererProps) {
             }
           }}
         />
-        <div className="page-link-picker-list">
+        <div className="flex flex-col gap-px max-h-[280px] overflow-y-auto mt-1">
           {visible.length === 0 ? (
-            <div className="page-link-picker-empty">No pages</div>
+            <div className="p-3 text-text-3 text-[13px] text-center">No pages</div>
           ) : visible.map((p) => (
             <button
               key={p.id}
-              className="page-link-picker-item"
+              className="flex items-center gap-2 px-2 py-[7px] border-none bg-transparent cursor-pointer rounded-[5px] text-[13px] text-text-2 text-left [font-family:var(--font-ui)] transition-[background,color] duration-[var(--t)] ease-[var(--ease)] hover:bg-surface-3 hover:text-text"
               onClick={() => { setPickerOpen(false); onUpdateBlock(block.id, p.id); }}
             >
               <span>{p.icon || "\uD83D\uDCC4"}</span>
@@ -65,7 +65,7 @@ export function PageLinkBlock({ block, onUpdateBlock }: BlockRendererProps) {
 
   if (!page) {
     return (
-      <div className="page-link-block page-link-block--missing" data-block-id={block.id}>
+      <div className="inline-flex items-center gap-2 max-w-full my-[3px] px-3 py-1.5 rounded bg-[#FFF5F5] border border-[#FECACA] text-danger text-[13px]" data-block-id={block.id}>
         Page no longer exists
       </div>
     );

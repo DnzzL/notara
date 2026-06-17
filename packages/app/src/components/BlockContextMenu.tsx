@@ -1,4 +1,4 @@
-import { useEffect, useRef } from "react";
+import { Fragment, useEffect, useRef } from "react";
 import { cn } from "./ui/cn.js";
 
 export type BlockMenuItem = {
@@ -53,18 +53,21 @@ export function BlockContextMenu({
   return (
     <div
       ref={ref}
-      className="bg-surface border border-border-mid rounded shadow-[var(--shadow-xl)] p-1 min-w-[200px] flex flex-col"
+      className="bg-surface border border-border-mid rounded-lg shadow-[var(--shadow-xl)] p-1.5 min-w-[210px] flex flex-col gap-0.5 [animation:modal-pop_0.12s_var(--ease-spring)]"
       style={{ position: "fixed", top, left, zIndex: 1000 }}
       role="menu"
       data-testid="block-context-menu"
     >
-      {items.map((item) => (
+      {items.map((item, i) => (
+        <Fragment key={item.id}>
+          {item.danger && i > 0 && !items[i - 1].danger && (
+            <div role="separator" className="h-px bg-border my-1 -mx-1.5" />
+          )}
         <button
-          key={item.id}
           type="button"
           role="menuitem"
           className={cn(
-            "flex items-center gap-2.5 w-full px-2.5 py-[7px] border-none bg-transparent cursor-pointer text-left text-[13px] text-text-2 rounded-lg transition-[background,color] duration-[var(--t)] ease-[var(--ease)] disabled:opacity-40 disabled:cursor-default disabled:pointer-events-none hover:bg-surface-3 hover:text-text",
+            "flex items-center gap-2.5 w-full px-2.5 py-2 border-none bg-transparent cursor-pointer text-left text-[13px] text-text-2 rounded-md transition-[background,color] duration-[var(--t)] ease-[var(--ease)] disabled:opacity-40 disabled:cursor-default disabled:pointer-events-none hover:bg-surface-3 hover:text-text",
             item.danger && "text-danger hover:bg-danger-dim hover:text-danger"
           )}
           disabled={item.disabled}
@@ -87,6 +90,7 @@ export function BlockContextMenu({
             </span>
           )}
         </button>
+        </Fragment>
       ))}
     </div>
   );

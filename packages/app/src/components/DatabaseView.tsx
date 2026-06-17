@@ -723,7 +723,7 @@ export function DatabaseView({ database, isNew }: { database: any; isNew?: boole
                       const isFormula = field.type === "formula";
                       const colW = columnWidths[field.id];
                       return (
-                        <td key={field.id} className="px-2 py-[3px] border-b border-border border-r border-border last:border-r-0 align-middle min-h-[32px] relative" style={colW ? { minWidth: colW, width: colW } : undefined}>
+                        <td key={field.id} className="db-cell px-2 py-[3px] border-b border-border border-r border-border last:border-r-0 align-middle min-h-[32px] relative" style={colW ? { minWidth: colW, width: colW } : undefined}>
                           {isEditing && !isFormula ? (
                             <InlineCellEditor
                               field={field}

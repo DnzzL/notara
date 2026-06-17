@@ -129,7 +129,16 @@ function SingleBlockEditor({
     ],
     content: blockContent(block),
     autofocus: false,
-    editorProps: {},
+    editorProps: {
+      // Esc blurs the block (clears the caret and releases the presence lock).
+      handleKeyDown: (view, event) => {
+        if (event.key === "Escape") {
+          (view.dom as HTMLElement).blur();
+          return true;
+        }
+        return false;
+      },
+    },
     onFocus: () => { setFocusedBlock(block.id); },
     onBlur: () => { setFocusedBlock(null); },
     onUpdate: ({ editor: ed }) => {
@@ -280,7 +289,7 @@ function SingleBlockEditor({
 /** Drop indicator between blocks during drag. */
 function DropIndicator({ active }: { active: boolean }) {
   if (!active) return null;
-  return <div className="drop-indicator" />;
+  return <div className="h-0.5 bg-accent rounded-[1px] my-0.5 shadow-[0_0_6px_var(--accent-glow)]" />;
 }
 
 /**
@@ -325,7 +334,7 @@ function SortableBlock({
     <div
       ref={setNodeRef}
       style={style}
-      className="sortable-block-wrapper"
+      className="relative flex flex-col data-[block-type=database]:my-2"
       data-block-type={blockType}
       onContextMenu={(e) => {
         if (!onOpenMenu) return;
@@ -334,18 +343,18 @@ function SortableBlock({
       }}
     >
       <DropIndicator active={showDropIndicator} />
-      <div className={`block-container ${isDragging || isSortableDragging ? "block-dragging" : ""}`}>
-        <div className="block-gutter">
+      <div className={`group flex items-start gap-1 py-px rounded-[5px] transition-[background] duration-[var(--t)] ease-[var(--ease)] hover:bg-[rgba(0,0,0,0.015)] ${isDragging || isSortableDragging ? "shadow-[var(--shadow-lg)] bg-surface rounded scale-[1.012]" : ""}`}>
+        <div className="flex items-center gap-0 w-12 shrink-0 mt-0.5 opacity-0 transition-opacity duration-[var(--t)] ease-[var(--ease)] group-hover:opacity-100">
           <button
             type="button"
-            className="block-insert-btn"
+            className="w-[22px] h-[22px] border-none bg-transparent text-text-3 cursor-pointer rounded-[5px] text-[18px] leading-none flex items-center justify-center p-0 transition-[background,color] duration-[var(--t)] ease-[var(--ease)] hover:bg-surface-3"
             title="Add block below"
             onClick={(e) => { e.stopPropagation(); onInsertBelow?.(); }}
           >
             +
           </button>
           <div
-            className="drag-handle-wrapper"
+            className="flex items-center justify-center w-6 h-6 cursor-grab shrink-0 mt-0.5 rounded-[5px] transition-[background] duration-[var(--t)] ease-[var(--ease)] hover:bg-surface-3 active:cursor-grabbing"
             onMouseDown={(e) => {
               e.stopPropagation();
               handleDownPos.current = { x: e.clientX, y: e.clientY };
@@ -370,7 +379,7 @@ function SortableBlock({
             <DragHandle onDragStart={onDragStart} testId={`drag-handle-${id}`} />
           </div>
         </div>
-        <div className="block-content">{children}</div>
+        <div className="flex-1 min-w-0">{children}</div>
       </div>
     </div>
   );
@@ -822,12 +831,12 @@ export function BlockEditor() {
               <rect x="28" y="34" width="15" height="2" rx="1" fill="#DCDFE8"/>
             </svg>
           </div>
-          <h2 className="empty-state-title">Start somewhere</h2>
-          <p className="empty-state-body">
+          <h2 className="[font-family:var(--font-title)] text-[22px] font-bold text-text tracking-[-0.02em] mb-2">Start somewhere</h2>
+          <p className="text-[14px] text-text-3 leading-relaxed mb-6">
             Open a page from the sidebar, or create a new one to begin writing.
           </p>
-          <div className="empty-state-hints">
-            <span className="empty-state-hint"><kbd>⌘</kbd><kbd>K</kbd> to search</span>
+          <div className="flex items-center gap-2 text-[12px] text-text-3">
+            <span className="flex items-center gap-1 [&_kbd]:[font-family:var(--font-mono)] [&_kbd]:text-[10.5px] [&_kbd]:bg-surface-3 [&_kbd]:border [&_kbd]:border-border-mid [&_kbd]:rounded [&_kbd]:px-[5px] [&_kbd]:py-0.5 [&_kbd]:text-text-2 [&_kbd]:leading-[1.4] [&_kbd]:shadow-[0_1px_0_var(--border-mid)]"><kbd>⌘</kbd><kbd>K</kbd> to search</span>
           </div>
         </div>
       </div>
@@ -845,6 +854,15 @@ export function BlockEditor() {
       <SortableContext items={allItems.map((item) => item.id)} strategy={verticalListSortingStrategy}>
         <div
           className="main"
+          onMouseDown={(e) => {
+            // Click on empty editor canvas (not a block, control, or menu) unfocuses
+            // the active block — clears the caret and releases its presence lock.
+            const t = e.target as HTMLElement;
+            if (!t.closest('.ProseMirror, button, input, textarea, a, [role="menu"]')) {
+              const ae = document.activeElement as HTMLElement | null;
+              if (ae?.classList.contains("ProseMirror")) ae.blur();
+            }
+          }}
           onClick={(e) => {
             // Navigate when clicking inline [[page]] references
             const target = (e.target as HTMLElement).closest("span[data-page-ref]");
@@ -1049,7 +1067,7 @@ export function BlockEditor() {
             {/* ── Add-block bar (between blocks and orphan databases) ── */}
             {sortedBlocks.length > 0 && (
               <button
-                className="add-block-bar"
+                className="group flex items-center gap-2 py-1.5 pl-[52px] pr-0 mt-1 opacity-35 cursor-pointer transition-opacity duration-[var(--t)] ease-[var(--ease)] border-none bg-transparent w-full text-left text-[14px] text-text-3 hover:opacity-70 active:opacity-100 max-[880px]:pl-3 max-[880px]:opacity-60"
                 type="button"
                 onClick={async (e) => {
                   e.stopPropagation();
@@ -1065,7 +1083,7 @@ export function BlockEditor() {
                   }
                 }}
               >
-                <span className="add-block-bar-icon">+</span>
+                <span className="inline-flex items-center justify-center w-6 h-6 rounded-full border-[1.5px] border-border-mid text-[16px] leading-none shrink-0 transition-[border-color] duration-[var(--t)] ease-[var(--ease)] group-hover:border-accent">+</span>
                 <span>New block</span>
               </button>
             )}
@@ -1088,7 +1106,7 @@ export function BlockEditor() {
             {/* ── Empty state ── */}
             {sortedBlocks.length === 0 && databases.length === 0 && (
               <div
-                className="block-node empty-block"
+                className="relative flex items-center justify-center min-h-[100px] text-center rounded-[var(--radius-md)] border-2 border-dashed border-border-mid transition-[border-color,background] duration-[var(--t)] ease-[var(--ease)] cursor-pointer hover:border-accent hover:bg-accent-dim max-[880px]:min-h-[80px]"
                 onClick={async () => {
                   try {
                     const block = await createBlock({
@@ -1100,9 +1118,9 @@ export function BlockEditor() {
                   }
                 }}
               >
-                <div className="empty-block-inner">
+                <div className="flex flex-col items-center gap-2 [&>span]:text-[14px] [&>span]:text-text-3">
                   <span>This page is empty</span>
-                  <button className="empty-block-btn" type="button">+ New block</button>
+                  <button type="button">+ New block</button>
                 </div>
               </div>
             )}
@@ -1170,12 +1188,12 @@ export function BlockEditor() {
 
           <DragOverlay>
             {activeBlockId ? (
-              <div className="drag-overlay">
+              <div className="bg-surface border border-border-mid rounded shadow-[var(--shadow-xl)] px-5 py-3 min-w-[200px] max-w-[400px]">
                 {(() => {
                   const block = sortedBlocks.find((b) => b.id === activeBlockId);
-                  if (block) return <div className="drag-preview">{block.type}</div>;
+                  if (block) return <div className="text-[13.5px] text-text-2 px-3 py-2 bg-surface-3 rounded-[5px] border border-border">{block.type}</div>;
                   const db = databases.find((d) => `db-${d.id}` === activeBlockId);
-                  if (db) return <div className="drag-preview">Database: {db.name}</div>;
+                  if (db) return <div className="text-[13.5px] text-text-2 px-3 py-2 bg-surface-3 rounded-[5px] border border-border">Database: {db.name}</div>;
                   return null;
                 })()}
               </div>
