@@ -461,6 +461,9 @@ export function Sidebar({ className, onNavigate, onStartTour }: SidebarProps = {
             <button className="flex items-center gap-2 bg-transparent border-none cursor-pointer px-2.5 py-1.5 text-[12.5px] text-text-sb-3 rounded-lg text-left transition-[background,color] duration-[var(--t)] ease-[var(--ease)] hover:bg-[rgba(10,10,10,0.05)] hover:text-text-sb" onClick={() => setShowTrash(true)} title="Trash">
               <span className="text-text-sb-3 text-[14px] w-4 text-center transition-[color] duration-[var(--t)] ease-[var(--ease)]">🗑</span> Trash
             </button>
+            <button className="flex items-center gap-2 bg-transparent border-none cursor-pointer px-2.5 py-1.5 text-[12.5px] text-text-sb-3 rounded-lg text-left transition-[background,color] duration-[var(--t)] ease-[var(--ease)] hover:bg-[rgba(10,10,10,0.05)] hover:text-text-sb" onClick={() => onStartTour?.()} title="Help / Onboarding tour">
+              <span className="text-text-sb-3 text-[14px] w-4 text-center transition-[color] duration-[var(--t)] ease-[var(--ease)]">?</span> Help
+            </button>
           </div>
 
           <div

@@ -66,7 +66,7 @@ const steps: TourStepDetails[] = [
   {
     id: "end", type: "dialog",
     title: "You're set 🎉",
-    description: "Open the Getting Started page in your sidebar for next steps. Retake this tour anytime from Settings.",
+    description: "Open the Getting Started page in your sidebar for next steps. Retake this tour anytime from the Help menu in the sidebar.",
     actions: [{ label: "Start writing", action: "dismiss" }],
   },
 ];
