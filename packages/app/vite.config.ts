@@ -14,6 +14,9 @@ export default defineConfig(({ mode }) => {
       react(),
       VitePWA({
       registerType: "autoUpdate",
+      devOptions: {
+        enabled: true,
+      },
       includeAssets: [
         "favicon.svg",
         "favicon.png",
@@ -29,8 +32,10 @@ export default defineConfig(({ mode }) => {
         theme_color: "#ffffff",
         background_color: "#ffffff",
         display: "standalone",
+        display_override: ["window-controls-overlay", "minimal-ui", "standalone"],
         start_url: "/",
         scope: "/",
+        categories: ["productivity", "notes"],
         icons: [
           {
             src: "pwa-64x64.png",
