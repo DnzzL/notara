@@ -529,7 +529,7 @@ body {
 ══════════════════════════════════════════════════════════════════════ */
 .main {
   flex: 1;
-  padding: 40px 52px;
+  padding: 40px 40px;
   overflow-y: auto;
   background: var(--bg-editor);
 }
@@ -537,7 +537,7 @@ body {
 .main::-webkit-scrollbar-track { background: transparent; }
 .main::-webkit-scrollbar-thumb { background: var(--sb-3); border-radius: 3px; }
 .main::-webkit-scrollbar-thumb:hover { background: var(--sb-4); }
-.main.wide { padding: 24px 28px; }
+.main.wide { padding: 24px 24px; }
 
 /* ── Page header ── */
 .page-header { display: flex; align-items: center; gap: 10px; margin-bottom: 28px; }

@@ -24,9 +24,13 @@ export function BlockContextMenu({
   onClose: () => void;
 }) {
   const ref = useRef<HTMLDivElement>(null);
+  const mountedAt = useRef(performance.now());
 
   useEffect(() => {
     const onDown = (e: MouseEvent) => {
+      // Ignore mousedown events that happen within 150ms of mount
+      // to prevent the click that opened the menu from immediately closing it
+      if (performance.now() - mountedAt.current < 150) return;
       if (ref.current && !ref.current.contains(e.target as Node)) onClose();
     };
     const onKey = (e: KeyboardEvent) => {

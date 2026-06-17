@@ -188,9 +188,6 @@ export function SearchModal() {
                         <span className="text-[13.5px] text-text whitespace-nowrap overflow-hidden text-ellipsis block">
                           {highlightText(result.title, query)}
                         </span>
-                        {result.isDeleted && (
-                          <span className="text-[10.5px] text-text-3 ml-1.5 italic">(deleted)</span>
-                        )}
                       </div>
                     </div>
                   ))}
@@ -218,9 +215,6 @@ export function SearchModal() {
                           <span className="text-[13.5px] text-text whitespace-nowrap overflow-hidden text-ellipsis">
                             {highlightText(result.title, query)}
                           </span>
-                          {result.isDeleted && (
-                            <span className="text-[10.5px] text-text-3 italic shrink-0">(deleted)</span>
-                          )}
                         </div>
                         <span className="text-[11.5px] text-text-3 whitespace-nowrap overflow-hidden text-ellipsis">
                           {result.content.slice(0, 120)}

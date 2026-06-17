@@ -25,12 +25,12 @@ export const globalSearch = (query: string) =>
     const ftsQuery = prefixQuery(safeQuery);
     const results: SearchResult[] = [];
 
-    // 1. Search pages by title via FTS (including deleted)
+    // 1. Search pages by title via FTS (exclude deleted)
     const pageRows = yield* sql`
-      SELECT p.id, p.title, '' as content, p.id as "pageId", p.is_deleted as "isDeleted"
+      SELECT p.id, p.title, '' as content, p.id as "pageId"
       FROM pages p
       JOIN pages_fts fts ON fts.rowid = p.rowid
-      WHERE pages_fts MATCH ${ftsQuery}
+      WHERE pages_fts MATCH ${ftsQuery} AND p.is_deleted = 0
       ORDER BY fts.rank
       LIMIT 20
     `;
@@ -39,17 +39,16 @@ export const globalSearch = (query: string) =>
         type: "page", id: r.id as string,
         title: r.title as string, content: "",
         pageId: r.pageId as string,
-        isDeleted: Boolean(r.isDeleted),
       }));
     }
 
-    // 2. Search blocks by content via FTS, join with pages for title (including deleted)
+    // 2. Search blocks by content via FTS, join with pages for title (exclude deleted)
     const blockRows = yield* sql`
-      SELECT b.id, p.title as "pageTitle", b.content, b.page_id as "pageId", p.is_deleted as "isDeleted"
+      SELECT b.id, p.title as "pageTitle", b.content, b.page_id as "pageId"
       FROM blocks b
       JOIN blocks_fts fts ON fts.rowid = b.rowid
       JOIN pages p ON b.page_id = p.id
-      WHERE blocks_fts MATCH ${ftsQuery}
+      WHERE blocks_fts MATCH ${ftsQuery} AND p.is_deleted = 0
       ORDER BY fts.rank
       LIMIT 30
     `;
@@ -59,7 +58,6 @@ export const globalSearch = (query: string) =>
         title: r.pageTitle as string,
         content: (r.content as string).slice(0, 200),
         pageId: r.pageId as string,
-        isDeleted: Boolean(r.isDeleted),
       }));
     }
 
