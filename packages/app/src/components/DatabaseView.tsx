@@ -512,40 +512,59 @@ export function DatabaseView({ database, isNew }: { database: any; isNew?: boole
   };
 
   // Table DnD — PointerSensor for pointer and touch.
-  const tableSensors = useSensors(
+  // Combined DnD sensors for both rows and columns (different distance thresholds).
+  const allSensors = useSensors(
     useSensor(PointerSensor, { activationConstraint: { distance: 4 } }),
   );
-  const handleRowDragStart = useCallback(({ active }: DragStartEvent) => setActiveRowId(String(active.id)), []);
-  const handleRowDragEnd = useCallback(async ({ active, over }: DragEndEvent) => {
+
+  /** Dispatch to the right handler based on whether the dragged item is a row or column. */
+  const handleAllDragStart = useCallback((event: DragStartEvent) => {
+    const id = String(event.active.id);
+    // Column IDs look like ULIDs (26 chars) while row IDs also look similar.
+    // Check if it's a field (column) by looking at dbFields.
+    if (dbFields.some((f: any) => f.id === id)) {
+      setActiveColId(id);
+    } else {
+      setActiveRowId(id);
+    }
+  }, [dbFields]);
+
+  const handleAllDragEnd = useCallback(async (event: DragEndEvent) => {
+    const { active, over } = event;
+    if (!over || active.id === over.id) {
+      setActiveRowId(null);
+      setActiveColId(null);
+      return;
+    }
+
+    const activeId = String(active.id);
+    const overId = String(over.id);
+
+    // Column drag (reorder fields)
+    if (dbFields.some((f: any) => f.id === activeId)) {
+      setActiveColId(null);
+      const oldI = dbFields.findIndex((f: any) => f.id === activeId);
+      const newI = dbFields.findIndex((f: any) => f.id === overId);
+      if (oldI < 0 || newI < 0) return;
+      const order = dbFields.map((f: any) => f.id);
+      const [moved] = order.splice(oldI, 1);
+      order.splice(newI, 0, moved);
+      await api.reorderFields({ databaseId: database.id, fieldIds: order });
+      await loadDbFields(database.id);
+      return;
+    }
+
+    // Row drag (reorder records)
     setActiveRowId(null);
-    if (!over || active.id === over.id) return;
-    const oldI = sortedRecords.findIndex((r) => r.record.id === active.id);
-    const newI = sortedRecords.findIndex((r) => r.record.id === over.id);
+    const oldI = sortedRecords.findIndex((r) => r.record.id === activeId);
+    const newI = sortedRecords.findIndex((r) => r.record.id === overId);
     if (oldI < 0 || newI < 0) return;
     const order = sortedRecords.map((r) => r.record.id);
     const [moved] = order.splice(oldI, 1);
     order.splice(newI, 0, moved);
     await api.reorderRecords({ databaseId: database.id, recordIds: order });
     await loadDbRecords(database.id);
-  }, [sortedRecords, database.id, loadDbRecords]);
-
-  // Column DnD (reorder headers).
-  const colSensors = useSensors(
-    useSensor(PointerSensor, { activationConstraint: { distance: 6 } }),
-  );
-  const handleColDragStart = useCallback(({ active }: DragStartEvent) => setActiveColId(String(active.id)), []);
-  const handleColDragEnd = useCallback(async ({ active, over }: DragEndEvent) => {
-    setActiveColId(null);
-    if (!over || active.id === over.id) return;
-    const oldI = dbFields.findIndex((f: any) => f.id === active.id);
-    const newI = dbFields.findIndex((f: any) => f.id === over.id);
-    if (oldI < 0 || newI < 0) return;
-    const order = dbFields.map((f: any) => f.id);
-    const [moved] = order.splice(oldI, 1);
-    order.splice(newI, 0, moved);
-    await api.reorderFields({ databaseId: database.id, fieldIds: order });
-    await loadDbFields(database.id);
-  }, [dbFields, database.id, loadDbFields]);
+  }, [dbFields, sortedRecords, database.id, loadDbFields, loadDbRecords]);
 
   // Bulk delete via Delete key; Esc clears selection.
   useEffect(() => {
@@ -605,7 +624,7 @@ export function DatabaseView({ database, isNew }: { database: any; isNew?: boole
   }
 
   return (
-    <DndContext sensors={tableSensors} onDragStart={handleRowDragStart} onDragEnd={handleRowDragEnd}>
+    <DndContext sensors={allSensors} onDragStart={handleAllDragStart} onDragEnd={handleAllDragEnd}>
       <div ref={tableWrapRef}>
         {/* Toolbar */}
         <div className="flex gap-1.5 mb-2.5 items-center flex-wrap py-1">
@@ -655,7 +674,6 @@ export function DatabaseView({ database, isNew }: { database: any; isNew?: boole
                     onResize={handleColumnResize}
                   />
                 )}
-                <DndContext sensors={colSensors} onDragStart={handleColDragStart} onDragEnd={handleColDragEnd}>
                 <SortableContext items={dbFields.map((f: any) => f.id)} strategy={horizontalListSortingStrategy}>
                   {dbFields.map((f: any) => (
                     <DraggableColumnHeader
@@ -675,7 +693,6 @@ export function DatabaseView({ database, isNew }: { database: any; isNew?: boole
                     />
                   ))}
                 </SortableContext>
-                </DndContext>
                 <th style={{ width: 40 }}>
                   <button ref={addFieldBtnRef} onClick={() => setShowAddField(true)} className="bg-transparent border-none cursor-pointer text-[16px] text-text-3 px-2 py-0.5 rounded-[5px] transition-[all] duration-[var(--t)] ease-[var(--ease)] hover:text-text-2 hover:bg-surface-3" title="Add property">+</button>
                 </th>

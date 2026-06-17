@@ -12,6 +12,7 @@ const EMPTY_FIELDS: DatabaseField[] = [];
 const EMPTY_FILTERS: Filter[] = [];
 const EMPTY_SORTS: Sort[] = [];
 const EMPTY_HIDDEN: string[] = [];
+const EMPTY_VIEWS: DatabaseView[] = [];
 
 export interface DatabaseState {
   databases: Database[];
@@ -292,7 +293,7 @@ export const selectFilters = (s: DatabaseState, dbId: string) => s.filtersByDb[d
 export const selectSorts = (s: DatabaseState, dbId: string) => s.sortsByDb[dbId] || EMPTY_SORTS;
 export const selectBoardGroupBy = (s: DatabaseState, dbId: string) => s.boardGroupByDb[dbId] ?? null;
 export const selectBoardHidden = (s: DatabaseState, dbId: string) => s.boardHiddenByDb[dbId] || EMPTY_HIDDEN;
-export const selectDbViews = (s: DatabaseState, dbId: string) => s.dbViewsByDb[dbId] || [];
+export const selectDbViews = (s: DatabaseState, dbId: string) => s.dbViewsByDb[dbId] || EMPTY_VIEWS;
 export const selectActiveViewId = (s: DatabaseState, dbId: string) => s.activeViewIdByDb[dbId] ?? null;
 
 /** Parse view config JSON safely. */
