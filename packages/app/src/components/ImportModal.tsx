@@ -2,6 +2,7 @@ import { useState, useRef, useEffect, useCallback } from "react";
 import { Button } from "./ui/index.js";
 import { getCurrentWorkspaceId } from "../rpc-client.js";
 import { toaster } from "../toaster.js";
+import { capture, captureException } from "../analytics.js";
 import {
   DialogRoot,
   DialogBackdrop,
@@ -51,6 +52,7 @@ export function ImportModal({ open, onClose }: ImportModalProps) {
     if (!file) return;
     setStatus("uploading");
     setMessage("Uploading and importing…");
+    capture("import_started");
 
     try {
       const workspaceId = getCurrentWorkspaceId();
@@ -71,6 +73,10 @@ export function ImportModal({ open, onClose }: ImportModalProps) {
       if (data.pagesImported === 0 && data.databasesImported === 0) {
         throw new Error("Nothing was imported. Make sure the export contains .md, .html, or .csv files.");
       }
+      capture("import_succeeded", {
+        pages_imported: data.pagesImported,
+        databases_imported: data.databasesImported,
+      });
       setStatus("success");
       setMessage(`Imported ${data.pagesImported} page(s) and ${data.databasesImported} database(s).`);
       toaster.create({
@@ -81,6 +87,7 @@ export function ImportModal({ open, onClose }: ImportModalProps) {
       // Refresh so the new pages show up in the sidebar.
       setTimeout(() => window.location.reload(), 500);
     } catch (err) {
+      captureException(err);
       const message = err instanceof Error ? err.message : "Import failed.";
       setStatus("idle");
       setMessage("");

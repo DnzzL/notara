@@ -10,10 +10,13 @@ let initialized = false;
 export function initAnalytics(): void {
   if (initialized || !key) return;
   posthog.init(key, {
-    api_host: host,
+    api_host: "/ingest",
+    ui_host: host,
     capture_pageview: "history_change",
+    capture_exceptions: true,
     autocapture: true,
     persistence: "localStorage+cookie",
+    defaults: "2026-01-30",
   });
   initialized = true;
 }
@@ -34,4 +37,10 @@ export function identify(userId: string, traits?: Record<string, unknown>): void
 export function resetAnalytics(): void {
   if (!initialized) return;
   posthog.reset();
+}
+
+/** Capture an exception for PostHog error tracking. No-op if not configured. */
+export function captureException(err: unknown): void {
+  if (!initialized) return;
+  posthog.captureException(err instanceof Error ? err : new Error(String(err)));
 }

@@ -6,6 +6,7 @@ import { authClient, useSession } from "../auth-client.js";
 import { api } from "../rpc-client.js";
 import type { Workspace } from "@notara/shared";
 import { toaster } from "../toaster.js";
+import { capture } from "../analytics.js";
 
 export const Route = createRoute({
   getParentRoute: () => rootRoute,
@@ -52,6 +53,7 @@ function WorkspacesPage() {
     e.preventDefault();
     try {
       const ws = await api.joinWorkspaceByToken({ inviteToken: joinToken });
+      capture("workspace_joined");
       navigate({ to: "/$workspaceSlug", params: { workspaceSlug: ws.slug } });
     } catch (err: any) {
       toaster.create({ title: "Invalid invite link", description: err.message ?? "This invite link may have expired.", type: "error" });

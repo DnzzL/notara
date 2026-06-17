@@ -1,9 +1,11 @@
 ---
 id: NOT-33
 title: Investigate React maximum update depth exceeded error when clicking in sidebar
-status: needs human validation
-assignee: []
+status: ready for agent
+assignee:
+  - '@thomas'
 created_date: '2026-06-17 13:15'
+updated_date: '2026-06-17 13:40'
 labels:
   - frontend
 dependencies: []
@@ -29,3 +31,13 @@ Investigation steps needed:
 - [ ] #2 Fix is implemented to prevent the error from occurring
 - [ ] #3 No regressions in sidebar navigation
 <!-- AC:END -->
+
+## Implementation Plan
+
+<!-- SECTION:PLAN:BEGIN -->
+1. Understand the project structure and sidebar components
+2. Start dev server and reproduce the error using agent-browser with React DevTools enabled
+3. Use agent-browser react tree/inspect to identify the component chain causing the loop
+4. Fix the infinite update cycle
+5. Verify fix
+<!-- SECTION:PLAN:END -->

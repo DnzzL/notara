@@ -4,6 +4,7 @@ import { useState } from "react";
 import { Field } from "../components/ui/index.js";
 import { signIn, signUp, authClient } from "../auth-client.js";
 import { toaster } from "../toaster.js";
+import { capture, captureException } from "../analytics.js";
 
 export const Route = createRoute({
   getParentRoute: () => rootRoute,
@@ -54,8 +55,10 @@ function LoginPage() {
         });
         return;
       }
+      capture("sign_in_succeeded", { method: "email", mode });
       navigate({ to: "/workspaces" });
     } catch (err: any) {
+      captureException(err);
       toaster.create({
         title: mode === "login" ? "Sign in failed" : "Registration failed",
         description: err.message ?? "Something went wrong.",
@@ -67,6 +70,7 @@ function LoginPage() {
   };
 
   const handleGoogle = async () => {
+    capture("sign_in_succeeded", { method: "google", mode: "login" });
     await signIn.social({ provider: "google", callbackURL: "/workspaces" });
   };
 

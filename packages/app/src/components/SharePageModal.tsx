@@ -10,6 +10,7 @@ import type {
 import { encodeSubject } from "@notara/shared";
 import { useSession } from "../auth-client.js";
 import { toaster } from "../toaster.js";
+import { capture } from "../analytics.js";
 
 interface Props {
   pageId: string;
@@ -83,8 +84,10 @@ export function SharePageModal({ pageId, workspaceId, onClose }: Props) {
     }
   };
 
-  const handleAddMember = (userId: string, relation: AclRelation) =>
-    runWrite({ pageId, set: [{ subject: userSubject(userId), relation }], remove: [] });
+  const handleAddMember = (userId: string, relation: AclRelation) => {
+    capture("page_shared", { relation });
+    return runWrite({ pageId, set: [{ subject: userSubject(userId), relation }], remove: [] });
+  };
   const handleChangeRelation = (subject: Subject, newRel: AclRelation) =>
     runWrite({ pageId, set: [{ subject, relation: newRel }], remove: [] });
   const handleRemove = (subject: Subject) =>

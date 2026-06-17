@@ -1,0 +1,93 @@
+{
+  "cookies": [
+    {
+      "name": "__Secure-ENID",
+      "value": "34.SE=BrW7Wh14offKyQnFCUmlNuXnrjkoYEP1tZjfAkwItRYMpeGt-fI3zj8-A09twwcsj3htvF_Ax_emwUBtOasquNIhiCQUoixfsP9l_PQiktIx8q8gmqOxor7VTPSK4XVgbpXS6DkDD4fLs4FNdjAxxMeLgNu-Mn5dH8G7LctPml_QX89O0vUxSkDH0SxfGPThc5vKewjQs4oWZ9EeouH-cE7Gmjg4Ql04ZQi7B4GgLjfU",
+      "domain": ".google.com",
+      "path": "/",
+      "expires": 1815890469.467257,
+      "size": 255,
+      "httpOnly": true,
+      "secure": true,
+      "session": false,
+      "sameSite": "Lax"
+    },
+    {
+      "name": "better-auth.session_token",
+      "value": "oW0roKpz7qopf9JVD4gRrFj2vpz3nNCl.p%2BbmDRxmB%2FL7p8fo3guiBOgvl80wU%2FxsnRNcjRKLPTg%3D",
+      "domain": "localhost",
+      "path": "/",
+      "expires": 1782308586.589779,
+      "size": 110,
+      "httpOnly": true,
+      "secure": false,
+      "session": false,
+      "sameSite": "Lax"
+    },
+    {
+      "name": "ph_phc_kdjAjvespp59PeLkjGqkdNNPC9TrhsXCNhwauSox7h9E_posthog",
+      "value": "%7B%22%24device_id%22%3A%22019ed5da-27cb-7cb4-a2f0-9e81505a165e%22%2C%22distinct_id%22%3A%22019ed5da-27cb-7cb4-a2f0-9e81505a165e%22%2C%22%24epp%22%3Atrue%2C%22%24user_state%22%3A%22anonymous%22%7D",
+      "domain": "localhost",
+      "path": "/",
+      "expires": 1813240304.0,
+      "size": 255,
+      "httpOnly": false,
+      "secure": false,
+      "session": false,
+      "sameSite": "Lax"
+    }
+  ],
+  "origins": [
+    {
+      "origin": "http://localhost:5173",
+      "localStorage": [
+        {
+          "name": "notara:lastWorkspace",
+          "value": "eee"
+        },
+        {
+          "name": "notara:tourCompleted",
+          "value": "true"
+        },
+        {
+          "name": "notara:sidebarWidth",
+          "value": "260"
+        },
+        {
+          "name": "notara:sidebarCollapsed",
+          "value": "0"
+        },
+        {
+          "name": "notara:lastPage:eee",
+          "value": "01KTHSW451S06TCT9792SYYZR6"
+        },
+        {
+          "name": "notara_consent",
+          "value": "accepted"
+        },
+        {
+          "name": "ph_phc_kdjAjvespp59PeLkjGqkdNNPC9TrhsXCNhwauSox7h9E_posthog",
+          "value": "{\"$initialization_time\":\"2026-06-17T13:51:44.583Z\",\"$configured_session_timeout_ms\":1800000,\"distinct_id\":\"019ed5da-27cb-7cb4-a2f0-9e81505a165e\",\"$device_id\":\"019ed5da-27cb-7cb4-a2f0-9e81505a165e\",\"$user_state\":\"anonymous\",\"$epp\":true,\"$stored_person_properties\":{\"$internal_or_test_user\":true},\"$autocapture_disabled_server_side\":false,\"$feature_flag_errors\":[],\"$active_feature_flags\":[],\"$enabled_feature_flags\":{},\"$feature_flag_payloads\":{},\"$feature_flag_details\":{},\"$feature_flag_request_id\":\"2dc8a4e0-1d8e-4476-9ad1-eecc6bb014e7\",\"$feature_flag_evaluated_at\":1781704304775}"
+        },
+        {
+          "name": "notara:recentPages",
+          "value": "[\"01KTHSW451S06TCT9792SYYZR6\",\"01KTCCGP93QSK52N95N98X7SCQ\",\"01KTHTCFJ26NM37HVDGREKGHQ6\",\"01KTHSW44SDFM0D191J6VKKS8N\"]"
+        }
+      ],
+      "sessionStorage": [
+        {
+          "name": "ph_phc_kdjAjvespp59PeLkjGqkdNNPC9TrhsXCNhwauSox7h9E_primary_window_exists",
+          "value": "true"
+        },
+        {
+          "name": "ph_phc_kdjAjvespp59PeLkjGqkdNNPC9TrhsXCNhwauSox7h9E_posthog",
+          "value": "{\"$sdk_debug_extensions_init_method\":\"synchronous\",\"$sdk_debug_extensions_init_time_ms\":2}"
+        },
+        {
+          "name": "tsr-scroll-restoration-v1_3",
+          "value": "{}"
+        }
+      ]
+    }
+  ]
+}

@@ -1,5 +1,6 @@
 import { Tour, useTour, type TourStepDetails } from "@ark-ui/react";
 import { useEffect, useRef } from "react";
+import { capture } from "../analytics.js";
 
 const TOUR_COMPLETED_KEY = "notara:tourCompleted";
 
@@ -78,8 +79,12 @@ export function OnboardingTour({ autoStart, startKey }: Props) {
     closeOnEscape: true,
     closeOnInteractOutside: false,
     onStatusChange(details) {
-      if (details.status === "completed" || details.status === "dismissed" || details.status === "skipped") {
+      if (details.status === "completed") {
         markTourCompleted();
+        capture("onboarding_tour_completed");
+      } else if (details.status === "dismissed" || details.status === "skipped") {
+        markTourCompleted();
+        capture("onboarding_tour_skipped");
       }
     },
   });
@@ -89,7 +94,10 @@ export function OnboardingTour({ autoStart, startKey }: Props) {
     if (autoStarted.current) return;
     if (autoStart && !isTourCompleted()) {
       autoStarted.current = true;
-      setTimeout(() => tour.start(), 800);
+      setTimeout(() => {
+        tour.start();
+        capture("onboarding_tour_started", { trigger: "auto" });
+      }, 800);
     }
   }, [autoStart]);
 
@@ -99,7 +107,10 @@ export function OnboardingTour({ autoStart, startKey }: Props) {
       prevKey.current = startKey ?? 0;
       autoStarted.current = true;
       resetTourCompleted();
-      setTimeout(() => tour.start(), 300);
+      setTimeout(() => {
+        tour.start();
+        capture("onboarding_tour_started", { trigger: "manual" });
+      }, 300);
     }
   }, [startKey]);
 
