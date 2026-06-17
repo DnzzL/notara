@@ -22,9 +22,9 @@ export function BacklinksPanel() {
   const count = backlinks.length;
 
   return (
-    <div className="backlinks-panel">
+    <div className="mt-6 pt-2 border-t border-border">
       <button
-        className="backlinks-header"
+        className="hover:bg-surface-2 rounded-[5px] w-full"
         onClick={() => setIsExpanded(!isExpanded)}
         style={{
           display: "flex", alignItems: "center", gap: "8px",
@@ -33,8 +33,8 @@ export function BacklinksPanel() {
           cursor: "pointer", fontSize: "13px", color: "#6b7280",
         }}
       >
-        <span className="backlinks-icon">{isExpanded ? "▼" : "▶"}</span>
-        <span className="backlinks-label">
+        <span className="text-[10px]">{isExpanded ? "▼" : "▶"}</span>
+        <span>
           {backlinksLoading ? "Loading..." : `${count} backlink${count !== 1 ? "s" : ""}`}
         </span>
       </button>
@@ -60,7 +60,7 @@ function BacklinkItem({ backlink, onNavigate }: { backlink: Backlink; onNavigate
       : backlink.content;
 
   return (
-    <button className="backlink-item" onClick={() => onNavigate(backlink.pageId)}
+    <button className="hover:bg-surface-2 rounded-[5px] block w-full"
       style={{ display: "block", width: "100%", padding: "8px 16px", background: "transparent", border: "none", cursor: "pointer", textAlign: "left", fontSize: "13px" }}>
       <div className="backlink-page-title" style={{ fontWeight: "500", marginBottom: "4px", color: "#37352f" }}>
         📄 {backlink.pageTitle}

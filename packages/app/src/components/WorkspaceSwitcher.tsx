@@ -47,22 +47,22 @@ export function WorkspaceSwitcher({ onCollapse, onOpenBackups, onOpenApiKeys }: 
   };
 
   return (
-    <div className="workspace-switcher" ref={ref}>
-      <div className="workspace-switcher-row">
+    <div className="relative px-2 pb-1.5 pt-2 border-b border-border-sb" ref={ref}>
+      <div className="flex items-center gap-0.5">
         <button
-          className="workspace-switcher-trigger"
+          className="flex items-center gap-[9px] flex-1 min-w-0 bg-transparent border-none cursor-pointer px-2 py-1.5 rounded text-[13.5px] text-text-sb [font-family:var(--font-ui)] transition-[background] duration-[var(--t)] ease-[var(--ease)] hover:bg-[rgba(10,10,10,0.05)]"
           onClick={() => setOpen(!open)}
           title="Switch workspace"
         >
-          <span className="workspace-avatar-sm">
+          <span className="w-[26px] h-[26px] rounded bg-accent text-white text-xs font-bold flex items-center justify-center shrink-0 tracking-[-0.02em]">
             {current ? current.name[0].toUpperCase() : "?"}
           </span>
-          <span className="workspace-switcher-name">{current?.name ?? "Select workspace"}</span>
-          <span className="workspace-switcher-chevron">▾</span>
+          <span className="flex-1 text-left font-semibold text-[13.5px] overflow-hidden text-ellipsis whitespace-nowrap text-text-sb tracking-[-0.01em]">{current?.name ?? "Select workspace"}</span>
+          <span className="text-text-sb-3 text-[11px]">▾</span>
         </button>
         {onCollapse && (
           <button
-            className="sidebar-collapse-btn"
+            className="shrink-0 bg-transparent border-none cursor-pointer text-text-sb-3 text-[15px] w-7 h-7 flex items-center justify-center rounded transition-[color,background] duration-[var(--t)] ease-[var(--ease)] hover:bg-[rgba(10,10,10,0.05)] hover:text-text-sb"
             onClick={onCollapse}
             title="Collapse sidebar (⌘\\)"
             aria-label="Collapse sidebar"
@@ -73,26 +73,26 @@ export function WorkspaceSwitcher({ onCollapse, onOpenBackups, onOpenApiKeys }: 
       </div>
 
       {open && (
-        <div className="workspace-switcher-dropdown">
-          <div className="workspace-switcher-section">
+        <div className="absolute top-[calc(100%-2px)] left-2 right-2 bg-surface border border-border-mid rounded shadow-[var(--shadow-lg)] z-[200] overflow-hidden">
+          <div className="p-1 border-b border-border">
             {workspaces.map((ws) => (
               <button
                 key={ws.id}
-                className={`workspace-switcher-item ${ws.id === current?.id ? "active" : ""}`}
+                className={`flex items-center gap-2 w-full px-2.5 py-[7px] bg-transparent border-none cursor-pointer text-[13px] text-text-2 text-left rounded-lg [font-family:var(--font-ui)] transition-[background,color] duration-[var(--t)] ease-[var(--ease)] hover:bg-surface-3 hover:text-text ${ws.id === current?.id ? "font-medium text-text" : ""}`}
                 onClick={() => switchTo(ws)}
               >
-                <span className="workspace-avatar-sm">{ws.name[0].toUpperCase()}</span>
+                <span className="w-[26px] h-[26px] rounded bg-accent text-white text-xs font-bold flex items-center justify-center shrink-0 tracking-[-0.02em]">{ws.name[0].toUpperCase()}</span>
                 <span>{ws.name}</span>
-                {ws.id === current?.id && <span className="workspace-check">✓</span>}
+                {ws.id === current?.id && <span className="ml-auto text-accent">✓</span>}
               </button>
             ))}
           </div>
 
-          <div className="workspace-switcher-section workspace-switcher-actions">
-            <div className="workspace-switcher-label">Settings</div>
+          <div className="p-1 border-b border-border">
+            <div className="[font-family:var(--font-mono)] text-[9.5px] font-medium uppercase tracking-[0.12em] text-text-3 px-2.5 pt-1 pb-[5px]">Settings</div>
             {current && (
               <button
-                className="workspace-switcher-item"
+                className="flex items-center gap-2 w-full px-2.5 py-[7px] bg-transparent border-none cursor-pointer text-[13px] text-text-2 text-left rounded-lg [font-family:var(--font-ui)] transition-[background,color] duration-[var(--t)] ease-[var(--ease)] hover:bg-surface-3 hover:text-text"
                 onClick={() => { setOpen(false); navigate({ to: "/settings/$workspaceSlug", params: { workspaceSlug: current.slug } }); }}
               >
                 Workspace settings
@@ -100,7 +100,7 @@ export function WorkspaceSwitcher({ onCollapse, onOpenBackups, onOpenApiKeys }: 
             )}
             {onOpenBackups && (
               <button
-                className="workspace-switcher-item"
+                className="flex items-center gap-2 w-full px-2.5 py-[7px] bg-transparent border-none cursor-pointer text-[13px] text-text-2 text-left rounded-lg [font-family:var(--font-ui)] transition-[background,color] duration-[var(--t)] ease-[var(--ease)] hover:bg-surface-3 hover:text-text"
                 onClick={() => { setOpen(false); onOpenBackups(); }}
               >
                 Backups
@@ -108,7 +108,7 @@ export function WorkspaceSwitcher({ onCollapse, onOpenBackups, onOpenApiKeys }: 
             )}
             {onOpenApiKeys && (
               <button
-                className="workspace-switcher-item"
+                className="flex items-center gap-2 w-full px-2.5 py-[7px] bg-transparent border-none cursor-pointer text-[13px] text-text-2 text-left rounded-lg [font-family:var(--font-ui)] transition-[background,color] duration-[var(--t)] ease-[var(--ease)] hover:bg-surface-3 hover:text-text"
                 onClick={() => { setOpen(false); onOpenApiKeys(); }}
               >
                 API keys
@@ -116,27 +116,27 @@ export function WorkspaceSwitcher({ onCollapse, onOpenBackups, onOpenApiKeys }: 
             )}
           </div>
 
-          <div className="workspace-switcher-section workspace-switcher-actions">
-            <div className="workspace-switcher-label">Account</div>
+          <div className="p-1 border-b border-border">
+            <div className="[font-family:var(--font-mono)] text-[9.5px] font-medium uppercase tracking-[0.12em] text-text-3 px-2.5 pt-1 pb-[5px]">Account</div>
             <button
-              className="workspace-switcher-item"
+              className="flex items-center gap-2 w-full px-2.5 py-[7px] bg-transparent border-none cursor-pointer text-[13px] text-text-2 text-left rounded-lg [font-family:var(--font-ui)] transition-[background,color] duration-[var(--t)] ease-[var(--ease)] hover:bg-surface-3 hover:text-text"
               onClick={() => { setOpen(false); navigate({ to: "/workspaces" }); }}
             >
               + New workspace
             </button>
             <button
-              className="workspace-switcher-item"
+              className="flex items-center gap-2 w-full px-2.5 py-[7px] bg-transparent border-none cursor-pointer text-[13px] text-text-2 text-left rounded-lg [font-family:var(--font-ui)] transition-[background,color] duration-[var(--t)] ease-[var(--ease)] hover:bg-surface-3 hover:text-text"
               onClick={() => { setOpen(false); navigate({ to: "/workspaces" }); }}
             >
               Join with invite
             </button>
             <button
-              className="workspace-switcher-item"
+              className="flex items-center gap-2 w-full px-2.5 py-[7px] bg-transparent border-none cursor-pointer text-[13px] text-text-2 text-left rounded-lg [font-family:var(--font-ui)] transition-[background,color] duration-[var(--t)] ease-[var(--ease)] hover:bg-surface-3 hover:text-text"
               onClick={() => { setOpen(false); navigate({ to: "/admin" }); }}
             >
               Admin panel
             </button>
-            <button className="workspace-switcher-item workspace-signout" onClick={handleSignOut}>
+            <button className="flex items-center gap-2 w-full px-2.5 py-[7px] bg-transparent border-none cursor-pointer text-[13px] text-text-2 text-left rounded-lg [font-family:var(--font-ui)] transition-[background,color] duration-[var(--t)] ease-[var(--ease)] hover:bg-surface-3 hover:text-text text-danger hover:bg-danger-dim! hover:text-danger!" onClick={handleSignOut}>
               Sign out
             </button>
           </div>

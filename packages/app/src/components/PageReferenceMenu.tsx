@@ -84,10 +84,7 @@ export function PageReferenceMenu({ props }: PageReferenceMenuProps) {
 
   if (pages.length === 0) {
     return (
-      <div className="page-reference-menu-empty" style={{
-        padding: "8px 12px",
-        color: "#6b7280",
-        fontSize: "14px",
+      <div className="px-3 py-3 text-text-3 text-[13.5px]" style={{
       }}>
         No pages found
       </div>
@@ -97,35 +94,16 @@ export function PageReferenceMenu({ props }: PageReferenceMenuProps) {
   return (
     <div
       ref={menuRef}
-      className="page-reference-menu"
-      style={{
-        backgroundColor: "white",
-        border: "1px solid #e5e7eb",
-        borderRadius: "6px",
-        boxShadow: "0 4px 6px -1px rgba(0, 0, 0, 0.1)",
-        maxHeight: "200px",
-        overflowY: "auto",
-        minWidth: "200px",
-      }}
+      className="bg-surface border border-border-mid rounded shadow-[var(--shadow-lg)] max-h-[280px] overflow-y-auto min-w-[220px]"
     >
       {pages.map((page, index) => (
         <button
           key={page.pageId}
-          className={`page-reference-item ${index === selectedIndex ? "selected" : ""}`}
+          className={`flex items-center w-full px-3.5 py-[9px] border-none bg-transparent cursor-pointer text-[13.5px] text-left text-text-2 [font-family:var(--font-ui)] transition-[background,color] duration-[var(--t)] ease-[var(--ease)] hover:bg-surface-3 hover:text-text ${index === selectedIndex ? "bg-surface-3 text-text" : ""}`}
           onClick={() => command(page)}
           onMouseEnter={() => setSelectedIndex(index)}
-          style={{
-            display: "block",
-            width: "100%",
-            padding: "8px 12px",
-            textAlign: "left",
-            border: "none",
-            background: index === selectedIndex ? "#f3f4f6" : "transparent",
-            cursor: "pointer",
-            fontSize: "14px",
-          }}
         >
-          <span className="page-reference-icon" style={{ marginRight: "8px", color: "#6b7280" }}>
+          <span className="text-text-3 mr-2">
             📄
           </span>
           {page.pageTitle}
@@ -146,9 +124,7 @@ export function createPageReferenceRender() {
   return {
     onStart: (props: PageReferenceRenderProps) => {
       popup = document.createElement("div");
-      popup.className = "page-reference-popup";
-      popup.style.position = "absolute";
-      popup.style.zIndex = "50";
+      popup.className = "absolute z-[50]";
       document.body.appendChild(popup);
 
       // Position popup near the cursor

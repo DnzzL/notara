@@ -92,7 +92,7 @@ export function SlashMenu({ commands, query, onSelect, onClose, position }: Slas
   return (
     <div
       ref={containerRef}
-      className="slash-menu"
+      className="bg-surface border border-border-mid rounded-[5px] shadow-[var(--shadow-xl)] p-1.5 min-w-[272px] max-h-[400px] overflow-y-auto [&::-webkit-scrollbar]:w-[4px] [&::-webkit-scrollbar-track]:bg-transparent [&::-webkit-scrollbar-thumb]:bg-surface-4 [&::-webkit-scrollbar-thumb]:rounded-[2px]"
       style={{
         position: "fixed",
         top: adjustedPosition.top,
@@ -100,19 +100,19 @@ export function SlashMenu({ commands, query, onSelect, onClose, position }: Slas
         zIndex: 9999,
       }}
     >
-      <div className="slash-menu-header">Blocks</div>
+      <div className="px-2.5 pt-2 pb-1 text-[10.5px] font-semibold text-text-3 uppercase tracking-[0.07em]">Blocks</div>
       {filteredCommands.map((cmd, index) => (
         <button
           key={cmd.id}
           ref={(el) => { itemRefs.current[index] = el; }}
-          className={`slash-menu-item ${index === selectedIndex ? "selected" : ""}`}
+          className={`flex items-center gap-2.5 w-full px-2.5 py-2 border-none bg-transparent cursor-pointer text-left text-[13.5px] text-text-2 rounded font-[family:var(--font-ui)] transition-[background,color] duration-[var(--t)] ease-[var(--ease)] hover:bg-surface-3 hover:text-text ${index === selectedIndex ? "bg-accent-dim text-accent" : ""}`}
           onClick={() => onSelect(cmd.id)}
           onMouseEnter={() => setSelectedIndex(index)}
         >
-          <span className="slash-icon">{cmd.icon}</span>
-          <div className="slash-item-content">
-            <span className="slash-item-name">{cmd.name}</span>
-            {cmd.shortcut && <span className="slash-item-shortcut">{cmd.shortcut}</span>}
+          <span className="flex items-center justify-center w-7 h-7 bg-surface-3 border border-border rounded-lg text-[13px] shrink-0">{cmd.icon}</span>
+          <div className="flex items-center flex-1 justify-between gap-2">
+            <span className="font-medium">{cmd.name}</span>
+            {cmd.shortcut && <span className="text-[11px] text-text-3 [font-family:var(--font-mono)]">{cmd.shortcut}</span>}
           </div>
         </button>
       ))}

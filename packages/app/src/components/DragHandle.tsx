@@ -8,7 +8,7 @@ export function DragHandle({
 }) {
   return (
     <div
-      className="drag-handle"
+      className="flex items-center justify-center text-text-3 p-0.5"
       onMouseDown={onDragStart}
       title="Drag to reorder"
       data-testid={testId || "drag-handle"}

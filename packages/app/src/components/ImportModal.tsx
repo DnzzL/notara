@@ -112,13 +112,13 @@ export function ImportModal({ open, onClose }: ImportModalProps) {
       unmountOnExit
     >
       <Portal>
-        <DialogBackdrop className="import-modal-overlay" />
-        <DialogPositioner className="import-modal-positioner">
-          <DialogContent className="import-modal">
-            <div className="import-modal-header">
-              <DialogTitle>Import Notion export</DialogTitle>
+        <DialogBackdrop className="fixed inset-0 bg-[rgba(15,18,30,0.4)] backdrop-blur-[6px] z-[1000] [animation:fade-in_0.14s_var(--ease)]" />
+        <DialogPositioner className="fixed inset-0 z-[1001] flex items-center justify-center p-6">
+          <DialogContent className="bg-surface border border-border-mid rounded-lg shadow-[var(--shadow-xl)] w-[480px] max-w-full overflow-hidden [animation:modal-pop_0.18s_var(--ease-spring)]">
+            <div className="flex items-center justify-between px-5 py-4 border-b border-border">
+              <DialogTitle className="text-[15px] font-semibold text-text">Import Notion export</DialogTitle>
               <DialogCloseTrigger
-                className="import-modal-close"
+                className="bg-transparent border-none text-[17px] cursor-pointer text-text-3 p-1.5 rounded-[5px] transition-[all] duration-[var(--t)] ease-[var(--ease)] disabled:opacity-35 disabled:cursor-default hover:bg-surface-3 hover:text-text"
                 disabled={status === "uploading"}
                 aria-label="Close"
               >
@@ -126,10 +126,10 @@ export function ImportModal({ open, onClose }: ImportModalProps) {
               </DialogCloseTrigger>
             </div>
 
-            <div className="import-modal-body">
+            <div className="p-5">
               {status === "idle" && (
                 <>
-                  <DialogDescription className="import-modal-hint">
+                  <DialogDescription className="text-[13.5px] text-text-2 mb-4 leading-relaxed">
                     Upload your Notion export ZIP file — no need to extract it.
                   </DialogDescription>
 
@@ -169,7 +169,7 @@ export function ImportModal({ open, onClose }: ImportModalProps) {
                     style={{ display: "none" }}
                   />
 
-                  <div className="import-modal-actions">
+                  <div className="flex justify-end gap-2 mt-4">
                     <Button variant="secondary" onClick={onClose}>Cancel</Button>
                     <Button variant="primary" onClick={handleImport} disabled={!file}>
                       Import
@@ -179,24 +179,24 @@ export function ImportModal({ open, onClose }: ImportModalProps) {
               )}
 
               {status === "uploading" && (
-                <div className="import-modal-status">
-                  <div className="import-modal-spinner" />
-                  <p>{message}</p>
+                <div className="flex flex-col items-center gap-3 py-4 text-center">
+                  <div className="w-8 h-8 border-[3px] border-border-mid border-t-accent rounded-full [animation:spin_0.8s_linear_infinite]" />
+                  <p className="text-[13.5px] text-text">{message}</p>
                 </div>
               )}
 
               {status === "success" && (
-                <div className="import-modal-status success">
-                  <span className="import-modal-icon">✓</span>
-                  <p>{message}</p>
+                <div className="flex flex-col items-center gap-3 py-4 text-center">
+                  <span className="text-[32px] text-success">✓</span>
+                  <p className="text-[13.5px] text-success">{message}</p>
                 </div>
               )}
 
               {status === "error" && (
-                <div className="import-modal-status error">
-                  <span className="import-modal-icon">✗</span>
-                  <p>{message}</p>
-                  <div className="import-modal-actions">
+                <div className="flex flex-col items-center gap-3 py-4 text-center">
+                  <span className="text-[32px] text-danger">✗</span>
+                  <p className="text-[13.5px] text-danger">{message}</p>
+                  <div className="flex justify-end gap-2 mt-2">
                     <Button variant="secondary" onClick={onClose}>Close</Button>
                     <Button variant="primary" onClick={() => { setStatus("idle"); setMessage(""); }}>
                       Try again

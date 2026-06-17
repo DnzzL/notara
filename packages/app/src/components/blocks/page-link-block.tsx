@@ -71,9 +71,9 @@ export function PageLinkBlock({ block, onUpdateBlock }: BlockRendererProps) {
     );
   }
   return (
-    <a className="page-link-block" href={`?page=${pageId}`} onClick={navigate}>
-      <span className="page-link-block-icon">{page.icon || "\uD83D\uDCC4"}</span>
-      <span className="page-link-block-title">{page.title || "Untitled"}</span>
+    <a className="inline-flex items-center gap-2 px-3 py-1.5 my-[3px] bg-surface-2 border border-border rounded text-[13.5px] text-text-2 no-underline max-w-full cursor-pointer transition-[background,border-color,color] duration-[var(--t)] ease-[var(--ease)] hover:bg-surface-3 hover:border-border-mid hover:text-text" href={`?page=${pageId}`} onClick={navigate}>
+      <span className="text-[15px] shrink-0">{page.icon || "\uD83D\uDCC4"}</span>
+      <span className="flex-1 overflow-hidden text-ellipsis whitespace-nowrap underline decoration-border-mid">{page.title || "Untitled"}</span>
     </a>
   );
 }

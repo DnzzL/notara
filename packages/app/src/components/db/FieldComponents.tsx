@@ -92,13 +92,13 @@ export function ColumnHeader({
   if (isTitle) {
     const defaultW = getDefaultWidthForType("text");
     return (
-      <th className="db-col-header db-title-cell" data-field-id="__title__" style={{ minWidth: width || 180, width: width || defaultW }}>
-        <div ref={triggerRef} className="db-col-header-content" onClick={() => setShowMenu(!showMenu)}>
+      <th className="relative px-2.5 py-1.5 align-middle border-r border-border last:border-r-0 font-medium text-[11.5px] text-text-2 sticky top-0 z-[3] text-left" data-field-id="__title__" style={{ minWidth: width || 180, width: width || defaultW }}>
+        <div ref={triggerRef} className="flex items-center gap-2 cursor-pointer select-none pl-[18px]" onClick={() => setShowMenu(!showMenu)}>
           <span style={{ opacity: 0.7, fontSize: 14 }}>🌐</span>
           <span style={{ fontWeight: 500, overflow: "hidden", textOverflow: "ellipsis" }}>{field.name}</span>
         </div>
         {onResize && (
-          <div className="db-col-resize-handle" onMouseDown={(e) => {
+          <div className="absolute right-0 top-0 bottom-0 w-1.5 cursor-col-resize z-[3] hover:bg-accent hover:opacity-30" onMouseDown={(e) => {
             e.preventDefault(); e.stopPropagation();
             const startX = e.clientX;
             const startWidth = (e.currentTarget as HTMLElement).closest("th")?.getBoundingClientRect().width ?? (width || 200);
@@ -117,8 +117,8 @@ export function ColumnHeader({
             </div>
           ) : (
             <div>
-              <div className="db-menu-item" onClick={() => setEditing(true)}>Rename column</div>
-              <div className="db-menu-item" onClick={() => { onDelete(); handleMenuClose(); }}>Hide column</div>
+              <div className="px-2.5 py-1.5 rounded-lg cursor-pointer text-[13px] text-text-2 flex items-center gap-1.5 transition-[background,color] duration-[var(--t)] ease-[var(--ease)] hover:bg-surface-3 hover:text-text" onClick={() => setEditing(true)}>Rename column</div>
+              <div className="px-2.5 py-1.5 rounded-lg cursor-pointer text-[13px] text-text-2 flex items-center gap-1.5 transition-[background,color] duration-[var(--t)] ease-[var(--ease)] hover:bg-surface-3 hover:text-text" onClick={() => { onDelete(); handleMenuClose(); }}>Hide column</div>
             </div>
           )}
         </Popover>
@@ -132,7 +132,7 @@ export function ColumnHeader({
   return (
     <th
       ref={dragRef as any}
-      className="db-col-header"
+      className="relative px-2.5 py-1.5 align-middle border-r border-border last:border-r-none font-medium text-[11.5px] text-text-2 sticky top-0 z-[3] text-left hover:bg-surface-3"
       data-field-id={field.id}
       style={{ minWidth: width || defaultW, width: width || defaultW, ...(dragStyle || {}) }}
     >
@@ -140,7 +140,7 @@ export function ColumnHeader({
         <span
           {...dragListeners}
           {...(dragAttributes || {})}
-          className="db-col-drag-handle"
+          className="touch-none select-none hover:text-text! cursor-grab"
           title="Drag to reorder"
           style={{ position: "absolute", left: 0, top: "50%", transform: "translateY(-50%)", cursor: "grab", padding: "4px 3px", fontSize: 14, lineHeight: 1, color: "#9b9a97" }}
           onClick={(e) => e.stopPropagation()}
@@ -148,7 +148,7 @@ export function ColumnHeader({
       )}
       <div
         ref={triggerRef}
-        className="db-col-header-content"
+        className="flex items-center gap-2 cursor-pointer select-none pl-[18px]"
         onClick={(e) => {
           // Click on the caret area opens the menu; clicking the rest toggles sort.
           const target = e.target as HTMLElement;
@@ -167,12 +167,12 @@ export function ColumnHeader({
         <span
           data-col-menu-trigger
           style={{ fontSize: 10, opacity: 0, transition: "opacity 0.15s", marginLeft: "auto", padding: "0 4px", cursor: "pointer" }}
-          className="db-col-arrow"
+          className="text-[10px] opacity-0 transition-opacity duration-[150ms] ml-auto px-1 cursor-pointer group-hover/th:opacity-50!"
         >▼</span>
       </div>
 
       {onResize && (
-        <div className="db-col-resize-handle" onMouseDown={(e) => {
+        <div className="absolute right-0 top-0 bottom-0 w-1.5 cursor-col-resize z-[3] hover:bg-accent hover:opacity-30" onMouseDown={(e) => {
           e.preventDefault(); e.stopPropagation();
           const startX = e.clientX;
           const startWidth = (e.currentTarget as HTMLElement).closest("th")?.getBoundingClientRect().width ?? (width || 150);
@@ -196,7 +196,7 @@ export function ColumnHeader({
             {FIELD_TYPES.map((ft) => (
               <div
                 key={ft.type}
-                className={`db-menu-item ${ft.type === field.type ? "db-menu-item--active" : ""}`}
+                className={`px-2.5 py-1.5 rounded-lg cursor-pointer text-[13px] text-text-2 flex items-center gap-1.5 transition-[background,color] duration-[var(--t)] ease-[var(--ease)] hover:bg-surface-3 hover:text-text ${ft.type === field.type ? "bg-accent-dim text-accent" : ""}`}
                 onClick={() => { onChangeType(ft.type); handleMenuClose(); }}
               >
                 <span style={{ display: "inline-block", width: 20, textAlign: "center", opacity: 0.6 }}>{ft.icon}</span>
@@ -208,7 +208,7 @@ export function ColumnHeader({
         ) : (
           <div>
             <div
-              className="db-menu-item"
+              className="px-2.5 py-1.5 rounded-lg cursor-pointer text-[13px] text-text-2 flex items-center gap-1.5 transition-[background,color] duration-[var(--t)] ease-[var(--ease)] hover:bg-surface-3 hover:text-text"
               onClick={() => onChangeType ? setChangingType(true) : null}
               style={{ display: "flex", alignItems: "center", gap: 6 }}
               title={onChangeType ? "Change type" : ""}
@@ -220,33 +220,33 @@ export function ColumnHeader({
             <div style={{ borderTop: "1px solid #f0f0f0", margin: "4px 0" }} />
 
             {onSortAsc && (
-              <div className="db-menu-item" onClick={() => { onSortAsc(); handleMenuClose(); }}>
+              <div className="px-2.5 py-1.5 rounded-lg cursor-pointer text-[13px] text-text-2 flex items-center gap-1.5 transition-[background,color] duration-[var(--t)] ease-[var(--ease)] hover:bg-surface-3 hover:text-text" onClick={() => { onSortAsc(); handleMenuClose(); }}>
                 <span style={{ opacity: 0.5 }}>↑</span> Sort ascending
               </div>
             )}
             {onSortDesc && (
-              <div className="db-menu-item" onClick={() => { onSortDesc(); handleMenuClose(); }}>
+              <div className="px-2.5 py-1.5 rounded-lg cursor-pointer text-[13px] text-text-2 flex items-center gap-1.5 transition-[background,color] duration-[var(--t)] ease-[var(--ease)] hover:bg-surface-3 hover:text-text" onClick={() => { onSortDesc(); handleMenuClose(); }}>
                 <span style={{ opacity: 0.5 }}>↓</span> Sort descending
               </div>
             )}
             {onFilter && (
-              <div className="db-menu-item" onClick={() => { onFilter(); handleMenuClose(); }}>
+              <div className="px-2.5 py-1.5 rounded-lg cursor-pointer text-[13px] text-text-2 flex items-center gap-1.5 transition-[background,color] duration-[var(--t)] ease-[var(--ease)] hover:bg-surface-3 hover:text-text" onClick={() => { onFilter(); handleMenuClose(); }}>
                 <span style={{ opacity: 0.5 }}>⚲</span> Filter by this property
               </div>
             )}
             {(onSortAsc || onSortDesc || onFilter) && <div style={{ borderTop: "1px solid #f0f0f0", margin: "4px 0" }} />}
             {onOptions && (field.type === "select" || field.type === "multiSelect") && (
-              <div className="db-menu-item" onClick={() => { handleMenuClose(); onOptions(); }}>Edit options</div>
+              <div className="px-2.5 py-1.5 rounded-lg cursor-pointer text-[13px] text-text-2 flex items-center gap-1.5 transition-[background,color] duration-[var(--t)] ease-[var(--ease)] hover:bg-surface-3 hover:text-text" onClick={() => { handleMenuClose(); onOptions(); }}>Edit options</div>
             )}
             {onEditFormula && field.type === "formula" && (
-              <div className="db-menu-item" onClick={() => { handleMenuClose(); onEditFormula(); }}>Edit formula</div>
+              <div className="px-2.5 py-1.5 rounded-lg cursor-pointer text-[13px] text-text-2 flex items-center gap-1.5 transition-[background,color] duration-[var(--t)] ease-[var(--ease)] hover:bg-surface-3 hover:text-text" onClick={() => { handleMenuClose(); onEditFormula(); }}>Edit formula</div>
             )}
             {onDuplicate && (
-              <div className="db-menu-item" onClick={() => { handleMenuClose(); onDuplicate(); }}>Duplicate</div>
+              <div className="px-2.5 py-1.5 rounded-lg cursor-pointer text-[13px] text-text-2 flex items-center gap-1.5 transition-[background,color] duration-[var(--t)] ease-[var(--ease)] hover:bg-surface-3 hover:text-text" onClick={() => { handleMenuClose(); onDuplicate(); }}>Duplicate</div>
             )}
-            <div className="db-menu-item" onClick={() => { onDelete(); handleMenuClose(); }}>Hide column</div>
-            <div className="db-menu-item" onClick={() => setEditing(true)}>Rename</div>
-            <div className="db-menu-item db-menu-item--danger" onClick={() => { onDelete(); handleMenuClose(); }}>Delete</div>
+            <div className="px-2.5 py-1.5 rounded-lg cursor-pointer text-[13px] text-text-2 flex items-center gap-1.5 transition-[background,color] duration-[var(--t)] ease-[var(--ease)] hover:bg-surface-3 hover:text-text" onClick={() => { onDelete(); handleMenuClose(); }}>Hide column</div>
+            <div className="px-2.5 py-1.5 rounded-lg cursor-pointer text-[13px] text-text-2 flex items-center gap-1.5 transition-[background,color] duration-[var(--t)] ease-[var(--ease)] hover:bg-surface-3 hover:text-text" onClick={() => setEditing(true)}>Rename</div>
+            <div className="px-2.5 py-1.5 rounded-lg cursor-pointer text-[13px] text-text-2 flex items-center gap-1.5 transition-[background,color] duration-[var(--t)] ease-[var(--ease)] hover:bg-surface-3 hover:text-text text-danger hover:bg-danger-dim! hover:text-danger!" onClick={() => { onDelete(); handleMenuClose(); }}>Delete</div>
           </div>
         )}
       </Popover>

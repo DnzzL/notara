@@ -395,12 +395,12 @@ export function Sidebar({ className, onNavigate, onStartTour }: SidebarProps = {
                   {favorites.map((page) => (
                     <div
                       key={"fav-" + page.id}
-                      className={`page-node ${currentPage?.id === page.id ? "selected" : ""}`}
+                      className={`relative px-1 cursor-pointer rounded-lg text-[13px] text-text-sb-2 flex items-center gap-0.5 min-h-[28px] transition-[background,color] duration-[var(--t)] ease-[var(--ease)] hover:bg-[rgba(10,10,10,0.045)] hover:text-text-sb ${currentPage?.id === page.id ? "bg-accent-dim! text-accent-2! font-semibold!" : ""}`}
                       onClick={() => { selectPageWithCascade(page); onNavigate?.(); }}
                     >
-                      <span className="page-node-spacer" />
-                      <span className="icon">{page.icon || "📄"}</span>
-                      <span className="page-title-text">{page.title || "Untitled"}</span>
+                      <span className="w-2" />
+                      <span className="text-[13px] leading-none shrink-0 cursor-pointer w-[18px] text-center">{page.icon || "📄"}</span>
+                      <span className="flex-1 overflow-hidden text-ellipsis whitespace-nowrap tracking-[-0.005em]">{page.title || "Untitled"}</span>
                     </div>
                   ))}
                 </div>
@@ -592,14 +592,14 @@ function PageTreeNode({
 
             <span
               ref={iconRef}
-              className="icon"
+              className="text-[13px] leading-none shrink-0 cursor-pointer w-[18px] text-center"
               onClick={handleIconClick}
               title="Change icon"
             >
               {page.icon || "📄"}
             </span>
 
-            <TreeView.BranchText className="page-title-text">
+            <TreeView.BranchText className="flex-1 overflow-hidden text-ellipsis whitespace-nowrap tracking-[-0.005em]">
               {page.title || "Untitled"}
             </TreeView.BranchText>
 
@@ -608,7 +608,7 @@ function PageTreeNode({
             )}
 
             {page.isFavorite && (
-              <span className="page-fav-mini" data-active="true" aria-label="Favorited">★</span>
+              <span className="bg-transparent border-none cursor-pointer text-text-sb-3 text-[13px] px-[3px] ml-auto transition-[color] duration-[var(--t)] ease-[var(--ease)] group-hover:visible hover:text-amber-400 data-[active=true]:visible data-[active=true]:text-amber-400 invisible" data-active="true" aria-label="Favorited">★</span>
             )}
 
             <PageActionMenu

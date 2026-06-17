@@ -793,13 +793,13 @@ export function BlockEditor() {
 
   if (!currentPage && accessDeniedFor) {
     return (
-      <div className="empty-state">
-        <div className="empty-state-inner">
-          <div className="empty-state-illustration" aria-hidden="true">
-            <div className="empty-state-lock">🔒</div>
+      <div className="flex items-center justify-center h-screen flex-1 bg-editor">
+        <div className="flex flex-col items-center gap-0 text-center max-w-[320px] [animation:empty-state-in_0.4s_var(--ease-spring)]">
+          <div className="mb-5 opacity-85 [filter:drop-shadow(0_4px_12px_rgba(43,77,255,0.08))]" aria-hidden="true">
+            <div className="text-2xl">🔒</div>
           </div>
-          <h2 className="empty-state-title">You don't have access to this page</h2>
-          <p className="empty-state-body">
+          <h2 className="[font-family:var(--font-title)] text-[22px] font-bold text-text tracking-[-0.02em] mb-2">You don't have access to this page</h2>
+          <p className="text-[14px] text-text-3 leading-relaxed mb-6">
             Ask the page owner to share it with you, or pick another page from the sidebar.
           </p>
         </div>
@@ -809,9 +809,9 @@ export function BlockEditor() {
 
   if (!currentPage) {
     return (
-      <div className="empty-state">
-        <div className="empty-state-inner">
-          <div className="empty-state-illustration" aria-hidden="true">
+      <div className="flex items-center justify-center h-screen flex-1 bg-editor">
+        <div className="flex flex-col items-center gap-0 text-center max-w-[320px] [animation:empty-state-in_0.4s_var(--ease-spring)]">
+          <div className="mb-5 opacity-85 [filter:drop-shadow(0_4px_12px_rgba(43,77,255,0.08))]" aria-hidden="true">
             <svg width="64" height="64" viewBox="0 0 64 64" fill="none">
               <rect x="8" y="6" width="38" height="50" rx="4" fill="#E8EAF0" stroke="#D0D3DE" strokeWidth="1.5"/>
               <rect x="14" y="6" width="38" height="50" rx="4" fill="#EEF0F5" stroke="#D8DBE6" strokeWidth="1.5"/>
@@ -897,9 +897,9 @@ export function BlockEditor() {
           />
           {uploading && <div className="upload-toast">Uploading…</div>}
 
-          <div className="page-header">
+          <div className="flex items-center gap-2.5 mb-7">
             <button
-              className="page-icon-btn"
+              className="text-[2.4em] leading-none bg-transparent border-none cursor-pointer px-2 py-1 rounded transition-[background] duration-[var(--t)] ease-[var(--ease)] hover:bg-surface-3"
               title="Change icon"
               onClick={(e) => {
                 const rect = (e.currentTarget as HTMLElement).getBoundingClientRect();
@@ -910,17 +910,17 @@ export function BlockEditor() {
             </button>
             {isEditingTitle ? (
               <input
-                type="text" className="page-title-input" value={titleValue}
+                type="text" className="[font-family:var(--font-title)] text-[2.4em] font-bold mb-7 border-2 border-accent rounded-lg outline-none w-full px-2 py-1 text-text bg-surface-2 tracking-[-0.025em] leading-[1.22]" value={titleValue}
                 onChange={(e) => setTitleValue(e.target.value)} onBlur={handleTitleSave}
                 onKeyDown={handleTitleKeyDown} autoFocus placeholder="Page title..."
               />
             ) : (
-              <h1 className="page-title" onClick={() => { setIsEditingTitle(true); setTitleValue(currentPage.title || ""); }} style={{ cursor: "pointer" }}>
+              <h1 className="[font-family:var(--font-title)] text-[2.4em] font-bold mb-7 border-none outline-none w-full text-text bg-transparent tracking-[-0.025em] leading-[1.22] placeholder:text-text-3 hover:bg-[rgba(0,0,0,0.015)] hover:rounded" onClick={() => { setIsEditingTitle(true); setTitleValue(currentPage.title || ""); }} style={{ cursor: "pointer" }}>
                 {currentPage.title || "Untitled"}
               </h1>
             )}
             <button
-              className="page-fav-btn"
+              className="text-[20px] bg-transparent border-none cursor-pointer text-text-3 px-2 py-1 rounded-[5px] transition-[color,background] duration-[var(--t)] ease-[var(--ease)] hover:text-amber-400 hover:bg-[#FEF9EC]"
               title={currentPage.isFavorite ? "Unfavorite" : "Add to favorites"}
               onClick={() => toggleFavorite(currentPage.id)}
             >

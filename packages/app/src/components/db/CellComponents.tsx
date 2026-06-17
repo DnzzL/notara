@@ -458,13 +458,13 @@ function PeoplePicker({
     <CellAnchoredPopover onClose={onClose} minWidth={260}>
       <input
         autoFocus
-        className="db-cell-popover-search"
+        className="w-full px-2 py-[7px] border border-border rounded-[5px] text-[13px] outline-none box-border mb-1 bg-surface-2 text-text [font-family:var(--font-ui)] focus:border-accent"
         placeholder="Search people…"
         value={query}
         onChange={(e) => setQuery(e.target.value)}
         onKeyDown={(e) => { if (e.key === "Escape") { e.preventDefault(); onClose(); } }}
       />
-      <div className="db-cell-popover-list">
+      <div className="flex flex-col gap-px">
         {visible.length === 0 ? (
           <div style={{ padding: "8px 12px", color: "#888", fontSize: 13 }}>No people found</div>
         ) : visible.map((m) => {
@@ -472,7 +472,7 @@ function PeoplePicker({
           return (
             <div
               key={m.userId}
-              className="db-cell-popover-item"
+              className="px-2 py-1.5 rounded-[5px] cursor-pointer flex items-center gap-2 text-text-2 hover:bg-surface-3 hover:text-text"
               style={{ background: selected ? "rgba(0,0,0,0.05)" : undefined }}
               onClick={() => toggle(m.userId)}
             >
@@ -549,7 +549,7 @@ function SelectPopover({
     <CellAnchoredPopover onClose={onCancel}>
       <input
         autoFocus
-        className="db-cell-popover-search"
+        className="w-full px-2 py-[7px] border border-border rounded-[5px] text-[13px] outline-none box-border mb-1 bg-surface-2 text-text [font-family:var(--font-ui)] focus:border-accent"
         placeholder="Search or create…"
         value={query}
         onChange={(e) => setQuery(e.target.value)}
@@ -563,9 +563,9 @@ function SelectPopover({
           }
         }}
       />
-      <div className="db-cell-popover-list">
+      <div className="flex flex-col gap-px">
         {hasValue && isEmptyQuery && (
-          <div className="db-cell-popover-item" onClick={clear} style={{ borderBottom: "1px solid #f0f0f0", marginBottom: 2 }}>
+          <div className="px-2 py-1.5 rounded-[5px] cursor-pointer flex items-center gap-2 text-text-2 hover:bg-surface-3 hover:text-text" onClick={clear} style={{ borderBottom: "1px solid #f0f0f0", marginBottom: 2 }}>
             <span style={{ fontSize: 14, opacity: 0.5 }}>✕</span>
             <span style={{ fontSize: 13, color: "#888" }}>Clear</span>
           </div>
@@ -577,7 +577,7 @@ function SelectPopover({
           return (
             <div
               key={opt}
-              className="db-cell-popover-item"
+              className="px-2 py-1.5 rounded-[5px] cursor-pointer flex items-center gap-2 text-text-2 hover:bg-surface-3 hover:text-text"
               style={{ background: isSelected ? "rgba(0,0,0,0.05)" : undefined }}
               onClick={() => choose(opt)}
             >
@@ -588,7 +588,7 @@ function SelectPopover({
           );
         })}
         {canCreate && (
-          <div className="db-cell-popover-item db-cell-popover-create" onClick={create}>
+          <div className="px-2 py-1.5 rounded-[5px] cursor-pointer flex items-center gap-2 text-text-2 hover:bg-surface-3 hover:text-text text-accent hover:bg-accent-dim hover:text-accent" onClick={create}>
             <span style={{ fontSize: 12, opacity: 0.6 }}>+</span>
             <span style={{ fontSize: 13 }}>Create <strong>"{q}"</strong></span>
           </div>
@@ -627,13 +627,13 @@ function PagePicker({
     <CellAnchoredPopover onClose={onClose} minWidth={280}>
       <input
         autoFocus
-        className="db-cell-popover-search"
+        className="w-full px-2 py-[7px] border border-border rounded-[5px] text-[13px] outline-none box-border mb-1 bg-surface-2 text-text [font-family:var(--font-ui)] focus:border-accent"
         placeholder="Search pages…"
         value={query}
         onChange={(e) => setQuery(e.target.value)}
         onKeyDown={(e) => { if (e.key === "Escape") { e.preventDefault(); onClose(); } }}
       />
-      <div className="db-cell-popover-list">
+      <div className="flex flex-col gap-px">
         {visible.length === 0 ? (
           <div style={{ padding: "8px 12px", color: "#888", fontSize: 13 }}>No pages found</div>
         ) : visible.map((p) => {
@@ -641,7 +641,7 @@ function PagePicker({
           return (
             <div
               key={p.id}
-              className="db-cell-popover-item"
+              className="px-2 py-1.5 rounded-[5px] cursor-pointer flex items-center gap-2 text-text-2 hover:bg-surface-3 hover:text-text"
               style={{ background: selected ? "rgba(0,0,0,0.05)" : undefined }}
               onClick={() => toggle(p.id)}
             >

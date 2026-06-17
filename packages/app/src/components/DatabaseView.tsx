@@ -121,9 +121,9 @@ function SortableRow({
     background: selected ? "rgba(46, 170, 220, 0.08)" : undefined,
   };
   return (
-    <tr ref={setNodeRef} style={style} className={`db-table-row ${isDragging || sortableDragging ? "db-row-dragging" : ""}`}
+    <tr ref={setNodeRef} style={style} className={`transition-[background] duration-[var(--t)] ease-[var(--ease)] hover:bg-surface-2 ${isDragging || sortableDragging ? "bg-surface-3! opacity-60" : ""}`}
       onMouseEnter={() => setHovered(true)} onMouseLeave={() => setHovered(false)}>
-      <td className="db-drag-cell">
+      <td className="w-11 min-w-[44px] px-0.5 py-1 align-middle relative">
         <input
           type="checkbox"
           checked={selected}
@@ -132,14 +132,14 @@ function SortableRow({
           style={{ opacity: hovered || selected ? 1 : 0, marginRight: 2, cursor: "pointer" }}
           title="Select row (Shift+click for range)"
         />
-        <div className="db-drag-handle" {...listeners} {...attributes}>⋮⋮</div>
+        <div className="flex items-center justify-center cursor-grab text-text-3 px-0.5 py-1 rounded transition-[color,background] duration-[var(--t)] ease-[var(--ease)] touch-none select-none text-[16px] leading-none tracking-[1px] hover:bg-surface-3 active:cursor-grabbing active:text-text" {...listeners} {...attributes}>⋮⋮</div>
         <button
-          className="db-row-open-btn"
+          className="bg-transparent border-none cursor-pointer text-text-3 px-0.5 text-[13px] transition-[color] duration-[var(--t)] ease-[var(--ease)] hover:text-accent"
           style={{ opacity: hovered || hasPage ? 1 : 0 }}
           onClick={onOpen}
           title={hasPage ? "Open page" : "Open record"}
         >{hasPage ? "📄" : "↗"}</button>
-        <button className="db-delete-btn" style={{ opacity: hovered ? 1 : 0 }} onClick={onDelete} title="Delete record">×</button>
+        <button className="absolute top-1 right-1 bg-transparent border-none cursor-pointer text-text-3 text-[15px] px-1.5 py-0.5 rounded-[5px] transition-[all] duration-[var(--t)] ease-[var(--ease)] leading-none hover:text-danger hover:bg-danger-dim" style={{ opacity: hovered ? 1 : 0 }} onClick={onDelete} title="Delete record">×</button>
       </td>
       {children}
     </tr>
@@ -190,7 +190,7 @@ function TitleCell({ recordId, title, onSave }: { recordId: string; title: strin
   useEffect(() => { setValue(title || ""); }, [title]);
   if (!editing) {
     return (
-      <div className="db-title-display" onClick={() => setEditing(true)}>
+      <div className="px-1.5 py-1 rounded-[5px] cursor-text min-h-[24px] text-text font-medium hover:bg-surface-3" onClick={() => setEditing(true)}>
         {title || <span style={{ color: "#d3d1cb" }}>Untitled</span>}
       </div>
     );
@@ -198,7 +198,7 @@ function TitleCell({ recordId, title, onSave }: { recordId: string; title: strin
   return (
     <input
       autoFocus
-      className="db-title-input"
+      className="w-full border-[1.5px] border-accent rounded-[5px] px-1.5 py-[3px] text-[14px] font-medium outline-none bg-surface text-text [font-family:var(--font-ui)]"
       value={value}
       onChange={(e) => setValue(e.target.value)}
       onBlur={async () => { setEditing(false); if (value !== title) await onSave(value); }}
@@ -606,7 +606,7 @@ export function DatabaseView({ database, isNew }: { database: any; isNew?: boole
 
   return (
     <DndContext sensors={tableSensors} onDragStart={handleRowDragStart} onDragEnd={handleRowDragEnd}>
-      <div className="table-view" ref={tableWrapRef}>
+      <div ref={tableWrapRef}>
         {/* Toolbar */}
         <div className="flex gap-1.5 mb-2.5 items-center flex-wrap py-1">
           <ViewSwitcher databaseId={database.id} currentViewType={viewType} />
@@ -641,10 +641,10 @@ export function DatabaseView({ database, isNew }: { database: any; isNew?: boole
 
         {/* Table */}
         <div style={{ overflowX: "auto", overflowY: "auto", maxHeight: "calc(100vh - 200px)" }}>
-          <table className="db-table">
+          <table className="w-full border-collapse table-auto">
             <thead>
               <tr>
-                <th className="db-drag-header" />
+                <th className="w-11 min-w-[44px]" />
                 {!database.titleHidden && (
                   <ColumnHeader
                     field={{ id: "title", name: database.titleLabel || "Name", type: "text" }}
@@ -677,7 +677,7 @@ export function DatabaseView({ database, isNew }: { database: any; isNew?: boole
                 </SortableContext>
                 </DndContext>
                 <th style={{ width: 40 }}>
-                  <button ref={addFieldBtnRef} onClick={() => setShowAddField(true)} className="db-add-col-btn" title="Add property">+</button>
+                  <button ref={addFieldBtnRef} onClick={() => setShowAddField(true)} className="bg-transparent border-none cursor-pointer text-[16px] text-text-3 px-2 py-0.5 rounded-[5px] transition-[all] duration-[var(--t)] ease-[var(--ease)] hover:text-text-2 hover:bg-surface-3" title="Add property">+</button>
                 </th>
               </tr>
             </thead>
@@ -685,7 +685,7 @@ export function DatabaseView({ database, isNew }: { database: any; isNew?: boole
               <tbody>
                 {sortedRecords.length === 0 && (
                   <tr>
-                    <td colSpan={dbFields.length + (database.titleHidden ? 2 : 3)} className="db-empty-row">
+                    <td colSpan={dbFields.length + (database.titleHidden ? 2 : 3)} className="text-text-3 text-[13px] pt-7 pb-3 px-3 text-center italic">
                       {dbFields.length === 0
                         ? "Empty database — add a property from the column ‘+’, or just press New below."
                         : "No records yet. Press New below to create one."}
@@ -703,7 +703,7 @@ export function DatabaseView({ database, isNew }: { database: any; isNew?: boole
                     hasPage={!!record.pageId}
                   >
                     {!database.titleHidden && (
-                      <td className="db-cell db-title-cell" style={(() => {
+                      <td className="px-2 py-1.5 border-b border-border border-r border-border last:border-r-0 align-middle min-h-[32px] relative font-medium text-[14px] min-w-[180px] text-text" style={(() => {
                         const w = columnWidths["__title__"];
                         return w ? { minWidth: w, width: w } : { minWidth: 180, width: getDefaultWidthForType("text") };
                       })()}>
@@ -723,7 +723,7 @@ export function DatabaseView({ database, isNew }: { database: any; isNew?: boole
                       const isFormula = field.type === "formula";
                       const colW = columnWidths[field.id];
                       return (
-                        <td key={field.id} className="db-cell" style={colW ? { minWidth: colW, width: colW } : undefined}>
+                        <td key={field.id} className="px-2 py-[3px] border-b border-border border-r border-border last:border-r-0 align-middle min-h-[32px] relative" style={colW ? { minWidth: colW, width: colW } : undefined}>
                           {isEditing && !isFormula ? (
                             <InlineCellEditor
                               field={field}
@@ -737,7 +737,7 @@ export function DatabaseView({ database, isNew }: { database: any; isNew?: boole
                           ) : (
                             <div
                               onClick={() => { if (!isFormula) setEditingCell({ recordId: record.id, fieldId: field.id }); }}
-                              className="db-cell-content"
+                              className="px-1.5 py-1 rounded-[5px] cursor-pointer min-h-[24px] transition-[background] duration-[var(--t)] ease-[var(--ease)] text-text-2 hover:bg-surface-3 hover:text-text"
                               style={isFormula ? { cursor: "default" } : undefined}
                             >
                               <CellDisplay field={field} value={val} databases={databases} allRecords={dbRecordCache} recordValues={values} />
@@ -749,11 +749,11 @@ export function DatabaseView({ database, isNew }: { database: any; isNew?: boole
                     <td />
                   </SortableRow>
                 ))}
-                <tr className="db-add-row">
+                <tr>
                   <td colSpan={dbFields.length + (database.titleHidden ? 2 : 3)}>
                     <button
                       type="button"
-                      className="db-new-record-btn"
+                      className="w-full text-left bg-transparent border-none cursor-pointer px-3.5 py-2.5 text-[13px] text-text-3 border-t border-border [font-family:var(--font-ui)] transition-[background,color] duration-[var(--t)] ease-[var(--ease)] hover:bg-surface-2 hover:text-text-2"
                       onClick={async () => {
                         const rec = await createDbRecord(database.id, "");
                         await loadDbRecords(database.id);
@@ -768,7 +768,7 @@ export function DatabaseView({ database, isNew }: { database: any; isNew?: boole
             </SortableContext>
             {sortedRecords.length > 0 && (
               <tfoot>
-                <tr className="db-footer-row">
+                <tr>
                   <td style={{ borderTop: "1px solid #e9e9e7" }} />
                   {!database.titleHidden && (
                     <td style={{ borderTop: "1px solid #e9e9e7" }}>

@@ -284,7 +284,7 @@ export function BoardView({
             <select
               value={boardGroupByFieldId || groupField?.id || ""}
               onChange={(e) => setBoardGroupBy(database.id, e.target.value || null)}
-              className="db-select"
+              className="border border-border rounded-[5px] px-2 py-[3px] text-[13px] bg-surface text-text cursor-pointer [font-family:var(--font-ui)]"
             >
               <option value="">None</option>
               {fields.map((f: any) => (<option key={f.id} value={f.id}>{f.name} ({f.type})</option>))}
