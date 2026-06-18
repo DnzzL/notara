@@ -3,6 +3,16 @@ import { cn } from "../ui/cn.js";
 import { useDatabaseStore } from "../../stores/databaseStore.js";
 import { CellDisplay } from "./CellComponents.js";
 import { ViewSwitcher } from "./ViewSwitcher.js";
+import {
+  DialogRoot,
+  DialogBackdrop,
+  DialogPositioner,
+  DialogContent,
+  DialogTitle,
+  DialogCloseTrigger,
+} from "@ark-ui/react/dialog";
+import { Portal } from "@ark-ui/react/portal";
+import { Button } from "../ui/index.js";
 
 type ViewType = "table" | "board" | "calendar";
 
@@ -40,6 +50,8 @@ export function CalendarView({
   const [year, setYear] = useState(now.getFullYear());
   const [month, setMonth] = useState(now.getMonth());
   const [dateFieldId, setDateFieldId] = useState<string | null>(null);
+  const [addDay, setAddDay] = useState<Date | null>(null);
+  const [newTitle, setNewTitle] = useState("");
 
   const dateFields = fields.filter((f: any) => f.type === "date");
   const dateField = dateFieldId
@@ -80,13 +92,14 @@ export function CalendarView({
     else setMonth(m => m + 1);
   };
 
-  const handleAddOnDay = async (day: Date) => {
-    const title = prompt("New record title:");
-    if (!title?.trim()) return;
-    const record = await createDbRecord(database.id, title.trim());
-    if (dateField) {
-      await updateFieldValue(record.id, dateField.id, toLocalDateStr(day));
-    }
+  const submitAddRecord = async () => {
+    const title = newTitle.trim();
+    if (!title || !addDay) return;
+    const day = addDay;
+    setAddDay(null);
+    setNewTitle("");
+    const record = await createDbRecord(database.id, title);
+    if (dateField) await updateFieldValue(record.id, dateField.id, toLocalDateStr(day));
     await loadDbRecords(database.id);
   };
 
@@ -179,7 +192,7 @@ export function CalendarView({
                     </span>
                     <button
                       className="opacity-0 group-hover:opacity-100 bg-transparent border-none cursor-pointer text-text-3 text-[16px] leading-none px-1 transition-[opacity,color] duration-[var(--t)] ease-[var(--ease)] hover:text-text"
-                      onClick={() => handleAddOnDay(day)}
+                      onClick={() => { setAddDay(day); setNewTitle(""); }}
                       title="Add record"
                     >+</button>
                   </div>
@@ -201,6 +214,50 @@ export function CalendarView({
           </div>
         </>
       )}
+
+      <DialogRoot
+        open={addDay !== null}
+        onOpenChange={(e) => { if (!e.open) { setAddDay(null); setNewTitle(""); } }}
+        lazyMount
+        unmountOnExit
+      >
+        <Portal>
+          <DialogBackdrop className="fixed inset-0 bg-[rgba(15,18,30,0.4)] backdrop-blur-[6px] z-[1000] [animation:fade-in_0.14s_var(--ease)]" />
+          <DialogPositioner className="fixed inset-0 z-[1001] flex items-center justify-center p-6">
+            <DialogContent className="bg-surface border border-border-mid rounded-lg shadow-[var(--shadow-xl)] w-[380px] max-w-full overflow-hidden [animation:modal-pop_0.18s_var(--ease-spring)]">
+              <div className="flex items-center justify-between px-5 py-4 border-b border-border">
+                <DialogTitle className="text-[15px] font-semibold text-text">
+                  New record{addDay ? ` — ${toLocalDateStr(addDay)}` : ""}
+                </DialogTitle>
+                <DialogCloseTrigger
+                  className="bg-transparent border-none text-[17px] cursor-pointer text-text-3 p-1.5 rounded-[5px] transition-[all] duration-[var(--t)] ease-[var(--ease)] hover:bg-surface-3 hover:text-text"
+                  aria-label="Close"
+                >
+                  ✕
+                </DialogCloseTrigger>
+              </div>
+              <div className="p-5 flex flex-col gap-4">
+                <input
+                  name="new-record-title"
+                  type="text"
+                  placeholder="Record title"
+                  value={newTitle}
+                  onChange={(e) => setNewTitle(e.target.value)}
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter") submitAddRecord();
+                  }}
+                  autoFocus
+                  className="w-full border border-border rounded-[5px] px-3 py-2 text-[14px] bg-surface text-text placeholder:text-text-3 outline-none focus:border-accent [font-family:var(--font-ui)]"
+                />
+                <div className="flex justify-end gap-2">
+                  <Button variant="secondary" onClick={() => { setAddDay(null); setNewTitle(""); }}>Cancel</Button>
+                  <Button variant="primary" onClick={submitAddRecord} disabled={!newTitle.trim()}>Create</Button>
+                </div>
+              </div>
+            </DialogContent>
+          </DialogPositioner>
+        </Portal>
+      </DialogRoot>
     </div>
   );
 }
