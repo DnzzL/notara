@@ -4,7 +4,7 @@ import { useDatabaseStore } from "../../stores/databaseStore.js";
 import { CellDisplay } from "./CellComponents.js";
 import { ViewSwitcher } from "./ViewSwitcher.js";
 
-type ViewType = "table" | "board" | "calendar" | "gallery";
+type ViewType = "table" | "board" | "calendar";
 
 const DAYS = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
 const MONTHS = [
@@ -107,13 +107,13 @@ export function CalendarView({
           <button className={cn("bg-transparent border-none py-1 px-3 text-[12px] font-medium cursor-pointer rounded-[6px]", "text-text-3")} onClick={() => switchView("table")} role="tab" aria-selected={false}>Table</button>
           <button className={cn("bg-transparent border-none py-1 px-3 text-[12px] font-medium cursor-pointer rounded-[6px]", "text-text-3")} onClick={() => switchView("board")} role="tab" aria-selected={false}>Board</button>
           <button className={cn("bg-transparent border-none py-1 px-3 text-[12px] font-medium cursor-pointer rounded-[6px]", "bg-text text-bg")} role="tab" aria-selected={true}>Calendar</button>
-          <button className={cn("bg-transparent border-none py-1 px-3 text-[12px] font-medium cursor-pointer rounded-[6px]", "text-text-3")} onClick={() => switchView("gallery")} role="tab" aria-selected={false}>Gallery</button>
         </div>
 
         {dateFields.length > 0 && (
           <div style={{ marginLeft: 16, display: "flex", alignItems: "center", gap: 6, fontSize: 13, color: "#666" }}>
             <span style={{ fontWeight: 500 }}>Date field:</span>
             <select
+              name="calendar-date-field"
               value={dateField?.id || ""}
               onChange={(e) => setDateFieldId(e.target.value || null)}
               className="border border-border rounded-[5px] px-2 py-[3px] text-[13px] bg-surface text-text cursor-pointer [font-family:var(--font-ui)]"

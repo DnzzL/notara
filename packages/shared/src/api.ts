@@ -179,7 +179,7 @@ export const AppRpc = RpcGroup.make(
     payload: {
       databaseId: Schema.String,
       name: Schema.String,
-      type: Schema.Literal("table", "board", "calendar", "gallery"),
+      type: Schema.Literal("table", "board", "calendar"),
       groupByFieldId: Schema.NullOr(Schema.String),
       config: Schema.optional(Schema.String),
     },
@@ -189,7 +189,7 @@ export const AppRpc = RpcGroup.make(
     payload: {
       id: Schema.String,
       name: Schema.optional(Schema.String),
-      type: Schema.optional(Schema.Literal("table", "board", "calendar", "gallery")),
+      type: Schema.optional(Schema.Literal("table", "board", "calendar")),
       groupByFieldId: Schema.optional(Schema.NullOr(Schema.String)),
       config: Schema.optional(Schema.String),
     },

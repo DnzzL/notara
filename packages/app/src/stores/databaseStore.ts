@@ -52,8 +52,8 @@ export interface DatabaseState {
   reorderRecords: (databaseId: string, recordIds: string[]) => Promise<void>;
 
   loadDbViews: (databaseId: string) => Promise<void>;
-  createView: (databaseId: string, name: string, type: "table" | "board" | "calendar" | "gallery", groupByFieldId: string | null, config?: string) => Promise<DatabaseView>;
-  updateView: (id: string, updates: { name?: string; type?: "table" | "board" | "calendar" | "gallery"; groupByFieldId?: string | null; config?: string }) => Promise<void>;
+  createView: (databaseId: string, name: string, type: "table" | "board" | "calendar", groupByFieldId: string | null, config?: string) => Promise<DatabaseView>;
+  updateView: (id: string, updates: { name?: string; type?: "table" | "board" | "calendar"; groupByFieldId?: string | null; config?: string }) => Promise<void>;
   deleteView: (databaseId: string, viewId: string) => Promise<void>;
   switchView: (databaseId: string, view: DatabaseView | null) => void;
 

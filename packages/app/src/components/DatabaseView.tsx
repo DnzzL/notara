@@ -16,7 +16,6 @@ import { ColumnHeader, AddFieldPopover, OptionsEditor, FormulaEditor, getDefault
 import { FilterBar, SortBar, makeDefaultFilter } from "./db/QueryBar.js";
 import { BoardView } from "./db/BoardView.js";
 import { CalendarView } from "./db/CalendarView.js";
-import { GalleryView } from "./db/GalleryView.js";
 import { RecordPanel } from "./db/RecordPanel.js";
 import { ViewSwitcher } from "./db/ViewSwitcher.js";
 
@@ -89,6 +88,7 @@ function ColumnFooter({
         </span>
       )}
       <select
+        name="column-summary"
         value={agg}
         onChange={(e) => onChange(e.target.value as AggType)}
         title="Summary"
@@ -130,6 +130,7 @@ function SortableRow({
       <td className="w-11 min-w-[44px] px-0.5 py-1 align-middle relative">
         <input
           type="checkbox"
+          name="row-select"
           checked={selected}
           onClick={onToggleSelect}
           onChange={() => { /* handled in onClick to capture shift/cmd */ }}
@@ -215,6 +216,7 @@ function TitleCell({ recordId, title, onSave, editing, onEditingChange, seedChar
   return (
     <input
       autoFocus
+      name="record-title"
       className="w-full border-[1.5px] border-accent rounded-[5px] px-1.5 py-[3px] text-[14px] font-medium outline-none bg-surface text-text [font-family:var(--font-ui)]"
       value={value}
       onChange={(e) => setValue(e.target.value)}
@@ -275,7 +277,7 @@ export function DatabaseView({ database, isNew }: { database: any; isNew?: boole
     try {
       const stored: any = JSON.parse(localStorage.getItem(`db-view:${database.id}`) || "{}");
       const v = stored.viewType;
-      return (v === "board" || v === "calendar" || v === "gallery") ? v : "table";
+      return (v === "board" || v === "calendar") ? v : "table";
     } catch { return "table"; }
   });
   const [newTitle, setNewTitle] = useState("");
@@ -356,7 +358,7 @@ export function DatabaseView({ database, isNew }: { database: any; isNew?: boole
       try {
         const stored = JSON.parse(localStorage.getItem(`db-view:${database.id}`) || "{}");
         const sv = stored.viewType;
-        setViewType((sv === "board" || sv === "calendar" || sv === "gallery") ? sv : "table");
+        setViewType((sv === "board" || sv === "calendar") ? sv : "table");
       } catch { setViewType("table"); }
       return;
     }
@@ -743,25 +745,12 @@ export function DatabaseView({ database, isNew }: { database: any; isNew?: boole
     );
   }
 
-  if (viewType === "gallery") {
-    return (
-      <>
-        <GalleryView
-          database={database} fields={dbFields} records={sortedRecords} databases={databases}
-          onChangeView={setViewType} allRecords={dbRecordCache}
-          onOpenRecord={handleOpenRecord}
-        />
-        {recordPanel}
-      </>
-    );
-  }
-
   if (viewType === "board") {
     return (
       <>
         <BoardView
           database={database} fields={dbFields} records={sortedRecords} databases={databases}
-          currentView={viewType as "table" | "board" | "calendar" | "gallery"} onChangeView={setViewType} allRecords={dbRecordCache}
+          currentView={viewType as "table" | "board" | "calendar"} onChangeView={setViewType} allRecords={dbRecordCache}
           onOpenRecord={handleOpenRecord}
         />
         {recordPanel}
@@ -774,7 +763,7 @@ export function DatabaseView({ database, isNew }: { database: any; isNew?: boole
       <div ref={tableWrapRef}>
         {/* Toolbar */}
         <div className="flex gap-1.5 mb-2.5 items-center flex-wrap py-1">
-          <ViewSwitcher databaseId={database.id} currentViewType={viewType as "table" | "board" | "calendar" | "gallery"} />
+          <ViewSwitcher databaseId={database.id} currentViewType={viewType as "table" | "board" | "calendar"} />
           <div className="inline-flex bg-surface-3 border border-border rounded p-0.5" role="tablist">
             <button className={cn("bg-transparent border-none py-1 px-3 text-[12px] font-medium cursor-pointer rounded-[6px]", viewType === "table" ? "bg-text text-bg" : "text-text-3")} onClick={() => {
               setViewType("table");
@@ -791,11 +780,6 @@ export function DatabaseView({ database, isNew }: { database: any; isNew?: boole
               localStorage.setItem(`db-view:${database.id}`, JSON.stringify({ viewType: "calendar" }));
               if (activeViewId) updateView(activeViewId, { type: "calendar" });
             }} role="tab" aria-selected={viewType === "calendar"}>Calendar</button>
-            <button className={cn("bg-transparent border-none py-1 px-3 text-[12px] font-medium cursor-pointer rounded-[6px]", viewType === "gallery" ? "bg-text text-bg" : "text-text-3")} onClick={() => {
-              setViewType("gallery");
-              localStorage.setItem(`db-view:${database.id}`, JSON.stringify({ viewType: "gallery" }));
-              if (activeViewId) updateView(activeViewId, { type: "gallery" });
-            }} role="tab" aria-selected={viewType === "gallery"}>Gallery</button>
           </div>
 
           <div style={{ marginLeft: 16, display: "flex", alignItems: "center", gap: 12, flexWrap: "wrap" }}>
@@ -816,7 +800,7 @@ export function DatabaseView({ database, isNew }: { database: any; isNew?: boole
               </button>
             )}
             {isEditingName ? (
-              <input type="text" value={dbName} onChange={(e) => setDbName(e.target.value)} onBlur={handleNameSave}
+              <input type="text" name="database-name" value={dbName} onChange={(e) => setDbName(e.target.value)} onBlur={handleNameSave}
                 onKeyDown={handleNameKeyDown} autoFocus style={{ fontSize: 13, padding: "2px 6px", border: "1px solid #2eaadc", borderRadius: 4, width: 140, outline: "none" }} />
             ) : (<span onClick={() => setIsEditingName(true)} style={{ cursor: "pointer", fontWeight: 500 }}>{database.name || "Untitled"}</span>)}
           </span>

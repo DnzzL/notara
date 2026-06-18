@@ -16,7 +16,7 @@ export function BoardView({
   database, fields, records, databases, currentView, onChangeView, allRecords = {}, onOpenRecord,
 }: {
   database: any; fields: any[]; records: any[]; databases: any[];
-  currentView: "table" | "board" | "calendar" | "gallery"; onChangeView: (v: "table" | "board" | "calendar" | "gallery") => void;
+  currentView: "table" | "board" | "calendar"; onChangeView: (v: "table" | "board" | "calendar") => void;
   allRecords?: Record<string, any[]>;
   onOpenRecord?: (record: any) => void;
 }) {
@@ -278,12 +278,12 @@ export function BoardView({
             <button className={cn("bg-transparent border-none py-1 px-3 text-[12px] font-medium cursor-pointer rounded-[6px]", currentView === "table" ? "bg-text text-bg" : "text-text-3")} onClick={() => onChangeView("table")} role="tab" aria-selected={currentView === "table"}>Table</button>
             <button className={cn("bg-transparent border-none py-1 px-3 text-[12px] font-medium cursor-pointer rounded-[6px]", currentView === "board" ? "bg-text text-bg" : "text-text-3")} onClick={() => onChangeView("board")} role="tab" aria-selected={currentView === "board"}>Board</button>
             <button className={cn("bg-transparent border-none py-1 px-3 text-[12px] font-medium cursor-pointer rounded-[6px]", currentView === "calendar" ? "bg-text text-bg" : "text-text-3")} onClick={() => onChangeView("calendar")} role="tab" aria-selected={currentView === "calendar"}>Calendar</button>
-            <button className={cn("bg-transparent border-none py-1 px-3 text-[12px] font-medium cursor-pointer rounded-[6px]", currentView === "gallery" ? "bg-text text-bg" : "text-text-3")} onClick={() => onChangeView("gallery")} role="tab" aria-selected={currentView === "gallery"}>Gallery</button>
           </div>
 
           <div style={{ marginLeft: 16, display: "flex", alignItems: "center", gap: 6, fontSize: 13, color: "#666" }}>
             <span style={{ fontWeight: 500 }}>Group by:</span>
             <select
+              name="board-group-by"
               value={boardGroupByFieldId || groupField?.id || ""}
               onChange={(e) => setBoardGroupBy(database.id, e.target.value || null)}
               className="border border-border rounded-[5px] px-2 py-[3px] text-[13px] bg-surface text-text cursor-pointer [font-family:var(--font-ui)]"
@@ -311,6 +311,7 @@ export function BoardView({
                       <label key={f.id} className="flex items-center gap-2 py-[5px] cursor-pointer text-[13px] text-text rounded-[5px]">
                         <input
                           type="checkbox"
+                          name="field-visibility"
                           checked={!hidden}
                           onChange={() => toggleBoardField(database.id, f.id)}
                         />
@@ -448,6 +449,7 @@ function AddBoardColumn({ groupField, existingOptions, onAdded }: { groupField: 
     <div className="min-w-[268px] max-w-[300px] bg-surface-2 border border-border rounded-[5px] px-2.5 py-3 flex flex-col max-h-[62vh] transition-[background,border-color] duration-[var(--t)] ease-[var(--ease)] relative" style={{ padding: 8, minWidth: 220 }}>
       <input
         ref={inputRef}
+        name="new-column-name"
         value={value}
         onChange={(e) => setValue(e.target.value)}
         onBlur={commit}

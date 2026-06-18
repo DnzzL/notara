@@ -91,7 +91,7 @@ export class DatabaseView extends Schema.Class<DatabaseView>("DatabaseView")({
   id: Schema.String,
   databaseId: Schema.String,
   name: Schema.String,
-  type: Schema.Literal("table", "board", "calendar", "gallery"),
+  type: Schema.Literal("table", "board", "calendar"),
   groupByFieldId: Schema.NullOr(Schema.String),
   sortFieldId: Schema.NullOr(Schema.String),
   sortOrder: Schema.Literal("asc", "desc"),

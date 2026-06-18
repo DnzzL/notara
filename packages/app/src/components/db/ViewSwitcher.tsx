@@ -9,7 +9,7 @@ export function ViewSwitcher({
   currentViewType,
 }: {
   databaseId: string;
-  currentViewType: "table" | "board" | "calendar" | "gallery";
+  currentViewType: "table" | "board" | "calendar";
 }) {
   const [open, setOpen] = useState(false);
   const [renamingId, setRenamingId] = useState<string | null>(null);
@@ -144,6 +144,7 @@ export function ViewSwitcher({
                 <input
                   ref={renameInputRef}
                   type="text"
+                  name="view-rename"
                   value={renameValue}
                   onChange={(e) => setRenameValue(e.target.value)}
                   onBlur={() => handleRename(view.id)}
@@ -212,6 +213,7 @@ export function ViewSwitcher({
               <input
                 ref={saveInputRef}
                 type="text"
+                name="view-save-name"
                 value={saveName}
                 onChange={(e) => setSaveName(e.target.value)}
                 onBlur={handleSaveAs}
