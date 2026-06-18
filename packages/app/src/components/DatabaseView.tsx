@@ -15,6 +15,8 @@ import { CellDisplay, InlineCellEditor, Popover } from "./db/CellComponents.js";
 import { ColumnHeader, AddFieldPopover, OptionsEditor, FormulaEditor, getDefaultWidthForType, type FieldType } from "./db/FieldComponents.js";
 import { FilterBar, SortBar, makeDefaultFilter } from "./db/QueryBar.js";
 import { BoardView } from "./db/BoardView.js";
+import { CalendarView } from "./db/CalendarView.js";
+import { GalleryView } from "./db/GalleryView.js";
 import { RecordPanel } from "./db/RecordPanel.js";
 import { ViewSwitcher } from "./db/ViewSwitcher.js";
 
@@ -272,7 +274,8 @@ export function DatabaseView({ database, isNew }: { database: any; isNew?: boole
     }
     try {
       const stored: any = JSON.parse(localStorage.getItem(`db-view:${database.id}`) || "{}");
-      return stored.viewType === "board" ? "board" : "table";
+      const v = stored.viewType;
+      return (v === "board" || v === "calendar" || v === "gallery") ? v : "table";
     } catch { return "table"; }
   });
   const [newTitle, setNewTitle] = useState("");
@@ -352,7 +355,8 @@ export function DatabaseView({ database, isNew }: { database: any; isNew?: boole
       // Reset to 'All' — use localStorage fallback
       try {
         const stored = JSON.parse(localStorage.getItem(`db-view:${database.id}`) || "{}");
-        setViewType(stored.viewType === "board" ? "board" : "table");
+        const sv = stored.viewType;
+        setViewType((sv === "board" || sv === "calendar" || sv === "gallery") ? sv : "table");
       } catch { setViewType("table"); }
       return;
     }
@@ -726,6 +730,32 @@ export function DatabaseView({ database, isNew }: { database: any; isNew?: boole
     );
   })() : null;
 
+  if (viewType === "calendar") {
+    return (
+      <>
+        <CalendarView
+          database={database} fields={dbFields} records={sortedRecords} databases={databases}
+          onChangeView={setViewType} allRecords={dbRecordCache}
+          onOpenRecord={handleOpenRecord}
+        />
+        {recordPanel}
+      </>
+    );
+  }
+
+  if (viewType === "gallery") {
+    return (
+      <>
+        <GalleryView
+          database={database} fields={dbFields} records={sortedRecords} databases={databases}
+          onChangeView={setViewType} allRecords={dbRecordCache}
+          onOpenRecord={handleOpenRecord}
+        />
+        {recordPanel}
+      </>
+    );
+  }
+
   if (viewType === "board") {
     return (
       <>
@@ -744,7 +774,7 @@ export function DatabaseView({ database, isNew }: { database: any; isNew?: boole
       <div ref={tableWrapRef}>
         {/* Toolbar */}
         <div className="flex gap-1.5 mb-2.5 items-center flex-wrap py-1">
-          <ViewSwitcher databaseId={database.id} currentViewType={viewType as "table" | "board"} />
+          <ViewSwitcher databaseId={database.id} currentViewType={viewType as "table" | "board" | "calendar" | "gallery"} />
           <div className="inline-flex bg-surface-3 border border-border rounded p-0.5" role="tablist">
             <button className={cn("bg-transparent border-none py-1 px-3 text-[12px] font-medium cursor-pointer rounded-[6px]", viewType === "table" ? "bg-text text-bg" : "text-text-3")} onClick={() => {
               setViewType("table");
@@ -756,6 +786,16 @@ export function DatabaseView({ database, isNew }: { database: any; isNew?: boole
               localStorage.setItem(`db-view:${database.id}`, JSON.stringify({ viewType: "board" }));
               if (activeViewId) updateView(activeViewId, { type: "board" });
             }} role="tab" aria-selected={viewType === "board"}>Board</button>
+            <button className={cn("bg-transparent border-none py-1 px-3 text-[12px] font-medium cursor-pointer rounded-[6px]", viewType === "calendar" ? "bg-text text-bg" : "text-text-3")} onClick={() => {
+              setViewType("calendar");
+              localStorage.setItem(`db-view:${database.id}`, JSON.stringify({ viewType: "calendar" }));
+              if (activeViewId) updateView(activeViewId, { type: "calendar" });
+            }} role="tab" aria-selected={viewType === "calendar"}>Calendar</button>
+            <button className={cn("bg-transparent border-none py-1 px-3 text-[12px] font-medium cursor-pointer rounded-[6px]", viewType === "gallery" ? "bg-text text-bg" : "text-text-3")} onClick={() => {
+              setViewType("gallery");
+              localStorage.setItem(`db-view:${database.id}`, JSON.stringify({ viewType: "gallery" }));
+              if (activeViewId) updateView(activeViewId, { type: "gallery" });
+            }} role="tab" aria-selected={viewType === "gallery"}>Gallery</button>
           </div>
 
           <div style={{ marginLeft: 16, display: "flex", alignItems: "center", gap: 12, flexWrap: "wrap" }}>

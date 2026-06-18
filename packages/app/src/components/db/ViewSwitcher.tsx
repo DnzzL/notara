@@ -9,7 +9,7 @@ export function ViewSwitcher({
   currentViewType,
 }: {
   databaseId: string;
-  currentViewType: "table" | "board";
+  currentViewType: "table" | "board" | "calendar" | "gallery";
 }) {
   const [open, setOpen] = useState(false);
   const [renamingId, setRenamingId] = useState<string | null>(null);
