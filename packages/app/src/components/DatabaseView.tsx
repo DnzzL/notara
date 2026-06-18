@@ -761,7 +761,7 @@ export function DatabaseView({ database, isNew }: { database: any; isNew?: boole
       <>
         <BoardView
           database={database} fields={dbFields} records={sortedRecords} databases={databases}
-          currentView={viewType as "table" | "board"} onChangeView={setViewType as (v: "table" | "board") => void} allRecords={dbRecordCache}
+          currentView={viewType as "table" | "board" | "calendar" | "gallery"} onChangeView={setViewType} allRecords={dbRecordCache}
           onOpenRecord={handleOpenRecord}
         />
         {recordPanel}

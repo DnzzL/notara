@@ -16,7 +16,7 @@ export function BoardView({
   database, fields, records, databases, currentView, onChangeView, allRecords = {}, onOpenRecord,
 }: {
   database: any; fields: any[]; records: any[]; databases: any[];
-  currentView: "table" | "board"; onChangeView: (v: "table" | "board") => void;
+  currentView: "table" | "board" | "calendar" | "gallery"; onChangeView: (v: "table" | "board" | "calendar" | "gallery") => void;
   allRecords?: Record<string, any[]>;
   onOpenRecord?: (record: any) => void;
 }) {
@@ -277,6 +277,8 @@ export function BoardView({
           <div className="inline-flex bg-surface-3 border border-border rounded p-0.5" role="tablist">
             <button className={cn("bg-transparent border-none py-1 px-3 text-[12px] font-medium cursor-pointer rounded-[6px]", currentView === "table" ? "bg-text text-bg" : "text-text-3")} onClick={() => onChangeView("table")} role="tab" aria-selected={currentView === "table"}>Table</button>
             <button className={cn("bg-transparent border-none py-1 px-3 text-[12px] font-medium cursor-pointer rounded-[6px]", currentView === "board" ? "bg-text text-bg" : "text-text-3")} onClick={() => onChangeView("board")} role="tab" aria-selected={currentView === "board"}>Board</button>
+            <button className={cn("bg-transparent border-none py-1 px-3 text-[12px] font-medium cursor-pointer rounded-[6px]", currentView === "calendar" ? "bg-text text-bg" : "text-text-3")} onClick={() => onChangeView("calendar")} role="tab" aria-selected={currentView === "calendar"}>Calendar</button>
+            <button className={cn("bg-transparent border-none py-1 px-3 text-[12px] font-medium cursor-pointer rounded-[6px]", currentView === "gallery" ? "bg-text text-bg" : "text-text-3")} onClick={() => onChangeView("gallery")} role="tab" aria-selected={currentView === "gallery"}>Gallery</button>
           </div>
 
           <div style={{ marginLeft: 16, display: "flex", alignItems: "center", gap: 6, fontSize: 13, color: "#666" }}>
