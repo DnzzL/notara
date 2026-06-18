@@ -733,16 +733,24 @@ export function RelationPicker({
 // ── Cell Editor (inline) ──────────────────────────────────────────────────
 
 export function InlineCellEditor({
-  field, value, onSave, onCancel, databases, allRecords = {}, onNavigate,
+  field, value, onSave, onCancel, databases, allRecords = {}, onNavigate, initialValue,
 }: {
   field: { id: string; name: string; type: string; options?: string[]; relationTargetDbId?: string | null };
   value: any; onSave: (val: string) => void; onCancel: () => void;
   databases: any[]; allRecords?: Record<string, any[]>;
   /** Save current value, then move focus. "next" = Tab, "prev" = Shift+Tab, "down" = Enter. */
   onNavigate?: (direction: "next" | "prev" | "down") => void;
+  /** Seed text/number inputs with a character typed to start the edit (type-to-replace). */
+  initialValue?: string | null;
 }) {
   const inputRef = useRef<HTMLInputElement>(null);
-  useEffect(() => { inputRef.current?.focus(); }, []);
+  useEffect(() => {
+    const el = inputRef.current;
+    if (!el) return;
+    el.focus();
+    // Place the caret after a seeded character instead of selecting all.
+    if (initialValue != null) { try { el.setSelectionRange(el.value.length, el.value.length); } catch { /* type without selection support */ } }
+  }, [initialValue]);
 
   const saveAndNavigate = (direction: "next" | "prev" | "down") => {
     if (inputRef.current) onSave(inputRef.current.value);
@@ -799,7 +807,7 @@ export function InlineCellEditor({
 
   if (field.type === "number") {
     return (
-      <input ref={inputRef} type="number" defaultValue={value || ""}
+      <input ref={inputRef} type="number" defaultValue={initialValue ?? (value || "")}
         onBlur={handleBlur} onKeyDown={handleKeyDown}
         style={{ width: "100%", border: "1px solid #2eaadc", borderRadius: 4, padding: "2px 4px", fontSize: 13, outline: "none" }} />
     );
@@ -834,7 +842,7 @@ export function InlineCellEditor({
   }
 
   return (
-    <input ref={inputRef} defaultValue={typeof value === "string" ? value : ""}
+    <input ref={inputRef} defaultValue={initialValue ?? (typeof value === "string" ? value : "")}
       onBlur={handleBlur} onKeyDown={handleKeyDown}
       style={{ width: "100%", border: "1px solid #2eaadc", borderRadius: 4, padding: "2px 4px", fontSize: 13, outline: "none" }} />
   );

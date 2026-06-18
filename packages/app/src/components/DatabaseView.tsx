@@ -19,6 +19,8 @@ import { RecordPanel } from "./db/RecordPanel.js";
 import { ViewSwitcher } from "./db/ViewSwitcher.js";
 
 const COL_WIDTHS_STORAGE_KEY_PREFIX = "db-col-widths:";
+/** Sentinel field id for the record-title column in focus navigation. */
+const TITLE_COL = "__title__";
 
 // ── Column Footer (summary aggregations, à la Notion) ───────────────────────
 
@@ -184,13 +186,26 @@ function DraggableColumnHeader({
 
 // ── Title Cell (inline editable) ──────────────────────────────────────────
 
-function TitleCell({ recordId, title, onSave }: { recordId: string; title: string; onSave: (t: string) => Promise<void> | void }) {
-  const [editing, setEditing] = useState(false);
+function TitleCell({ recordId, title, onSave, editing, onEditingChange, seedChar, isFocused }: {
+  recordId: string; title: string; onSave: (t: string) => Promise<void> | void;
+  editing: boolean; onEditingChange: (on: boolean) => void; seedChar?: string | null;
+  isFocused: boolean;
+}) {
   const [value, setValue] = useState(title || "");
-  useEffect(() => { setValue(title || ""); }, [title]);
+  // Sync the draft when not editing; when editing begins, seed from a typed
+  // character if one started the edit (type-to-replace), otherwise the title.
+  useEffect(() => {
+    if (editing) setValue(seedChar != null ? seedChar : (title || ""));
+    else setValue(title || "");
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [editing, title]);
   if (!editing) {
     return (
-      <div className="px-1.5 py-1 rounded-[5px] cursor-text min-h-[24px] text-text font-medium hover:bg-surface-3" onClick={() => setEditing(true)}>
+      // Select-then-edit: the wrapping <td> focuses on first click; this opens
+      // the editor only once the cell is already focused (or on double-click).
+      <div className="px-1.5 py-1 rounded-[5px] cursor-text min-h-[24px] text-text font-medium hover:bg-surface-3"
+        onClick={() => { if (isFocused) onEditingChange(true); }}
+        onDoubleClick={() => onEditingChange(true)}>
         {title || <span style={{ color: "#d3d1cb" }}>Untitled</span>}
       </div>
     );
@@ -201,10 +216,10 @@ function TitleCell({ recordId, title, onSave }: { recordId: string; title: strin
       className="w-full border-[1.5px] border-accent rounded-[5px] px-1.5 py-[3px] text-[14px] font-medium outline-none bg-surface text-text [font-family:var(--font-ui)]"
       value={value}
       onChange={(e) => setValue(e.target.value)}
-      onBlur={async () => { setEditing(false); if (value !== title) await onSave(value); }}
+      onBlur={async () => { onEditingChange(false); if (value !== title) await onSave(value); }}
       onKeyDown={async (e) => {
         if (e.key === "Enter") { e.preventDefault(); (e.target as HTMLInputElement).blur(); }
-        else if (e.key === "Escape") { setValue(title || ""); setEditing(false); }
+        else if (e.key === "Escape") { setValue(title || ""); onEditingChange(false); }
       }}
     />
   );
@@ -282,8 +297,10 @@ export function DatabaseView({ database, isNew }: { database: any; isNew?: boole
     catch { return false; }
   });
   const [dbRecordCache, setDbRecordCache] = useState<Record<string, any[]>>({});
-  /** Keyboard-focused cell `{row, col}`. `col` indexes into [titleCol?, ...dbFields]. */
-  const [focusedCell, setFocusedCell] = useState<{ row: number; col: number } | null>(null);
+  /** Keyboard focus cursor. `fieldId` is `"__title__"` for the title column. */
+  const [focusedCell, setFocusedCell] = useState<{ recordId: string; fieldId: string } | null>(null);
+  /** Character that started a type-to-replace edit; seeds the editor, then cleared. */
+  const [seedChar, setSeedChar] = useState<string | null>(null);
   /** Selected row IDs for bulk actions. `lastSelected` anchors shift-click ranges. */
   const [selectedRowIds, setSelectedRowIds] = useState<Set<string>>(new Set());
   const lastSelectedRowRef = useRef<string | null>(null);
@@ -386,6 +403,8 @@ export function DatabaseView({ database, isNew }: { database: any; isNew?: boole
       await loadDbFields(database.id);
     }
     setEditingCell(null);
+    setSeedChar(null);
+    setFocusedCell({ recordId, fieldId });
   };
 
   const handleAddField = async (name: string, type: FieldType, options?: string[], relationTargetDbId?: string | null, formula?: string | null) => {
@@ -456,6 +475,7 @@ export function DatabaseView({ database, isNew }: { database: any; isNew?: boole
 
   /** Move editing cursor to neighbouring cell. Wraps to next/prev row at row ends. */
   const handleCellNavigate = useCallback((from: { recordId: string; fieldId: string }, direction: "next" | "prev" | "down") => {
+    setSeedChar(null);
     const rows = sortedRecordsRef.current;
     const rowIdx = rows.findIndex((r: any) => r.record.id === from.recordId);
     const colIdx = dbFields.findIndex((f: any) => f.id === from.fieldId);
@@ -483,6 +503,40 @@ export function DatabaseView({ database, isNew }: { database: any; isNew?: boole
       return;
     }
     setEditingCell({ recordId: rows[nextRow].record.id, fieldId: targetField.id });
+  }, [dbFields]);
+
+  /** Column ids in visual order for focus navigation: title (if shown) + fields. */
+  const navColIds = useMemo(
+    () => [...(database.titleHidden ? [] : [TITLE_COL]), ...dbFields.map((f: any) => f.id)],
+    [database.titleHidden, dbFields],
+  );
+
+  /** Move the focus cursor by a row/column delta, clamped to the grid bounds. */
+  const moveFocus = useCallback((dRow: number, dCol: number) => {
+    const rows = sortedRecordsRef.current;
+    if (rows.length === 0 || navColIds.length === 0) return;
+    setFocusedCell((prev) => {
+      let rowIdx = prev ? rows.findIndex((r: any) => r.record.id === prev.recordId) : -1;
+      let colIdx = prev ? navColIds.indexOf(prev.fieldId) : -1;
+      if (rowIdx < 0) rowIdx = 0;
+      if (colIdx < 0) colIdx = 0;
+      rowIdx = Math.min(rows.length - 1, Math.max(0, rowIdx + dRow));
+      colIdx = Math.min(navColIds.length - 1, Math.max(0, colIdx + dCol));
+      return { recordId: rows[rowIdx].record.id, fieldId: navColIds[colIdx] };
+    });
+  }, [navColIds]);
+
+  /** Open the editor for the currently focused cell, optionally seeding a typed char. */
+  const beginEditFocused = useCallback((char: string | null) => {
+    setFocusedCell((cell) => {
+      if (!cell) return cell;
+      // Formula cells are read-only — keep the focus ring but don't open an editor.
+      const field = dbFields.find((f: any) => f.id === cell.fieldId);
+      if (field?.type === "formula") return cell;
+      setSeedChar(char);
+      setEditingCell({ recordId: cell.recordId, fieldId: cell.fieldId });
+      return cell;
+    });
   }, [dbFields]);
 
   const handleRenameField = async (fieldId: string, name: string) => {
@@ -613,6 +667,40 @@ export function DatabaseView({ database, isNew }: { database: any; isNew?: boole
     document.addEventListener("keydown", handler);
     return () => document.removeEventListener("keydown", handler);
   }, [selectedRowIds, handleBulkDelete]);
+
+  // Spreadsheet-style focus navigation. Active only when a cell is focused and
+  // no editor is open; the editor handles its own Tab/Enter/Escape keys.
+  useEffect(() => {
+    if (!focusedCell || editingCell) return;
+    const handler = (e: KeyboardEvent) => {
+      const target = e.target as HTMLElement | null;
+      if (target && (target.tagName === "INPUT" || target.tagName === "TEXTAREA" || target.isContentEditable)) return;
+      switch (e.key) {
+        case "ArrowDown": e.preventDefault(); moveFocus(1, 0); break;
+        case "ArrowUp": e.preventDefault(); moveFocus(-1, 0); break;
+        case "ArrowRight": e.preventDefault(); moveFocus(0, 1); break;
+        case "ArrowLeft": e.preventDefault(); moveFocus(0, -1); break;
+        case "Tab": e.preventDefault(); moveFocus(0, e.shiftKey ? -1 : 1); break;
+        case "Enter": e.preventDefault(); beginEditFocused(null); break;
+        case "Escape": setFocusedCell(null); break;
+        default:
+          // Type-to-replace: a bare printable character opens the editor seeded with it.
+          if (e.key.length === 1 && !e.metaKey && !e.ctrlKey && !e.altKey) {
+            e.preventDefault();
+            beginEditFocused(e.key);
+          }
+      }
+    };
+    document.addEventListener("keydown", handler);
+    return () => document.removeEventListener("keydown", handler);
+  }, [focusedCell, editingCell, moveFocus, beginEditFocused]);
+
+  // Keep the focused cell scrolled into view as the cursor moves.
+  useEffect(() => {
+    if (!focusedCell || editingCell || !tableWrapRef.current) return;
+    const el = tableWrapRef.current.querySelector('[data-focused="true"]') as HTMLElement | null;
+    el?.scrollIntoView({ block: "nearest", inline: "nearest" });
+  }, [focusedCell, editingCell]);
 
   // ── Render ──────────────────────────────────────────────────────────────
   const sortByFieldId = useMemo(() => {
@@ -755,41 +843,65 @@ export function DatabaseView({ database, isNew }: { database: any; isNew?: boole
                     onToggleSelect={(e) => handleToggleRowSelect(record.id, e)}
                     hasPage={!!record.pageId}
                   >
-                    {!database.titleHidden && (
-                      <td className="px-2 py-1.5 border-b border-border border-r border-border last:border-r-0 align-middle min-h-[32px] relative font-medium text-[14px] min-w-[180px] text-text" style={(() => {
+                    {!database.titleHidden && (() => {
+                      const isFocused = focusedCell?.recordId === record.id && focusedCell?.fieldId === TITLE_COL;
+                      return (
+                      <td data-focused={isFocused || undefined} onClick={() => setFocusedCell({ recordId: record.id, fieldId: TITLE_COL })}
+                        className="px-2 py-1.5 border-b border-border border-r border-border last:border-r-0 align-middle min-h-[32px] relative font-medium text-[14px] min-w-[180px] text-text" style={(() => {
                         const w = columnWidths["__title__"];
-                        return w ? { minWidth: w, width: w } : { minWidth: 180, width: getDefaultWidthForType("text") };
+                        const base = w ? { minWidth: w, width: w } : { minWidth: 180, width: getDefaultWidthForType("text") };
+                        return isFocused && !(editingCell?.recordId === record.id && editingCell?.fieldId === TITLE_COL)
+                          ? { ...base, boxShadow: "inset 0 0 0 2px var(--accent)" } : base;
                       })()}>
                         <TitleCell
                           recordId={record.id}
                           title={record.title}
+                          isFocused={isFocused}
+                          editing={editingCell?.recordId === record.id && editingCell?.fieldId === TITLE_COL}
+                          onEditingChange={(on) => {
+                            if (on) { setEditingCell({ recordId: record.id, fieldId: TITLE_COL }); }
+                            else { setEditingCell(null); setSeedChar(null); setFocusedCell({ recordId: record.id, fieldId: TITLE_COL }); }
+                          }}
+                          seedChar={seedChar}
                           onSave={async (newTitle) => {
                             await api.updateRecord({ id: record.id, title: newTitle });
                             await loadDbRecords(database.id);
                           }}
                         />
                       </td>
-                    )}
+                      );
+                    })()}
                     {dbFields.map((field: any) => {
                       const val = values[field.name] ?? "";
                       const isEditing = editingCell?.recordId === record.id && editingCell?.fieldId === field.id;
+                      const isFocused = focusedCell?.recordId === record.id && focusedCell?.fieldId === field.id;
                       const isFormula = field.type === "formula";
                       const colW = columnWidths[field.id];
+                      const baseStyle = colW ? { minWidth: colW, width: colW } : undefined;
                       return (
-                        <td key={field.id} className="db-cell px-2 py-[3px] border-b border-border border-r border-border last:border-r-0 align-middle min-h-[32px] relative" style={colW ? { minWidth: colW, width: colW } : undefined}>
+                        <td key={field.id} data-focused={(isFocused && !isEditing) || undefined}
+                          className="db-cell px-2 py-[3px] border-b border-border border-r border-border last:border-r-0 align-middle min-h-[32px] relative"
+                          style={isFocused && !isEditing ? { ...baseStyle, boxShadow: "inset 0 0 0 2px var(--accent)" } : baseStyle}>
                           {isEditing && !isFormula ? (
                             <InlineCellEditor
                               field={field}
                               value={val}
+                              initialValue={seedChar}
                               onSave={(v) => handleCellEdit(record.id, field.id, v)}
-                              onCancel={() => setEditingCell(null)}
+                              onCancel={() => { setEditingCell(null); setSeedChar(null); setFocusedCell({ recordId: record.id, fieldId: field.id }); }}
                               onNavigate={(dir) => handleCellNavigate({ recordId: record.id, fieldId: field.id }, dir)}
                               databases={databases}
                               allRecords={dbRecordCache}
                             />
                           ) : (
                             <div
-                              onClick={() => { if (!isFormula) setEditingCell({ recordId: record.id, fieldId: field.id }); }}
+                              // Select-then-edit: first click focuses, a click on the
+                              // already-focused cell (or double-click) opens the editor.
+                              onClick={() => {
+                                if (isFocused && !isFormula) setEditingCell({ recordId: record.id, fieldId: field.id });
+                                else setFocusedCell({ recordId: record.id, fieldId: field.id });
+                              }}
+                              onDoubleClick={() => { if (!isFormula) setEditingCell({ recordId: record.id, fieldId: field.id }); }}
                               className="px-1.5 py-1 rounded-[5px] cursor-pointer min-h-[24px] transition-[background] duration-[var(--t)] ease-[var(--ease)] text-text-2 hover:bg-surface-3 hover:text-text"
                               style={isFormula ? { cursor: "default" } : undefined}
                             >
