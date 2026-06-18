@@ -368,6 +368,12 @@ export function DatabaseView({ database, isNew }: { database: any; isNew?: boole
     }
   }, [activeViewId, dbViews]);
 
+  const changeViewType = useCallback((v: "table" | "board" | "calendar") => {
+    setViewType(v);
+    localStorage.setItem(`db-view:${database.id}`, JSON.stringify({ viewType: v }));
+    if (activeViewId) updateView(activeViewId, { type: v });
+  }, [database.id, activeViewId, updateView]);
+
   // Per-column footer summaries (Count / Sum / …), persisted locally per database.
   const [footerAggs, setFooterAggs] = useState<Record<string, AggType>>({});
   useEffect(() => {
@@ -737,7 +743,7 @@ export function DatabaseView({ database, isNew }: { database: any; isNew?: boole
       <>
         <CalendarView
           database={database} fields={dbFields} records={sortedRecords} databases={databases}
-          onChangeView={setViewType} allRecords={dbRecordCache}
+          onChangeView={changeViewType} allRecords={dbRecordCache}
           onOpenRecord={handleOpenRecord}
         />
         {recordPanel}
@@ -750,7 +756,7 @@ export function DatabaseView({ database, isNew }: { database: any; isNew?: boole
       <>
         <BoardView
           database={database} fields={dbFields} records={sortedRecords} databases={databases}
-          currentView={viewType as "table" | "board" | "calendar"} onChangeView={setViewType} allRecords={dbRecordCache}
+          currentView={viewType as "table" | "board" | "calendar"} onChangeView={changeViewType} allRecords={dbRecordCache}
           onOpenRecord={handleOpenRecord}
         />
         {recordPanel}
@@ -765,21 +771,9 @@ export function DatabaseView({ database, isNew }: { database: any; isNew?: boole
         <div className="flex gap-1.5 mb-2.5 items-center flex-wrap py-1">
           <ViewSwitcher databaseId={database.id} currentViewType={viewType as "table" | "board" | "calendar"} />
           <div className="inline-flex bg-surface-3 border border-border rounded p-0.5" role="tablist">
-            <button className={cn("bg-transparent border-none py-1 px-3 text-[12px] font-medium cursor-pointer rounded-[6px]", viewType === "table" ? "bg-text text-bg" : "text-text-3")} onClick={() => {
-              setViewType("table");
-              localStorage.setItem(`db-view:${database.id}`, JSON.stringify({ viewType: "table" }));
-              if (activeViewId) updateView(activeViewId, { type: "table" });
-            }} role="tab" aria-selected={viewType === "table"}>Table</button>
-            <button className={cn("bg-transparent border-none py-1 px-3 text-[12px] font-medium cursor-pointer rounded-[6px]", viewType === "board" ? "bg-text text-bg" : "text-text-3")} onClick={() => {
-              setViewType("board");
-              localStorage.setItem(`db-view:${database.id}`, JSON.stringify({ viewType: "board" }));
-              if (activeViewId) updateView(activeViewId, { type: "board" });
-            }} role="tab" aria-selected={viewType === "board"}>Board</button>
-            <button className={cn("bg-transparent border-none py-1 px-3 text-[12px] font-medium cursor-pointer rounded-[6px]", viewType === "calendar" ? "bg-text text-bg" : "text-text-3")} onClick={() => {
-              setViewType("calendar");
-              localStorage.setItem(`db-view:${database.id}`, JSON.stringify({ viewType: "calendar" }));
-              if (activeViewId) updateView(activeViewId, { type: "calendar" });
-            }} role="tab" aria-selected={viewType === "calendar"}>Calendar</button>
+            <button className={cn("bg-transparent border-none py-1 px-3 text-[12px] font-medium cursor-pointer rounded-[6px]", viewType === "table" ? "bg-text text-bg" : "text-text-3")} onClick={() => changeViewType("table")} role="tab" aria-selected={viewType === "table"}>Table</button>
+            <button className={cn("bg-transparent border-none py-1 px-3 text-[12px] font-medium cursor-pointer rounded-[6px]", viewType === "board" ? "bg-text text-bg" : "text-text-3")} onClick={() => changeViewType("board")} role="tab" aria-selected={viewType === "board"}>Board</button>
+            <button className={cn("bg-transparent border-none py-1 px-3 text-[12px] font-medium cursor-pointer rounded-[6px]", viewType === "calendar" ? "bg-text text-bg" : "text-text-3")} onClick={() => changeViewType("calendar")} role="tab" aria-selected={viewType === "calendar"}>Calendar</button>
           </div>
 
           <div style={{ marginLeft: 16, display: "flex", alignItems: "center", gap: 12, flexWrap: "wrap" }}>
