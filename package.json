@@ -2,8 +2,11 @@
   "name": "notara",
   "private": true,
   "scripts": {
+    "predev:server": "bun run --filter @notara/shared build",
     "dev:server": "bun run --filter @notara/server dev",
+    "predev:app": "bun run --filter @notara/shared build",
     "dev:app": "bun run --filter @notara/app dev",
+    "predev:electron": "bun run --filter @notara/shared build",
     "dev:electron": "bun run --filter @notara/electron dev",
     "build": "bun run --filter @notara/shared build && bun run --filter '!@notara/electron' build",
     "build:electron": "bun run --filter @notara/shared build && bun run --filter @notara/server build && bun run --filter @notara/app build && bun run --filter @notara/electron build",
