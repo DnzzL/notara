@@ -1,11 +1,11 @@
 ---
 id: NOT-35
 title: Spreadsheet-style keyboard navigation in database table view
-status: needs-triage
+status: done
 assignee:
   - '@claude'
 created_date: '2026-06-17 21:17'
-updated_date: '2026-06-17 21:39'
+updated_date: '2026-06-18 20:40'
 labels:
   - enhancement
 dependencies: []
