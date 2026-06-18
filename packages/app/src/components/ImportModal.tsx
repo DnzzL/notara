@@ -171,6 +171,7 @@ export function ImportModal({ open, onClose }: ImportModalProps) {
                   <input
                     ref={fileInputRef}
                     type="file"
+                    name="import-file"
                     accept=".zip"
                     onChange={handleFileChange}
                     style={{ display: "none" }}

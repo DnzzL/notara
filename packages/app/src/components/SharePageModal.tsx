@@ -177,6 +177,7 @@ export function SharePageModal({ pageId, workspaceId, onClose }: Props) {
                       <span className="text-[11.5px] text-text-3">{member?.email ?? ""}</span>
                     </div>
                     <select
+                      name="member-access"
                       value={e.relation}
                       disabled={!canManage || pending}
                       className="px-1.5 py-1 border border-border rounded text-[12px] bg-surface-2 text-text-2 ml-auto"
@@ -232,6 +233,7 @@ export function SharePageModal({ pageId, workspaceId, onClose }: Props) {
             <label className="flex items-center gap-2 text-[13px] text-text-2 cursor-pointer">
               Workspace members can:
               <select
+                name="workspace-access"
                 value={directWorkspaceEntry?.relation ?? "off"}
                 disabled={!canManage || pending}
                 className="px-1.5 py-1 border border-border rounded text-[12px] bg-surface-2 text-text-2"

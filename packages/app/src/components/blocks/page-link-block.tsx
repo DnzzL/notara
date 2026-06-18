@@ -30,6 +30,7 @@ export function PageLinkBlock({ block, onUpdateBlock }: BlockRendererProps) {
       <div className="flex flex-col w-[320px] max-w-full bg-surface border border-border-mid rounded shadow-[var(--shadow-md)] p-1.5" onMouseDown={(e) => e.stopPropagation()}>
         <input
           autoFocus
+          name="page-link-search"
           className="border border-border rounded-lg px-2 py-[7px] text-[13px] outline-none bg-surface-2 text-text [font-family:var(--font-ui)] focus:border-accent"
           placeholder="Link to page\u2026"
           value={query}

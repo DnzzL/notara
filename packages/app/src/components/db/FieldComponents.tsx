@@ -110,7 +110,7 @@ export function ColumnHeader({
         <Popover triggerRect={showMenu ? triggerRef.current?.getBoundingClientRect() ?? null : null} onClose={handleMenuClose} minWidth={200}>
           {editing ? (
             <div style={{ padding: 4 }}>
-              <input value={name} onChange={(e) => setName(e.target.value)}
+              <input name="field-rename" value={name} onChange={(e) => setName(e.target.value)}
                 onKeyDown={(e) => { if (e.key === "Enter") { if (name.trim()) onRename(name); handleMenuClose(); } if (e.key === "Escape") handleMenuClose(); }}
                 onBlur={() => { if (name.trim()) onRename(name); handleMenuClose(); }} autoFocus
                 style={{ width: "100%", border: "1px solid #2eaadc", borderRadius: 4, padding: "4px 8px", fontSize: 13, outline: "none" }} />
@@ -185,7 +185,7 @@ export function ColumnHeader({
       <Popover triggerRect={showMenu ? triggerRef.current?.getBoundingClientRect() ?? null : null} onClose={handleMenuClose} minWidth={200}>
         {editing ? (
           <div style={{ padding: 4 }}>
-            <input value={name} onChange={(e) => setName(e.target.value)}
+            <input name="field-rename" value={name} onChange={(e) => setName(e.target.value)}
               onKeyDown={(e) => { if (e.key === "Enter") { if (name.trim()) onRename(name); handleMenuClose(); } if (e.key === "Escape") handleMenuClose(); }}
               onBlur={() => { if (name.trim()) onRename(name); handleMenuClose(); }} autoFocus
               style={{ width: "100%", border: "1px solid #2eaadc", borderRadius: 4, padding: "4px 8px", fontSize: 13, outline: "none" }} />
@@ -344,7 +344,7 @@ export function OptionsEditor({
       </DndContext>
       <div style={{ display: "flex", alignItems: "center", gap: 6, marginTop: 8, borderTop: "1px solid #f0f0f0", paddingTop: 8 }}>
         <span style={{ opacity: 0.5, fontSize: 12 }}>+</span>
-        <input ref={inputRef} value={newOption} onChange={(e) => setNewOption(e.target.value)}
+        <input ref={inputRef} name="new-select-option" value={newOption} onChange={(e) => setNewOption(e.target.value)}
           onKeyDown={(e) => { if (e.key === "Enter") handleAdd(); if (e.key === "Escape") onClose(); }}
           onBlur={handleAdd} placeholder="Add option"
           style={{ flex: 1, border: "none", outline: "none", fontSize: 13, padding: "2px 0" }} />
@@ -370,6 +370,7 @@ export function FormulaEditor({
       <div style={{ padding: "4px 8px", fontSize: 13, fontWeight: 600, marginBottom: 8 }}>Formula for "{field.name}"</div>
       <textarea
         ref={inputRef}
+        name="formula"
         value={expr}
         onChange={(e) => setExpr(e.target.value)}
         onKeyDown={(e) => {
@@ -443,7 +444,7 @@ export function AddFieldPopover({
       <div style={{ padding: 4, display: "flex", flexDirection: "column", maxHeight: "calc(70vh - 16px)" }}>
         <div style={{ flex: 1, overflowY: "auto", minHeight: 0 }}>
           <div style={{ fontSize: 13, fontWeight: 600, marginBottom: 12 }}>New property</div>
-          <input ref={nameRef} placeholder="Property name" value={name} onChange={(e) => setName(e.target.value)}
+          <input ref={nameRef} name="new-property-name" placeholder="Property name" value={name} onChange={(e) => setName(e.target.value)}
             onKeyDown={(e) => { if (e.key === "Enter") handleCreate(); }}
             style={{ width: "100%", border: "1px solid #e9e9e7", borderRadius: 4, padding: "6px 8px", fontSize: 13, marginBottom: 12, outline: "none", boxSizing: "border-box" }} />
 
@@ -478,7 +479,7 @@ export function AddFieldPopover({
                 })}
                 <div style={{ display: "flex", alignItems: "center", gap: 6, padding: "2px 4px" }}>
                   <span style={{ opacity: 0.5, fontSize: 12 }}>+</span>
-                  <input value={optionInput} onChange={(e) => setOptionInput(e.target.value)}
+                  <input name="new-option" value={optionInput} onChange={(e) => setOptionInput(e.target.value)}
                     onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); handleAddOption(); } }}
                     placeholder="Add option"
                     style={{ flex: 1, border: "none", outline: "none", fontSize: 13, padding: "2px 0" }} />
@@ -491,6 +492,7 @@ export function AddFieldPopover({
             <div style={{ marginBottom: 12, borderTop: "1px solid #f0f0f0", paddingTop: 8 }}>
               <div style={{ fontSize: 11, color: "#999", marginBottom: 6, fontWeight: 500 }}>EXPRESSION</div>
               <textarea
+                name="formula"
                 value={formula}
                 onChange={(e) => setFormula(e.target.value)}
                 placeholder={`e.g. prop("Price") * prop("Qty")`}
@@ -506,7 +508,7 @@ export function AddFieldPopover({
           {type === "relation" && (
             <div style={{ marginBottom: 12, borderTop: "1px solid #f0f0f0", paddingTop: 8 }}>
               <div style={{ fontSize: 11, color: "#999", marginBottom: 6, fontWeight: 500 }}>RELATE TO</div>
-              <select value={relationTarget || ""} onChange={(e) => setRelationTarget(e.target.value || null)}
+              <select name="relation-target" value={relationTarget || ""} onChange={(e) => setRelationTarget(e.target.value || null)}
                 style={{ width: "100%", border: "1px solid #e9e9e7", borderRadius: 4, padding: "6px 8px", fontSize: 13, boxSizing: "border-box" }}>
                 <option value="">Select a database…</option>
                 {allDbs.map((db) => {

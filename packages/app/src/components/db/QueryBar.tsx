@@ -35,7 +35,7 @@ function FilterValueInput({
   const inputStyle = { border: "1px solid #e9e9e7", borderRadius: 4, padding: "2px 6px", fontSize: 12, outline: "none", background: "#fff" } as const;
   if (field?.type === "checkbox") {
     return (
-      <select value={value || "true"} onChange={(e) => onChange(e.target.value)} style={inputStyle}>
+      <select name="filter-checkbox-value" value={value || "true"} onChange={(e) => onChange(e.target.value)} style={inputStyle}>
         <option value="true">Checked</option>
         <option value="false">Unchecked</option>
       </select>
@@ -43,19 +43,19 @@ function FilterValueInput({
   }
   if (field && (field.type === "select" || field.type === "multiSelect")) {
     return (
-      <select value={value} onChange={(e) => onChange(e.target.value)} style={inputStyle}>
+      <select name="filter-select-value" value={value} onChange={(e) => onChange(e.target.value)} style={inputStyle}>
         <option value="">Value</option>
         {(field.options || []).map((o: string) => (<option key={o} value={o}>{o}</option>))}
       </select>
     );
   }
   if (field?.type === "number") {
-    return <input type="number" value={value} onChange={(e) => onChange(e.target.value)} placeholder="Value" style={{ ...inputStyle, width: 80 }} />;
+    return <input name="filter-number-value" type="number" value={value} onChange={(e) => onChange(e.target.value)} placeholder="Value" style={{ ...inputStyle, width: 80 }} />;
   }
   if (field?.type === "date") {
-    return <input type="date" value={value} onChange={(e) => onChange(e.target.value)} style={inputStyle} />;
+    return <input name="filter-date-value" type="date" value={value} onChange={(e) => onChange(e.target.value)} style={inputStyle} />;
   }
-  return <input value={value} onChange={(e) => onChange(e.target.value)} placeholder="Value" style={{ ...inputStyle, width: 100 }} />;
+  return <input name="filter-text-value" value={value} onChange={(e) => onChange(e.target.value)} placeholder="Value" style={{ ...inputStyle, width: 100 }} />;
 }
 
 export function FilterBar({
@@ -80,7 +80,7 @@ export function FilterBar({
         const showValue = !VALUELESS.includes(filter.operator);
         return (
           <div key={idx} className="flex gap-1 items-center bg-surface-2 rounded py-1 px-2 border border-border">
-            <select value={filter.fieldId} onChange={(e) => {
+            <select name="filter-field" value={filter.fieldId} onChange={(e) => {
               const next = fields.find((f) => f.id === e.target.value);
               const ops = operatorsForFieldType(next?.type ?? "text");
               onChange(idx, { fieldId: e.target.value, operator: ops[0], value: defaultValueForField(next) });
@@ -89,7 +89,7 @@ export function FilterBar({
               <option value="">Field</option>
               {fields.map((f) => (<option key={f.id} value={f.id}>{f.name}</option>))}
             </select>
-            <select value={filter.operator} onChange={(e) => onChange(idx, { operator: e.target.value as FilterOperator })}
+            <select name="filter-operator" value={filter.operator} onChange={(e) => onChange(idx, { operator: e.target.value as FilterOperator })}
               style={{ border: "1px solid #e9e9e7", borderRadius: 4, padding: "2px 4px", fontSize: 12, background: "#fff" }}>
               {operators.map((op) => (<option key={op} value={op}>{OPERATOR_LABELS[op]}</option>))}
             </select>
@@ -125,12 +125,12 @@ export function SortBar({
       <span style={{ fontSize: 12, color: "#666", fontWeight: 500, marginRight: 4 }}>Sort</span>
       {sorts.map((sort, idx) => (
         <div key={idx} className="flex gap-1 items-center bg-surface-2 rounded py-1 px-2 border border-border">
-          <select value={sort.fieldId} onChange={(e) => onChange(idx, { fieldId: e.target.value })}
+          <select name="sort-field" value={sort.fieldId} onChange={(e) => onChange(idx, { fieldId: e.target.value })}
             style={{ border: "1px solid #e9e9e7", borderRadius: 4, padding: "2px 4px", fontSize: 12, background: "#fff" }}>
             <option value="">Field</option>
             {fields.map((f) => (<option key={f.id} value={f.id}>{f.name}</option>))}
           </select>
-          <select value={sort.direction} onChange={(e) => onChange(idx, { direction: e.target.value as "asc" | "desc" })}
+          <select name="sort-direction" value={sort.direction} onChange={(e) => onChange(idx, { direction: e.target.value as "asc" | "desc" })}
             style={{ border: "1px solid #e9e9e7", borderRadius: 4, padding: "2px 4px", fontSize: 12, background: "#fff" }}>
             <option value="asc">Ascending</option>
             <option value="desc">Descending</option>

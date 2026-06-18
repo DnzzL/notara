@@ -88,6 +88,7 @@ export function EmojiPicker({ open, anchor, onClose, onSelect }: Props) {
       <div className="flex items-center gap-2 px-2 pt-2 pb-1.5 border-b border-border shrink-0">
         <input
           autoFocus
+          name="emoji-search"
           className="flex-1 px-2.5 py-1.5 border border-border rounded-[4px] text-[13px] outline-none bg-surface-2 text-text placeholder:text-text-3 focus:border-accent focus:shadow-[0_0_0_2px_var(--accent-dim)] transition-[border-color,box-shadow] duration-[var(--t)] ease-[var(--ease)]"
           placeholder="Search emoji…"
           value={query}

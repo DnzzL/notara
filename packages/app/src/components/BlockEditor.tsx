@@ -905,6 +905,7 @@ export function BlockEditor() {
           <input
             ref={fileInputRef}
             type="file"
+            name="file-upload"
             accept="*/*"
             multiple
             style={{ display: "none" }}
@@ -928,7 +929,7 @@ export function BlockEditor() {
             </button>
             {isEditingTitle ? (
               <input
-                type="text" className="[font-family:var(--font-title)] text-[2.4em] font-bold mb-7 border-2 border-accent rounded-lg outline-none w-full px-2 py-1 text-text bg-surface-2 tracking-[-0.025em] leading-[1.22]" value={titleValue}
+                type="text" name="page-title" className="[font-family:var(--font-title)] text-[2.4em] font-bold mb-7 border-2 border-accent rounded-lg outline-none w-full px-2 py-1 text-text bg-surface-2 tracking-[-0.025em] leading-[1.22]" value={titleValue}
                 onChange={(e) => setTitleValue(e.target.value)} onBlur={handleTitleSave}
                 onKeyDown={handleTitleKeyDown} autoFocus placeholder="Page title..."
               />

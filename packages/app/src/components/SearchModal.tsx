@@ -132,6 +132,7 @@ export function SearchModal() {
           <input
             ref={inputRef}
             type="text"
+            name="search"
             className="flex-1 border-none outline-none text-[15.5px] py-1 bg-transparent text-text placeholder:text-text-3"
             placeholder="Search pages and content..."
             value={query}

@@ -71,6 +71,7 @@ export function RecordPanel({
 
         <input
           autoFocus
+          name="record-title"
           className="[font-family:var(--font-title)] text-[24px] font-bold border-none outline-none bg-transparent w-full pt-1 pb-1.5 text-text tracking-[-0.02em] focus:border-b-2 focus:border-b-accent"
           value={title}
           onChange={(e) => setTitle(e.target.value)}

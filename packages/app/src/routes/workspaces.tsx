@@ -93,6 +93,7 @@ function WorkspacesPage() {
           <form onSubmit={handleCreate} className="workspace-form">
             <h2>New workspace</h2>
             <input
+              name="workspace-name"
               placeholder="Workspace name"
               value={newName}
               onChange={(e) => {
@@ -102,6 +103,7 @@ function WorkspacesPage() {
               required
             />
             <input
+              name="workspace-slug"
               placeholder="slug (url-friendly)"
               value={newSlug}
               onChange={(e) => setNewSlug(e.target.value)}
@@ -117,6 +119,7 @@ function WorkspacesPage() {
           <form onSubmit={handleJoin} className="workspace-form">
             <h2>Join workspace</h2>
             <input
+              name="invite-token"
               placeholder="Paste invite token"
               value={joinToken}
               onChange={(e) => setJoinToken(e.target.value)}

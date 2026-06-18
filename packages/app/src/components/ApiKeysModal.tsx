@@ -75,6 +75,7 @@ export function ApiKeysModal({ onClose }: Props) {
         <form className="flex gap-1.5" onSubmit={handleCreate}>
           <input
             type="text"
+            name="api-key-name"
             placeholder="Key name (e.g. CI pipeline)"
             value={newKeyName}
             onChange={(e) => setNewKeyName(e.target.value)}

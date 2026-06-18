@@ -202,6 +202,7 @@ export function SettingsModal({ open, onClose, onStartTour }: SettingsModalProps
               <label className="settings-toggle-row">
                 <input
                   type="checkbox"
+                  name="s3-enabled"
                   checked={settings.s3Enabled}
                   onChange={(e) => set("s3Enabled", e.target.checked)}
                 />
@@ -215,6 +216,7 @@ export function SettingsModal({ open, onClose, onStartTour }: SettingsModalProps
                       <span>Endpoint URL</span>
                       <input
                         type="text"
+                        name="s3-endpoint"
                         placeholder="https://s3.amazonaws.com (leave blank for AWS)"
                         value={settings.s3Endpoint}
                         onChange={(e) => set("s3Endpoint", e.target.value)}
@@ -225,6 +227,7 @@ export function SettingsModal({ open, onClose, onStartTour }: SettingsModalProps
                       <span>Region</span>
                       <input
                         type="text"
+                        name="s3-region"
                         placeholder="us-east-1"
                         value={settings.s3Region}
                         onChange={(e) => set("s3Region", e.target.value)}
@@ -235,6 +238,7 @@ export function SettingsModal({ open, onClose, onStartTour }: SettingsModalProps
                       <span>Bucket</span>
                       <input
                         type="text"
+                        name="s3-bucket"
                         placeholder="my-backup-bucket"
                         value={settings.s3Bucket}
                         onChange={(e) => set("s3Bucket", e.target.value)}
@@ -245,6 +249,7 @@ export function SettingsModal({ open, onClose, onStartTour }: SettingsModalProps
                       <span>Access Key ID</span>
                       <input
                         type="text"
+                        name="s3-access-key-id"
                         placeholder="AKIAIOSFODNN7EXAMPLE"
                         value={settings.s3AccessKeyId}
                         onChange={(e) => set("s3AccessKeyId", e.target.value)}
@@ -255,6 +260,7 @@ export function SettingsModal({ open, onClose, onStartTour }: SettingsModalProps
                       <span>Secret Access Key</span>
                       <input
                         type="password"
+                        name="s3-secret-access-key"
                         placeholder="••••••••••••••••••••"
                         value={settings.s3SecretAccessKey}
                         onChange={(e) => set("s3SecretAccessKey", e.target.value)}
@@ -265,6 +271,7 @@ export function SettingsModal({ open, onClose, onStartTour }: SettingsModalProps
                       <span>Key prefix</span>
                       <input
                         type="text"
+                        name="s3-prefix"
                         placeholder="backups"
                         value={settings.s3Prefix}
                         onChange={(e) => set("s3Prefix", e.target.value)}
@@ -277,6 +284,7 @@ export function SettingsModal({ open, onClose, onStartTour }: SettingsModalProps
                     <label className="settings-field">
                       <span>Automatic backup</span>
                       <select
+                        name="s3-backup-schedule"
                         value={settings.s3Schedule}
                         onChange={(e) => set("s3Schedule", e.target.value as BackupSchedule)}
                         className="settings-select"
@@ -321,6 +329,7 @@ export function SettingsModal({ open, onClose, onStartTour }: SettingsModalProps
                     <label className="settings-field">
                       <span>Backup to restore</span>
                       <select
+                        name="restore-backup"
                         value={selectedKey}
                         onChange={(e) => setSelectedKey(e.target.value)}
                         className="settings-select"

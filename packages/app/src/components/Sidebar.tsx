@@ -380,6 +380,7 @@ export function Sidebar({ className, onNavigate, onStartTour }: SidebarProps = {
             </button>
             <input
               type="text"
+              name="page-filter"
               className="px-2.5 py-[7px] border border-border-mid rounded text-[12.5px] bg-surface outline-none text-text-sb transition-[border-color,box-shadow] duration-[var(--t)] ease-[var(--ease)] focus:border-accent focus:shadow-[0_0_0_2px_var(--accent-dim)]"
               placeholder="Filter visible pages"
               value={searchQuery}

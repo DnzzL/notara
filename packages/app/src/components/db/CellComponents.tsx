@@ -458,6 +458,7 @@ function PeoplePicker({
     <CellAnchoredPopover onClose={onClose} minWidth={260}>
       <input
         autoFocus
+        name="cell-people-search"
         className="w-full px-2 py-[7px] border border-border rounded-[5px] text-[13px] outline-none box-border mb-1 bg-surface-2 text-text [font-family:var(--font-ui)] focus:border-accent"
         placeholder="Search people…"
         value={query}
@@ -549,6 +550,7 @@ function SelectPopover({
     <CellAnchoredPopover onClose={onCancel}>
       <input
         autoFocus
+        name="cell-select-search"
         className="w-full px-2 py-[7px] border border-border rounded-[5px] text-[13px] outline-none box-border mb-1 bg-surface-2 text-text [font-family:var(--font-ui)] focus:border-accent"
         placeholder="Search or create…"
         value={query}
@@ -627,6 +629,7 @@ function PagePicker({
     <CellAnchoredPopover onClose={onClose} minWidth={280}>
       <input
         autoFocus
+        name="cell-relation-search"
         className="w-full px-2 py-[7px] border border-border rounded-[5px] text-[13px] outline-none box-border mb-1 bg-surface-2 text-text [font-family:var(--font-ui)] focus:border-accent"
         placeholder="Search pages…"
         value={query}
@@ -799,7 +802,7 @@ export function InlineCellEditor({
 
   if (field.type === "date") {
     return (
-      <input ref={inputRef} type="date" defaultValue={value || ""}
+      <input ref={inputRef} type="date" name="cell-date" defaultValue={value || ""}
         onBlur={handleBlur} onKeyDown={handleKeyDown}
         style={{ width: "100%", border: "1px solid #2eaadc", borderRadius: 4, padding: "2px 4px", fontSize: 13, outline: "none" }} />
     );
@@ -807,7 +810,7 @@ export function InlineCellEditor({
 
   if (field.type === "number") {
     return (
-      <input ref={inputRef} type="number" defaultValue={initialValue ?? (value || "")}
+      <input ref={inputRef} type="number" name="cell-number" defaultValue={initialValue ?? (value || "")}
         onBlur={handleBlur} onKeyDown={handleKeyDown}
         style={{ width: "100%", border: "1px solid #2eaadc", borderRadius: 4, padding: "2px 4px", fontSize: 13, outline: "none" }} />
     );
@@ -842,7 +845,7 @@ export function InlineCellEditor({
   }
 
   return (
-    <input ref={inputRef} defaultValue={initialValue ?? (typeof value === "string" ? value : "")}
+    <input ref={inputRef} name="cell-text" defaultValue={initialValue ?? (typeof value === "string" ? value : "")}
       onBlur={handleBlur} onKeyDown={handleKeyDown}
       style={{ width: "100%", border: "1px solid #2eaadc", borderRadius: 4, padding: "2px 4px", fontSize: 13, outline: "none" }} />
   );

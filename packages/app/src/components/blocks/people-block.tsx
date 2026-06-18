@@ -59,6 +59,7 @@ export function PeopleBlock({ block, onUpdateBlock }: BlockRendererProps) {
         <div className="bg-surface border border-border-mid rounded-lg p-1.5 shadow-[var(--shadow-lg)] max-h-[280px] flex flex-col" onMouseDown={(e) => e.stopPropagation()}>
           <input
             autoFocus
+            name="people-search"
             className="w-full border border-border rounded-lg px-2 py-1.5 text-[13px] outline-none bg-surface-2 text-text box-border"
             placeholder="Search people\u2026"
             value={query}

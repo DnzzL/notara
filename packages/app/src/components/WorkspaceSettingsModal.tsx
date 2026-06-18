@@ -67,6 +67,7 @@ export function WorkspaceSettingsModal({ workspace, onClose }: Props) {
           <form className="flex gap-1.5" onSubmit={handleEmailInvite}>
             <input
               type="email"
+              name="invite-email"
               placeholder="colleague@example.com"
               value={inviteEmail}
               onChange={(e) => setInviteEmail(e.target.value)}
@@ -79,7 +80,7 @@ export function WorkspaceSettingsModal({ workspace, onClose }: Props) {
           <div className="mt-3.5">
             <h4 className="text-[12px] font-semibold text-text-3 uppercase tracking-[0.05em] mb-2">Or share invite link</h4>
             <div className="flex gap-1.5">
-              <input readOnly value={inviteUrl} className="flex-1 px-2.5 py-[7px] border border-border rounded-lg text-[12px] [font-family:var(--font-mono)] bg-surface-2 text-text outline-none" />
+              <input readOnly name="invite-link" value={inviteUrl} className="flex-1 px-2.5 py-[7px] border border-border rounded-lg text-[12px] [font-family:var(--font-mono)] bg-surface-2 text-text outline-none" />
               <Button variant="secondary" size="sm" onClick={handleCopy}>{copied ? "Copied!" : "Copy"}</Button>
               <Button variant="secondary" size="sm" onClick={handleRegenerate} title="Generate a new link (old link will stop working)">Regenerate</Button>
             </div>
