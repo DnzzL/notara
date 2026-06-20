@@ -426,12 +426,19 @@ export const createView = (req: {
   databaseId: string; name: string; type: string;
   groupByFieldId: string | null;
   config?: string;
+  isDefault?: boolean;
 }) => Effect.gen(function* () {
   const sql = yield* SqlClient.SqlClient;
   const id = ulid();
+
+  // If this view is being created as default, clear any existing default first
+  if (req.isDefault) {
+    yield* sql`UPDATE database_views SET is_default = 0 WHERE database_id = ${req.databaseId} AND is_default = 1`;
+  }
+
   const rows = yield* sql`
-    INSERT INTO database_views (id, database_id, name, type, group_by_field_id, sort_order, config)
-    VALUES (${id}, ${req.databaseId}, ${req.name}, ${req.type}, ${req.groupByFieldId}, 'asc', ${req.config ?? '{}'})
+    INSERT INTO database_views (id, database_id, name, type, group_by_field_id, sort_order, config, is_default)
+    VALUES (${id}, ${req.databaseId}, ${req.name}, ${req.type}, ${req.groupByFieldId}, 'asc', ${req.config ?? '{}'}, ${req.isDefault ? 1 : 0})
     RETURNING ${sql.unsafe(VIEW_COLS)}
   `;
   return viewFromRow(rows[0]);
@@ -440,10 +447,11 @@ export const createView = (req: {
 export const updateView = (req: {
   id: string; name?: string; type?: string;
   groupByFieldId?: string | null; config?: string;
+  isDefault?: boolean;
 }) => Effect.gen(function* () {
   const sql = yield* SqlClient.SqlClient;
   const existing = yield* sql`
-    SELECT name, type, group_by_field_id as "groupByFieldId", config
+    SELECT database_id as "databaseId", name, type, group_by_field_id as "groupByFieldId", config, is_default as "isDefault"
     FROM database_views WHERE id = ${req.id}
   `;
   if (existing.length === 0) return yield* Effect.fail(new Error(`View ${req.id} not found`));
@@ -452,10 +460,23 @@ export const updateView = (req: {
   const newType = req.type ?? cur.type;
   const newGroupBy = req.groupByFieldId === undefined ? cur.groupByFieldId : req.groupByFieldId;
   const newConfig = req.config ?? cur.config;
+
+  // If setting this view as default, clear any existing default for this database
+  let newIsDefault: boolean;
+  if (req.isDefault !== undefined) {
+    newIsDefault = req.isDefault;
+    if (newIsDefault) {
+      yield* sql`UPDATE database_views SET is_default = 0 WHERE database_id = ${cur.databaseId} AND id != ${req.id} AND is_default = 1`;
+    }
+  } else {
+    newIsDefault = cur.isDefault === true || cur.isDefault === 1;
+  }
+
   const rows = yield* sql`
     UPDATE database_views
     SET name = ${newName}, type = ${newType},
-        group_by_field_id = ${newGroupBy}, config = ${newConfig}
+        group_by_field_id = ${newGroupBy}, config = ${newConfig},
+        is_default = ${newIsDefault ? 1 : 0}
     WHERE id = ${req.id}
     RETURNING ${sql.unsafe(VIEW_COLS)}
   `;

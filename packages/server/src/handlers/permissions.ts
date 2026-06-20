@@ -287,6 +287,18 @@ export const getFieldPageId = (fieldId: string) =>
     return list.length > 0 ? list[0].page_id : null;
   });
 
+/** Resolves the page_id that owns a given database view (via its database). */
+export const getViewPageId = (viewId: string) =>
+  Effect.gen(function* () {
+    const sql = yield* SqlClient.SqlClient;
+    const rows = yield* sql.unsafe(
+      `SELECT d.page_id FROM database_views v JOIN databases d ON d.id = v.database_id WHERE v.id = ?`,
+      [viewId],
+    );
+    const list = rows as unknown as { page_id: string }[];
+    return list.length > 0 ? list[0].page_id : null;
+  });
+
 const checkVia =
   <E>(
     lookup: (id: string) => Effect.Effect<string | null, E, SqlClient.SqlClient>,
@@ -305,6 +317,7 @@ export const checkBlockPermission = checkVia(getBlockPageId, "Block");
 export const checkDatabasePermission = checkVia(getDatabasePageId, "Database");
 export const checkRecordPermission = checkVia(getRecordPageId, "Record");
 export const checkFieldPermission = checkVia(getFieldPageId, "Field");
+export const checkViewPermission = checkVia(getViewPageId, "Database view");
 
 // ── Page-ACL CRUD ─────────────────────────────────────────────────────────────
 

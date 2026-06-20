@@ -7,3 +7,4 @@ dev-dist/
 .factory/settings.json
 .pi/extensions/emdash-hook.ts
 .claude/settings.local.json
+playwright/.auth/

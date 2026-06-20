@@ -96,6 +96,7 @@ export class DatabaseView extends Schema.Class<DatabaseView>("DatabaseView")({
   sortFieldId: Schema.NullOr(Schema.String),
   sortOrder: Schema.Literal("asc", "desc"),
   config: Schema.String,
+  isDefault: Schema.Boolean,
 }) {}
 
 /** A backlink represents a block that references another page. */

@@ -297,26 +297,28 @@ export const rpcHandlersLayer = AppRpc.toLayer({
           type: req.type,
           groupByFieldId: req.groupByFieldId,
           config: req.config,
+          isDefault: req.isDefault,
         });
       }),
     ).pipe(Effect.orDie),
   updateView: (req) =>
     withAuthedWorkspace(({ userId, workspaceId }) =>
       Effect.gen(function* () {
-        yield* Permissions.checkDatabasePermission(userId, workspaceId, req.id, "editor");
+        yield* Permissions.checkViewPermission(userId, workspaceId, req.id, "editor");
         return yield* Databases.updateView({
           id: req.id,
           name: req.name,
           type: req.type,
           groupByFieldId: req.groupByFieldId,
           config: req.config,
+          isDefault: req.isDefault,
         });
       }),
     ).pipe(Effect.orDie),
   deleteView: ({ id }) =>
     withAuthedWorkspace(({ userId, workspaceId }) =>
       Effect.gen(function* () {
-        yield* Permissions.checkDatabasePermission(userId, workspaceId, id, "editor");
+        yield* Permissions.checkViewPermission(userId, workspaceId, id, "editor");
         return yield* Databases.deleteView(id);
       }),
     ).pipe(Effect.orDie),

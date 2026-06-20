@@ -250,7 +250,7 @@ export function DatabaseView({ database, isNew }: { database: any; isNew?: boole
   const addSort = useDatabaseStore(s => s.addSort);
   const removeSort = useDatabaseStore(s => s.removeSort);
   const hydrateView = useDatabaseStore(s => s.hydrateView);
-  const updateView = useDatabaseStore(s => s.updateView);
+  const switchView = useDatabaseStore(s => s.switchView);
 
   // Per-database state, scoped by databaseId so sibling DatabaseView instances
   // on the same page don't clobber one another.
@@ -369,10 +369,13 @@ export function DatabaseView({ database, isNew }: { database: any; isNew?: boole
   }, [activeViewId, dbViews]);
 
   const changeViewType = useCallback((v: "table" | "board" | "calendar") => {
+    // A saved view's layout is fixed. Switching the layout tab leaves the
+    // active saved view (dropping to an ad-hoc 'All' in the chosen layout)
+    // rather than silently rewriting that view's stored type.
+    if (activeViewId) switchView(database.id, null);
     setViewType(v);
     localStorage.setItem(`db-view:${database.id}`, JSON.stringify({ viewType: v }));
-    if (activeViewId) updateView(activeViewId, { type: v });
-  }, [database.id, activeViewId, updateView]);
+  }, [database.id, activeViewId, switchView]);
 
   // Per-column footer summaries (Count / Sum / …), persisted locally per database.
   const [footerAggs, setFooterAggs] = useState<Record<string, AggType>>({});

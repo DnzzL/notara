@@ -40,11 +40,9 @@ export function CalendarView({
   allRecords?: Record<string, any[]>;
   onOpenRecord?: (record: any) => void;
 }) {
-  const updateView = useDatabaseStore((s) => s.updateView);
   const createDbRecord = useDatabaseStore((s) => s.createDbRecord);
   const updateFieldValue = useDatabaseStore((s) => s.updateFieldValue);
   const loadDbRecords = useDatabaseStore((s) => s.loadDbRecords);
-  const activeViewId = useDatabaseStore((s) => s.activeViewIdByDb[database.id] ?? null);
 
   const now = new Date();
   const [year, setYear] = useState(now.getFullYear());
@@ -103,11 +101,9 @@ export function CalendarView({
     await loadDbRecords(database.id);
   };
 
-  const switchView = (v: ViewType) => {
-    onChangeView(v);
-    localStorage.setItem(`db-view:${database.id}`, JSON.stringify({ viewType: v }));
-    if (activeViewId) updateView(activeViewId, { type: v });
-  };
+  // Layout switching (incl. leaving any active saved view) is handled by the
+  // parent's changeViewType; this just forwards the chosen layout.
+  const switchView = (v: ViewType) => onChangeView(v);
 
   const todayStr = toLocalDateStr(now);
 

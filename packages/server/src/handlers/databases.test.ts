@@ -84,7 +84,13 @@ const setupDB = Effect.gen(function* () {
     CREATE TABLE database_views (
       id TEXT PRIMARY KEY,
       database_id TEXT NOT NULL REFERENCES databases(id),
-      name TEXT NOT NULL DEFAULT ''
+      name TEXT NOT NULL DEFAULT '',
+      type TEXT NOT NULL DEFAULT 'table',
+      group_by_field_id TEXT,
+      sort_field_id TEXT,
+      sort_order TEXT NOT NULL DEFAULT 'asc',
+      config TEXT NOT NULL DEFAULT '{}',
+      is_default INTEGER NOT NULL DEFAULT 0
     )
   `;
 });
@@ -248,5 +254,46 @@ describe("trash listing, restore, and purge sweep", () => {
     await testRun(Databases.purgeExpired(30));
     expect(await rowCount("database_records", "id = 'rec1'")).toBe(0);
     expect(await rowCount("database_records", "id = 'rec2'")).toBe(1);
+  });
+});
+
+describe("default view (one per database)", () => {
+  beforeEach(seed);
+
+  it("updateView setting a view default clears the previous default in the same database", async () => {
+    const { a, b } = await testRun(Effect.gen(function* () {
+      const a = yield* Databases.createView({ databaseId: "db1", name: "A", type: "table", groupByFieldId: null, isDefault: true });
+      const b = yield* Databases.createView({ databaseId: "db1", name: "B", type: "board", groupByFieldId: null });
+      return { a, b };
+    }));
+    expect(a.isDefault).toBe(true);
+    expect(b.isDefault).toBe(false);
+
+    // Promote B — A must be demoted so exactly one default remains.
+    const updated = await testRun(Databases.updateView({ id: b.id, isDefault: true }));
+    expect(updated.isDefault).toBe(true);
+
+    const defaults = (await testRun(Databases.listViews("db1"))).filter((v) => v.isDefault);
+    expect(defaults.map((v) => v.id)).toEqual([b.id]);
+  });
+
+  it("updateView default does not affect defaults in other databases", async () => {
+    await testRun(Effect.gen(function* () {
+      const sql = yield* SqlClient.SqlClient;
+      yield* sql`INSERT INTO databases (id, page_id, name) VALUES ('db2', 'host-page', 'Other DB')`;
+    }));
+    const { other, b } = await testRun(Effect.gen(function* () {
+      yield* Databases.createView({ databaseId: "db1", name: "A", type: "table", groupByFieldId: null, isDefault: true });
+      const other = yield* Databases.createView({ databaseId: "db2", name: "C", type: "table", groupByFieldId: null, isDefault: true });
+      const b = yield* Databases.createView({ databaseId: "db1", name: "B", type: "table", groupByFieldId: null });
+      return { other, b };
+    }));
+
+    await testRun(Databases.updateView({ id: b.id, isDefault: true }));
+
+    const db1Defaults = (await testRun(Databases.listViews("db1"))).filter((v) => v.isDefault);
+    const db2Defaults = (await testRun(Databases.listViews("db2"))).filter((v) => v.isDefault);
+    expect(db1Defaults.map((v) => v.id)).toEqual([b.id]);
+    expect(db2Defaults.map((v) => v.id)).toEqual([other.id]);
   });
 });

@@ -31,6 +31,7 @@ export function ViewSwitcher({
   const updateView = useDatabaseStore((s) => s.updateView);
   const deleteView = useDatabaseStore((s) => s.deleteView);
   const switchView = useDatabaseStore((s) => s.switchView);
+  const setDefaultView = useDatabaseStore((s) => s.setDefaultView);
   const loadDbViews = useDatabaseStore((s) => s.loadDbViews);
 
   // Load views on mount
@@ -68,11 +69,10 @@ export function ViewSwitcher({
     if (!name) return;
     const config = serializeViewConfig(activeFilters, activeSorts, boardHidden);
     const viewType = currentViewType;
-    await createView(databaseId, name, viewType, boardGroupBy, config);
+    const newView = await createView(databaseId, name, viewType, boardGroupBy, config);
     setSaveName("");
     setSavingAs(false);
-    switchView(databaseId, null);
-    // Set the new view as active
+    if (newView) switchView(databaseId, newView);
     setOpen(false);
   }, [saveName, activeFilters, activeSorts, boardHidden, boardGroupBy, currentViewType, databaseId, createView, switchView]);
 
@@ -175,7 +175,10 @@ export function ViewSwitcher({
                     <rect x="1" y="9" width="6" height="6" rx="1" />
                     <rect x="9" y="9" width="6" height="6" rx="1" />
                   </svg>
-                  <span className="truncate" style={{ maxWidth: 130 }}>{view.name}</span>
+                  <span className="truncate" style={{ maxWidth: 100 }}>{view.name}</span>
+                  {view.isDefault && (
+                    <span style={{ color: "var(--accent, #2eaadc)", fontSize: 13, lineHeight: 1 }} title="Default view">★</span>
+                  )}
                   {activeViewId === view.id && <span style={{ marginLeft: "auto", color: "var(--accent, #2eaadc)" }}>✓</span>}
                 </button>
               )}
@@ -186,6 +189,16 @@ export function ViewSwitcher({
                   className="hidden group-hover:flex items-center gap-0.5 absolute right-1 top-1/2 -translate-y-1/2 bg-surface rounded border border-border shadow-sm"
                   onClick={(e) => e.stopPropagation()}
                 >
+                  <button
+                    title={view.isDefault ? "Remove default" : "Set as default view"}
+                    onClick={async (e) => {
+                      e.stopPropagation();
+                      await setDefaultView(databaseId, view.isDefault ? null : view.id);
+                    }}
+                    className="bg-transparent border-none cursor-pointer text-text-3 px-1 py-0.5 text-[11px] rounded transition-[color] hover:text-accent"
+                  >
+                    {view.isDefault ? "★" : "☆"}
+                  </button>
                   <button
                     title="Rename view"
                     onClick={() => { setRenamingId(view.id); setRenameValue(view.name); }}

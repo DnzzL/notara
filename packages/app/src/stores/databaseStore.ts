@@ -52,10 +52,11 @@ export interface DatabaseState {
   reorderRecords: (databaseId: string, recordIds: string[]) => Promise<void>;
 
   loadDbViews: (databaseId: string) => Promise<void>;
-  createView: (databaseId: string, name: string, type: "table" | "board" | "calendar", groupByFieldId: string | null, config?: string) => Promise<DatabaseView>;
-  updateView: (id: string, updates: { name?: string; type?: "table" | "board" | "calendar"; groupByFieldId?: string | null; config?: string }) => Promise<void>;
+  createView: (databaseId: string, name: string, type: "table" | "board" | "calendar", groupByFieldId: string | null, config?: string, isDefault?: boolean) => Promise<DatabaseView>;
+  updateView: (id: string, updates: { name?: string; type?: "table" | "board" | "calendar"; groupByFieldId?: string | null; config?: string; isDefault?: boolean }) => Promise<void>;
   deleteView: (databaseId: string, viewId: string) => Promise<void>;
   switchView: (databaseId: string, view: DatabaseView | null) => void;
+  setDefaultView: (databaseId: string, viewId: string | null) => Promise<void>;
 
   setBoardGroupBy: (databaseId: string, fieldId: string | null) => void;
   toggleBoardField: (databaseId: string, fieldId: string) => void;
@@ -178,10 +179,25 @@ export const useDatabaseStore = create<DatabaseState>((set, get) => ({
       dbViewsByDb: { ...s.dbViewsByDb, [databaseId]: views },
       dbViews: views,
     }));
+    // Auto-select the default view only on the first load for this database
+    // (state never set). Once the user has a selection — including an explicit
+    // 'All' (stored as null) — don't override it. Using `=== undefined` (rather
+    // than a falsy check) is what keeps the default from re-applying every time
+    // the ViewSwitcher remounts (e.g. when switching layout tabs).
+    const state = get();
+    if (state.activeViewIdByDb[databaseId] === undefined) {
+      const defaultView = views.find((v) => v.isDefault);
+      if (defaultView) {
+        get().switchView(databaseId, defaultView);
+        // Sync localStorage so a page refresh loads the default view's type
+        // instead of whatever the user had open last.
+        localStorage.setItem(`db-view:${databaseId}`, JSON.stringify({ viewType: defaultView.type }));
+      }
+    }
   },
 
-  createView: async (databaseId, name, type, groupByFieldId, config) => {
-    const view = await api.createView({ databaseId, name, type, groupByFieldId, config: config ?? undefined });
+  createView: async (databaseId, name, type, groupByFieldId, config, isDefault) => {
+    const view = await api.createView({ databaseId, name, type, groupByFieldId, config: config ?? undefined, isDefault });
     set((s) => ({
       dbViewsByDb: { ...s.dbViewsByDb, [databaseId]: [...(s.dbViewsByDb[databaseId] || []), view] },
       dbViews: [...s.dbViews, view],
@@ -206,6 +222,22 @@ export const useDatabaseStore = create<DatabaseState>((set, get) => ({
         dbViews: s.dbViews.map((v) => (v.id === id ? view : v)),
       };
     });
+  },
+
+  setDefaultView: async (databaseId, viewId) => {
+    if (!viewId) {
+      // Unset default: find the current default and clear it
+      const views = get().dbViewsByDb[databaseId] || [];
+      const currentDefault = views.find((v) => v.isDefault);
+      if (currentDefault) {
+        await get().updateView(currentDefault.id, { isDefault: false });
+      }
+      return;
+    }
+    // Set this view as default (server handles clearing previous default)
+    await get().updateView(viewId, { isDefault: true });
+    // Reload views to sync all views' isDefault state (server clears previous default)
+    await get().loadDbViews(databaseId);
   },
 
   deleteView: async (databaseId, viewId) => {

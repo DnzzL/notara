@@ -133,7 +133,8 @@ export const VIEW_COLS = `id, database_id as "databaseId", name, type,
   group_by_field_id as "groupByFieldId",
   sort_field_id as "sortFieldId",
   sort_order as "sortOrder",
-  config`;
+  config,
+  is_default as "isDefault"`;
 
 export function viewFromRow(r: unknown): DatabaseView {
   const row = r as Record<string, unknown>;
@@ -146,5 +147,6 @@ export function viewFromRow(r: unknown): DatabaseView {
     sortFieldId: (row.sortFieldId as string | null) ?? null,
     sortOrder: (row.sortOrder as "asc" | "desc") ?? "asc",
     config: (row.config as string) ?? "{}",
+  isDefault: row.isDefault === true || row.isDefault === 1,
   };
 }
