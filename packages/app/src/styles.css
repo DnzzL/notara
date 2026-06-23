@@ -265,7 +265,7 @@ body {
 .editor .ProseMirror ul.task-list li.task-item label { display: flex; align-items: center; margin-top: 5px; cursor: pointer; }
 .editor .ProseMirror ul.task-list li.task-item input[type="checkbox"] { width: 15px; height: 15px; cursor: pointer; accent-color: var(--accent); border-radius: 3px; }
 .editor .ProseMirror ul.task-list li.task-item[checked] > div,
-.editor .ProseMirror ul.task-list li.task-item[data-checked] > div { text-decoration: line-through; color: var(--text-3); }
+.editor .ProseMirror ul.task-list li.task-item[data-checked="true"] > div { text-decoration: line-through; color: var(--text-3); }
 
 /* Details / toggle (rendered via DetailsExtension node view as .toggle-block) */
 .editor .ProseMirror .toggle-block {
