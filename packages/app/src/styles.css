@@ -182,7 +182,7 @@ body {
 
 /* ── ProseMirror / TipTap editor content styles ── */
 .ProseMirror { min-height: 1em; outline: none; line-height: 1.75; color: var(--text); }
-.ProseMirror p { margin-bottom: 5px; font-size: 15px; color: var(--text); }
+.ProseMirror p { margin-top: 0; margin-bottom: 5px; font-size: 15px; color: var(--text); }
 .ProseMirror h1 {
   font-family: var(--font-title);
   font-size: 1.82em;
