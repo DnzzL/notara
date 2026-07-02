@@ -1,13 +1,12 @@
 import { Link } from "@tanstack/react-router";
 import { capture } from "../analytics.js";
 
-// Polar checkout URL is injected at build time. Falls back to a benign anchor so
-// the landing page still renders during early development.
-const POLAR_CHECKOUT_URL =
-  (import.meta as any).env?.VITE_POLAR_CHECKOUT_URL ?? "#pricing";
+// Public source-available repository. Notara is fair-source (FSL-1.1-ALv2):
+// free to self-host, no purchase step.
+const REPO_URL = "https://github.com/dnzzl/notara";
 
-const onCheckoutClick = (location: "hero" | "pricing") => () => {
-  capture("checkout_clicked", { location, plan: "self_host", price_eur: 29 });
+const onGetSourceClick = (location: "hero" | "pricing") => () => {
+  capture("get_source_clicked", { location });
 };
 
 const features = [
@@ -56,11 +55,11 @@ const features = [
 ];
 
 const planFeatures = [
-  "Full source · private GitHub repo",
+  "Full source · public GitHub repo",
   "Unlimited workspaces & members",
-  "Commercial use",
-  "Lifetime updates",
-  "Feature requests & bug reports",
+  "Commercial & internal use",
+  "Modify and redistribute",
+  "Apache-2.0 after 2 years",
 ];
 
 export function LandingPage() {
@@ -85,16 +84,16 @@ export function LandingPage() {
           <div className="landing-nav-links">
             <a href="#features" className="landing-nav-link">Features</a>
             <a href="#why" className="landing-nav-link">Why</a>
-            <a href="#pricing" className="landing-nav-link">Pricing</a>
+            <a href="#pricing" className="landing-nav-link">License</a>
             <Link to="/login" className="landing-nav-cta">Sign in →</Link>
             <a
-              href={POLAR_CHECKOUT_URL}
+              href={REPO_URL}
               className="landing-nav-buy"
               target="_blank"
               rel="noopener noreferrer"
-              onClick={onCheckoutClick("hero")}
+              onClick={onGetSourceClick("hero")}
             >
-              Buy — €29
+              GitHub ↗
             </a>
           </div>
         </div>
@@ -105,7 +104,7 @@ export function LandingPage() {
         <div className="lp-wrap">
           <div className="lp-hero-tag lp-reveal" style={{ animationDelay: ".05s" }}>
             <span className="sq" />
-          <span className="lp-kicker">First 500 buyers · <b>€29 forever</b> · <span className="lp-badge">001/500</span></span>
+          <span className="lp-kicker">Fair-source · <b>Free to self-host</b> · <span className="lp-badge">FSL-1.1-ALv2</span></span>
           </div>
           <h1 className="landing-headline lp-reveal" style={{ animationDelay: ".12s" }}>
             The notes app<br />you <span className="out">actually</span> <span className="blue">own.</span>
@@ -115,17 +114,17 @@ export function LandingPage() {
               <p className="lp-reveal" style={{ animationDelay: ".24s" }}>
                 A Notion alternative you can touch. Desktop app, block editor,
                 inline databases, real-time collaboration — all backed by a single SQLite
-                file on your own server. Pay once. Keep the source. Walk away whenever you like.
+                file on your own server. Free to self-host. Keep the source. Walk away whenever you like.
               </p>
               <div className="landing-hero-ctas lp-reveal" style={{ animationDelay: ".34s" }}>
                 <a
-                  href={POLAR_CHECKOUT_URL}
+                  href={REPO_URL}
                   className="landing-cta-primary"
                   target="_blank"
                   rel="noopener noreferrer"
-                  onClick={onCheckoutClick("hero")}
+                  onClick={onGetSourceClick("hero")}
                 >
-                  Get Notara — €29
+                  Get the source →
                 </a>
                 <a href="#features" className="landing-cta-secondary">See the app →</a>
               </div>
@@ -150,7 +149,7 @@ export function LandingPage() {
           <div className="lp-spec"><div className="num">1<span className="u">×</span></div><div className="lbl">SQLite file · your data</div></div>
           <div className="lp-spec"><div className="num">0<span className="u">/mo</span></div><div className="lbl">Subscriptions, forever</div></div>
           <div className="lp-spec"><div className="num">∞</div><div className="lbl">Workspaces &amp; members</div></div>
-          <div className="lp-spec"><div className="num">€29</div><div className="lbl">Only 500 · ever</div></div>
+          <div className="lp-spec"><div className="num">2<span className="u">yr</span></div><div className="lbl">Then Apache-2.0</div></div>
         </div>
       </section>
 
@@ -162,7 +161,7 @@ export function LandingPage() {
             <h2>One file. On your disk. No vendors in the middle.</h2>
             <p>
               Everything you write lives in a single SQLite file on a server you control. The source
-              ships with your license — read it, modify it, export your data, walk away. There is
+              is public — read it, modify it, export your data, walk away. There is
               nothing to be locked into.
             </p>
           </div>
@@ -183,8 +182,8 @@ export function LandingPage() {
       {/* Ticker */}
       <div className="lp-strip">
         <div className="lp-strip-in">
-          <span>SOURCE-AVAILABLE<em>/</em>ONE-TIME PAYMENT<em>/</em>SELF-HOSTED<em>/</em>NO SUBSCRIPTION<em>/</em>NO CLOUD LOCK-IN<em>/</em>OPEN REST API<em>/</em>CLI INCLUDED<em>/</em></span>
-          <span aria-hidden="true">SOURCE-AVAILABLE<em>/</em>ONE-TIME PAYMENT<em>/</em>SELF-HOSTED<em>/</em>NO SUBSCRIPTION<em>/</em>NO CLOUD LOCK-IN<em>/</em>OPEN REST API<em>/</em>CLI INCLUDED<em>/</em></span>
+          <span>FAIR-SOURCE<em>/</em>FREE TO SELF-HOST<em>/</em>SELF-HOSTED<em>/</em>NO SUBSCRIPTION<em>/</em>NO CLOUD LOCK-IN<em>/</em>OPEN REST API<em>/</em>CLI INCLUDED<em>/</em></span>
+          <span aria-hidden="true">FAIR-SOURCE<em>/</em>FREE TO SELF-HOST<em>/</em>SELF-HOSTED<em>/</em>NO SUBSCRIPTION<em>/</em>NO CLOUD LOCK-IN<em>/</em>OPEN REST API<em>/</em>CLI INCLUDED<em>/</em></span>
         </div>
       </div>
 
@@ -241,14 +240,14 @@ export function LandingPage() {
       <section id="why" className="landing-why">
         <div className="lp-wrap lp-why-in">
           <span className="lp-kicker"><b>03</b> · A note from the developer</span>
-          <h2>Why source-available, not free open-source?</h2>
+          <h2>Why fair-source, not just MIT?</h2>
           <p className="landing-why-body">
-            Honest framing: this is a compromise. Pure open-source brings a flood of issues and forks
-            a one-person project can't absorb without dying inside a year. Pure closed-source breaks the
-            promise that your data and tools are yours. Source-available sits between — paying buyers get
-            the full source, the right to read it, modify it for their own use, and walk away with their
-            data any time. In exchange I get a small, sustainable base I can actually support over the
-            long run. That trade is what keeps Notara alive past month six.
+            Honest framing: Notara is free to self-host, and the source is public. The one thing the
+            licence forbids is someone taking it, wrapping it in a hosted service, and reselling it as a
+            competitor — that's the only way a one-person project gets strip-mined. Everything else is
+            fair game: run it, modify it, redistribute it, use it commercially, export your data and
+            walk away any time. And it isn't a forever-catch: every release turns into plain Apache-2.0
+            two years after it ships. Open by default, with just enough protection to stay alive.
           </p>
           <p className="landing-why-signoff">
             — Thomas Legrand, sole developer ·{" "}
@@ -263,32 +262,32 @@ export function LandingPage() {
       <section id="pricing" className="landing-pricing">
         <div className="lp-wrap">
           <div className="lp-price-head">
-            <span className="lp-kicker"><b>04</b> · One price · yours forever</span>
-            <h2>No tiers.<br />No renewals.</h2>
-            <p className="sub">€29 one-time for the first 500 buyers — about three months of Notion, then never again. Lifetime updates included.</p>
+            <span className="lp-kicker"><b>04</b> · Free &amp; fair-source</span>
+            <h2>No tiers.<br />No price.</h2>
+            <p className="sub">Notara is free to self-host under the FSL-1.1-ALv2 licence — clone it, run it, own it. Every release becomes Apache-2.0 two years after it ships.</p>
           </div>
           <div className="lp-sheet">
             <div className="lp-sheet-left">
               <span className="tag">Notara · self-host</span>
-              <h3>What's in the box</h3>
+              <h3>What you get</h3>
               {planFeatures.map((f) => (
                 <div key={f} className="lp-sline">{f}<span className="c">INCL</span></div>
               ))}
             </div>
             <div className="lp-sheet-right">
-              <span className="badge">Early-bird · 001/500</span>
-              <div className="amt">€29</div>
-              <div className="once">one-time · no subscription</div>
+              <span className="badge">Fair-source · FSL-1.1-ALv2</span>
+              <div className="amt">€0</div>
+              <div className="once">free · self-hosted</div>
               <a
-                href={POLAR_CHECKOUT_URL}
+                href={REPO_URL}
                 target="_blank"
                 rel="noopener noreferrer"
-                onClick={onCheckoutClick("pricing")}
+                onClick={onGetSourceClick("pricing")}
                 className="buy"
               >
-                Buy &amp; get the source →
+                Clone &amp; self-host →
               </a>
-              <div className="fine">EULA · SOURCE-AVAILABLE · POLAR CHECKOUT</div>
+              <div className="fine">FSL-1.1-ALv2 · PUBLIC REPO · APACHE-2.0 IN 2 YEARS</div>
             </div>
           </div>
         </div>

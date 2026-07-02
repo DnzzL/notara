@@ -1,7 +1,7 @@
 import { createRoute, Link } from "@tanstack/react-router";
 import { Route as rootRoute } from "./__root.js";
 
-const LAST_UPDATED = "2026-06-02";
+const LAST_UPDATED = "2026-07-01";
 
 function TermsPage() {
   return (
@@ -16,16 +16,18 @@ function TermsPage() {
         <p>
           These terms govern your use of the Notara marketing site and any hosted services
           operated by Thomas Legrand (sole developer, "we"). Your separate license to the
-          Notara software is covered by the <a href="https://github.com/dnzzl" target="_blank" rel="noopener noreferrer">LICENSE</a> file
-          delivered with the source code, not by this document.
+          Notara software is covered by the <a href="https://github.com/dnzzl/notara/blob/main/LICENSE" target="_blank" rel="noopener noreferrer">LICENSE</a> file
+          in the source repository, not by this document.
         </p>
 
         <h2>1. The service</h2>
         <p>
-          Notara is a source-available self-hostable Notion alternative. By purchasing a license
-          you gain access to a private GitHub repository containing the source code, the right
-          to deploy Notara on your own infrastructure for personal or commercial use, and
-          lifetime updates. The full terms of that license are in <code>LICENSE</code> in the source tree.
+          Notara is a fair-source, self-hostable Notion alternative. It is free to self-host
+          under the Functional Source License (FSL-1.1-ALv2): the source lives in a public
+          GitHub repository, and you may run, modify, and redistribute it — including for
+          commercial use — provided you do not offer it as a competing hosted service. Each
+          release additionally converts to the Apache License 2.0 two years after it ships.
+          The full terms are in <code>LICENSE</code> in the source tree.
         </p>
 
         <h2>2. Account creation</h2>
@@ -44,21 +46,18 @@ function TermsPage() {
           <li>Reverse-engineer the software except as allowed by the license.</li>
         </ul>
 
-        <h2>4. Payments and refunds</h2>
+        <h2>4. Payments</h2>
         <p>
-          Purchases are processed by Polar, our merchant of record. Polar handles VAT and tax
-          obligations. Because the product delivers digital source code immediately upon purchase,
-          all sales are final by default. If something is genuinely broken on our side or you
-          haven't downloaded the code yet, email us and we'll refund you — we'd rather have a
-          happy non-customer than an unhappy customer.
+          Notara is free to self-host — the marketing site sells nothing and we take no payment
+          for the software. Your rights to the source are granted by the FSL-1.1-ALv2 licence,
+          not by a purchase.
         </p>
 
         <h2>5. Updates and changes</h2>
         <p>
-          We may push updates to the source repository at any time. Your license entitles you
-          to download those updates for the period defined at purchase (currently: lifetime).
-          We may change the product in ways that require migration; we will document those
-          migrations in the release notes.
+          We may push updates to the public source repository at any time; they are available
+          to everyone under the licence. We may change the product in ways that require migration;
+          we will document those migrations in the release notes.
         </p>
 
         <h2>6. Service availability</h2>

@@ -9,6 +9,10 @@ body:
         Two questions decide whether a feature lands: **what problem does
         it solve** and **who has that problem**. Please answer those before
         suggesting an implementation.
+
+        **Please don't build it yet.** Notara is solo-maintained — open this
+        issue and wait for the author to approve the idea *before* writing code.
+        Unsolicited feature PRs may be closed. See [CONTRIBUTING.md](../blob/main/CONTRIBUTING.md).
   - type: textarea
     id: problem
     attributes:
@@ -44,4 +48,6 @@ body:
       label: Confirmations
       options:
         - label: I searched existing issues and didn't find a duplicate.
+          required: true
+        - label: I understand this feature must be approved here before I open a PR, and unsolicited feature PRs may be closed.
           required: true

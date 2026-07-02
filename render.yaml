@@ -1,0 +1,25 @@
+# Render.com Blueprint — one-click deploy for Notara.
+# https://render.com/docs/blueprint-spec
+#
+# Notara is single-instance: all data lives in one SQLite file on a persistent
+# disk. A Render disk requires a paid instance type (the free tier has no
+# persistent storage). Render injects $PORT automatically; the server honors it.
+services:
+  - type: web
+    name: notara
+    runtime: docker
+    dockerfilePath: ./Dockerfile
+    plan: starter
+    disk:
+      name: notara-data
+      mountPath: /data
+      sizeGB: 1
+    envVars:
+      - key: DATA_DIR
+        value: /data
+      - key: BETTER_AUTH_SECRET
+        generateValue: true          # Render generates a strong secret
+      - key: BASE_URL
+        sync: false                   # set to your URL, e.g. https://notara.onrender.com
+      - key: TRUSTED_ORIGINS
+        sync: false                   # same value as BASE_URL
