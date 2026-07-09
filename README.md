@@ -1,112 +1,28 @@
 <div align="center">
+<img src="packages/app/public/pwa-512x512.png" width="80" height="80" alt="Notara" />
 
-<img src="packages/app/public/pwa-512x512.png" width="88" height="88" alt="Notara" />
+# Notara
 
-# NOTARA
-
-### The notes app you actually own.
-
-A self-hostable, **fair-source** Notion alternative — block editor, inline databases,
-real-time collaboration — all stored in **one SQLite file** on your own server.
-No subscription. No cloud. No vendor in the middle.
-
-[Self-host](#-self-host) · [Features](#-features) · [The toolchain](#-the-notara-toolchain) · [Configuration](#-configuration) · [License](#-license)
-
-<br />
+**The notes app you actually own.**
 
 ![License](https://img.shields.io/badge/license-FSL--1.1--ALv2-2B4DFF)
 ![Becomes Apache-2.0](https://img.shields.io/badge/then-Apache--2.0%20in%202%20yrs-blue)
-![Self-hosted](https://img.shields.io/badge/hosting-self--hosted-111)
-![Built with Bun](https://img.shields.io/badge/runtime-Bun-f9f1e1)
-![PRs welcome](https://img.shields.io/badge/PRs-welcome-brightgreen)
-
-<br />
-
-<img src="packages/app/public/notara-hero-poster.jpg" width="760" alt="Notara in action" />
-
 </div>
 
----
+I wanted a Notion I could actually own — everything in **one SQLite file** on a box I
+control, no subscription, no cloud, and few enough features that one person can keep them
+all working. That's Notara: a self-hostable, **fair-source** Notion alternative with a
+block editor, inline databases, and real-time collaboration. The source is public, it's
+free to self-host, and there's nothing to be locked into.
 
-## Why Notara?
+It's built and maintained by one person ([me](https://thomas.legrand.sh)), on purpose. The
+guiding rule is *fewer features, done well* — so the list below is deliberately short.
 
-Notion is great until the day you realize none of it is yours — your notes live on
-someone else's servers, behind someone else's subscription, exportable only on their
-terms. Notara flips that:
+<div align="center">
+<img src="packages/app/public/notara-hero-poster.jpg" width="720" alt="Notara" />
+</div>
 
-- **🗄️ One file, on your disk.** Every workspace is a single SQLite file. Back it up, copy it, inspect it, walk away with it. There is nothing to be locked into.
-- **🔓 Fair-source, not closed.** The full source is public under [FSL-1.1-ALv2](#-license). Read it, modify it, run it commercially. Each release turns into Apache-2.0 two years after it ships.
-- **🏠 Self-hosted by design.** One container, no external dependencies, no telemetry you didn't opt into. Runs on a $5 VM.
-- **🧰 A real toolchain.** A branded CLI, a full REST API, and a native desktop app — Notara is scriptable and automatable end to end.
-
----
-
-## ⚡ Self-host
-
-Notara ships as a **single container**. Pick whichever path fits you.
-
-### One-click — Render
-
-[![Deploy to Render](https://render.com/images/deploy-to-render-button.svg)](https://render.com/deploy?repo=https://github.com/dnzzl/notara)
-
-Uses the [`render.yaml`](./render.yaml) blueprint in this repo: builds the Dockerfile,
-attaches a persistent disk for your SQLite data, and generates `BETTER_AUTH_SECRET` for
-you. After the first deploy, set `BASE_URL` and `TRUSTED_ORIGINS` to your Render URL.
-*(A persistent disk requires a paid Render instance — the free tier has no storage.)*
-
-### Recommended — Docker Compose
-
-```bash
-git clone https://github.com/dnzzl/notara
-cd notara
-# edit the environment: section in docker-compose.yml (at minimum BETTER_AUTH_SECRET)
-docker compose up -d --build
-```
-
-Open `http://localhost:3000` and create your account. The compose file **builds from
-source** — there is no prebuilt image to trust; you run exactly what's in the repo.
-
-### Other platforms
-
-<details>
-<summary><strong>Fly.io</strong></summary>
-
-```bash
-fly launch --no-deploy                       # detects the Dockerfile
-fly volume create notara_data --size 1       # persistent SQLite storage
-# in fly.toml, mount the volume at /data and set DATA_DIR=/data
-fly secrets set BETTER_AUTH_SECRET=$(openssl rand -base64 32)
-fly deploy
-```
-</details>
-
-<details>
-<summary><strong>Railway</strong></summary>
-
-New Project → **Deploy from GitHub repo** → `dnzzl/notara`. Railway builds the
-Dockerfile automatically. Add a **Volume** mounted at `/data`, set `DATA_DIR=/data`,
-and add `BETTER_AUTH_SECRET` (generate with `openssl rand -base64 32`).
-</details>
-
-<details>
-<summary><strong>Plain Docker</strong></summary>
-
-```bash
-docker build -t notara .
-docker run -d -p 3000:3000 \
-  -v notara-data:/data \
-  -e DATA_DIR=/data \
-  -e BETTER_AUTH_SECRET="$(openssl rand -base64 32)" \
-  notara
-```
-</details>
-
-> **Single-instance by design.** The rate limiter and presence state are in-process.
-> Run one container behind your reverse proxy and scale *up* (bigger VM), not *out*.
-
----
-
-## ✨ Features
+## Features
 
 | | |
 |---|---|
@@ -120,49 +36,123 @@ docker run -d -p 3000:3000 \
 | **Desktop app** | Native Electron app for macOS — plus the web client |
 | **Own your data** | One SQLite file per workspace, on infrastructure you control |
 
----
+## Self-host
 
-## 🧰 The Notara toolchain
+Notara is a **single container** with no external services — one SQLite file on a mounted
+volume is the whole database. There's no prebuilt image to trust: every method below
+**builds from the source in this repo**, so you run exactly what you can read.
 
-Notara isn't just an app — it's a scriptable surface. Three branded tools, one product.
+> **It runs as one instance, on purpose.** The rate limiter and presence state live
+> in-process. Run a single container behind your reverse proxy and scale *up* (a bigger
+> box), not *out*. A $5 VM is plenty to start.
 
-### `notara` — the CLI
+### Docker Compose
+
+The quickest way in:
 
 ```bash
-notara pages list --json | jq '.title'      # pipe your whole wiki into anything
+git clone https://github.com/dnzzl/notara
+cd notara
+# set at least BETTER_AUTH_SECRET in the environment: section of docker-compose.yml
+docker compose up -d --build
 ```
 
-The scriptable command-line client over the REST API. Install from JSR:
+Open `http://localhost:3000` and create your account.
+
+### Docker / Podman (plain)
+
+Both work the same — swap `docker` for `podman` if that's your world:
 
 ```bash
-npx jsr add @notara/cli
+podman build -t notara .
+podman run -d --name notara -p 3000:3000 \
+  -v notara-data:/data \
+  -e DATA_DIR=/data \
+  -e BETTER_AUTH_SECRET="$(openssl rand -base64 32)" \
+  notara
 ```
 
-### The REST API
+### Podman Quadlet (systemd)
 
-A fully documented HTTP API at `/api/v1` — read, write, search, manage. Built for
-automation, CI, and AI agents.
+For a rootless, boot-persistent install managed by systemd. Build the image first
+(`podman build -t notara .`), store the auth secret, then drop a `.container` unit in the
+Quadlet directory:
 
-- **Interactive docs** — `GET /api/docs` (Swagger UI)
-- **OpenAPI spec** — `GET /api/v1/openapi.json`
+```ini
+# ~/.config/containers/systemd/notara.container   (rootless)
+# /etc/containers/systemd/notara.container         (system-wide)
+[Unit]
+Description=Notara
+After=network-online.target
+Wants=network-online.target
+
+[Container]
+Image=localhost/notara:latest
+PublishPort=3000:3000
+Volume=notara-data:/data
+Environment=DATA_DIR=/data
+Environment=BASE_URL=https://notes.example.com
+Environment=TRUSTED_ORIGINS=https://notes.example.com
+Secret=notara-auth-secret,type=env,target=BETTER_AUTH_SECRET
+
+[Service]
+Restart=always
+
+[Install]
+WantedBy=default.target
+```
+
+Then generate the secret, let systemd pick up the unit, and start it:
+
+```bash
+podman secret create notara-auth-secret <(openssl rand -base64 32)
+systemctl --user daemon-reload
+systemctl --user start notara
+loginctl enable-linger "$USER"   # keep it running after you log out
+```
+
+Quadlet turns the `.container` file into a real `notara.service` — `systemctl --user
+status notara`, `journalctl --user -u notara`, and auto-restart all work as usual. Drop the
+`--user` flags for a system-wide unit.
+
+### Fly.io
+
+```bash
+fly launch --no-deploy                       # detects the Dockerfile
+fly volume create notara_data --size 1       # persistent SQLite storage
+# in fly.toml: mount the volume at /data and set DATA_DIR=/data
+fly secrets set BETTER_AUTH_SECRET=$(openssl rand -base64 32)
+fly deploy
+```
+
+## The notara toolchain
+
+Notara is scriptable end to end — the app is one way in, not the only one.
+
+**`notara` — the CLI.** The scriptable client over the REST API. Install from JSR
+(`npx jsr add @notara/cli`), then pipe your wiki into anything:
+
+```bash
+notara pages list --json | jq '.title'
+```
+
+**The REST API.** A documented HTTP API at `/api/v1` — read, write, search, manage. Built
+for automation, CI, and agents. Interactive docs at `GET /api/docs`, OpenAPI at
+`GET /api/v1/openapi.json`. Generate a key in the sidebar → **API keys** and pass it as
+`Authorization: Bearer ntr_…`:
 
 ```bash
 curl https://notes.example.com/api/v1/workspaces/<workspaceId>/pages \
   -H "Authorization: Bearer ntr_your_key_here"
 ```
 
-Generate a key in the sidebar → **API keys**, then pass it as `Authorization: Bearer ntr_…`.
+**The desktop app.** Native macOS Electron build — lives in your dock, works offline,
+syncs to your server.
 
-### The desktop app
+## Configuration
 
-Native macOS Electron build — lives in your dock, works offline, syncs to your server.
-
----
-
-## 🔧 Configuration
-
-Set these in your `docker-compose.yml` → `environment:` section, a `.env` file, or your
-platform's env settings.
+Set these in your `docker-compose.yml` → `environment:`, a Quadlet `Environment=`/secret,
+a `.env` file, or your platform's env settings.
 
 ### Required
 
@@ -174,7 +164,7 @@ platform's env settings.
 
 | Variable | Default | Description |
 |----------|---------|-------------|
-| `PORT` | `3000` | HTTP port. (Render/Fly inject this automatically.) |
+| `PORT` | `3000` | HTTP port. (Fly injects this automatically.) |
 | `DATA_DIR` | `./.data` | Where SQLite databases and attachments live. Mount a persistent volume here. |
 | `BASE_URL` | `http://localhost:3000` | Public URL of the instance — used in invite/reset emails. Must match what users type. |
 | `TRUSTED_ORIGINS` | `http://localhost:5173` | Comma-separated origins allowed for CORS and session cookies. Set to your public URL in production. |
@@ -282,9 +272,7 @@ server {
 
 Back up the entire `.data/` directory to keep everything.
 
----
-
-## 🛠 Development
+## Development
 
 **Prerequisites:** [Bun](https://bun.sh) ≥ 1.1
 
@@ -308,9 +296,7 @@ bun test                   # unit tests
 bunx playwright test       # E2E (requires built app)
 ```
 
----
-
-## 📄 License
+## License
 
 Notara is **fair-source** under the [Functional Source License, FSL-1.1-ALv2](./LICENSE).
 
@@ -320,20 +306,17 @@ Notara is **fair-source** under the [Functional Source License, FSL-1.1-ALv2](./
 
 No license key, no seat limit, no subscription. See [LICENSE](./LICENSE) for the full terms.
 
----
+## Contributing & bugs
 
-## 🐛 Reporting bugs & contributing
+Found a bug? Open an issue with the [Bug report](https://github.com/dnzzl/notara/issues/new?template=bug_report.yml)
+template — version/commit, deployment, browser + OS, expected vs actual, steps, logs
+(secrets redacted).
 
-Open an issue using the **Bug report** template — it asks for version/commit, deployment
-type, browser + OS, expected vs actual, steps to reproduce, and logs (secrets redacted):
-
-<https://github.com/dnzzl/notara/issues/new?template=bug_report.yml>
-
-**Contributing:** bug fixes and docs PRs are welcome directly. **New features must be
-validated in a [feature issue](https://github.com/dnzzl/notara/issues/new?template=feature_request.yml)
-and approved by the author before you build** — Notara is solo-maintained, so please don't
-spend a weekend on a PR that might not fit. Contributions are licensed under FSL-1.1-ALv2.
-Full policy in [CONTRIBUTING.md](./CONTRIBUTING.md). Be kind; assume good intent.
+Bug fixes and docs PRs are welcome directly. **New features need a
+[feature issue](https://github.com/dnzzl/notara/issues/new?template=feature_request.yml)
+that I've approved before you build** — I'm one person, and I'd rather you didn't sink a
+weekend into a PR I can't take. Contributions ship under FSL-1.1-ALv2; the full policy is
+in [CONTRIBUTING.md](./CONTRIBUTING.md). Be kind; assume good intent.
 
 > **Security vulnerabilities:** email **legrand.thomas5@hotmail.fr** — never a public issue.
 
