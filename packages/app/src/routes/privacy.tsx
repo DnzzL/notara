@@ -1,7 +1,7 @@
 import { createRoute, Link } from "@tanstack/react-router";
 import { Route as rootRoute } from "./__root.js";
 
-const LAST_UPDATED = "2026-06-04";
+const LAST_UPDATED = "2026-07-01";
 
 function PrivacyPage() {
   return (
@@ -21,7 +21,7 @@ function PrivacyPage() {
 
         <h2>1. Scope of this policy</h2>
         <p>
-          Notara is a <strong>self-hosted product</strong>. When you purchase a license and run Notara
+          Notara is a <strong>self-hosted product</strong>. When you self-host and run Notara
           on your own machine or server, all data you create inside it stays entirely under your
           control — we have no access to it and this policy does not apply to it.
         </p>
@@ -40,7 +40,7 @@ function PrivacyPage() {
 
         <h3>3.1 Product analytics (with consent only)</h3>
         <ul>
-          <li><strong>PostHog events</strong> — page views, clicks, and checkout interactions. We use this to understand how to improve the landing page and conversion funnel.</li>
+          <li><strong>PostHog events</strong> — page views and clicks. We use this to understand how to improve the landing page.</li>
         </ul>
         <p>
           <strong>Legal basis:</strong> consent (Art. 6(1)(a) GDPR). Analytics are <em>only</em> enabled

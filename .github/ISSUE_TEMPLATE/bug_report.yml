@@ -25,7 +25,6 @@ body:
         - Docker Compose (self-host)
         - Bare metal (self-host)
         - Local dev
-        - Hosted cloud (notara.app)
         - Other (please specify in steps below)
     validations:
       required: true

@@ -58,7 +58,7 @@ export const observabilityEnabled = enabled;
  *   - signup_completed       → top-of-funnel
  *   - workspace_created      → account-to-workspace conversion
  *   - page_created           → real activation
- *   - checkout_clicked       → purchase intent (front-end only)
+ *   - get_source_clicked     → self-host intent (front-end only)
  */
 export function track(
   event: string,

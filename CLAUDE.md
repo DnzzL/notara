@@ -84,7 +84,7 @@ If you can't run these, say so explicitly rather than claiming success.
 
 **Decisions that already cost discussion. Don't re-debate without explicit ask.**
 
-- **Commercial posture is settled.** Source-available, EULA, **single tier**, €29 one-time, first 500 buyers, distribution via Polar GitHub Repository Benefit. No subscription, no cloud, no entitlements service. See `docs/adr/002-commercialization-source-available.md` and `docs/adr/003-single-tier-launch.md`.
+- **Commercial posture is settled: fair-source, free.** Notara is licensed under **FSL-1.1-ALv2** (free to self-host; converts to Apache-2.0 two years per release). No purchase, no subscription, no cloud, no entitlements service. A future Team tier (SSO/multi-workspace) is *reserved but not built* — gate it only at seat-add if it ever lands. See `docs/adr/004-fair-source-fsl.md`. (The earlier €29/Polar commercial model is retired; its ADRs 002/003 are kept as private local notes, gitignored — not in the repo.)
 
 - **No scattered tier/plan checks. Ever.** If a future Team tier lands, gating goes in `withAuthedWorkspace` (`packages/server/src/workspace-context.ts`) — and *only* there, at seat-add. Not in `createPage`, `createBlock`, `createDatabase`, or any other handler. If you find yourself reaching for an `entitlements` framework for 2 tiers, stop.
 
@@ -114,7 +114,7 @@ packages/app/src/
   components/
     ConsentBanner.tsx       bottom banner, Reject == Accept
     AnalyticsIdentity.tsx   binds session → identify()
-    LandingPage.tsx         single tier, €29, hard cap 500
+    LandingPage.tsx         fair-source, free self-host (FSL-1.1-ALv2)
   routes/{privacy,terms}.tsx  GDPR + ToS
 
 packages/shared/src/api.ts  RPC schema + bounded string types

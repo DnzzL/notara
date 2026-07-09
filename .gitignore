@@ -8,3 +8,7 @@ dev-dist/
 .pi/extensions/emdash-hook.ts
 .claude/settings.local.json
 playwright/.auth/
+
+# Private commercial ADRs — personal strategy notes, kept local (see ADR-004 for the public decision)
+docs/adr/002-commercialization-source-available.md
+docs/adr/003-single-tier-launch.md
