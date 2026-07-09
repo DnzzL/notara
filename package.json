@@ -1,0 +1,61 @@
+{
+  "name": "notara",
+  "private": true,
+  "scripts": {
+    "predev:server": "bun run --filter @notara/shared build",
+    "dev:server": "bun run --filter @notara/server dev",
+    "predev:app": "bun run --filter @notara/shared build",
+    "dev:app": "bun run --filter @notara/app dev",
+    "predev:electron": "bun run --filter @notara/shared build",
+    "dev:electron": "bun run --filter @notara/electron dev",
+    "build": "bun run --filter @notara/shared build && bun run --filter '!@notara/electron' build",
+    "build:electron": "bun run --filter @notara/shared build && bun run --filter @notara/server build && bun run --filter @notara/app build && bun run --filter @notara/electron build",
+    "db:migrate": "bun run --filter @notara/server db:migrate",
+    "test": "bun run --filter '*' test",
+    "postinstall": "bash scripts/patch-msgpackr.sh"
+  },
+  "workspaces": [
+    "packages/*"
+  ],
+  "overrides": {
+    "@tiptap/core": "2.11.0",
+    "@tiptap/pm": "2.11.0",
+    "@tiptap/react": "2.11.0",
+    "@tiptap/starter-kit": "2.11.0",
+    "@tiptap/extension-blockquote": "2.11.0",
+    "@tiptap/extension-bold": "2.11.0",
+    "@tiptap/extension-bubble-menu": "2.11.0",
+    "@tiptap/extension-bullet-list": "2.11.0",
+    "@tiptap/extension-code": "2.11.0",
+    "@tiptap/extension-code-block": "2.11.0",
+    "@tiptap/extension-document": "2.11.0",
+    "@tiptap/extension-dropcursor": "2.11.0",
+    "@tiptap/extension-floating-menu": "2.11.0",
+    "@tiptap/extension-gapcursor": "2.11.0",
+    "@tiptap/extension-hard-break": "2.11.0",
+    "@tiptap/extension-heading": "2.11.0",
+    "@tiptap/extension-history": "2.11.0",
+    "@tiptap/extension-horizontal-rule": "2.11.0",
+    "@tiptap/extension-italic": "2.11.0",
+    "@tiptap/extension-list-item": "2.11.0",
+    "@tiptap/extension-ordered-list": "2.11.0",
+    "@tiptap/extension-paragraph": "2.11.0",
+    "@tiptap/extension-strike": "2.11.0",
+    "@tiptap/extension-task-list": "2.11.0",
+    "@tiptap/extension-task-item": "2.11.0",
+    "@tiptap/extension-text": "2.11.0",
+    "@tiptap/extension-text-style": "2.11.0"
+  },
+  "resolutions": {
+    "@effect/platform": "0.96.0"
+  },
+  "devDependencies": {
+    "@playwright/test": "^1.60.0",
+    "patch-package": "^8.0.1"
+  },
+  "dependencies": {
+    "@dnd-kit/core": "^6.3.1",
+    "@dnd-kit/sortable": "^10.0.0",
+    "@dnd-kit/utilities": "^3.2.2"
+  }
+}

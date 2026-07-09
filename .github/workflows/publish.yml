@@ -1,0 +1,19 @@
+name: publish CLI to JSR
+
+on:
+  push:
+    branches: [main]
+    paths: ["packages/cli/**"]
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+      - uses: oven-sh/setup-bun@v2
+      - run: bun install --frozen-lockfile
+      - name: type-check
+        run: bun --bun tsc --noEmit -p packages/cli/tsconfig.json
+      - name: publish
+        working-directory: packages/cli
+        run: npx jsr publish --token ${{ secrets.JSR_TOKEN }}
