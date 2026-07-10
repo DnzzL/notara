@@ -3,6 +3,8 @@ import { Route as rootRoute } from "./__root.js";
 import { createAuthClient } from "better-auth/react";
 import { useState, useEffect } from "react";
 import { Button } from "../components/ui/index.js";
+import { ApiKeysPanel } from "../components/ApiKeysPanel.js";
+import { BackupsPanel } from "../components/BackupsPanel.js";
 import { api } from "../rpc-client.js";
 import { useSession } from "../auth-client.js";
 import type { Workspace, WorkspaceMember } from "@notara/shared";
@@ -32,6 +34,7 @@ function WorkspaceSettingsPage() {
   const [inviteSent, setInviteSent] = useState(false);
   const [loading, setLoading] = useState(true);
   const [notFound, setNotFound] = useState(false);
+  const [tab, setTab] = useState<"members" | "apiKeys" | "backups">("members");
 
   useEffect(() => {
     api.getMyWorkspaces().then((ws) => {
@@ -115,7 +118,26 @@ function WorkspaceSettingsPage() {
           <div className="admin-loading">Loading…</div>
         ) : (
           <>
-            {isOwner && (
+            <div role="tablist" className="flex gap-1 mb-5 border-b border-border">
+              {([["members", "Members"], ["apiKeys", "API keys"], ["backups", "Backups"]] as const).map(([key, label]) => (
+                <button
+                  key={key}
+                  role="tab"
+                  aria-selected={tab === key}
+                  onClick={() => setTab(key)}
+                  className={`px-3 py-2 text-[13px] font-medium bg-transparent border-none border-b-2 cursor-pointer -mb-px transition-colors ${tab === key ? "border-accent text-text" : "border-transparent text-text-3 hover:text-text-2"}`}
+                >
+                  {label}
+                </button>
+              ))}
+            </div>
+
+            {tab === "apiKeys" && <ApiKeysPanel />}
+            {tab === "backups" && <BackupsPanel />}
+
+            {tab === "members" && (
+              <>
+                {isOwner && (
               <section className="mb-5">
                 <h3 className="text-[11.5px] font-semibold mb-2.5 text-text-3 uppercase tracking-[0.06em]">Invite members</h3>
                 <form className="flex gap-1.5" onSubmit={handleEmailInvite}>
@@ -169,6 +191,8 @@ function WorkspaceSettingsPage() {
                 ))}
               </ul>
             </section>
+              </>
+            )}
           </>
         )}
       </div>

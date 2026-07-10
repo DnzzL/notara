@@ -5,8 +5,6 @@ import { api } from "../rpc-client.js";
 import { WorkspaceSwitcher } from "./WorkspaceSwitcher.js";
 import { TemplatePicker } from "./TemplatePicker.js";
 import { ImportModal } from "./ImportModal.js";
-import { SettingsModal } from "./SettingsModal.js";
-import { ApiKeysModal } from "./ApiKeysModal.js";
 import { TrashModal } from "./TrashModal.js";
 import { EmojiPicker } from "./EmojiPicker.js";
 import { createTreeCollection, TreeView } from "@ark-ui/react/tree-view";
@@ -98,8 +96,6 @@ export function Sidebar({ className, onNavigate, onStartTour }: SidebarProps = {
   const [searchQuery, setSearchQuery] = useState("");
   const [showTemplatePicker, setShowTemplatePicker] = useState(false);
   const [showImport, setShowImport] = useState(false);
-  const [showSettings, setShowSettings] = useState(false);
-  const [showApiKeys, setShowApiKeys] = useState(false);
   const [showTrash, setShowTrash] = useState(false);
   const [lockedPageIds, setLockedPageIds] = useState<Set<string>>(new Set());
 
@@ -370,8 +366,6 @@ export function Sidebar({ className, onNavigate, onStartTour }: SidebarProps = {
         <aside data-sidebar className={`bg-sb border-r border-border-sb flex flex-col shrink-0 relative min-w-[200px] max-w-[480px]${className ? ` ${className}` : ""}`} style={{ width }}>
           <WorkspaceSwitcher
             onCollapse={() => setCollapsed(true)}
-            onOpenBackups={() => setShowSettings(true)}
-            onOpenApiKeys={() => setShowApiKeys(true)}
             onOpenImport={() => setShowImport(true)}
             onOpenTrash={() => setShowTrash(true)}
           />
@@ -499,8 +493,6 @@ export function Sidebar({ className, onNavigate, onStartTour }: SidebarProps = {
       </DragOverlay>
 
       <ImportModal open={showImport} onClose={() => setShowImport(false)} />
-      <SettingsModal open={showSettings} onClose={() => setShowSettings(false)} onStartTour={onStartTour} />
-      {showApiKeys && <ApiKeysModal onClose={() => setShowApiKeys(false)} />}
       {showTrash && <TrashModal onClose={() => setShowTrash(false)} onChanged={loadPages} />}
       {showTemplatePicker && (
         <TemplatePicker

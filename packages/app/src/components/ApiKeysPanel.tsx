@@ -1,14 +1,10 @@
 import { useState, useEffect } from "react";
-import { Modal, Button } from "./ui/index.js";
+import { Button } from "./ui/index.js";
 import { useApiKeyStore } from "../store.js";
 import type { ApiKeyCreated } from "@notara/shared";
 import { toaster } from "../toaster.js";
 
-interface Props {
-  onClose: () => void;
-}
-
-export function ApiKeysModal({ onClose }: Props) {
+export function ApiKeysPanel() {
   const { apiKeys, apiKeysLoading, loadApiKeys, createApiKey, revokeApiKey } = useApiKeyStore();
   const [newKeyName, setNewKeyName] = useState("");
   const [creating, setCreating] = useState(false);
@@ -46,7 +42,7 @@ export function ApiKeysModal({ onClose }: Props) {
   };
 
   return (
-    <Modal title="API keys" onClose={onClose} className="max-w-[560px]">
+    <>
       <p className="text-[13.5px] text-text-2 leading-relaxed mb-4">
         Use API keys to automate Notara from scripts, CI pipelines, or any HTTP client.
         Keys authenticate as you and have access to all your workspaces.{" "}
@@ -128,6 +124,6 @@ export function ApiKeysModal({ onClose }: Props) {
           </ul>
         )}
       </section>
-    </Modal>
+    </>
   );
 }
