@@ -1,6 +1,6 @@
 project_name: "notara"
 default_status: "needs-triage"
-statuses: ["needs-triage", "needs human validation", "ready for agent", "wontfix", "done"]
+statuses: ["needs-triage", "needs-info", "ready-for-agent", "ready-for-human", "wontfix", "done"]
 labels: ["bug", "enhancement"]
 date_format: yyyy-mm-dd
 max_column_width: 20

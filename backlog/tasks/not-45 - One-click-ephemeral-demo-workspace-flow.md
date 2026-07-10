@@ -1,9 +1,10 @@
 ---
 id: NOT-45
 title: One-click ephemeral demo workspace flow
-status: needs human validation
+status: ready-for-human
 assignee: []
 created_date: '2026-07-09 16:16'
+updated_date: '2026-07-10 08:14'
 labels:
   - enhancement
 dependencies: []

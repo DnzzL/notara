@@ -1,10 +1,10 @@
 ---
 id: NOT-24
 title: Dead PageReferenceMenu.tsx with createRoot unmount race (delete or wire up)
-status: needs human validation
+status: ready-for-human
 assignee: []
 created_date: '2026-06-16 16:14'
-updated_date: '2026-06-19 16:13'
+updated_date: '2026-07-10 08:14'
 labels:
   - bug
 dependencies: []

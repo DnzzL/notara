@@ -1,9 +1,10 @@
 ---
 id: NOT-44
 title: Workspace teardown primitive + ephemeral demo-purge job
-status: ready for agent
+status: ready-for-agent
 assignee: []
 created_date: '2026-07-09 16:16'
+updated_date: '2026-07-10 08:14'
 labels:
   - enhancement
 dependencies: []

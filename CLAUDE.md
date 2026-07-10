@@ -15,12 +15,25 @@ backlog task create "<title>" -s "needs-triage" --priority <low|medium|high> -l 
 
 ## Skills
 
-### to-backlog-issues
+### to-tickets
 
-- **Location:** `.agents/skills/to-issues/SKILL.md`
 - **Use when:** Breaking a plan, spec, or PRD into independently-grabbable backlog tasks using vertical slices
-- **Run via:** `/skill:to-backlog-issues` or ask the agent to "break this into issues"
-- Automatically publishes tickets to backlog.md via the backlog CLI, assigning `ready for agent` or `needs human validation` based on clarity of scope
+- **Run via:** `/to-tickets` or ask the agent to "break this into issues"
+- Reads `docs/agents/issue-tracker.md` + `docs/agents/triage-labels.md`, then publishes tickets to backlog.md via the backlog CLI, assigning `ready-for-agent` or `ready-for-human` based on clarity of scope
+
+## Agent skills
+
+### Issue tracker
+
+Issues and tasks live in Backlog.md (the `backlog` CLI, `backlog/tasks/`); no GitHub Issues for day-to-day work, and PRs are not a triage surface. See `docs/agents/issue-tracker.md`.
+
+### Triage labels
+
+Triage state is the Backlog.md status field, renamed 1:1 to the canonical roles (`needs-triage`, `needs-info`, `ready-for-agent`, `ready-for-human`, `wontfix`). See `docs/agents/triage-labels.md`.
+
+### Domain docs
+
+Single-context: `CONTEXT.md` (lazy) + `docs/adr/` at the repo root. See `docs/agents/domain.md`.
 
 ## 1. Think Before Coding
 

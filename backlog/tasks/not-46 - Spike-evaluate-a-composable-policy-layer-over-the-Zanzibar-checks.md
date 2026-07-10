@@ -1,9 +1,10 @@
 ---
 id: NOT-46
 title: 'Spike: evaluate a composable policy layer over the Zanzibar checks'
-status: needs human validation
+status: ready-for-human
 assignee: []
 created_date: '2026-07-09 16:16'
+updated_date: '2026-07-10 08:14'
 labels:
   - enhancement
 dependencies: []
