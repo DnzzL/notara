@@ -6,9 +6,10 @@ import {
 } from "@dnd-kit/core";
 import { SortableContext, useSortable, verticalListSortingStrategy, horizontalListSortingStrategy } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
-import { useDatabaseStore, selectFields, selectRecords, selectFilters, selectSorts, selectBoardGroupBy, selectBoardHidden, selectActiveViewId, selectDbViews } from "../stores/databaseStore.js";
+import { useDatabaseStore, selectFields, selectRecords, selectFilters, selectSorts, selectActiveViewId, selectDbViews } from "../stores/databaseStore.js";
 import { usePageStore } from "../stores/pageStore.js";
 import { api } from "../rpc-client.js";
+import { toaster } from "../toaster.js";
 import { applyFiltersAndSorts } from "../lib/filterEngine.js";
 import { tryEvaluate } from "../lib/formula.js";
 import { CellDisplay, InlineCellEditor, Popover } from "./db/CellComponents.js";
@@ -189,8 +190,8 @@ function DraggableColumnHeader({
 
 // ── Title Cell (inline editable) ──────────────────────────────────────────
 
-function TitleCell({ recordId, title, onSave, editing, onEditingChange, seedChar, isFocused }: {
-  recordId: string; title: string; onSave: (t: string) => Promise<void> | void;
+function TitleCell({ title, onSave, editing, onEditingChange, seedChar, isFocused }: {
+  title: string; onSave: (t: string) => Promise<void> | void;
   editing: boolean; onEditingChange: (on: boolean) => void; seedChar?: string | null;
   isFocused: boolean;
 }) {
@@ -249,7 +250,6 @@ export function DatabaseView({ database, isNew }: { database: any; isNew?: boole
   const removeFilter = useDatabaseStore(s => s.removeFilter);
   const addSort = useDatabaseStore(s => s.addSort);
   const removeSort = useDatabaseStore(s => s.removeSort);
-  const hydrateView = useDatabaseStore(s => s.hydrateView);
   const switchView = useDatabaseStore(s => s.switchView);
 
   // Per-database state, scoped by databaseId so sibling DatabaseView instances
@@ -258,8 +258,6 @@ export function DatabaseView({ database, isNew }: { database: any; isNew?: boole
   const records = useDatabaseStore((s) => selectRecords(s, database.id));
   const activeFilters = useDatabaseStore((s) => selectFilters(s, database.id));
   const activeSorts = useDatabaseStore((s) => selectSorts(s, database.id));
-  const boardGroupByFieldId = useDatabaseStore((s) => selectBoardGroupBy(s, database.id));
-  const boardHiddenFieldIds = useDatabaseStore((s) => selectBoardHidden(s, database.id));
   const activeViewId = useDatabaseStore((s) => selectActiveViewId(s, database.id));
   const dbViews = useDatabaseStore((s) => selectDbViews(s, database.id));
 
@@ -280,7 +278,6 @@ export function DatabaseView({ database, isNew }: { database: any; isNew?: boole
       return (v === "board" || v === "calendar") ? v : "table";
     } catch { return "table"; }
   });
-  const [newTitle, setNewTitle] = useState("");
   const [editingCell, setEditingCell] = useState<{ recordId: string; fieldId: string } | null>(null);
   const [showAddField, setShowAddField] = useState(false);
   const [showOptionsFor, setShowOptionsFor] = useState<string | null>(null);
@@ -288,7 +285,7 @@ export function DatabaseView({ database, isNew }: { database: any; isNew?: boole
   const [isEditingName, setIsEditingName] = useState(isNew);
   const [dbName, setDbName] = useState(database.name || "Untitled");
   const [activeRowId, setActiveRowId] = useState<string | null>(null);
-  const [activeColId, setActiveColId] = useState<string | null>(null);
+  const [, setActiveColId] = useState<string | null>(null);
   const [openRecordId, setOpenRecordId] = useState<string | null>(null);
   const [columnWidths, setColumnWidths] = useState<Record<string, number>>(() => {
     try {
@@ -297,10 +294,7 @@ export function DatabaseView({ database, isNew }: { database: any; isNew?: boole
     } catch { /* ignore */ }
     return {};
   });
-  const [compactMode, setCompactMode] = useState<boolean>(() => {
-    try { return localStorage.getItem(`db-compact:${database.id}`) === "true"; }
-    catch { return false; }
-  });
+
   const [dbRecordCache, setDbRecordCache] = useState<Record<string, any[]>>({});
   /** Keyboard focus cursor. `fieldId` is `"__title__"` for the title column. */
   const [focusedCell, setFocusedCell] = useState<{ recordId: string; fieldId: string } | null>(null);
@@ -400,13 +394,6 @@ export function DatabaseView({ database, isNew }: { database: any; isNew?: boole
   // Mirror for callbacks that need the current ordering without re-binding.
   sortedRecordsRef.current = sortedRecords;
 
-  const handleAddRecord = async () => {
-    if (!newTitle.trim()) return;
-    await createDbRecord(database.id, newTitle.trim());
-    setNewTitle("");
-    try { const recs = await api.listRecords({ databaseId: database.id }); setDbRecordCache((prev) => ({ ...prev, [database.id]: recs })); } catch { /* ignore */ }
-  };
-
   const handleCellEdit = async (recordId: string, fieldId: string, value: string) => {
     await updateFieldValue(recordId, fieldId, value);
     await loadDbRecords(database.id);
@@ -458,11 +445,25 @@ export function DatabaseView({ database, isNew }: { database: any; isNew?: boole
     if (selectedRowIds.size === 0) return;
     const n = selectedRowIds.size;
     if (!window.confirm(`Delete ${n} record${n === 1 ? "" : "s"}?`)) return;
-    for (const id of selectedRowIds) {
+    const deletedIds = [...selectedRowIds];
+    for (const id of deletedIds) {
       try { await deleteRecord(database.id, id); } catch { /* skip */ }
     }
     setSelectedRowIds(new Set());
     lastSelectedRowRef.current = null;
+    const toastId = `bulk-delete-${Date.now()}`;
+    toaster.create({
+      id: toastId,
+      title: `${n} record${n === 1 ? "" : "s"} deleted`,
+      action: {
+        label: "Undo",
+        onClick: async () => {
+          try { await Promise.all(deletedIds.map(id => api.restoreRecord({ id }))); await loadDbRecords(database.id); } catch { /* ignore */ }
+        },
+      },
+      type: "info",
+      duration: 6000,
+    });
   }, [selectedRowIds, deleteRecord, database.id]);
 
   const handleToggleRowSelect = useCallback((recordId: string, e: React.MouseEvent) => {
@@ -565,6 +566,17 @@ export function DatabaseView({ database, isNew }: { database: any; isNew?: boole
   const handleDeleteRecord = async (recordId: string) => {
     await deleteRecord(database.id, recordId);
     try { const recs = await api.listRecords({ databaseId: database.id }); setDbRecordCache((prev) => ({ ...prev, [database.id]: recs })); } catch { /* ignore */ }
+    toaster.create({
+      title: "Record deleted",
+      action: {
+        label: "Undo",
+        onClick: async () => {
+          try { await api.restoreRecord({ id: recordId }); await loadDbRecords(database.id); } catch { /* ignore */ }
+        },
+      },
+      type: "info",
+      duration: 5000,
+    });
   };
 
   const handleDeleteOption = async (fieldId: string, option: string) => {
@@ -875,7 +887,6 @@ export function DatabaseView({ database, isNew }: { database: any; isNew?: boole
                           ? { ...base, boxShadow: "inset 0 0 0 2px var(--accent)" } : base;
                       })()}>
                         <TitleCell
-                          recordId={record.id}
                           title={record.title}
                           isFocused={isFocused}
                           editing={editingCell?.recordId === record.id && editingCell?.fieldId === TITLE_COL}

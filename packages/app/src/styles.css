@@ -1184,6 +1184,22 @@ select, input, textarea, button { font-family: var(--font-ui); }
 }
 .toast-close:hover { color: var(--text); background: var(--surface-3); }
 
+.toast-action {
+  flex-shrink: 0;
+  background: var(--surface-3);
+  border: none;
+  cursor: pointer;
+  color: var(--accent);
+  font-size: 12.5px;
+  font-weight: 600;
+  padding: 5px 12px;
+  border-radius: 5px;
+  margin: -2px 0 -2px 4px;
+  transition: background var(--t) var(--ease);
+}
+.toast-action:hover { background: var(--surface-4); }
+.toast-action:active { background: var(--border-mid); }
+
 @media (max-width: 600px) {
   .toast-group { right: 12px; bottom: 12px; left: 12px; width: auto; }
 }
