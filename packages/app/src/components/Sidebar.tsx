@@ -154,6 +154,7 @@ export function Sidebar({ className, onNavigate, onStartTour }: SidebarProps = {
   const [activePageId, setActivePageId] = useState<string | null>(null);
   const [dragOverTarget, setDragOverTarget] = useState<{ id: string; zone: DropZone } | null>(null);
   const isAltHeldRef = useRef(false);
+  const pointerYRef = useRef(0);
 
   // Track expanded nodes — initialised to all page IDs once pages load
   const [expandedValue, setExpandedValue] = useState<string[]>([]);
@@ -218,11 +219,16 @@ export function Sidebar({ className, onNavigate, onStartTour }: SidebarProps = {
         // Next pointer move recomputes the zone from cursor position.
       }
     };
+    const onPointerMove = (e: PointerEvent) => {
+      pointerYRef.current = e.clientY;
+    };
     window.addEventListener("keydown", onKeyDown);
     window.addEventListener("keyup", onKeyUp);
+    window.addEventListener("pointermove", onPointerMove);
     return () => {
       window.removeEventListener("keydown", onKeyDown);
       window.removeEventListener("keyup", onKeyUp);
+      window.removeEventListener("pointermove", onPointerMove);
     };
   }, [activePageId]);
 
@@ -259,16 +265,15 @@ export function Sidebar({ className, onNavigate, onStartTour }: SidebarProps = {
     setDragOverTarget(null);
   };
 
-  // Vertical-thirds hit test: top third → reorder before, middle → nest,
-  // bottom third → reorder after. Alt forces nesting anywhere on the row.
-  const zoneFor = (active: DragOverEvent["active"], over: NonNullable<DragOverEvent["over"]>): DropZone => {
+  // Hit test from the live cursor Y relative to the hovered row: top ~30% →
+  // reorder before, middle ~40% → nest, bottom ~30% → reorder after. Using the
+  // pointer (not the dragged element's center) keeps zones under the cursor
+  // regardless of where the row was grabbed. Alt forces nesting anywhere.
+  const zoneFor = (over: NonNullable<DragOverEvent["over"]>): DropZone => {
     if (isAltHeldRef.current) return "nest";
     const overRect = over.rect;
-    const dragged = active.rect.current.translated;
-    const centerY = dragged ? dragged.top + dragged.height / 2 : overRect.top + overRect.height / 2;
-    const offset = centerY - overRect.top;
-    const third = overRect.height / 3;
-    return offset < third ? "before" : offset > third * 2 ? "after" : "nest";
+    const ratio = overRect.height > 0 ? (pointerYRef.current - overRect.top) / overRect.height : 0.5;
+    return ratio < 0.3 ? "before" : ratio > 0.7 ? "after" : "nest";
   };
 
   const handleDragOver = useCallback(({ active, over }: DragOverEvent) => {
@@ -276,7 +281,7 @@ export function Sidebar({ className, onNavigate, onStartTour }: SidebarProps = {
       setDragOverTarget(null);
       return;
     }
-    setDragOverTarget({ id: String(over.id), zone: zoneFor(active, over) });
+    setDragOverTarget({ id: String(over.id), zone: zoneFor(over) });
   }, []);
 
   const handleDragEnd = useCallback(
@@ -297,7 +302,7 @@ export function Sidebar({ className, onNavigate, onStartTour }: SidebarProps = {
       const descendants = getDescendants(draggedId, pages);
       if (descendants.has(overId)) return;
 
-      const zone = zoneFor(active, over);
+      const zone = zoneFor(over);
 
       if (zone === "nest") {
         // Move under the target, then place it last among the target's children.
