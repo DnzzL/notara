@@ -28,6 +28,9 @@ import {
 } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
 
+/** Where a dragged page will land relative to the row it is over. */
+type DropZone = "before" | "after" | "nest";
+
 interface TreeNodeData {
   id: string;
   children?: TreeNodeData[];
@@ -149,7 +152,7 @@ export function Sidebar({ className, onNavigate, onStartTour }: SidebarProps = {
   };
 
   const [activePageId, setActivePageId] = useState<string | null>(null);
-  const [dragOverTarget, setDragOverTarget] = useState<{ id: string; isNest: boolean } | null>(null);
+  const [dragOverTarget, setDragOverTarget] = useState<{ id: string; zone: DropZone } | null>(null);
   const isAltHeldRef = useRef(false);
 
   // Track expanded nodes — initialised to all page IDs once pages load
@@ -205,13 +208,14 @@ export function Sidebar({ className, onNavigate, onStartTour }: SidebarProps = {
     const onKeyDown = (e: KeyboardEvent) => {
       if (e.key === "Alt") {
         isAltHeldRef.current = true;
-        setDragOverTarget((prev) => (prev ? { ...prev, isNest: true } : null));
+        // Force-nest onto the hovered row regardless of vertical position.
+        setDragOverTarget((prev) => (prev ? { ...prev, zone: "nest" } : null));
       }
     };
     const onKeyUp = (e: KeyboardEvent) => {
       if (e.key === "Alt") {
         isAltHeldRef.current = false;
-        setDragOverTarget((prev) => (prev ? { ...prev, isNest: false } : null));
+        // Next pointer move recomputes the zone from cursor position.
       }
     };
     window.addEventListener("keydown", onKeyDown);
@@ -255,12 +259,24 @@ export function Sidebar({ className, onNavigate, onStartTour }: SidebarProps = {
     setDragOverTarget(null);
   };
 
-  const handleDragOver = useCallback(({ over }: DragOverEvent) => {
-    if (!over) {
+  // Vertical-thirds hit test: top third → reorder before, middle → nest,
+  // bottom third → reorder after. Alt forces nesting anywhere on the row.
+  const zoneFor = (active: DragOverEvent["active"], over: NonNullable<DragOverEvent["over"]>): DropZone => {
+    if (isAltHeldRef.current) return "nest";
+    const overRect = over.rect;
+    const dragged = active.rect.current.translated;
+    const centerY = dragged ? dragged.top + dragged.height / 2 : overRect.top + overRect.height / 2;
+    const offset = centerY - overRect.top;
+    const third = overRect.height / 3;
+    return offset < third ? "before" : offset > third * 2 ? "after" : "nest";
+  };
+
+  const handleDragOver = useCallback(({ active, over }: DragOverEvent) => {
+    if (!over || over.id === active.id) {
       setDragOverTarget(null);
       return;
     }
-    setDragOverTarget({ id: String(over.id), isNest: isAltHeldRef.current });
+    setDragOverTarget({ id: String(over.id), zone: zoneFor(active, over) });
   }, []);
 
   const handleDragEnd = useCallback(
@@ -281,13 +297,21 @@ export function Sidebar({ className, onNavigate, onStartTour }: SidebarProps = {
       const descendants = getDescendants(draggedId, pages);
       if (descendants.has(overId)) return;
 
-      if (isAltHeldRef.current) {
-        // Nest: move dragged page under target page
+      const zone = zoneFor(active, over);
+
+      if (zone === "nest") {
+        // Move under the target, then place it last among the target's children.
+        // movePage sets parent_id first so reorderPages' sibling-group check passes.
         await movePage(draggedId, overId);
+        const childIds = filtered
+          .filter((p) => (p.parentId ?? null) === overId && p.id !== draggedId)
+          .map((p) => p.id);
+        await reorderPages(overId, [...childIds, draggedId]);
+        setExpandedValue((prev) => (prev.includes(overId) ? prev : [...prev, overId]));
         return;
       }
 
-      // Default: reorder as sibling of target (placed before over item)
+      // Reorder as a sibling of the target (before or after it)
       const targetParentId = targetPage.parentId ?? null;
       const draggedParentId = draggedPage.parentId ?? null;
 
@@ -304,15 +328,15 @@ export function Sidebar({ className, onNavigate, onStartTour }: SidebarProps = {
       // Remove dragged from its current position (no-op if cross-parent move)
       const withoutDragged = siblings.filter((id) => id !== draggedId);
 
-      // Find where to insert: before the over item
       const overIdx = withoutDragged.indexOf(overId);
       if (overIdx === -1) return;
 
-      // Insert dragged before the over item
+      // Insert before or after the over item depending on the hit zone
+      const insertIdx = zone === "after" ? overIdx + 1 : overIdx;
       const newOrder = [
-        ...withoutDragged.slice(0, overIdx),
+        ...withoutDragged.slice(0, insertIdx),
         draggedId,
-        ...withoutDragged.slice(overIdx),
+        ...withoutDragged.slice(insertIdx),
       ];
 
       await reorderPages(targetParentId, newOrder);
@@ -479,7 +503,7 @@ export function Sidebar({ className, onNavigate, onStartTour }: SidebarProps = {
             {(() => {
               const page = pages.find((p) => p.id === activePageId);
               if (!page) return null;
-              const isNesting = dragOverTarget?.isNest ?? false;
+              const isNesting = dragOverTarget?.zone === "nest";
               return (
                 <div className="flex items-center gap-1.5 text-[13px] text-text-2 px-1.5 py-1 bg-surface-3 rounded-[5px] border border-border">
                   <span className="icon">{page.icon || "📄"}</span>
@@ -510,7 +534,7 @@ interface PageTreeNodeProps {
   node: TreeNodeData;
   indexPath: number[];
   pageMap: Map<string, any>;
-  dragOverTarget: { id: string; isNest: boolean } | null;
+  dragOverTarget: { id: string; zone: DropZone } | null;
   activePageId: string | null;
   onDelete: (id: string) => void;
   onToggleFavorite: (id: string) => void;
@@ -547,7 +571,8 @@ function PageTreeNode({
   };
 
   const isHovered = dragOverTarget?.id === node.id;
-  const isNestTarget = isHovered && dragOverTarget?.isNest === true;
+  const dropZone = isHovered ? dragOverTarget?.zone : undefined;
+  const isNestTarget = dropZone === "nest";
   const isActive = activePageId === node.id;
   const hasChildren = (node.children?.length ?? 0) > 0;
 
@@ -568,6 +593,12 @@ function PageTreeNode({
             className={`group relative flex items-center gap-0.5 min-h-[28px] px-1 rounded-lg text-[13px] text-text-sb-2 cursor-pointer transition-[background,color] duration-[var(--t)] ease-[var(--ease)] hover:bg-[rgba(10,10,10,0.045)] hover:text-text-sb${isHovered ? (isNestTarget ? " bg-accent-dim rounded-lg shadow-[0_0_0_2px_var(--accent-mid)]" : " bg-sb-2 rounded-lg") : ""}`}
             onClick={(e: React.MouseEvent) => e.preventDefault()}
           >
+            {dropZone === "before" && (
+              <div className="absolute left-1 right-1 top-0 h-0.5 bg-accent rounded z-[5] pointer-events-none" />
+            )}
+            {dropZone === "after" && (
+              <div className="absolute left-1 right-1 bottom-0 h-0.5 bg-accent rounded z-[5] pointer-events-none" />
+            )}
             <div
               className="flex items-center justify-center w-4 h-4 cursor-grab opacity-0 transition-opacity duration-[var(--t)] ease-[var(--ease)] shrink-0 rounded-[3px] text-text-sb-3 text-[10px] leading-none select-none group-hover:opacity-100 hover:bg-sb-3 hover:text-text-sb-2 active:cursor-grabbing"
               onMouseDown={(e: React.MouseEvent) => e.stopPropagation()}
