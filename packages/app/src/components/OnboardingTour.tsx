@@ -4,11 +4,6 @@ import { capture } from "../analytics.js";
 
 const TOUR_COMPLETED_KEY = "notara:tourCompleted";
 
-export function isTourCompleted(): boolean {
-  try { return localStorage.getItem(TOUR_COMPLETED_KEY) === "true"; }
-  catch { return true; }
-}
-
 function markTourCompleted() {
   try { localStorage.setItem(TOUR_COMPLETED_KEY, "true"); } catch {}
 }
@@ -71,9 +66,9 @@ const steps: TourStepDetails[] = [
   },
 ];
 
-interface Props { autoStart?: boolean; startKey?: number; }
+interface Props { startKey?: number; }
 
-export function OnboardingTour({ autoStart, startKey }: Props) {
+export function OnboardingTour({ startKey }: Props) {
   const tour = useTour({
     steps,
     closeOnEscape: true,
@@ -89,23 +84,10 @@ export function OnboardingTour({ autoStart, startKey }: Props) {
     },
   });
 
-  const autoStarted = useRef(false);
-  useEffect(() => {
-    if (autoStarted.current) return;
-    if (autoStart && !isTourCompleted()) {
-      autoStarted.current = true;
-      setTimeout(() => {
-        tour.start();
-        capture("onboarding_tour_started", { trigger: "auto" });
-      }, 800);
-    }
-  }, [autoStart]);
-
   const prevKey = useRef(0);
   useEffect(() => {
     if ((startKey ?? 0) > prevKey.current) {
       prevKey.current = startKey ?? 0;
-      autoStarted.current = true;
       resetTourCompleted();
       setTimeout(() => {
         tour.start();

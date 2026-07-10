@@ -7,7 +7,7 @@ import { Sidebar } from "../components/Sidebar.js";
 import { BlockEditor } from "../components/BlockEditor.js";
 import { SearchModal } from "../components/SearchModal.js";
 import { KeyboardShortcuts } from "../components/KeyboardShortcuts.js";
-import { OnboardingTour, isTourCompleted } from "../components/OnboardingTour.js";
+import { OnboardingTour } from "../components/OnboardingTour.js";
 import { usePageStore } from "../stores/pageStore.js";
 import { selectPageByIdWithCascade } from "../lib/page-loader.js";
 
@@ -48,7 +48,6 @@ function WorkspaceLayout() {
   const loadPages = usePageStore(s => s.loadPages);
   const { workspaceSlug } = useParams({ from: "/$workspaceSlug" });
   const [sidebarOpen, setSidebarOpen] = useState(false);
-  const [tourAutoStart, setTourAutoStart] = useState(false);
   const [tourStartKey, setTourStartKey] = useState(0);
   const closeSidebar = () => setSidebarOpen(false);
 
@@ -80,13 +79,6 @@ function WorkspaceLayout() {
     });
     return () => { cancelled = true; };
   }, [workspaceSlug]);
-
-  // Auto-start onboarding tour on first visit
-  useEffect(() => {
-    if (!isTourCompleted()) {
-      setTourAutoStart(true);
-    }
-  }, []);
 
   // Close sidebar on escape
   useEffect(() => {
@@ -138,7 +130,7 @@ function WorkspaceLayout() {
 
       <SearchModal />
       <KeyboardShortcuts />
-      <OnboardingTour autoStart={tourAutoStart} startKey={tourStartKey} />
+      <OnboardingTour startKey={tourStartKey} />
     </div>
   );
 }
