@@ -387,12 +387,12 @@ export function Sidebar({ className, onNavigate, onStartTour }: SidebarProps = {
           <nav className="flex-1 overflow-y-auto overflow-x-hidden px-1.5 pt-0.5 pb-3.5 [&::-webkit-scrollbar]:w-[3px] [&::-webkit-scrollbar-track]:bg-transparent [&::-webkit-scrollbar-thumb]:bg-sb-3 [&::-webkit-scrollbar-thumb]:rounded-[2px] [&::-webkit-scrollbar-thumb:hover]:bg-sb-4">
             {favorites.length > 0 && (
               <>
-                <div className="[font-family:var(--font-mono)] text-[10px] font-medium uppercase tracking-[0.12em] text-text-sb-3 px-2 pt-2.5 pb-[3px] flex items-center gap-1">Favorites</div>
+                <div className="text-[11px] font-medium text-text-sb-3 px-2 pt-2.5 pb-[3px] flex items-center gap-1">Favorites</div>
                 <div className="flex flex-col">
                   {favorites.map((page) => (
                     <div
                       key={"fav-" + page.id}
-                      className={`relative px-1 cursor-pointer rounded-lg text-[13px] text-text-sb-2 flex items-center gap-0.5 min-h-[28px] transition-[background,color] duration-[var(--t)] ease-[var(--ease)] hover:bg-[rgba(10,10,10,0.045)] hover:text-text-sb ${currentPage?.id === page.id ? "bg-accent-dim! text-accent-2! font-semibold!" : ""}`}
+                      className={`relative px-1 cursor-pointer rounded-lg text-[13px] text-text-sb-2 flex items-center gap-0.5 min-h-[28px] transition-[background,color] duration-[var(--t)] ease-[var(--ease)] hover:bg-[rgba(10,10,10,0.045)] hover:text-text-sb ${currentPage?.id === page.id ? "bg-sb-3! text-text-sb! font-medium!" : ""}`}
                       onClick={() => { selectPageWithCascade(page); onNavigate?.(); }}
                     >
                       <span className="w-2" />
@@ -401,7 +401,7 @@ export function Sidebar({ className, onNavigate, onStartTour }: SidebarProps = {
                     </div>
                   ))}
                 </div>
-                <div className="[font-family:var(--font-mono)] text-[10px] font-medium uppercase tracking-[0.12em] text-text-sb-3 px-2 pt-2.5 pb-[3px] flex items-center gap-1 mt-1.5">Pages</div>
+                <div className="text-[11px] font-medium text-text-sb-3 px-2 pt-2.5 pb-[3px] flex items-center gap-1 mt-1.5">Pages</div>
               </>
             )}
 

@@ -149,19 +149,9 @@ body {
 [data-part="branch-content"] { list-style: none; margin: 0; padding: 0; }
 [data-part="branch-control"] { background: none; border: none; width: 100%; text-align: left; font: inherit; }
 [data-part="branch-control"][data-selected] {
-  background: var(--accent-dim);
-  color: var(--accent-2);
-  font-weight: 600;
-}
-[data-part="branch-control"][data-selected]::before {
-  content: "";
-  position: absolute;
-  left: -2px;
-  top: 5px;
-  bottom: 5px;
-  width: 2.5px;
-  background: var(--accent);
-  border-radius: 2px;
+  background: var(--sb-3);
+  color: var(--text-sb);
+  font-weight: 500;
 }
 
 
