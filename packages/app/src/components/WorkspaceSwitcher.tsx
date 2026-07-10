@@ -8,9 +8,11 @@ interface WorkspaceSwitcherProps {
   onCollapse?: () => void;
   onOpenBackups?: () => void;
   onOpenApiKeys?: () => void;
+  onOpenImport?: () => void;
+  onOpenTrash?: () => void;
 }
 
-export function WorkspaceSwitcher({ onCollapse, onOpenBackups, onOpenApiKeys }: WorkspaceSwitcherProps = {}) {
+export function WorkspaceSwitcher({ onCollapse, onOpenBackups, onOpenApiKeys, onOpenImport, onOpenTrash }: WorkspaceSwitcherProps = {}) {
   const navigate = useNavigate();
   const params = useParams({ strict: false }) as { workspaceSlug?: string };
   const [open, setOpen] = useState(false);
@@ -112,6 +114,22 @@ export function WorkspaceSwitcher({ onCollapse, onOpenBackups, onOpenApiKeys }: 
                 onClick={() => { setOpen(false); onOpenApiKeys(); }}
               >
                 API keys
+              </button>
+            )}
+            {onOpenImport && (
+              <button
+                className="flex items-center gap-2 w-full px-2.5 py-[7px] bg-transparent border-none cursor-pointer text-[13px] text-text-2 text-left rounded-lg [font-family:var(--font-ui)] transition-[background,color] duration-[var(--t)] ease-[var(--ease)] hover:bg-surface-3 hover:text-text"
+                onClick={() => { setOpen(false); onOpenImport(); }}
+              >
+                Import
+              </button>
+            )}
+            {onOpenTrash && (
+              <button
+                className="flex items-center gap-2 w-full px-2.5 py-[7px] bg-transparent border-none cursor-pointer text-[13px] text-text-2 text-left rounded-lg [font-family:var(--font-ui)] transition-[background,color] duration-[var(--t)] ease-[var(--ease)] hover:bg-surface-3 hover:text-text"
+                onClick={() => { setOpen(false); onOpenTrash(); }}
+              >
+                Trash
               </button>
             )}
           </div>
