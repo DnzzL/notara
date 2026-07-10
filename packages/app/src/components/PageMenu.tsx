@@ -2,6 +2,10 @@ import { useEffect, useRef, useState } from "react";
 import { api } from "../rpc-client.js";
 import { SharePageModal } from "./SharePageModal.js";
 
+/** Shared dropdown menu-item style (matches WorkspaceSwitcher). */
+const MENU_ITEM =
+  "flex items-center gap-2 w-full px-2.5 py-[7px] bg-transparent border-none cursor-pointer text-[13px] text-text-2 text-left rounded-lg [font-family:var(--font-ui)] transition-[background,color] duration-[var(--t)] ease-[var(--ease)] hover:bg-surface-3 hover:text-text";
+
 function download(filename: string, content: string, mime: string) {
   const blob = new Blob([content], { type: mime });
   const url = URL.createObjectURL(blob);
@@ -49,10 +53,10 @@ export function PageMenu({ pageId, workspaceId }: { pageId: string; workspaceId:
         {open && (
           <div className="absolute right-0 top-[calc(100%+5px)] bg-surface border border-border-mid rounded shadow-[var(--shadow-lg)] min-w-[200px] z-[100] p-1">
             {workspaceId && (
-              <button onClick={() => { setShareOpen(true); setOpen(false); }}>Share…</button>
+              <button className={MENU_ITEM} onClick={() => { setShareOpen(true); setOpen(false); }}>Share…</button>
             )}
-            <button onClick={exportMarkdown}>Export as Markdown</button>
-            <button onClick={exportFullMarkdown}>Export with databases</button>
+            <button className={MENU_ITEM} onClick={exportMarkdown}>Export as Markdown</button>
+            <button className={MENU_ITEM} onClick={exportFullMarkdown}>Export with databases</button>
           </div>
         )}
       </div>

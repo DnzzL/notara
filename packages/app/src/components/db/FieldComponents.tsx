@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef } from "react";
+import { Button } from "../ui/index.js";
 import {
   DndContext, MouseSensor, TouchSensor, useSensor, useSensors, closestCenter,
   type DragEndEvent,
@@ -385,8 +386,8 @@ export function FormulaEditor({
         Refs: <code>prop("Field Name")</code> · Ops: <code>+ - * /</code> · Fns: <code>if, sum, round, min, max</code>. <kbd>Cmd</kbd>+<kbd>Enter</kbd> to save.
       </div>
       <div style={{ display: "flex", justifyContent: "flex-end", gap: 6, marginTop: 8 }}>
-        <button onClick={onClose} style={{ background: "none", border: "1px solid #e9e9e7", borderRadius: 4, padding: "4px 10px", fontSize: 12, cursor: "pointer" }}>Cancel</button>
-        <button onClick={() => { onSave(expr.trim()); onClose(); }} style={{ background: "#2eaadc", color: "#fff", border: "none", borderRadius: 4, padding: "4px 10px", fontSize: 12, cursor: "pointer", fontWeight: 500 }}>Save</button>
+        <Button variant="secondary" size="sm" onClick={onClose}>Cancel</Button>
+        <Button variant="primary" size="sm" onClick={() => { onSave(expr.trim()); onClose(); }}>Save</Button>
       </div>
     </div>
   );
@@ -526,11 +527,7 @@ export function AddFieldPopover({
         </div>
 
         <div style={{ flexShrink: 0, paddingTop: 8, borderTop: "1px solid #f0f0f0", marginTop: 8 }}>
-          <button onClick={handleCreate} style={{
-            width: "100%", background: "#2eaadc", color: "#fff", border: "none", borderRadius: 4,
-            padding: "7px 12px", fontSize: 13, fontWeight: 500, cursor: name.trim() ? "pointer" : "not-allowed",
-            opacity: name.trim() ? 1 : 0.5,
-          }}>Create</button>
+          <Button variant="primary" size="sm" className="w-full" onClick={handleCreate} disabled={!name.trim()}>Create</Button>
         </div>
       </div>
     </Popover>

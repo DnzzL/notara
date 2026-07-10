@@ -1,5 +1,6 @@
 import { useEffect, useRef, useCallback, useState } from "react";
 import { useEditor, EditorContent, type Editor } from "@tiptap/react";
+import { Button } from "./ui/index.js";
 import StarterKit from "@tiptap/starter-kit";
 import TaskList from "@tiptap/extension-task-list";
 import TaskItem from "@tiptap/extension-task-item";
@@ -1130,7 +1131,8 @@ export function BlockEditor() {
               >
                 <div className="flex flex-col items-center gap-2 [&>span]:text-[14px] [&>span]:text-text-3">
                   <span>This page is empty</span>
-                  <button type="button">+ New block</button>
+                  {/* Visual affordance only — the wrapping div handles the click. */}
+                  <Button variant="secondary" size="sm" tabIndex={-1}>+ New block</Button>
                 </div>
               </div>
             )}

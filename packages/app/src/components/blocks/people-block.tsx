@@ -1,4 +1,5 @@
 import { useState, useEffect } from "react";
+import { Button } from "../ui/index.js";
 import { api, getCurrentWorkspaceId } from "../../rpc-client.js";
 import type { BlockRendererProps } from "./renderer-registry.js";
 
@@ -90,10 +91,7 @@ export function PeopleBlock({ block, onUpdateBlock }: BlockRendererProps) {
             })}
           </div>
           {userIds.length > 0 && (
-            <button
-              className="w-full mt-1 px-1.5 py-1.5 border-none rounded-lg bg-accent text-bg text-[13px] font-medium cursor-pointer"
-              onClick={() => setPickerOpen(false)}
-            >Done</button>
+            <Button variant="primary" size="sm" className="w-full mt-1" onClick={() => setPickerOpen(false)}>Done</Button>
           )}
         </div>
       )}
