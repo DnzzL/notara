@@ -648,132 +648,6 @@ export function PeopleChip({ userId }: { userId: string }) {
 	);
 }
 
-// ── People Picker ───────────────────────────────────────────────────────────
-
-function PeoplePicker({
-	value,
-	onSave,
-	onClose,
-}: {
-	value: string[];
-	onSave: (val: string) => void;
-	onClose: () => void;
-}) {
-	const [members, setMembers] = useState<
-		Array<{ userId: string; name: string; email: string }>
-	>([]);
-	const [query, setQuery] = useState("");
-
-	useEffect(() => {
-		const wsId = getCurrentWorkspaceId();
-		if (!wsId) return;
-		api
-			.getWorkspaceMembers({ workspaceId: wsId })
-			.then(setMembers)
-			.catch(() => {
-				/* ignore */
-			});
-	}, []);
-
-	const q = query.trim().toLowerCase();
-	const visible = q
-		? members.filter(
-				(m) =>
-					m.name.toLowerCase().includes(q) || m.email.toLowerCase().includes(q),
-			)
-		: members;
-
-	const toggle = (uid: string) => {
-		const next = value.includes(uid)
-			? value.filter((x) => x !== uid)
-			: [...value, uid];
-		onSave(JSON.stringify(next));
-	};
-
-	const { activeIndex, handleKeyDown } = useAutocomplete(
-		visible,
-		(m) => toggle(m.userId),
-		onClose,
-	);
-
-	return (
-		<CellAnchoredPopover onClose={onClose} minWidth={260}>
-			<input
-				autoFocus
-				name="cell-people-search"
-				className="w-full px-2 py-[7px] border border-border rounded-[5px] text-[13px] outline-none box-border mb-1 bg-surface-2 text-text [font-family:var(--font-ui)] focus:border-accent"
-				placeholder="Search people…"
-				value={query}
-				onChange={(e) => {
-					setQuery(e.target.value);
-				}}
-				onKeyDown={handleKeyDown}
-			/>
-			<div className="flex flex-col gap-px">
-				{visible.length === 0 ? (
-					<div style={{ padding: "8px 12px", color: "#888", fontSize: 13 }}>
-						No people found
-					</div>
-				) : (
-					visible.map((m, idx) => {
-						const selected = value.includes(m.userId);
-						const isActive = idx === activeIndex;
-						return (
-							<div
-								key={m.userId}
-								className="px-2 py-1.5 rounded-[5px] cursor-pointer flex items-center gap-2 text-text-2 hover:bg-surface-3 hover:text-text"
-								style={{
-									background: isActive
-										? "rgba(46,170,220,0.12)"
-										: selected
-											? "rgba(0,0,0,0.05)"
-											: undefined,
-								}}
-								onClick={() => toggle(m.userId)}
-							>
-								<span
-									style={{
-										display: "inline-flex",
-										alignItems: "center",
-										justifyContent: "center",
-										width: 22,
-										height: 22,
-										borderRadius: "50%",
-										background: "#e3e2e0",
-										fontSize: 11,
-										fontWeight: 600,
-										color: "#37352f",
-										flexShrink: 0,
-									}}
-								>
-									{m.name.charAt(0).toUpperCase()}
-								</span>
-								<span
-									style={{
-										fontSize: 13,
-										flex: 1,
-										overflow: "hidden",
-										textOverflow: "ellipsis",
-										whiteSpace: "nowrap",
-									}}
-								>
-									{m.name}
-								</span>
-								<span style={{ fontSize: 11, color: "#999", marginRight: 4 }}>
-									{m.email}
-								</span>
-								{selected && (
-									<span style={{ color: "#2eaadc", fontSize: 14 }}>✓</span>
-								)}
-							</div>
-						);
-					})
-				)}
-			</div>
-		</CellAnchoredPopover>
-	);
-}
-
 // ── Select / Multi-select Popover (with inline create) ───────────────────
 
 function SelectPopover({
@@ -954,100 +828,6 @@ function SelectPopover({
 					<div style={{ padding: "8px 12px", color: "#888", fontSize: 13 }}>
 						No options
 					</div>
-				)}
-			</div>
-		</CellAnchoredPopover>
-	);
-}
-
-// ── Page Picker ───────────────────────────────────────────────────────────
-
-function PagePicker({
-	value,
-	onSave,
-	onClose,
-}: {
-	value: string[];
-	onSave: (val: string) => void;
-	onClose: () => void;
-}) {
-	const pages = usePageStore((s) => s.pages);
-	const [query, setQuery] = useState("");
-	const q = query.trim().toLowerCase();
-	const visible = (
-		q
-			? pages.filter(
-					(p) => !p.isDeleted && (p.title || "").toLowerCase().includes(q),
-				)
-			: pages.filter((p) => !p.isDeleted)
-	).slice(0, 50);
-
-	const toggle = (pageId: string) => {
-		const next = value.includes(pageId)
-			? value.filter((x) => x !== pageId)
-			: [...value, pageId];
-		onSave(JSON.stringify(next));
-	};
-
-	const { activeIndex, handleKeyDown } = useAutocomplete(
-		visible,
-		(p) => toggle(p.id),
-		onClose,
-	);
-
-	return (
-		<CellAnchoredPopover onClose={onClose} minWidth={280}>
-			<input
-				autoFocus
-				name="cell-relation-search"
-				className="w-full px-2 py-[7px] border border-border rounded-[5px] text-[13px] outline-none box-border mb-1 bg-surface-2 text-text [font-family:var(--font-ui)] focus:border-accent"
-				placeholder="Search pages…"
-				value={query}
-				onChange={(e) => {
-					setQuery(e.target.value);
-				}}
-				onKeyDown={handleKeyDown}
-			/>
-			<div className="flex flex-col gap-px">
-				{visible.length === 0 ? (
-					<div style={{ padding: "8px 12px", color: "#888", fontSize: 13 }}>
-						No pages found
-					</div>
-				) : (
-					visible.map((p, idx) => {
-						const selected = value.includes(p.id);
-						const isActive = idx === activeIndex;
-						return (
-							<div
-								key={p.id}
-								className="px-2 py-1.5 rounded-[5px] cursor-pointer flex items-center gap-2 text-text-2 hover:bg-surface-3 hover:text-text"
-								style={{
-									background: isActive
-										? "rgba(46,170,220,0.12)"
-										: selected
-											? "rgba(0,0,0,0.05)"
-											: undefined,
-								}}
-								onClick={() => toggle(p.id)}
-							>
-								<span style={{ width: 18 }}>{p.icon || "📄"}</span>
-								<span
-									style={{
-										fontSize: 13,
-										flex: 1,
-										overflow: "hidden",
-										textOverflow: "ellipsis",
-										whiteSpace: "nowrap",
-									}}
-								>
-									{p.title || "Untitled"}
-								</span>
-								{selected && (
-									<span style={{ color: "#2eaadc", fontSize: 14 }}>✓</span>
-								)}
-							</div>
-						);
-					})
 				)}
 			</div>
 		</CellAnchoredPopover>
@@ -1237,6 +1017,319 @@ export function RelationPicker({
 	);
 }
 
+// ── Inline multi-value autocomplete (replaces popover for page/relation/people) ──
+
+/**
+ * Wrapper that fetches workspace members, then renders them as an
+ * inline autocomplete inside the cell.
+ */
+function PeopleInlineAutocomplete({
+	value,
+	onSave,
+	onCancel,
+	onNavigate,
+}: {
+	value: string[];
+	onSave: (val: string) => void;
+	onCancel: () => void;
+	onNavigate?: (direction: "next" | "prev" | "down") => void;
+}) {
+	const [members, setMembers] = useState<
+		Array<{ userId: string; name: string; email: string }>
+	>([]);
+
+	useEffect(() => {
+		const wsId = getCurrentWorkspaceId();
+		if (!wsId) return;
+		api
+			.getWorkspaceMembers({ workspaceId: wsId })
+			.then(setMembers)
+			.catch(() => {
+				/* ignore */
+			});
+	}, []);
+
+	// Map members to include `id` and `title` expected by the generic component
+	const mapped = members.map((m) => ({ ...m, id: m.userId, title: m.name }));
+
+	return (
+		<CellInlineMultiAutocomplete
+			items={mapped}
+			selectedIds={value}
+			onSave={onSave}
+			onCancel={onCancel}
+			onNavigate={onNavigate}
+			placeholder="Search people…"
+			renderItem={(m, selected, isActive) => (
+				<div
+					style={{
+						padding: "4px 8px",
+						borderRadius: 4,
+						cursor: "pointer",
+						display: "flex",
+						alignItems: "center",
+						gap: 8,
+						background: isActive
+							? "rgba(46,170,220,0.12)"
+							: selected
+								? "rgba(0,0,0,0.05)"
+								: "transparent",
+					}}
+				>
+					<span
+						style={{
+							display: "inline-flex",
+							alignItems: "center",
+							justifyContent: "center",
+							width: 24,
+							height: 24,
+							borderRadius: "50%",
+							background: "rgba(46,170,220,0.15)",
+							color: "#2eaadc",
+							fontSize: 11,
+							fontWeight: 600,
+							flexShrink: 0,
+						}}
+					>
+						{m.name.charAt(0).toUpperCase()}
+					</span>
+					<div
+						style={{ display: "flex", flexDirection: "column", minWidth: 0 }}
+					>
+						<span
+							style={{
+								fontSize: 13,
+								overflow: "hidden",
+								textOverflow: "ellipsis",
+							}}
+						>
+							{m.name}
+						</span>
+						<span
+							style={{
+								fontSize: 11,
+								color: "#888",
+								overflow: "hidden",
+								textOverflow: "ellipsis",
+							}}
+						>
+							{m.email}
+						</span>
+					</div>
+				</div>
+			)}
+		/>
+	);
+}
+
+/**
+ * Renders a text input inside the cell with a portal-positioned dropdown
+ * of suggestions. Supports multiple selections shown as chips.
+ * Tab/Enter/Escape follow the same pattern as InlineCellEditor.
+ */
+function CellInlineMultiAutocomplete<T extends { id: string; title?: string }>({
+	items,
+	selectedIds,
+	onSave,
+	onCancel,
+	onNavigate,
+	placeholder = "Search…",
+	renderItem,
+}: {
+	items: T[];
+	selectedIds: string[];
+	onSave: (ids: string) => void;
+	onCancel: () => void;
+	onNavigate?: (direction: "next" | "prev" | "down") => void;
+	placeholder?: string;
+	renderItem: (
+		item: T,
+		isSelected: boolean,
+		isActive: boolean,
+	) => React.ReactNode;
+}) {
+	const inputRef = useRef<HTMLInputElement>(null);
+	const anchorRef = useRef<HTMLDivElement>(null);
+	const [query, setQuery] = useState("");
+	const [focused, setFocused] = useState(false);
+
+	const q = query.trim().toLowerCase();
+	const filtered = q
+		? items.filter((item) => item.title && item.title.toLowerCase().includes(q))
+		: items;
+
+	const toggle = (id: string) => {
+		const next = selectedIds.includes(id)
+			? selectedIds.filter((x) => x !== id)
+			: [...selectedIds, id];
+		onSave(JSON.stringify(next));
+		setQuery("");
+		inputRef.current?.focus();
+	};
+
+	const { activeIndex, handleKeyDown } = useAutocomplete(
+		filtered,
+		(item) => toggle(item.id),
+		onCancel,
+	);
+
+	// Merge autocomplete nav with cell-navigation keys (Tab/Enter)
+	const mergedKeyDown = (e: React.KeyboardEvent) => {
+		if (e.key === "Tab") {
+			e.preventDefault();
+			// Save current selection before moving
+			onSave(JSON.stringify(selectedIds));
+			if (onNavigate) onNavigate(e.shiftKey ? "prev" : "next");
+			return;
+		}
+		if (e.key === "Enter" && !filtered.length) {
+			e.preventDefault();
+			onSave(JSON.stringify(selectedIds));
+			if (onNavigate) onNavigate("down");
+			return;
+		}
+		// Let the autocomplete hook handle arrows, Enter-on-item, Escape
+		if (
+			e.key === "ArrowUp" ||
+			e.key === "ArrowDown" ||
+			e.key === "Enter" ||
+			e.key === "Escape"
+		) {
+			// If Enter and dropdown is closed (no items), navigate down
+			if (e.key === "Enter" && filtered.length === 0) {
+				e.preventDefault();
+				onSave(JSON.stringify(selectedIds));
+				if (onNavigate) onNavigate("down");
+				return;
+			}
+			handleKeyDown(e);
+			return;
+		}
+	};
+
+	// Close dropdown on outside click
+	useEffect(() => {
+		if (!focused) return;
+		const handler = (e: MouseEvent) => {
+			if (anchorRef.current && !anchorRef.current.contains(e.target as Node)) {
+				setFocused(false);
+				// Save on outside click
+				onSave(JSON.stringify(selectedIds));
+			}
+		};
+		setTimeout(() => document.addEventListener("mousedown", handler), 0);
+		return () => document.removeEventListener("mousedown", handler);
+	}, [focused, selectedIds, onSave]);
+
+	// Focus on mount
+	useEffect(() => {
+		inputRef.current?.focus();
+		setFocused(true);
+	}, []);
+
+	const showDropdown =
+		focused && (filtered.length > 0 || (q.length > 0 && filtered.length === 0));
+
+	// Compute dropdown position
+	const [dropdownPos, setDropdownPos] = useState<{
+		top: number;
+		left: number;
+		width: number;
+	} | null>(null);
+	useLayoutEffect(() => {
+		if (!showDropdown || !anchorRef.current) {
+			setDropdownPos(null);
+			return;
+		}
+		const rect = anchorRef.current.getBoundingClientRect();
+		const vw = window.innerWidth;
+		const vh = window.innerHeight;
+		const margin = 4;
+		let top = rect.bottom + margin;
+		let left = rect.left;
+		const w = Math.max(200, rect.width);
+		if (left + w > vw - margin) left = vw - margin - w;
+		if (top + 300 > vh - margin) top = rect.top - margin - 300;
+		setDropdownPos({ top, left, width: Math.min(w, vw - margin - left) });
+	}, [showDropdown, filtered.length, q]);
+
+	return (
+		<>
+			<div
+				ref={anchorRef}
+				className="flex flex-wrap gap-1 items-center"
+				style={{
+					border: "1px solid #2eaadc",
+					borderRadius: 4,
+					padding: "2px 4px",
+					minHeight: 28,
+					cursor: "text",
+				}}
+				onClick={() => inputRef.current?.focus()}
+			>
+				<input
+					ref={inputRef}
+					name="cell-autocomplete"
+					className="min-w-[60px] flex-1 border-none outline-none text-[13px] bg-transparent"
+					style={{ fontFamily: "var(--font-ui)", padding: 0, margin: 0 }}
+					placeholder={selectedIds.length === 0 ? placeholder : ""}
+					value={query}
+					onChange={(e) => setQuery(e.target.value)}
+					onKeyDown={mergedKeyDown}
+					onFocus={() => setFocused(true)}
+				/>
+			</div>
+			{showDropdown &&
+				dropdownPos &&
+				createPortal(
+					<div
+						style={{
+							position: "fixed",
+							top: dropdownPos.top,
+							left: dropdownPos.left,
+							width: dropdownPos.width,
+							zIndex: 10000,
+							background: "#fff",
+							border: "1px solid #e9e9e7",
+							borderRadius: 8,
+							boxShadow: "0 4px 20px rgba(0,0,0,0.15)",
+							padding: 8,
+							maxHeight: 260,
+							overflow: "auto",
+						}}
+					>
+						{filtered.length === 0 ? (
+							<div
+								style={{
+									padding: "8px 12px",
+									color: "#888",
+									fontSize: 13,
+								}}
+							>
+								No results
+							</div>
+						) : (
+							filtered.map((item, idx) => (
+								<div
+									key={item.id}
+									onClick={() => toggle(item.id)}
+									onMouseDown={(e) => e.preventDefault() /* prevent blur */}
+								>
+									{renderItem(
+										item,
+										selectedIds.includes(item.id),
+										idx === activeIndex,
+									)}
+								</div>
+							))
+						)}
+					</div>,
+					document.body,
+				)}
+		</>
+	);
+}
+
 // ── Cell Editor (inline) ──────────────────────────────────────────────────
 
 export function InlineCellEditor({
@@ -1244,7 +1337,6 @@ export function InlineCellEditor({
 	value,
 	onSave,
 	onCancel,
-	databases,
 	allRecords = {},
 	onNavigate,
 	initialValue,
@@ -1259,7 +1351,6 @@ export function InlineCellEditor({
 	value: any;
 	onSave: (val: string) => void;
 	onCancel: () => void;
-	databases: any[];
 	allRecords?: Record<string, any[]>;
 	/** Save current value, then move focus. "next" = Tab, "prev" = Shift+Tab, "down" = Enter. */
 	onNavigate?: (direction: "next" | "prev" | "down") => void;
@@ -1406,74 +1497,184 @@ export function InlineCellEditor({
 	}
 
 	if (field.type === "page") {
+		const allPages = usePageStore((s) => s.pages);
+		const pIds: string[] =
+			typeof value === "string"
+				? (() => {
+						try {
+							return value.startsWith("[")
+								? JSON.parse(value)
+								: value
+									? [value]
+									: [];
+						} catch {
+							return [];
+						}
+					})()
+				: Array.isArray(value)
+					? value
+					: [];
 		return (
-			<PagePicker
-				value={
-					typeof value === "string"
-						? (() => {
-								try {
-									return value.startsWith("[")
-										? JSON.parse(value)
-										: value
-											? [value]
-											: [];
-								} catch {
-									return [];
-								}
-							})()
-						: Array.isArray(value)
-							? value
-							: []
-				}
+			<CellInlineMultiAutocomplete
+				items={allPages.filter((p) => !p.isDeleted)}
+				selectedIds={pIds}
 				onSave={onSave}
-				onClose={onCancel}
+				onCancel={onCancel}
+				onNavigate={onNavigate}
+				placeholder="Search pages…"
+				renderItem={(p, selected, isActive) => (
+					<div
+						style={{
+							padding: "4px 8px",
+							borderRadius: 4,
+							cursor: "pointer",
+							display: "flex",
+							alignItems: "center",
+							gap: 8,
+							background: isActive
+								? "rgba(46,170,220,0.12)"
+								: selected
+									? "rgba(0,0,0,0.05)"
+									: "transparent",
+						}}
+					>
+						<div
+							style={{
+								width: 18,
+								height: 18,
+								borderRadius: 3,
+								border: selected ? "none" : "1.5px solid #c0c0bd",
+								background: selected ? "#2eaadc" : "transparent",
+								display: "flex",
+								alignItems: "center",
+								justifyContent: "center",
+								flexShrink: 0,
+							}}
+						>
+							{selected && (
+								<svg width="12" height="12" viewBox="0 0 12 12" fill="none">
+									<path
+										d="M10 3L4.5 8.5L2 6"
+										stroke="white"
+										strokeWidth="1.5"
+										strokeLinecap="round"
+										strokeLinejoin="round"
+									/>
+								</svg>
+							)}
+						</div>
+						<span
+							style={{
+								fontSize: 13,
+								overflow: "hidden",
+								textOverflow: "ellipsis",
+							}}
+						>
+							{p.title || "Untitled"}
+						</span>
+					</div>
+				)}
 			/>
 		);
 	}
 
 	if (field.type === "relation") {
+		const recs = allRecords[field.relationTargetDbId ?? ""] ?? [];
+		const rIds: string[] =
+			typeof value === "string"
+				? (() => {
+						try {
+							return JSON.parse(value);
+						} catch {
+							return [];
+						}
+					})()
+				: Array.isArray(value)
+					? value
+					: [];
 		return (
-			<RelationPicker
-				field={field}
-				value={
-					typeof value === "string"
-						? (() => {
-								try {
-									return JSON.parse(value);
-								} catch {
-									return [];
-								}
-							})()
-						: Array.isArray(value)
-							? value
-							: []
-				}
+			<CellInlineMultiAutocomplete
+				items={recs}
+				selectedIds={rIds}
 				onSave={onSave}
-				onClose={onCancel}
-				databases={databases}
-				allRecords={allRecords}
+				onCancel={onCancel}
+				onNavigate={onNavigate}
+				placeholder="Search records…"
+				renderItem={(r, selected, isActive) => (
+					<div
+						style={{
+							padding: "4px 8px",
+							borderRadius: 4,
+							cursor: "pointer",
+							display: "flex",
+							alignItems: "center",
+							gap: 8,
+							background: isActive
+								? "rgba(46,170,220,0.12)"
+								: selected
+									? "rgba(0,0,0,0.05)"
+									: "transparent",
+						}}
+					>
+						<div
+							style={{
+								width: 18,
+								height: 18,
+								borderRadius: 3,
+								border: selected ? "none" : "1.5px solid #c0c0bd",
+								background: selected ? "#2eaadc" : "transparent",
+								display: "flex",
+								alignItems: "center",
+								justifyContent: "center",
+								flexShrink: 0,
+							}}
+						>
+							{selected && (
+								<svg width="12" height="12" viewBox="0 0 12 12" fill="none">
+									<path
+										d="M10 3L4.5 8.5L2 6"
+										stroke="white"
+										strokeWidth="1.5"
+										strokeLinecap="round"
+										strokeLinejoin="round"
+									/>
+								</svg>
+							)}
+						</div>
+						<span
+							style={{
+								fontSize: 13,
+								overflow: "hidden",
+								textOverflow: "ellipsis",
+							}}
+						>
+							{r.title || "Untitled"}
+						</span>
+					</div>
+				)}
 			/>
 		);
 	}
 
 	if (field.type === "people") {
+		const uIds: string[] =
+			typeof value === "string"
+				? (() => {
+						try {
+							return JSON.parse(value);
+						} catch {
+							return [];
+						}
+					})()
+				: Array.isArray(value)
+					? value
+					: [];
 		return (
-			<PeoplePicker
-				value={
-					typeof value === "string"
-						? (() => {
-								try {
-									return JSON.parse(value);
-								} catch {
-									return [];
-								}
-							})()
-						: Array.isArray(value)
-							? value
-							: []
-				}
+			<PeopleInlineAutocomplete
+				value={uIds}
 				onSave={onSave}
-				onClose={onCancel}
+				onCancel={onCancel}
+				onNavigate={onNavigate}
 			/>
 		);
 	}
