@@ -1,5 +1,5 @@
 import { useState, useEffect, useMemo } from "react";
-import { Modal, Button } from "./ui/index.js";
+import { Modal, Button, Toggle } from "./ui/index.js";
 import { api, type AclRelation } from "../rpc-client.js";
 import type {
 	AclEntry,
@@ -376,27 +376,12 @@ export function SharePageModal({ pageId, workspaceId, onClose }: Props) {
 										: "Generate a public link to share this page"}
 								</p>
 							</div>
-							<button
+							<Toggle
+								checked={!!shareToken}
+								onChange={handleShareToggle}
 								disabled={sharePending || !canManage}
-								className={
-									"relative inline-flex h-[22px] w-[38px] shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none " +
-									(shareToken ? "bg-accent" : "bg-border-mid") +
-									" " +
-									(!canManage ? "opacity-50 cursor-not-allowed" : "")
-								}
-								role="switch"
-								aria-checked={!!shareToken}
-								onClick={handleShareToggle}
-							>
-								<span
-									className="pointer-events-none inline-block h-[18px] w-[18px] rounded-full bg-white shadow transition duration-200 ease-in-out"
-									style={{
-										transform: shareToken
-											? "translateX(16px)"
-											: "translateX(0)",
-									}}
-								/>
-							</button>
+								size="sm"
+							/>
 						</div>
 						{shareToken && (
 							<div className="mt-2 flex items-center gap-2 px-3 py-2 bg-surface-2 border border-border rounded-lg">

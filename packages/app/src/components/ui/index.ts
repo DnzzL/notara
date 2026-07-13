@@ -5,3 +5,5 @@ export type { ModalProps } from "./Modal.js";
 export { Field } from "./Field.js";
 export type { FieldProps } from "./Field.js";
 export { cn } from "./cn.js";
+export { Toggle } from "./Toggle.js";
+export type { ToggleProps } from "./Toggle.js";

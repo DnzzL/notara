@@ -671,29 +671,31 @@ const staticFilesRoute = Effect.gen(function* () {
 				status: 200,
 				headers: { "Content-Type": "application/json", ...corsHeaders },
 			});
-		}).pipe(
-			Effect.catchAllCause((cause) => {
-				if (cause._tag === "Fail") {
-					const msg = String(cause.error);
-					reportError(cause.error);
-					return HttpServerResponse.text(JSON.stringify({ error: msg }), {
-						status: 500,
-						headers: { "Content-Type": "application/json", ...corsHeaders },
-					});
-				}
-				reportError(new Error(cause.toString()));
-				return Effect.gen(function* () {
-					yield* Effect.logError("Unhandled error", cause);
-					return HttpServerResponse.text(
-						JSON.stringify({ error: "Something went wrong" }),
-						{
+		})
+			.pipe(
+				Effect.catchAllCause((cause) => {
+					if (cause._tag === "Fail") {
+						const msg = String(cause.error);
+						reportError(cause.error);
+						return HttpServerResponse.text(JSON.stringify({ error: msg }), {
 							status: 500,
 							headers: { "Content-Type": "application/json", ...corsHeaders },
-						},
-					);
-				});
-			}),
-		),
+						});
+					}
+					reportError(new Error(cause.toString()));
+					return Effect.gen(function* () {
+						yield* Effect.logError("Unhandled error", cause);
+						return HttpServerResponse.text(
+							JSON.stringify({ error: "Something went wrong" }),
+							{
+								status: 500,
+								headers: { "Content-Type": "application/json", ...corsHeaders },
+							},
+						);
+					});
+				}),
+			)
+			.pipe(Effect.provide(PlatformDbLive)),
 	);
 
 	// Attachment serving route
