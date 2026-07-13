@@ -13,27 +13,29 @@ import { Route as workspaceSettingsRoute } from "./routes/settings.$workspaceSlu
 import { Route as docsRoute } from "./routes/docs.js";
 import { Route as privacyRoute } from "./routes/privacy.js";
 import { Route as termsRoute } from "./routes/terms.js";
+import { Route as pTokenRoute } from "./routes/p.$token.js";
 
 const routeTree = rootRoute.addChildren([
-  indexRoute,
-  loginRoute,
-  workspacesRoute,
-  workspaceSlugRoute,
-  joinTokenRoute,
-  forgotPasswordRoute,
-  resetPasswordRoute,
-  adminRoute,
-  pricingRoute,
-  workspaceSettingsRoute,
-  docsRoute,
-  privacyRoute,
-  termsRoute,
+	indexRoute,
+	loginRoute,
+	workspacesRoute,
+	workspaceSlugRoute,
+	joinTokenRoute,
+	forgotPasswordRoute,
+	resetPasswordRoute,
+	adminRoute,
+	pricingRoute,
+	workspaceSettingsRoute,
+	docsRoute,
+	privacyRoute,
+	termsRoute,
+	pTokenRoute,
 ]);
 
 export const router = createRouter({ routeTree });
 
 declare module "@tanstack/react-router" {
-  interface Register {
-    router: typeof router;
-  }
+	interface Register {
+		router: typeof router;
+	}
 }
