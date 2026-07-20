@@ -19,7 +19,8 @@ export type BlockType =
 	| "pageLink"
 	| "toggle"
 	| "callout"
-	| "people";
+	| "people"
+	| "viewReference";
 
 /**
  * Derive the block type from the top-level HTML fragment.
@@ -188,6 +189,12 @@ export const BLOCK_TYPE_CONFIG: Record<BlockType, BlockTypeConfig> = {
 		splitBehavior: "normal",
 		rendersCustom: true,
 	},
+	viewReference: {
+		placeholder: "",
+		defaultContent: "",
+		splitBehavior: "normal",
+		rendersCustom: true,
+	},
 	toggle: {
 		placeholder: "",
 		defaultContent: "",
@@ -270,6 +277,13 @@ export const SLASH_COMMANDS: SlashCommandDef[] = [
 		icon: "👤",
 		name: "People",
 		shortcut: "/people",
+		defaultContent: null,
+	},
+	{
+		id: "viewReference",
+		icon: "👁️",
+		name: "View reference",
+		shortcut: "/view",
 		defaultContent: null,
 	},
 ];

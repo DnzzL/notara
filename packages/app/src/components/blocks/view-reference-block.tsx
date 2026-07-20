@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback, useMemo } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { api } from "../../rpc-client.js";
 import { useDatabaseStore } from "../../stores/databaseStore.js";
 import { tryParseBlockContent } from "./renderer-registry.js";
@@ -72,6 +72,17 @@ export function ViewReferenceBlock({
 				const db = dbs.find((d) => d.id === cfg.databaseId);
 				if (!db) {
 					setError("Database not found");
+					setLoading(false);
+					return;
+				}
+
+				// Check that viewer has access to the source database's page
+				const permCheck = await api.checkPagePermission({
+					pageId: db.pageId,
+					relation: "viewer",
+				});
+				if (!permCheck.allowed) {
+					setError("You don't have access to the source page");
 					setLoading(false);
 					return;
 				}

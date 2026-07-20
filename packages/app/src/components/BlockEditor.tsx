@@ -1061,6 +1061,16 @@ export function BlockEditor() {
 					index: currentBlock.index + 1,
 					parentId: null,
 				});
+			} else if (command === "viewReference") {
+				// Insert an empty view-reference block; ViewReferenceBlock auto-opens a
+				// picker for selecting the database + saved view.
+				await createBlock({
+					pageId: currentPage.id,
+					type: "viewReference",
+					content: "",
+					index: currentBlock.index + 1,
+					parentId: null,
+				});
 			}
 		},
 		[
