@@ -525,31 +525,25 @@ export const selectSavedViewConfig = (s: DatabaseState, dbId: string) =>
  * True when the current query config differs from the saved snapshot.
  * When no saved view is active ("All") the view is never dirty.
  */
+/**
+ * True when the current query config differs from the saved snapshot.
+ * Does NOT check viewType — the store doesn't track the current view type
+ * (it lives in DatabaseView component state).  Pass currentViewType from
+ * the component and compare against saved.viewType separately.
+ *
+ * When no saved view is active ("All") the view is never dirty.
+ */
 export function selectIsViewDirty(s: DatabaseState, dbId: string): boolean {
 	const saved = s.savedViewConfigByDb[dbId];
 	if (!saved) return false;
-	const current: {
-		filters: Filter[];
-		sorts: Sort[];
-		groupBy: string | null;
-		boardHidden: string[];
-		viewType: "table" | "board" | "calendar";
-	} = {
-		filters: s.filtersByDb[dbId] || [],
-		sorts: s.sortsByDb[dbId] || [],
-		groupBy: s.boardGroupByDb[dbId] ?? null,
-		boardHidden: s.boardHiddenByDb[dbId] || [],
-		viewType: saved.viewType,
-	};
-	if (current.viewType !== saved.viewType) return true;
-	if (current.groupBy !== saved.groupBy) return true;
-	if (JSON.stringify(current.filters) !== JSON.stringify(saved.filters))
-		return true;
-	if (JSON.stringify(current.sorts) !== JSON.stringify(saved.sorts))
-		return true;
-	if (JSON.stringify(current.boardHidden) !== JSON.stringify(saved.boardHidden))
-		return true;
-	return false;
+	return (
+		JSON.stringify(s.filtersByDb[dbId] || []) !==
+			JSON.stringify(saved.filters) ||
+		JSON.stringify(s.sortsByDb[dbId] || []) !== JSON.stringify(saved.sorts) ||
+		(s.boardGroupByDb[dbId] ?? null) !== saved.groupBy ||
+		JSON.stringify(s.boardHiddenByDb[dbId] || []) !==
+			JSON.stringify(saved.boardHidden)
+	);
 }
 
 /** Reset current query config to the saved snapshot ("Reset" action). */

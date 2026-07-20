@@ -6,7 +6,6 @@ import {
 	selectActiveViewId,
 	selectIsViewDirty,
 	selectSavedViewConfig,
-	parseViewConfig,
 	serializeViewConfig,
 } from "../../stores/databaseStore.js";
 import {
@@ -48,6 +47,11 @@ export function ViewSwitcher({
 	const savedConfig = useDatabaseStore((s) =>
 		selectSavedViewConfig(s, databaseId),
 	);
+	// viewType isn't in the store selector (it lives in DatabaseView component
+	// state), so compute the viewType dirty check here from the prop.
+	const isViewTypeDirty =
+		savedConfig !== null && savedConfig.viewType !== currentViewType;
+	const isDirtyEffective = isDirty || isViewTypeDirty;
 
 	const createView = useDatabaseStore((s) => s.createView);
 	const updateView = useDatabaseStore((s) => s.updateView);
@@ -210,7 +214,7 @@ export function ViewSwitcher({
 				</svg>
 				<span style={{ fontWeight: 500 }}>
 					{activeLabel}
-					{isDirty && activeView && (
+					{isDirtyEffective && activeView && (
 						<span
 							style={{
 								color: "var(--accent, #2eaadc)",
@@ -429,7 +433,7 @@ export function ViewSwitcher({
 					/>
 
 					{/* Save / Reset (visible when dirty and a saved view is active) */}
-					{isDirty && activeView && (
+					{isDirtyEffective && activeView && (
 						<>
 							<button
 								onClick={handleSave}
