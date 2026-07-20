@@ -3,9 +3,11 @@ id: NOT-61
 title: >-
   Saved views 1/2 — legible view editing (dirty-state: Save / Save as new /
   Reset)
-status: ready-for-agent
-assignee: []
+status: done
+assignee:
+  - '@thomas'
 created_date: '2026-07-20 10:05'
+updated_date: '2026-07-20 14:07'
 labels:
   - enhancement
 dependencies: []
@@ -21,9 +23,21 @@ Views already persist name/type/groupByFieldId/sortFieldId/sortOrder/config(filt
 
 ## Acceptance Criteria
 <!-- AC:BEGIN -->
-- [ ] #1 Changing filters/sorts/grouping/type on the active view surfaces a visible 'modified' indicator
-- [ ] #2 Save persists the current query state to the active view; a reload shows the saved state
-- [ ] #3 Save as new creates a new named view capturing the current state and switches to it
-- [ ] #4 Reset reverts the active view to its last-saved config
-- [ ] #5 A view with no pending changes shows no modified indicator (clean state)
+- [x] #1 Changing filters/sorts/grouping/type on the active view surfaces a visible 'modified' indicator
+- [x] #2 Save persists the current query state to the active view; a reload shows the saved state
+- [x] #3 Save as new creates a new named view capturing the current state and switches to it
+- [x] #4 Reset reverts the active view to its last-saved config
+- [x] #5 A view with no pending changes shows no modified indicator (clean state)
 <!-- AC:END -->
+
+## Implementation Notes
+
+<!-- SECTION:NOTES:BEGIN -->
+All 5 ACs implemented: dirty indicator (blue dot), Save, Save as new, Reset, clean state. viewType dirty detection bug fixed post-code-review. Merged to main.
+<!-- SECTION:NOTES:END -->
+
+## Final Summary
+
+<!-- SECTION:FINAL_SUMMARY:BEGIN -->
+Implemented saved-view dirty-state detection (filters/sorts/groupBy/boardHidden/viewType) with blue ● indicator, Save (updateView), Reset (revert to saved), and Save as new (createView). Added 9 tests for all dirty/clean scenarios.
+<!-- SECTION:FINAL_SUMMARY:END -->

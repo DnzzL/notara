@@ -70,6 +70,65 @@ export function ViewReferenceBlock({
 			});
 	}, [selectedDbId]);
 
+	/**
+	 * Subscribe to live config changes from the source view via SSE.
+	 * When the view's config/type/groupBy changes on the server, the event
+	 * triggers a lightweight re-fetch — records, fields, and full re-parsing.
+	 */
+	useEffect(() => {
+		if (!cfg) return;
+
+		const url = `/api/stream/view-config?databaseId=${encodeURIComponent(cfg.databaseId)}&viewId=${encodeURIComponent(cfg.viewId)}`;
+		const source = new EventSource(url, { withCredentials: true });
+
+		source.addEventListener("view.configChanged", () => {
+			// Re-fetch the view config and refresh filter/sort/type from source
+			api
+				.listViews({ databaseId: cfg.databaseId })
+				.then((views) => {
+					const view = views.find((v) => v.id === cfg.viewId);
+					if (!view) {
+						setError("View not found");
+						return;
+					}
+					applyViewConfig(view);
+				})
+				.catch(() => {});
+		});
+
+		return () => {
+			source.close();
+		};
+	}, [cfg]);
+
+	/** Re-fetch the full view definition from the source and apply its config. */
+	const applyViewConfig = useCallback(
+		(view: {
+			id: string;
+			type: string;
+			groupByFieldId: string | null;
+			config: string;
+		}) => {
+			let config: ViewConfig = { filters: [], sorts: [], boardHidden: [] };
+			try {
+				const parsed = JSON.parse(view.config);
+				config = {
+					filters: Array.isArray(parsed.filters) ? parsed.filters : [],
+					sorts: Array.isArray(parsed.sorts) ? parsed.sorts : [],
+					boardHidden: Array.isArray(parsed.boardHidden)
+						? parsed.boardHidden
+						: [],
+				};
+			} catch {
+				/* no config */
+			}
+			setViewType(view.type as ViewType);
+			setGroupByFieldId(view.groupByFieldId);
+			setViewCfg(config);
+		},
+		[],
+	);
+
 	// Load the referenced view's data
 	useEffect(() => {
 		if (!cfg) return;
@@ -107,6 +166,7 @@ export function ViewReferenceBlock({
 				}
 
 				// Parse the view config centrally, apply filters + sorts
+				applyViewConfig(view);
 				let config: ViewConfig = { filters: [], sorts: [], boardHidden: [] };
 				try {
 					const parsed = JSON.parse(view.config);

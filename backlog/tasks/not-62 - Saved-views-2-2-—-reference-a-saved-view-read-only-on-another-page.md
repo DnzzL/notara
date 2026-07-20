@@ -1,9 +1,11 @@
 ---
 id: NOT-62
 title: Saved views 2/2 — reference a saved view read-only on another page
-status: ready-for-agent
-assignee: []
+status: ready-for-human
+assignee:
+  - '@thomas'
 created_date: '2026-07-20 10:05'
+updated_date: '2026-07-20 14:07'
 labels:
   - enhancement
 dependencies: []
@@ -19,9 +21,17 @@ A new block references an existing database view BY ID and renders it read-only 
 
 ## Acceptance Criteria
 <!-- AC:BEGIN -->
-- [ ] #1 A slash command inserts a view-reference block; a picker chooses a source database and one of its saved views
-- [ ] #2 The block renders the chosen view (table/board/calendar) read-only — no record creation, deletion, or inline cell edits
+- [x] #1 A slash command inserts a view-reference block; a picker chooses a source database and one of its saved views
+- [x] #2 The block renders the chosen view (table/board/calendar) read-only — no record creation, deletion, or inline cell edits
 - [ ] #3 Editing the source view's config updates what the reference displays (single source of truth; config not copied onto the consuming page)
-- [ ] #4 If the viewer lacks access to the source view's owning page, the block renders a locked/empty state and no record data is fetched (uses getViewPageId/checkViewPermission)
-- [ ] #5 Deleting the source view or database leaves the reference in a graceful 'view no longer available' state
+- [x] #4 If the viewer lacks access to the source view's owning page, the block renders a locked/empty state and no record data is fetched (uses getViewPageId/checkViewPermission)
+- [x] #5 Deleting the source view or database leaves the reference in a graceful 'view no longer available' state
 <!-- AC:END -->
+
+## Implementation Notes
+
+<!-- SECTION:NOTES:BEGIN -->
+AC#1 (slash command + picker), AC#2 (read-only table/board/calendar), AC#4 (permission check), and AC#5 (graceful degradation) implemented and merged to main.
+
+AC#3 (reactive propagation) is NOT done — source view config changes do not auto-update reference blocks. The block loads config at mount time only; no subscription/polling mechanism exists. Needs a follow-up decision: implement subscription server-side, or defer AC#3 as a future enhancement.
+<!-- SECTION:NOTES:END -->
