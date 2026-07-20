@@ -609,6 +609,7 @@ function SortableBlock({
 	showDropIndicator,
 	isDragging,
 	onDragStart,
+	onDragAbort,
 	onInsertBelow,
 	onOpenMenu,
 	blockType,
@@ -620,6 +621,7 @@ function SortableBlock({
 	showDropIndicator: boolean;
 	isDragging: boolean;
 	onDragStart: () => void;
+	onDragAbort?: () => void;
 	onInsertBelow?: () => void;
 	onOpenMenu?: (x: number, y: number) => void;
 	blockType: string;
@@ -691,18 +693,27 @@ function SortableBlock({
 						onMouseDown={(e) => {
 							e.stopPropagation();
 							handleDownPos.current = { x: e.clientX, y: e.clientY };
+							// Set visual drag state immediately so the block shadow/scale
+							// appears before dnd-kit activates the drag (8px threshold).
 							onDragStart();
 						}}
 						onMouseUp={(e) => {
 							const start = handleDownPos.current;
 							handleDownPos.current = null;
-							if (!onOpenMenu || !start) return;
+							if (!start) return;
 							const moved = Math.hypot(
 								e.clientX - start.x,
 								e.clientY - start.y,
 							);
-							// Only treat as click (not drag) when pointer barely moved.
-							if (moved < 4) {
+							// dnd-kit's activation constraint is 8px. If the user
+							// released before that threshold, ensure the immediate
+							// drag-state visual (shadow/scale) from onMouseDown is
+							// cleared — handleDragEnd/handleDragCancel won't fire.
+							if (moved < 8) {
+								onDragAbort?.();
+							}
+							// Open context menu when the pointer barely moved.
+							if (moved < 4 && onOpenMenu) {
 								e.stopPropagation();
 								const rect = (
 									e.currentTarget as HTMLElement
@@ -1599,6 +1610,7 @@ export function BlockEditor() {
 											showDropIndicator={dropIndicatorIndex === blockIndex}
 											isDragging={activeBlockId === block.id}
 											onDragStart={() => setActiveBlockId(block.id)}
+											onDragAbort={() => setActiveBlockId(null)}
 											onOpenMenu={(x, y) =>
 												setDbMenu({ dbId: db.id, blockId: block.id, x, y })
 											}
@@ -1622,6 +1634,7 @@ export function BlockEditor() {
 											showDropIndicator={dropIndicatorIndex === blockIndex}
 											isDragging={activeBlockId === block.id}
 											onDragStart={() => setActiveBlockId(block.id)}
+											onDragAbort={() => setActiveBlockId(null)}
 											onInsertBelow={() =>
 												insertBlockAfter(sortedBlocks.indexOf(block))
 											}
@@ -1657,6 +1670,7 @@ export function BlockEditor() {
 											showDropIndicator={dropIndicatorIndex === blockIndex}
 											isDragging={activeBlockId === block.id}
 											onDragStart={() => setActiveBlockId(block.id)}
+											onDragAbort={() => setActiveBlockId(null)}
 											onInsertBelow={() =>
 												insertBlockAfter(sortedBlocks.indexOf(block))
 											}
@@ -1699,6 +1713,7 @@ export function BlockEditor() {
 										showDropIndicator={dropIndicatorIndex === blockIndex}
 										isDragging={activeBlockId === block.id}
 										onDragStart={() => setActiveBlockId(block.id)}
+										onDragAbort={() => setActiveBlockId(null)}
 										onInsertBelow={() => insertBlockAfter(blockIndex)}
 										onOpenMenu={(x, y) =>
 											setBlockMenu({ blockId: block.id, x, y })
