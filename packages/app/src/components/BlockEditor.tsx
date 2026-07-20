@@ -24,8 +24,8 @@ import {
 import {
 	PageReferenceNode,
 	PageReferenceExtension,
-	createPageReferenceRender,
 } from "./PageReferenceExtension.js";
+import { createPageReferenceRender } from "./PageReferenceMenu.js";
 import { api } from "../rpc-client.js";
 import { usePageStore, useBlockStore, useDatabaseStore } from "../store.js";
 import { DatabaseView } from "./DatabaseView.js";
@@ -241,13 +241,30 @@ function SingleBlockEditor({
 									content: "",
 									pageId: p.id,
 								}));
-					const pages = results
+					const pageItems = results
 						.filter((r: any) => r.type === "page")
-						.slice(0, 10);
-					return pages.map((page: any) => ({
-						pageId: page.id,
-						pageTitle: page.title,
-					}));
+						.slice(0, 8)
+						.map((page: any) => ({
+							pageId: page.id,
+							pageTitle: page.title,
+							type: "page" as const,
+						}));
+
+					// Placeholder person items (display-only until person pages exist)
+					const personItems: {
+						pageId: string;
+						pageTitle: string;
+						type: "person";
+					}[] = [];
+					if (query.length >= 2) {
+						personItems.push({
+							pageId: `person-placeholder-${query}`,
+							pageTitle: query,
+							type: "person",
+						});
+					}
+
+					return { pages: pageItems, people: personItems };
 				},
 				render: createPageReferenceRender,
 			}),
@@ -596,6 +613,7 @@ function SortableBlock({
 	onOpenMenu,
 	blockType,
 	numberedRun,
+	onGutterClick,
 }: {
 	id: string;
 	children: React.ReactNode;
@@ -606,6 +624,7 @@ function SortableBlock({
 	onOpenMenu?: (x: number, y: number) => void;
 	blockType: string;
 	numberedRun?: number;
+	onGutterClick?: (clientY: number) => void;
 }) {
 	const {
 		attributes,
@@ -633,6 +652,7 @@ function SortableBlock({
 			style={style}
 			className="relative flex flex-col data-[block-type=database]:my-2"
 			data-block-type={blockType}
+			data-block-id={id}
 			onContextMenu={(e) => {
 				if (!onOpenMenu) return;
 				e.preventDefault();
@@ -641,8 +661,19 @@ function SortableBlock({
 		>
 			<DropIndicator active={showDropIndicator} />
 			<div
-				className={`group flex items-start gap-1 py-px rounded-[5px] transition-[background] duration-[var(--t)] ease-[var(--ease)] ${isDragging || isSortableDragging ? "shadow-[var(--shadow-lg)] bg-surface rounded scale-[1.012]" : ""}`}
+				className={`group relative flex items-start gap-1 py-px rounded-[5px] transition-[background] duration-[var(--t)] ease-[var(--ease)] ${isDragging || isSortableDragging ? "shadow-[var(--shadow-lg)] bg-surface rounded scale-[1.012]" : ""}`}
 			>
+				{/* Gutter click target (AC#2): click left gutter to focus block at nearest caret position */}
+				{onGutterClick && (
+					<div
+						className="absolute inset-y-0 left-0 w-[52px] z-10 cursor-text"
+						onMouseDown={(e) => {
+							e.stopPropagation();
+							e.preventDefault();
+							onGutterClick(e.clientY);
+						}}
+					/>
+				)}
 				<div className="flex items-center gap-0 w-12 shrink-0 mt-0.5 opacity-0 transition-opacity duration-[var(--t)] ease-[var(--ease)] group-hover:opacity-100">
 					<button
 						type="button"
@@ -1110,6 +1141,20 @@ export function BlockEditor() {
 		setDropIndicatorIndex(null);
 	};
 
+	/** AC#2: Click gutter/beside a block to focus it at nearest caret position. */
+	const handleGutterClick = useCallback((blockId: string, clientY: number) => {
+		const blockEl = document.querySelector(`[data-block-id="${blockId}"]`);
+		if (blockEl) {
+			const rect = blockEl.getBoundingClientRect();
+			const midY = rect.top + rect.height / 2;
+			requestFocus(blockId, {
+				kind: clientY < midY ? "start" : "end",
+			});
+		} else {
+			requestFocus(blockId, { kind: "start" });
+		}
+	}, []);
+
 	const handleDragEnd = async ({ active, over }: DragEndEvent) => {
 		setActiveBlockId(null);
 		setDropIndicatorIndex(null);
@@ -1366,17 +1411,53 @@ export function BlockEditor() {
 				<div
 					className="main"
 					onMouseDown={(e) => {
-						// Click on empty editor canvas (not a block, control, or menu) unfocuses
-						// the active block — clears the caret and releases its presence lock.
+						// Click on empty editor canvas (not a block, control, or menu)
 						const t = e.target as HTMLElement;
 						if (
-							!t.closest(
+							t.closest(
 								'.ProseMirror, button, input, textarea, a, [role="menu"]',
 							)
-						) {
-							const ae = document.activeElement as HTMLElement | null;
-							if (ae?.classList.contains("ProseMirror")) ae.blur();
+						)
+							return;
+
+						// AC#1: Click below the last block → focus/create trailing paragraph
+						const editorEl = (e.currentTarget as HTMLElement).querySelector(
+							".editor",
+						);
+						if (editorEl && sortedBlocks.length > 0) {
+							const blockEls =
+								editorEl.querySelectorAll<HTMLElement>("[data-block-type]");
+							const lastBlockEl = blockEls[blockEls.length - 1];
+							if (
+								lastBlockEl &&
+								e.clientY > lastBlockEl.getBoundingClientRect().bottom
+							) {
+								const lastBlock = sortedBlocks[sortedBlocks.length - 1];
+								if (lastBlock) {
+									// If last block is empty, focus it; otherwise create trailing paragraph
+									const content = stripHtml(lastBlock.content);
+									if (!content && currentPage) {
+										requestFocus(lastBlock.id, { kind: "end" });
+									} else if (currentPage) {
+										createBlock({
+											pageId: currentPage.id,
+											type: "paragraph",
+											content: "<p></p>",
+											index: lastBlock.index + 1,
+											parentId: null,
+										}).then((newBlock) => {
+											if (newBlock?.id)
+												requestFocus(newBlock.id, { kind: "start" });
+										});
+									}
+									return;
+								}
+							}
 						}
+
+						// Otherwise blur the active editor
+						const ae = document.activeElement as HTMLElement | null;
+						if (ae?.classList.contains("ProseMirror")) ae.blur();
 					}}
 					onClick={(e) => {
 						// Navigate when clicking inline [[page]] references
@@ -1513,6 +1594,9 @@ export function BlockEditor() {
 											}
 											blockType="database"
 											numberedRun={numberedRunIndices.get(block.id)}
+											onGutterClick={(clientY) =>
+												handleGutterClick(block.id, clientY)
+											}
 										>
 											<DatabaseView database={db} isNew={db.id === newDbId} />
 										</SortableBlock>
@@ -1536,6 +1620,9 @@ export function BlockEditor() {
 											}
 											blockType="pageLink"
 											numberedRun={numberedRunIndices.get(block.id)}
+											onGutterClick={(clientY) =>
+												handleGutterClick(block.id, clientY)
+											}
 										>
 											<PageLinkBlock
 												block={block as any}
@@ -1568,6 +1655,9 @@ export function BlockEditor() {
 											}
 											blockType={block.type}
 											numberedRun={numberedRunIndices.get(block.id)}
+											onGutterClick={(clientY) =>
+												handleGutterClick(block.id, clientY)
+											}
 										>
 											<Renderer
 												block={block as any}
@@ -1604,6 +1694,9 @@ export function BlockEditor() {
 											setBlockMenu({ blockId: block.id, x, y })
 										}
 										blockType={block.type}
+										onGutterClick={(clientY) =>
+											handleGutterClick(block.id, clientY)
+										}
 									>
 										<SingleBlockEditor
 											block={block}
