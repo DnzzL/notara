@@ -674,7 +674,7 @@ function SortableBlock({
 						}}
 					/>
 				)}
-				<div className="flex items-center gap-0 w-12 shrink-0 mt-0.5 opacity-0 transition-opacity duration-[var(--t)] ease-[var(--ease)] group-hover:opacity-100">
+				<div className="flex items-center gap-0 w-12 shrink-0 mt-0.5 opacity-0 transition-opacity duration-[var(--t)] ease-[var(--ease)] group-hover:opacity-100 pointer-events-none group-hover:pointer-events-auto relative z-20">
 					<button
 						type="button"
 						className="w-[22px] h-[22px] border-none bg-transparent text-text-3 cursor-pointer rounded-[5px] text-[18px] leading-none flex items-center justify-center p-0 transition-[background,color] duration-[var(--t)] ease-[var(--ease)] hover:bg-surface-3"
