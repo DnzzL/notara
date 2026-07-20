@@ -49,7 +49,13 @@ import { CSS } from "@dnd-kit/utilities";
 import { DragHandle } from "./DragHandle.js";
 import { BlockContextMenu, type BlockMenuItem } from "./BlockContextMenu.js";
 import { BacklinksPanel } from "./BacklinksPanel.js";
-import { BLOCK_TYPE_CONFIG, SLASH_COMMANDS } from "./blockTypes.js";
+import {
+	BLOCK_TYPE_CONFIG,
+	SLASH_COMMANDS,
+	blockTypeFromHtml,
+	headingLevelFromType,
+	type BlockType,
+} from "./blockTypes.js";
 import { EmojiPicker } from "./EmojiPicker.js";
 import { PageMenu } from "./PageMenu.js";
 import { getCurrentWorkspaceId } from "../rpc-client.js";
@@ -78,7 +84,10 @@ import {
 
 /** Placeholder text shown on empty blocks, keyed by block type. */
 function placeholderForType(blockType: string): string {
-	return BLOCK_TYPE_CONFIG[blockType]?.placeholder ?? "Type '/' for commands";
+	return (
+		BLOCK_TYPE_CONFIG[blockType as BlockType]?.placeholder ??
+		"Type '/' for commands"
+	);
 }
 
 /** Shared TipTap extensions — same set for every block editor. */
@@ -147,7 +156,7 @@ function sharedExtensions(blockType: string) {
 
 /** Map a block type to its default HTML content when empty. */
 function defaultContentForType(type: string): string {
-	return BLOCK_TYPE_CONFIG[type]?.defaultContent ?? "<p></p>";
+	return BLOCK_TYPE_CONFIG[type as BlockType]?.defaultContent ?? "<p></p>";
 }
 
 /** Content to render for the block. */
@@ -160,10 +169,28 @@ function stripHtml(html: string): string {
 	return html.replace(/<[^>]*>/g, "");
 }
 
-/** Extract heading level from HTML string. */
-function getHeadingLevel(html: string): string {
-	const m = html.match(/<h(\d)/);
-	return m ? m[1] : "1";
+/**
+ * Compute the numbered-run index for each block in a sorted list.
+ * NumberedList blocks in a consecutive run get 1, 2, 3, ...
+ * A non-numbered block mid-run resets the count so the next
+ * NumberedList starts at 1 again.
+ */
+function computeNumberedRunIndices(
+	blocks: { id: string; type: string }[],
+): Map<string, number> {
+	const result = new Map<string, number>();
+	let currentRun = 1;
+
+	for (const block of blocks) {
+		if (block.type === "numberedList") {
+			result.set(block.id, currentRun);
+			currentRun++;
+		} else {
+			currentRun = 1;
+		}
+	}
+
+	return result;
 }
 
 /** A single block with its own TipTap editor instance. */
@@ -249,17 +276,21 @@ function SingleBlockEditor({
 			isPendingRef.current = true;
 			debounceRef.current = setTimeout(async () => {
 				const html = ed.getHTML();
-				if (html !== contentRef.current) {
-					await callbacks.updateBlock?.(block.id, html);
-				}
-				// Persist block type when the editor's live top node type differs
-				// from the stored type (e.g. markdown transforms like `# ` → heading1).
 				const liveType = detectBlockTypeFromEditor(ed);
-				if (liveType !== block.type && html !== contentRef.current) {
-					await callbacks.updateBlock?.(block.id, html, liveType);
+				const typeChanged = liveType !== block.type;
+
+				// Single update call: persist content, and maybe the block type
+				// too (for markdown transforms like `- ` → bulletList so the
+				// Enter/Backspace label and behavior update promptly).
+				if (html !== contentRef.current || typeChanged) {
+					await callbacks.updateBlock?.(
+						block.id,
+						html,
+						typeChanged ? liveType : undefined,
+					);
 				}
 				isPendingRef.current = false;
-			}, 500);
+			}, 200);
 		},
 		onSelectionUpdate: ({ editor: ed }) => {
 			detectSlashCommand(ed);
@@ -564,6 +595,7 @@ function SortableBlock({
 	onInsertBelow,
 	onOpenMenu,
 	blockType,
+	numberedRun,
 }: {
 	id: string;
 	children: React.ReactNode;
@@ -573,6 +605,7 @@ function SortableBlock({
 	onInsertBelow?: () => void;
 	onOpenMenu?: (x: number, y: number) => void;
 	blockType: string;
+	numberedRun?: number;
 }) {
 	const {
 		attributes,
@@ -591,7 +624,8 @@ function SortableBlock({
 		transform: CSS.Transform.toString(transform),
 		transition,
 		opacity: isSortableDragging ? 0.3 : 1,
-	};
+		...(numberedRun != null ? { "--numbered-run": String(numberedRun) } : {}),
+	} as React.CSSProperties & { "--numbered-run"?: string };
 
 	return (
 		<div
@@ -607,7 +641,7 @@ function SortableBlock({
 		>
 			<DropIndicator active={showDropIndicator} />
 			<div
-				className={`group flex items-start gap-1 py-px rounded-[5px] transition-[background] duration-[var(--t)] ease-[var(--ease)] hover:bg-[rgba(0,0,0,0.015)] ${isDragging || isSortableDragging ? "shadow-[var(--shadow-lg)] bg-surface rounded scale-[1.012]" : ""}`}
+				className={`group flex items-start gap-1 py-px rounded-[5px] transition-[background] duration-[var(--t)] ease-[var(--ease)] ${isDragging || isSortableDragging ? "shadow-[var(--shadow-lg)] bg-surface rounded scale-[1.012]" : ""}`}
 			>
 				<div className="flex items-center gap-0 w-12 shrink-0 mt-0.5 opacity-0 transition-opacity duration-[var(--t)] ease-[var(--ease)] group-hover:opacity-100">
 					<button
@@ -801,20 +835,6 @@ export function BlockEditor() {
 	);
 
 	/** Merge current block with previous, preserving inline formatting. */
-	/** Derive block type from HTML content (avoids the debounce race with stored block.type). */
-	function detectTypeFromHtml(html: string): string {
-		const t = html.trim();
-		if (t.startsWith("<h1") || t.startsWith("<h1>")) return "heading1";
-		if (t.startsWith("<h2") || t.startsWith("<h2>")) return "heading2";
-		if (t.startsWith("<h3") || t.startsWith("<h3>")) return "heading3";
-		if (t.startsWith("<blockquote>")) return "blockquote";
-		if (t.startsWith("<pre>")) return "code";
-		if (t.startsWith('<ul data-type="taskList"')) return "todo";
-		if (t.startsWith("<ul") || t.startsWith("<ul ")) return "bulletList";
-		if (t.startsWith("<ol") || t.startsWith("<ol ")) return "numberedList";
-		return "paragraph";
-	}
-
 	const mergeWithPrevious = useCallback(
 		async (blockIndex: number) => {
 			if (blockIndex <= 0) return;
@@ -826,7 +846,7 @@ export function BlockEditor() {
 			// type, to avoid the 500ms debounce race (a markdown transform may
 			// have changed the content without yet persisting the type).
 			const prevHtml = prev.content || defaultContentForType(prev.type);
-			const prevType = detectTypeFromHtml(prevHtml);
+			const prevType = blockTypeFromHtml(prevHtml);
 
 			// Concatenate inline content (marks intact), then re-wrap in prev's tag.
 			const prevInner = extractInlineHTML(prevHtml);
@@ -838,7 +858,7 @@ export function BlockEditor() {
 			// Preserve the previous block's type, derived from content
 			let mergedHtml: string;
 			if (prevType.startsWith("heading")) {
-				const level = getHeadingLevel(prevHtml);
+				const level = headingLevelFromType(prevType);
 				mergedHtml = `<h${level}>${mergedInner}</h${level}>`;
 			} else if (prevType === "blockquote") {
 				mergedHtml = `<blockquote>${mergedInner}</blockquote>`;
@@ -1472,62 +1492,106 @@ export function BlockEditor() {
 
 					<div className="editor">
 						{/* ── Blocks ── */}
-						{sortedBlocks.map((block, _blockIndex) => {
-							const blockIndex = _blockIndex;
-							// Inline database block: block.content holds the dbId.
-							if (block.type === "database") {
-								const db = databases.find((d) => d.id === block.content);
-								if (!db) return null;
-								return (
-									<SortableBlock
-										key={block.id}
-										id={block.id}
-										showDropIndicator={dropIndicatorIndex === blockIndex}
-										isDragging={activeBlockId === block.id}
-										onDragStart={() => setActiveBlockId(block.id)}
-										onOpenMenu={(x, y) =>
-											setDbMenu({ dbId: db.id, blockId: block.id, x, y })
-										}
-										blockType="database"
-									>
-										<DatabaseView database={db} isNew={db.id === newDbId} />
-									</SortableBlock>
-								);
-							}
+						{(() => {
+							const numberedRunIndices =
+								computeNumberedRunIndices(sortedBlocks);
+							return sortedBlocks.map((block, _blockIndex) => {
+								const blockIndex = _blockIndex;
+								// Inline database block: block.content holds the dbId.
+								if (block.type === "database") {
+									const db = databases.find((d) => d.id === block.content);
+									if (!db) return null;
+									return (
+										<SortableBlock
+											key={block.id}
+											id={block.id}
+											showDropIndicator={dropIndicatorIndex === blockIndex}
+											isDragging={activeBlockId === block.id}
+											onDragStart={() => setActiveBlockId(block.id)}
+											onOpenMenu={(x, y) =>
+												setDbMenu({ dbId: db.id, blockId: block.id, x, y })
+											}
+											blockType="database"
+											numberedRun={numberedRunIndices.get(block.id)}
+										>
+											<DatabaseView database={db} isNew={db.id === newDbId} />
+										</SortableBlock>
+									);
+								}
 
-							// Page-link block.
-							if (block.type === "pageLink") {
-								return (
-									<SortableBlock
-										key={block.id}
-										id={block.id}
-										showDropIndicator={dropIndicatorIndex === blockIndex}
-										isDragging={activeBlockId === block.id}
-										onDragStart={() => setActiveBlockId(block.id)}
-										onInsertBelow={() =>
-											insertBlockAfter(sortedBlocks.indexOf(block))
-										}
-										onOpenMenu={(x, y) =>
-											setBlockMenu({ blockId: block.id, x, y })
-										}
-										blockType="pageLink"
-									>
-										<PageLinkBlock
-											block={block as any}
-											blockIndex={sortedBlocks.indexOf(block)}
-											totalBlocks={sortedBlocks.length}
-											onUpdateBlock={async (id, content) => {
-												await updateBlock(id, content);
-											}}
-											onDeleteBlock={deleteBlock}
-										/>
-									</SortableBlock>
-								);
-							}
+								// Page-link block.
+								if (block.type === "pageLink") {
+									return (
+										<SortableBlock
+											key={block.id}
+											id={block.id}
+											showDropIndicator={dropIndicatorIndex === blockIndex}
+											isDragging={activeBlockId === block.id}
+											onDragStart={() => setActiveBlockId(block.id)}
+											onInsertBelow={() =>
+												insertBlockAfter(sortedBlocks.indexOf(block))
+											}
+											onOpenMenu={(x, y) =>
+												setBlockMenu({ blockId: block.id, x, y })
+											}
+											blockType="pageLink"
+											numberedRun={numberedRunIndices.get(block.id)}
+										>
+											<PageLinkBlock
+												block={block as any}
+												blockIndex={sortedBlocks.indexOf(block)}
+												totalBlocks={sortedBlocks.length}
+												onUpdateBlock={async (id, content) => {
+													await updateBlock(id, content);
+												}}
+												onDeleteBlock={deleteBlock}
+											/>
+										</SortableBlock>
+									);
+								}
 
-							// Custom-rendered blocks (image, pdf, file, divider, people, etc.)
-							if (hasBlockRenderer(block.type)) {
-								const Renderer = getBlockRenderer(block.type)!;
+								// Custom-rendered blocks (image, pdf, file, divider, people, etc.)
+								if (hasBlockRenderer(block.type)) {
+									const Renderer = getBlockRenderer(block.type)!;
+									return (
+										<SortableBlock
+											key={block.id}
+											id={block.id}
+											showDropIndicator={dropIndicatorIndex === blockIndex}
+											isDragging={activeBlockId === block.id}
+											onDragStart={() => setActiveBlockId(block.id)}
+											onInsertBelow={() =>
+												insertBlockAfter(sortedBlocks.indexOf(block))
+											}
+											onOpenMenu={(x, y) =>
+												setBlockMenu({ blockId: block.id, x, y })
+											}
+											blockType={block.type}
+											numberedRun={numberedRunIndices.get(block.id)}
+										>
+											<Renderer
+												block={block as any}
+												blockIndex={sortedBlocks.indexOf(block)}
+												totalBlocks={sortedBlocks.length}
+												onUpdateBlock={async (id, content) => {
+													await updateBlock(id, content);
+												}}
+												onDeleteBlock={deleteBlock}
+											/>
+										</SortableBlock>
+									);
+								}
+
+								// Standard TipTap-editable blocks.
+								const callbacks: BlockNavigationCallbacks = {
+									navigateToBlock,
+									mergeWithPrevious: () => mergeWithPrevious(blockIndex),
+									splitBlock: (before, after, newType) =>
+										splitBlock(blockIndex, before, after, newType),
+									insertBlockAfter: () => insertBlockAfter(blockIndex),
+									updateBlock: handleUpdateBlock,
+								};
+
 								return (
 									<SortableBlock
 										key={block.id}
@@ -1535,74 +1599,37 @@ export function BlockEditor() {
 										showDropIndicator={dropIndicatorIndex === blockIndex}
 										isDragging={activeBlockId === block.id}
 										onDragStart={() => setActiveBlockId(block.id)}
-										onInsertBelow={() =>
-											insertBlockAfter(sortedBlocks.indexOf(block))
-										}
+										onInsertBelow={() => insertBlockAfter(blockIndex)}
 										onOpenMenu={(x, y) =>
 											setBlockMenu({ blockId: block.id, x, y })
 										}
 										blockType={block.type}
 									>
-										<Renderer
-											block={block as any}
-											blockIndex={sortedBlocks.indexOf(block)}
+										<SingleBlockEditor
+											block={block}
+											blockIndex={blockIndex}
 											totalBlocks={sortedBlocks.length}
-											onUpdateBlock={async (id, content) => {
-												await updateBlock(id, content);
+											callbacks={callbacks}
+											onSlashMenuOpen={(data) => {
+												if (data.query === "__close__") {
+													setSlashMenu((m) =>
+														m.show ? { ...m, show: false } : m,
+													);
+												} else {
+													setSlashMenu({
+														show: true,
+														query: data.query,
+														top: data.top,
+														left: data.left,
+														blockIndex: blockIndex,
+													});
+												}
 											}}
-											onDeleteBlock={deleteBlock}
 										/>
 									</SortableBlock>
 								);
-							}
-
-							// Standard TipTap-editable blocks.
-							const callbacks: BlockNavigationCallbacks = {
-								navigateToBlock,
-								mergeWithPrevious: () => mergeWithPrevious(blockIndex),
-								splitBlock: (before, after, newType) =>
-									splitBlock(blockIndex, before, after, newType),
-								insertBlockAfter: () => insertBlockAfter(blockIndex),
-								updateBlock: handleUpdateBlock,
-							};
-
-							return (
-								<SortableBlock
-									key={block.id}
-									id={block.id}
-									showDropIndicator={dropIndicatorIndex === blockIndex}
-									isDragging={activeBlockId === block.id}
-									onDragStart={() => setActiveBlockId(block.id)}
-									onInsertBelow={() => insertBlockAfter(blockIndex)}
-									onOpenMenu={(x, y) =>
-										setBlockMenu({ blockId: block.id, x, y })
-									}
-									blockType={block.type}
-								>
-									<SingleBlockEditor
-										block={block}
-										blockIndex={blockIndex}
-										totalBlocks={sortedBlocks.length}
-										callbacks={callbacks}
-										onSlashMenuOpen={(data) => {
-											if (data.query === "__close__") {
-												setSlashMenu((m) =>
-													m.show ? { ...m, show: false } : m,
-												);
-											} else {
-												setSlashMenu({
-													show: true,
-													query: data.query,
-													top: data.top,
-													left: data.left,
-													blockIndex: blockIndex,
-												});
-											}
-										}}
-									/>
-								</SortableBlock>
-							);
-						})}
+							});
+						})()}
 
 						{/* ── Add-block bar (between blocks and orphan databases) ── */}
 						{sortedBlocks.length > 0 && (
