@@ -1143,6 +1143,12 @@ export function BlockEditor() {
 
 	/** AC#2: Click gutter/beside a block to focus it at nearest caret position. */
 	const handleGutterClick = useCallback((blockId: string, clientY: number) => {
+		// Blur any currently focused ProseMirror before requesting new focus,
+		// so clicking the gutter of a different block properly unfocuses the
+		// previously selected block (removes its focus indicator).
+		const ae = document.activeElement as HTMLElement | null;
+		if (ae?.classList.contains("ProseMirror")) ae.blur();
+
 		const blockEl = document.querySelector(`[data-block-id="${blockId}"]`);
 		if (blockEl) {
 			const rect = blockEl.getBoundingClientRect();
@@ -1434,6 +1440,10 @@ export function BlockEditor() {
 							) {
 								const lastBlock = sortedBlocks[sortedBlocks.length - 1];
 								if (lastBlock) {
+									// Blur the previously focused editor before requesting new focus
+									const ae = document.activeElement as HTMLElement | null;
+									if (ae?.classList.contains("ProseMirror")) ae.blur();
+
 									// If last block is empty, focus it; otherwise create trailing paragraph
 									const content = stripHtml(lastBlock.content);
 									if (!content && currentPage) {
