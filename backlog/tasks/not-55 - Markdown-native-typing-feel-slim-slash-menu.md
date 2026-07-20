@@ -1,11 +1,11 @@
 ---
 id: NOT-55
 title: Markdown-native typing feel + slim slash menu
-status: ready-for-agent
+status: done
 assignee:
   - '@claude'
 created_date: '2026-07-19 19:39'
-updated_date: '2026-07-20 08:41'
+updated_date: '2026-07-20 08:42'
 labels:
   - enhancement
 dependencies: []

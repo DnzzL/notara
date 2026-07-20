@@ -1,5 +1,10 @@
 import { Extension, type Editor } from "@tiptap/core";
-import { BLOCK_TYPE_CONFIG } from "./blockTypes.js";
+import {
+	BLOCK_TYPE_CONFIG,
+	blockTypeFromHtml,
+	blockTagForType,
+	type BlockType,
+} from "./blockTypes.js";
 import { splitInlineHTML } from "./blockEditing.js";
 
 /** Callback invoked when the editor requests an inter-block operation. */
@@ -39,24 +44,14 @@ export interface BlockNavigationCallbacks {
 
 /**
  * Derive the current block type from the editor's live top-level node HTML.
+ * Thin wrapper around {@link blockTypeFromHtml} for the TipTap Editor API.
  * This is used instead of the stored `blockType` option so that markdown
  * transforms (e.g. typing `# ` which changes the node to <h1>) are reflected
  * immediately in split/merge/Enter behavior, without waiting for the debounced
  * store update.
  */
-export function detectBlockTypeFromEditor(editor: Editor): string {
-	const html = editor.getHTML().trim();
-
-	if (html.startsWith("<h1>") || html.startsWith("<h1 ")) return "heading1";
-	if (html.startsWith("<h2>") || html.startsWith("<h2 ")) return "heading2";
-	if (html.startsWith("<h3>") || html.startsWith("<h3 ")) return "heading3";
-	if (html.startsWith("<blockquote>")) return "blockquote";
-	if (html.startsWith("<pre>")) return "code";
-	if (html.startsWith('<ul data-type="taskList"')) return "todo";
-	if (html.startsWith("<ul") || html.startsWith("<ul ")) return "bulletList";
-	if (html.startsWith("<ol") || html.startsWith("<ol ")) return "numberedList";
-
-	return "paragraph";
+export function detectBlockTypeFromEditor(editor: Editor): BlockType {
+	return blockTypeFromHtml(editor.getHTML());
 }
 
 export const BlockNavigationExtension = Extension.create<{
@@ -118,9 +113,24 @@ export const BlockNavigationExtension = Extension.create<{
 
 			// ── Backspace at position 0: merge with previous block ──────────
 			Backspace: () => {
-				// At start of block (position <= 1 within this TipTap doc)
-				const pos = this.editor?.state?.selection?.anchor;
-				if (pos !== undefined && pos <= 1 && blockIndex > 0) {
+				const editor = this.editor;
+				if (!editor) return false;
+				const pos = editor.state?.selection?.anchor;
+				if (pos === undefined || pos > 1) return false;
+
+				// At start of a list or todo block → convert to paragraph (exit the list)
+				// so Backspace doesn't feel like a no-op.
+				const liveType = detectBlockTypeFromEditor(editor);
+				const splitBehavior =
+					BLOCK_TYPE_CONFIG[liveType]?.splitBehavior ?? "normal";
+				if (splitBehavior === "list" || splitBehavior === "todo") {
+					const text = editor.state.doc.textContent;
+					editor.commands.setContent(`<p>${text}</p>`, false);
+					return true;
+				}
+
+				// Non-list block at position 0 → merge with previous block
+				if (blockIndex > 0) {
 					mergeWithPrevious?.();
 					return true;
 				}
@@ -152,14 +162,25 @@ export const BlockNavigationExtension = Extension.create<{
 				const pos = state.selection.anchor;
 				const docSize = state.doc.content.size;
 				const isEmpty = editor.isEmpty;
+				// textContent is empty for both empty paragraphs AND empty list/todo
+				// blocks (where editor.isEmpty returns false for nested nodes).
+				const blockIsEmpty = isEmpty || !state.doc.textContent.trim();
 
 				const liveType = detectBlockTypeFromEditor(editor);
 				const splitBehavior =
 					BLOCK_TYPE_CONFIG[liveType]?.splitBehavior ?? "normal";
 
 				if (splitBehavior === "list") {
-					if (isEmpty || pos >= docSize - 1) {
+					if (blockIsEmpty) {
 						splitBlock?.(editor.getHTML(), "", "paragraph");
+						return true;
+					}
+					if (pos >= docSize - 1) {
+						// Cursor at end of non-empty list → create new empty list item
+						const emptyContent =
+							BLOCK_TYPE_CONFIG[liveType as BlockType]?.defaultContent ??
+							"<ul><li></li></ul>";
+						splitBlock?.(editor.getHTML(), emptyContent, liveType);
 						return true;
 					}
 					const splitResult = splitListAtCursor(editor, pos, liveType);
@@ -167,16 +188,33 @@ export const BlockNavigationExtension = Extension.create<{
 					return true;
 				}
 				if (splitBehavior === "todo") {
-					if (isEmpty || pos >= docSize - 1) {
+					if (blockIsEmpty) {
 						splitBlock?.(editor.getHTML(), "", "paragraph");
+						return true;
+					}
+					if (pos >= docSize - 1) {
+						// Cursor at end of non-empty todo → create new empty todo
+						const emptyContent =
+							BLOCK_TYPE_CONFIG[liveType as BlockType]?.defaultContent ??
+							'<ul data-type="taskList"><li data-type="taskItem" data-checked="false"><p></p></li></ul>';
+						splitBlock?.(editor.getHTML(), emptyContent, liveType);
 						return true;
 					}
 					const splitResult = splitTodoAtCursor(editor, pos);
 					splitBlock?.(splitResult.before, splitResult.after, "todo");
 					return true;
 				}
+				if (splitBehavior === "split-paragraph") {
+					if (blockIsEmpty || pos >= docSize - 1) {
+						splitBlock?.(editor.getHTML(), "", "paragraph");
+						return true;
+					}
+					const splitResult = splitToParagraphAtCursor(editor, pos, liveType);
+					splitBlock?.(splitResult.before, splitResult.after, "paragraph");
+					return true;
+				}
 
-				// Heading / quote / code / paragraph / normal: soft line break.
+				// Paragraph / code / normal: soft line break.
 				(editor.chain().focus() as any).setHardBreak().run();
 				return true;
 			},
@@ -211,6 +249,25 @@ function splitAtCursor(
 ): { before: string; after: string } {
 	const { before, after } = splitInlineHTML(editor, cursorPos);
 	return { before: `<p>${before}</p>`, after: `<p>${after}</p>` };
+}
+
+/**
+ * Split a heading or blockquote block at the cursor.
+ * The "before" part stays in the current block (wrapped in the
+ * block's original HTML tag), and the "after" part becomes a new
+ * paragraph block.
+ */
+function splitToParagraphAtCursor(
+	editor: Editor,
+	cursorPos: number,
+	blockType: string,
+): { before: string; after: string } {
+	const { before, after } = splitInlineHTML(editor, cursorPos);
+	const tag = blockTagForType(blockType as BlockType);
+	return {
+		before: `<${tag}>${before}</${tag}>`,
+		after: `<p>${after}</p>`,
+	};
 }
 
 /** Split a list item at the cursor into two items, preserving inline marks. */

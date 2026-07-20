@@ -1,4 +1,54 @@
-export type SplitBehavior = "normal" | "list" | "todo";
+export type SplitBehavior = "normal" | "list" | "todo" | "split-paragraph";
+
+/** All block types that have a corresponding BLOCK_TYPE_CONFIG entry. */
+export type BlockType =
+	| "paragraph"
+	| "heading1"
+	| "heading2"
+	| "heading3"
+	| "blockquote"
+	| "code"
+	| "bulletList"
+	| "numberedList"
+	| "todo"
+	| "divider"
+	| "image"
+	| "pdf"
+	| "file"
+	| "database"
+	| "pageLink"
+	| "toggle"
+	| "callout"
+	| "people";
+
+/**
+ * Derive the block type from the top-level HTML fragment.
+ * Single source of truth for HTML → BlockType mapping, used by
+ * derive-live detection, merge, and any other path that needs
+ * to infer block type from rendered content.
+ */
+export function blockTypeFromHtml(html: string): BlockType {
+	const t = html.trim();
+
+	if (t.startsWith("<h1>") || t.startsWith("<h1 ")) return "heading1";
+	if (t.startsWith("<h2>") || t.startsWith("<h2 ")) return "heading2";
+	if (t.startsWith("<h3>") || t.startsWith("<h3 ")) return "heading3";
+	if (t.startsWith("<blockquote>")) return "blockquote";
+	if (t.startsWith("<pre>")) return "code";
+	if (t.startsWith('<ul data-type="taskList"')) return "todo";
+	if (t.startsWith("<ul") || t.startsWith("<ul ")) return "bulletList";
+	if (t.startsWith("<ol") || t.startsWith("<ol ")) return "numberedList";
+
+	return "paragraph";
+}
+
+/** Extract the numeric heading level (1-3) from a heading block type. */
+export function headingLevelFromType(type: BlockType): number {
+	if (type === "heading1") return 1;
+	if (type === "heading2") return 2;
+	if (type === "heading3") return 3;
+	return 1;
+}
 
 export interface BlockTypeConfig {
 	/** Placeholder shown in empty TipTap editor for this block type. */
@@ -24,8 +74,29 @@ export interface SlashCommandDef {
 	defaultContent: string | null;
 }
 
-/** Per-block-type config for rendering and keyboard behavior. Keyed by block.type. */
-export const BLOCK_TYPE_CONFIG: Record<string, BlockTypeConfig> = {
+/**
+ * Map a block type to its HTML wrapping tag.
+ * Used when splitting a block at cursor: the "before" part keeps
+ * the original wrapping tag, while the "after" part becomes a new
+ * paragraph block.
+ */
+export function blockTagForType(type: BlockType): string {
+	switch (type) {
+		case "heading1":
+			return "h1";
+		case "heading2":
+			return "h2";
+		case "heading3":
+			return "h3";
+		case "blockquote":
+			return "blockquote";
+		default:
+			return "p";
+	}
+}
+
+/** Per-block-type config for rendering and keyboard behavior. */
+export const BLOCK_TYPE_CONFIG: Record<BlockType, BlockTypeConfig> = {
 	paragraph: {
 		placeholder: "Type '/' for commands",
 		defaultContent: "<p></p>",
@@ -35,25 +106,25 @@ export const BLOCK_TYPE_CONFIG: Record<string, BlockTypeConfig> = {
 	heading1: {
 		placeholder: "Heading 1",
 		defaultContent: "<h1></h1>",
-		splitBehavior: "normal",
+		splitBehavior: "split-paragraph",
 		rendersCustom: false,
 	},
 	heading2: {
 		placeholder: "Heading 2",
 		defaultContent: "<h2></h2>",
-		splitBehavior: "normal",
+		splitBehavior: "split-paragraph",
 		rendersCustom: false,
 	},
 	heading3: {
 		placeholder: "Heading 3",
 		defaultContent: "<h3></h3>",
-		splitBehavior: "normal",
+		splitBehavior: "split-paragraph",
 		rendersCustom: false,
 	},
 	blockquote: {
 		placeholder: "Quote",
 		defaultContent: "<blockquote></blockquote>",
-		splitBehavior: "normal",
+		splitBehavior: "split-paragraph",
 		rendersCustom: false,
 	},
 	code: {
