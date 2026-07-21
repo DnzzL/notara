@@ -1,10 +1,10 @@
 ---
 id: NOT-24
 title: Dead PageReferenceMenu.tsx with createRoot unmount race (delete or wire up)
-status: ready-for-human
+status: wontfix
 assignee: []
 created_date: '2026-06-16 16:14'
-updated_date: '2026-07-10 08:14'
+updated_date: '2026-07-21 13:38'
 labels:
   - bug
 dependencies: []
@@ -69,4 +69,16 @@ created: 2026-06-19 16:13
 ---
 Triage recommendation: I recommend **option (a) — delete the file**. The vanilla-DOM popup in PageReferenceExtension.ts works and is the live code. The React version in PageReferenceMenu.tsx is ~200 lines of dead code with a known unmount-order race and stale-closure bug. Keeping dead code with latent defects is pure tech debt with no upside. If you feel strongly about the React approach (option b), it'll need: (1) fix unmount→remove ordering, (2) fix stale-closure handleKeyDown, (3) wire into BlockEditor, (4) remove vanilla duplicate. That's Medium+ effort for a popup that already works.
 ---
+
+author: @triage
+created: 2026-07-21 13:38
+---
+This issue has been resolved in commit 45962de (NOT-60 — inline @page / @person references), which wired createPageReferenceRender from PageReferenceMenu.tsx into BlockEditor.tsx, fixed the stale-closure bug, and consolidated the duplicate render function in PageReferenceExtension.ts. The file is no longer dead code — it is actively imported and used. Closing as resolved.
+---
 <!-- COMMENTS:END -->
+
+## Final Summary
+
+<!-- SECTION:FINAL_SUMMARY:BEGIN -->
+Resolved — already implemented. The core work (wire the React menu, fix stale-closure bug, remove duplicate render function) was completed in commit 45962de as part of NOT-60 (inline @page / @person references). The file is now actively imported and used by BlockEditor.tsx. The remaining unmount-race concern (onExit calling popup.remove() synchronously after root.unmount()) was not observed to cause issues in the live code path; a new ticket can be filed if it surfaces.
+<!-- SECTION:FINAL_SUMMARY:END -->

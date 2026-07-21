@@ -375,11 +375,22 @@ function SingleBlockEditor({
 			editor.commands.setTextSelection(end);
 			editor.commands.focus();
 		};
+		const handlerRemoteUpdate = (e: Event) => {
+			const detail = (e as CustomEvent).detail;
+			if (detail.blockId !== block.id || !editor) return;
+			// Don't overwrite what the user is actively editing.
+			if (editor.isFocused) return;
+			// emitUpdate=false so the debounced save callback doesn't fire
+			// (onUpdate would persist the remote content back to the server).
+			editor.commands.setContent(detail.content, false);
+		};
 		window.addEventListener("block-strip-slash", handlerStripSlash);
 		window.addEventListener("block-set-content", handlerSetContent);
+		window.addEventListener("block-remote-update", handlerRemoteUpdate);
 		return () => {
 			window.removeEventListener("block-strip-slash", handlerStripSlash);
 			window.removeEventListener("block-set-content", handlerSetContent);
+			window.removeEventListener("block-remote-update", handlerRemoteUpdate);
 		};
 	}, [block.id, editor]);
 
@@ -769,6 +780,13 @@ export function BlockEditor() {
 			workspaceId,
 			pageId: currentPage.id,
 			selfUserId: session.user.id,
+			onBlockUpdated: (blockId, content) => {
+				window.dispatchEvent(
+					new CustomEvent("block-remote-update", {
+						detail: { blockId, content },
+					}),
+				);
+			},
 		});
 		return () => {
 			stopPresence();

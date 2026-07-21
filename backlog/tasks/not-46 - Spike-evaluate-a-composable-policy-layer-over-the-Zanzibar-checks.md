@@ -1,10 +1,10 @@
 ---
 id: NOT-46
 title: 'Spike: evaluate a composable policy layer over the Zanzibar checks'
-status: ready-for-human
+status: wontfix
 assignee: []
 created_date: '2026-07-09 16:16'
-updated_date: '2026-07-10 08:14'
+updated_date: '2026-07-21 13:45'
 labels:
   - enhancement
 dependencies: []
@@ -24,3 +24,19 @@ INVESTIGATION / DECISION ONLY — not a build ticket; a 'wontfix' outcome is ful
 - [ ] #3 If adopt/partial, it names the minimal seam (a single withPolicy combinator, no new permission-string DSL unless justified) and confirms it does not reintroduce scattered tier/plan checks banned by CLAUDE.md 5
 - [ ] #4 Outcome recorded (ADR note or decision comment); no production code required to close this spike
 <!-- AC:END -->
+
+## Comments
+
+<!-- COMMENTS:BEGIN -->
+author: @triage
+created: 2026-07-21 13:45
+---
+Closed as wontfix. Investigation complete — the current permission architecture (centralized `permissions.ts`, clean `yield*` call sites, `checkVia` factory) is the right level of simplicity for this codebase. No composition need exists, the attachment site is already clean, and adding a policy layer would violate CLAUDE.md rule 2 (don't complexify with scattered checks). Decision recorded in `.out-of-scope/composable-policy-layer.md`.
+---
+<!-- COMMENTS:END -->
+
+## Final Summary
+
+<!-- SECTION:FINAL_SUMMARY:BEGIN -->
+Closed as wontfix. Investigation: current permissions.ts design is already clean and minimal — centralized checks, simple yield* call sites, no composition need exists in rpc-handlers.ts. A policy layer would add indirection without benefit, violating CLAUDE.md rule 2. Decision recorded in .out-of-scope/composable-policy-layer.md.
+<!-- SECTION:FINAL_SUMMARY:END -->
