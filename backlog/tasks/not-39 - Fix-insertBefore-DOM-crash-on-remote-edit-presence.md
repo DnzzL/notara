@@ -1,11 +1,11 @@
 ---
 id: NOT-39
 title: Fix insertBefore DOM crash on remote edit (presence)
-status: ready-for-agent
+status: done
 assignee:
   - '@thomas'
 created_date: '2026-06-23 19:31'
-updated_date: '2026-07-21 15:13'
+updated_date: '2026-07-21 15:14'
 labels:
   - bug
 dependencies: []
@@ -78,5 +78,19 @@ Two clients on the same page: one edits any block type (including callouts), the
 ## Final Summary
 
 <!-- SECTION:FINAL_SUMMARY:BEGIN -->
-Triage complete — moved to ready-for-agent. Bug confirmed and still present. Crash path: SSE block.updated → store write → React re-render → content-sync effect calls editor.commands.setContent() on unfocused editor → ProseMirror DOM rebuild desyncs ReactNodeViewRenderer (CalloutExtension) leading to insertBefore NotFoundError. Agent brief posted with fix strategy: break the store→re-render→setContent cycle, either by wiring onBlockUpdated to update the editor directly, or by deferring setContent beyond React's commit phase.
+Fix: prevent insertBefore DOM crash on remote block edit (presence)
+
+Root cause: SSE block.updated in presenceConnection.ts writes to the block store, triggering a React re-render. The content-sync useEffect in SingleBlockEditor calls editor.commands.setContent() on unfocused editors during React's commit phase. ProseMirror's setContent rebuilds the DOM, destroying ReactNodeViewRenderer nodes (CalloutExtension), causing 'Failed to execute insertBefore on Node' on detached parents.
+
+Fix: Wire the existing onBlockUpdated callback to dispatch a block-remote-update custom event. SingleBlockEditor listens for this event and calls editor.commands.setContent(content, false) synchronously during the SSE handler (before React's render phase). The content-sync useEffect then sees editor.getHTML() already matches the new content and becomes a no-op.
+
+Key design decisions:
+- Uses same CustomEvent/window.dispatchEvent pattern as existing block-strip-slash and block-set-content events
+- Guards editor.isFocused to avoid overwriting local edits
+- Uses emitUpdate=false to prevent triggering the debounced save callback
+- Only touches unfocused editors (focused ones are protected by the content-sync effect's existing isFocused guard)
+
+Files changed: packages/app/src/components/BlockEditor.tsx (2 hunks, ~15 lines)
+
+Tests: 296 pass, 7 pre-existing schema test failures (unrelated). tsc passes (pre-existing errors unchanged).
 <!-- SECTION:FINAL_SUMMARY:END -->
