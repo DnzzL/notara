@@ -726,7 +726,8 @@ describe("Database CRUD", () => {
 				Effect.provide(TestDbLayer(filename)),
 				Effect.runPromise,
 			);
-			expect(fields.length).toBe(2);
+			// 1 default text field (Notes) + 2 explicit fields (Description, Status)
+			expect(fields.length).toBe(3);
 		} finally {
 			cleanup(tmpDir);
 		}
@@ -916,7 +917,8 @@ describe("Database CRUD", () => {
 				Effect.provide(TestDbLayer(filename)),
 				Effect.runPromise,
 			);
-			expect(views.length).toBe(2);
+			// 1 default view (Grid) + 2 explicit views (All Tasks, By Status)
+			expect(views.length).toBe(3);
 		} finally {
 			cleanup(tmpDir);
 		}

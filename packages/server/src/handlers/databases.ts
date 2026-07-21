@@ -111,15 +111,26 @@ export const createDatabase = (req: { pageId: string; name: string }) =>
 	Effect.gen(function* () {
 		const sql = yield* SqlClient.SqlClient;
 		const id = ulid();
-		// New databases hide the title column by default — users are expected
-		// to define their own columns (page links, custom properties, …). The
-		// title still exists under the hood and can be brought back from the
-		// toolbar's "Show <Label> column" button.
 		const rows = yield* sql`
-      INSERT INTO databases (id, page_id, name, title_hidden)
-      VALUES (${id}, ${req.pageId}, ${req.name}, 1)
+      INSERT INTO databases (id, page_id, name)
+      VALUES (${id}, ${req.pageId}, ${req.name})
       RETURNING ${sql.unsafe(DB_COLS)}
     `;
+
+		// Create a default text column so a fresh database isn't empty.
+		const fieldId = ulid();
+		yield* sql`
+      INSERT INTO database_fields (id, database_id, name, type, sort_order)
+      VALUES (${fieldId}, ${id}, 'Notes', 'text', 1)
+    `;
+
+		// Create a default grid/table view marked as default.
+		const viewId = ulid();
+		yield* sql`
+      INSERT INTO database_views (id, database_id, name, type, config, is_default)
+      VALUES (${viewId}, ${id}, 'Grid', 'table', '{}', 1)
+    `;
+
 		return dbFromRow(rows[0]);
 	});
 
