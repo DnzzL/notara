@@ -1,9 +1,9 @@
 const { app, BrowserWindow, Menu, ipcMain } = require("electron");
-const path = require("path");
-const fs = require("fs");
-const crypto = require("crypto");
-const { spawn } = require("child_process");
-const http = require("http");
+const path = require("node:path");
+const fs = require("node:fs");
+const crypto = require("node:crypto");
+const { spawn } = require("node:child_process");
+const http = require("node:http");
 
 const isDev = process.env.NODE_ENV === "development";
 
@@ -16,172 +16,172 @@ let setupWindow = null;
 const CONFIG_PATH = path.join(app.getPath("userData"), "config.json");
 
 function loadAppConfig() {
-  if (fs.existsSync(CONFIG_PATH)) {
-    try {
-      return JSON.parse(fs.readFileSync(CONFIG_PATH, "utf-8"));
-    } catch {
-      // corrupt — rebuild below
-    }
-  }
-  return {};
+	if (fs.existsSync(CONFIG_PATH)) {
+		try {
+			return JSON.parse(fs.readFileSync(CONFIG_PATH, "utf-8"));
+		} catch {
+			// corrupt — rebuild below
+		}
+	}
+	return {};
 }
 
 function saveAppConfig(config) {
-  fs.writeFileSync(CONFIG_PATH, JSON.stringify(config, null, 2));
+	fs.writeFileSync(CONFIG_PATH, JSON.stringify(config, null, 2));
 }
 
 // --- Path resolution ---
 
 function serverEntryPath() {
-  if (isDev) return path.join(__dirname, "../server/src/index.ts");
-  return path.join(process.resourcesPath, "dist/index.js");
+	if (isDev) return path.join(__dirname, "../server/src/index.ts");
+	return path.join(process.resourcesPath, "dist/index.js");
 }
 
 function bunPath() {
-  if (isDev) return "bun";
-  const ext = process.platform === "win32" ? ".exe" : "";
-  return path.join(process.resourcesPath, "bun" + ext);
+	if (isDev) return "bun";
+	const ext = process.platform === "win32" ? ".exe" : "";
+	return path.join(process.resourcesPath, `bun${ext}`);
 }
 
 function dataDir() {
-  return app.getPath("userData");
+	return app.getPath("userData");
 }
 
 // --- Server lifecycle ---
 
 function startServer(config) {
-  if (!config.betterAuthSecret) {
-    config.betterAuthSecret = crypto.randomBytes(32).toString("hex");
-    saveAppConfig(config);
-  }
+	if (!config.betterAuthSecret) {
+		config.betterAuthSecret = crypto.randomBytes(32).toString("hex");
+		saveAppConfig(config);
+	}
 
-  const entry = serverEntryPath();
-  const args = isDev ? ["--watch", entry] : [entry];
+	const entry = serverEntryPath();
+	const args = isDev ? ["--watch", entry] : [entry];
 
-  serverProcess = spawn(bunPath(), args, {
-    cwd: isDev ? undefined : process.resourcesPath,
-    env: {
-      ...process.env,
-      DATA_DIR: dataDir(),
-      NODE_ENV: "production",
-      PORT: "3000",
-      BASE_URL: "http://127.0.0.1:3000",
-      TRUSTED_ORIGINS: "http://127.0.0.1:3000,http://localhost:3000",
-      BETTER_AUTH_SECRET: config.betterAuthSecret,
-    },
-    stdio: ["ignore", "pipe", "pipe"],
-  });
+	serverProcess = spawn(bunPath(), args, {
+		cwd: isDev ? undefined : process.resourcesPath,
+		env: {
+			...process.env,
+			DATA_DIR: dataDir(),
+			NODE_ENV: "production",
+			PORT: "3000",
+			BASE_URL: "http://127.0.0.1:3000",
+			TRUSTED_ORIGINS: "http://127.0.0.1:3000,http://localhost:3000",
+			BETTER_AUTH_SECRET: config.betterAuthSecret,
+		},
+		stdio: ["ignore", "pipe", "pipe"],
+	});
 
-  serverProcess.stdout.on("data", (data) => {
-    console.log(`[server] ${data.toString().trim()}`);
-  });
-  serverProcess.stderr.on("data", (data) => {
-    console.error(`[server] ${data.toString().trim()}`);
-  });
-  serverProcess.on("error", (err) => {
-    console.error("[server] Failed to start:", err.message);
-  });
-  serverProcess.on("exit", (code, signal) => {
-    if (code !== 0 && code !== null) {
-      console.error(`[server] Exited with code ${code}, signal ${signal}`);
-    }
-  });
+	serverProcess.stdout.on("data", (data) => {
+		console.log(`[server] ${data.toString().trim()}`);
+	});
+	serverProcess.stderr.on("data", (data) => {
+		console.error(`[server] ${data.toString().trim()}`);
+	});
+	serverProcess.on("error", (err) => {
+		console.error("[server] Failed to start:", err.message);
+	});
+	serverProcess.on("exit", (code, signal) => {
+		if (code !== 0 && code !== null) {
+			console.error(`[server] Exited with code ${code}, signal ${signal}`);
+		}
+	});
 }
 
 function waitForServer(url, timeoutMs = 15000) {
-  return new Promise((resolve, reject) => {
-    const start = Date.now();
-    function poll() {
-      const req = http.get(url, (res) => {
-        if (res.statusCode === 200) {
-          resolve();
-        } else if (Date.now() - start > timeoutMs) {
-          reject(new Error(`Server health check returned ${res.statusCode}`));
-        } else {
-          setTimeout(poll, 200);
-        }
-      });
-      req.on("error", () => {
-        if (Date.now() - start > timeoutMs) {
-          reject(new Error("Server did not start within timeout"));
-        } else {
-          setTimeout(poll, 200);
-        }
-      });
-      req.end();
-    }
-    poll();
-  });
+	return new Promise((resolve, reject) => {
+		const start = Date.now();
+		function poll() {
+			const req = http.get(url, (res) => {
+				if (res.statusCode === 200) {
+					resolve();
+				} else if (Date.now() - start > timeoutMs) {
+					reject(new Error(`Server health check returned ${res.statusCode}`));
+				} else {
+					setTimeout(poll, 200);
+				}
+			});
+			req.on("error", () => {
+				if (Date.now() - start > timeoutMs) {
+					reject(new Error("Server did not start within timeout"));
+				} else {
+					setTimeout(poll, 200);
+				}
+			});
+			req.end();
+		}
+		poll();
+	});
 }
 
 // --- Window ---
 
 function createWindow(url) {
-  mainWindow = new BrowserWindow({
-    width: 1400,
-    height: 900,
-    title: "Notara",
-    webPreferences: {
-      nodeIntegration: false,
-      contextIsolation: true,
-    },
-    show: false,
-  });
+	mainWindow = new BrowserWindow({
+		width: 1400,
+		height: 900,
+		title: "Notara",
+		webPreferences: {
+			nodeIntegration: false,
+			contextIsolation: true,
+		},
+		show: false,
+	});
 
-  mainWindow.loadURL(url);
+	mainWindow.loadURL(url);
 
-  if (isDev) {
-    mainWindow.webContents.openDevTools();
-  }
+	if (isDev) {
+		mainWindow.webContents.openDevTools();
+	}
 
-  mainWindow.once("ready-to-show", () => {
-    if (setupWindow) {
-      setupWindow.close();
-      setupWindow = null;
-    }
-    mainWindow.show();
-  });
+	mainWindow.once("ready-to-show", () => {
+		if (setupWindow) {
+			setupWindow.close();
+			setupWindow = null;
+		}
+		mainWindow.show();
+	});
 
-  mainWindow.on("closed", () => {
-    mainWindow = null;
-  });
+	mainWindow.on("closed", () => {
+		mainWindow = null;
+	});
 }
 
 // --- First-launch setup window ---
 
 function showSetupWindow(config) {
-  setupWindow = new BrowserWindow({
-    width: 480,
-    height: 340,
-    title: "Notara Setup",
-    resizable: false,
-    webPreferences: { nodeIntegration: true, contextIsolation: false },
-  });
+	setupWindow = new BrowserWindow({
+		width: 480,
+		height: 340,
+		title: "Notara Setup",
+		resizable: false,
+		webPreferences: { nodeIntegration: true, contextIsolation: false },
+	});
 
-  setupWindow.loadURL(
-    `data:text/html;charset=utf-8,${encodeURIComponent(SETUP_HTML)}`
-  );
+	setupWindow.loadURL(
+		`data:text/html;charset=utf-8,${encodeURIComponent(SETUP_HTML)}`,
+	);
 
-  setupWindow.on("closed", () => {
-    setupWindow = null;
-    // If the user closed setup without choosing, quit
-    if (!config.mode) {
-      app.quit();
-    }
-  });
+	setupWindow.on("closed", () => {
+		setupWindow = null;
+		// If the user closed setup without choosing, quit
+		if (!config.mode) {
+			app.quit();
+		}
+	});
 
-  ipcMain.handle("set-local-mode", () => {
-    config.mode = "local";
-    saveAppConfig(config);
-    launchApp(config);
-  });
+	ipcMain.handle("set-local-mode", () => {
+		config.mode = "local";
+		saveAppConfig(config);
+		launchApp(config);
+	});
 
-  ipcMain.handle("set-remote-mode", (_event, url) => {
-    config.mode = "remote";
-    config.remoteUrl = url.replace(/\/+$/, "");
-    saveAppConfig(config);
-    launchApp(config);
-  });
+	ipcMain.handle("set-remote-mode", (_event, url) => {
+		config.mode = "remote";
+		config.remoteUrl = url.replace(/\/+$/, "");
+		saveAppConfig(config);
+		launchApp(config);
+	});
 }
 
 // Inline HTML for the setup window (avoids a separate file in extraResources)
@@ -244,126 +244,126 @@ const SETUP_HTML = `<!DOCTYPE html>
 // --- App launch dispatch ---
 
 async function launchApp(config) {
-  buildAppMenu();
+	buildAppMenu();
 
-  // Use existing env var if set (dev mode), otherwise generate + persist
-  if (!config.betterAuthSecret && process.env.BETTER_AUTH_SECRET) {
-    config.betterAuthSecret = process.env.BETTER_AUTH_SECRET;
-  }
+	// Use existing env var if set (dev mode), otherwise generate + persist
+	if (!config.betterAuthSecret && process.env.BETTER_AUTH_SECRET) {
+		config.betterAuthSecret = process.env.BETTER_AUTH_SECRET;
+	}
 
-  if (config.mode === "remote") {
-    createWindow(config.remoteUrl);
-  } else {
-    startServer(config);
-    try {
-      await waitForServer("http://127.0.0.1:3000/health");
-      console.log("[main] Server is ready");
-    } catch (err) {
-      console.error("[main] Server failed to start:", err.message);
-      app.quit();
-      return;
-    }
-    createWindow("http://127.0.0.1:3000");
-  }
+	if (config.mode === "remote") {
+		createWindow(config.remoteUrl);
+	} else {
+		startServer(config);
+		try {
+			await waitForServer("http://127.0.0.1:3000/health");
+			console.log("[main] Server is ready");
+		} catch (err) {
+			console.error("[main] Server failed to start:", err.message);
+			app.quit();
+			return;
+		}
+		createWindow("http://127.0.0.1:3000");
+	}
 
-  app.on("activate", () => {
-    if (BrowserWindow.getAllWindows().length === 0 && mainWindow === null) {
-      if (config.mode === "remote") {
-        createWindow(config.remoteUrl);
-      } else {
-        startServer(config);
-        waitForServer("http://127.0.0.1:3000/health").then(() => {
-          createWindow("http://127.0.0.1:3000");
-        });
-      }
-    }
-  });
+	app.on("activate", () => {
+		if (BrowserWindow.getAllWindows().length === 0 && mainWindow === null) {
+			if (config.mode === "remote") {
+				createWindow(config.remoteUrl);
+			} else {
+				startServer(config);
+				waitForServer("http://127.0.0.1:3000/health").then(() => {
+					createWindow("http://127.0.0.1:3000");
+				});
+			}
+		}
+	});
 }
 
 // --- Native menu ---
 
 function buildAppMenu() {
-  const config = loadAppConfig();
-  const isLocal = config.mode !== "remote";
+	const config = loadAppConfig();
+	const isLocal = config.mode !== "remote";
 
-  const template = [
-    {
-      label: app.name,
-      submenu: [
-        { role: "about" },
-        { type: "separator" },
-        { role: "hide" },
-        { role: "hideOthers" },
-        { role: "unhide" },
-        { type: "separator" },
-        { role: "quit" },
-      ],
-    },
-    {
-      label: "Edit",
-      submenu: [
-        { role: "undo" },
-        { role: "redo" },
-        { type: "separator" },
-        { role: "cut" },
-        { role: "copy" },
-        { role: "paste" },
-        { role: "selectAll" },
-      ],
-    },
-    {
-      label: "View",
-      submenu: [
-        { role: "reload" },
-        { role: "forceReload" },
-        { type: "separator" },
-        { role: "resetZoom" },
-        { role: "zoomIn" },
-        { role: "zoomOut" },
-        { type: "separator" },
-        { role: "togglefullscreen" },
-      ],
-    },
-    {
-      label: "Window",
-      submenu: [
-        { role: "minimize" },
-        { role: "close" },
-        { type: "separator" },
-        {
-          label: `Switch to ${isLocal ? "Remote" : "Local"} Mode`,
-          visible: true,
-          click: () => {
-            if (isLocal) {
-              showRemoteSwitchWindow(config);
-            } else {
-              config.mode = "local";
-              delete config.remoteUrl;
-              saveAppConfig(config);
-              app.relaunch();
-              app.exit();
-            }
-          },
-        },
-      ],
-    },
-  ];
-  Menu.setApplicationMenu(Menu.buildFromTemplate(template));
+	const template = [
+		{
+			label: app.name,
+			submenu: [
+				{ role: "about" },
+				{ type: "separator" },
+				{ role: "hide" },
+				{ role: "hideOthers" },
+				{ role: "unhide" },
+				{ type: "separator" },
+				{ role: "quit" },
+			],
+		},
+		{
+			label: "Edit",
+			submenu: [
+				{ role: "undo" },
+				{ role: "redo" },
+				{ type: "separator" },
+				{ role: "cut" },
+				{ role: "copy" },
+				{ role: "paste" },
+				{ role: "selectAll" },
+			],
+		},
+		{
+			label: "View",
+			submenu: [
+				{ role: "reload" },
+				{ role: "forceReload" },
+				{ type: "separator" },
+				{ role: "resetZoom" },
+				{ role: "zoomIn" },
+				{ role: "zoomOut" },
+				{ type: "separator" },
+				{ role: "togglefullscreen" },
+			],
+		},
+		{
+			label: "Window",
+			submenu: [
+				{ role: "minimize" },
+				{ role: "close" },
+				{ type: "separator" },
+				{
+					label: `Switch to ${isLocal ? "Remote" : "Local"} Mode`,
+					visible: true,
+					click: () => {
+						if (isLocal) {
+							showRemoteSwitchWindow(config);
+						} else {
+							config.mode = "local";
+							delete config.remoteUrl;
+							saveAppConfig(config);
+							app.relaunch();
+							app.exit();
+						}
+					},
+				},
+			],
+		},
+	];
+	Menu.setApplicationMenu(Menu.buildFromTemplate(template));
 }
 
 function showRemoteSwitchWindow(config) {
-  const win = new BrowserWindow({
-    width: 400,
-    height: 160,
-    title: "Connect to Remote Server",
-    resizable: false,
-    parent: mainWindow,
-    modal: true,
-    webPreferences: { nodeIntegration: true, contextIsolation: false },
-  });
+	const win = new BrowserWindow({
+		width: 400,
+		height: 160,
+		title: "Connect to Remote Server",
+		resizable: false,
+		parent: mainWindow,
+		modal: true,
+		webPreferences: { nodeIntegration: true, contextIsolation: false },
+	});
 
-  win.loadURL(
-    `data:text/html;charset=utf-8,${encodeURIComponent(`<!DOCTYPE html>
+	win.loadURL(
+		`data:text/html;charset=utf-8,${encodeURIComponent(`<!DOCTYPE html>
 <html><head><meta charset="utf-8"><style>
   * { margin:0; padding:0; box-sizing:border-box; }
   body { font-family: -apple-system, sans-serif; background:#f5f5f7; display:flex; align-items:center; justify-content:center; height:100vh; }
@@ -377,7 +377,7 @@ function showRemoteSwitchWindow(config) {
 </style></head>
 <body><div class="card">
   <label>Server URL</label>
-  <input id="url" type="text" placeholder="https://notara.example.com" value="${config.remoteUrl || ''}" />
+  <input id="url" type="text" placeholder="https://notara.example.com" value="${config.remoteUrl || ""}" />
   <div class="rows">
     <button class="cancel" onclick="window.close()">Cancel</button>
     <button class="connect" onclick="save()">Connect</button>
@@ -388,17 +388,17 @@ function showRemoteSwitchWindow(config) {
   function save() {
     ipcRenderer.send("set-remote-url", document.getElementById("url").value.trim());
   }
-</script></body></html>`)}`
-  );
+</script></body></html>`)}`,
+	);
 
-  ipcMain.once("set-remote-url", (_event, url) => {
-    if (!url) return;
-    config.mode = "remote";
-    config.remoteUrl = url.replace(/\/+$/, "");
-    saveAppConfig(config);
-    app.relaunch();
-    app.exit();
-  });
+	ipcMain.once("set-remote-url", (_event, url) => {
+		if (!url) return;
+		config.mode = "remote";
+		config.remoteUrl = url.replace(/\/+$/, "");
+		saveAppConfig(config);
+		app.relaunch();
+		app.exit();
+	});
 }
 
 // --- App lifecycle ---
@@ -406,55 +406,59 @@ function showRemoteSwitchWindow(config) {
 const gotTheLock = app.requestSingleInstanceLock();
 
 if (!gotTheLock) {
-  app.quit();
+	app.quit();
 } else {
-  app.on("second-instance", () => {
-    if (mainWindow) {
-      if (mainWindow.isMinimized()) mainWindow.restore();
-      mainWindow.focus();
-    }
-  });
+	app.on("second-instance", () => {
+		if (mainWindow) {
+			if (mainWindow.isMinimized()) mainWindow.restore();
+			mainWindow.focus();
+		}
+	});
 
-  app.whenReady().then(async () => {
-    if (isDev) {
-      // Dev mode: always load Vite dev server, skip setup/config
-      buildAppMenu();
-      createWindow("http://localhost:5173");
-      app.on("activate", () => {
-        if (BrowserWindow.getAllWindows().length === 0 && mainWindow === null) {
-          createWindow("http://localhost:5173");
-        }
-      });
-      return;
-    }
+	app.whenReady().then(async () => {
+		if (isDev) {
+			// Dev mode: always load Vite dev server, skip setup/config
+			buildAppMenu();
+			createWindow("http://localhost:5173");
+			app.on("activate", () => {
+				if (BrowserWindow.getAllWindows().length === 0 && mainWindow === null) {
+					createWindow("http://localhost:5173");
+				}
+			});
+			return;
+		}
 
-    const config = loadAppConfig();
+		const config = loadAppConfig();
 
-    if (!config.mode) {
-      showSetupWindow(config);
-    } else {
-      launchApp(config);
-    }
-  });
+		if (!config.mode) {
+			showSetupWindow(config);
+		} else {
+			launchApp(config);
+		}
+	});
 
-  app.on("window-all-closed", () => {
-    if (serverProcess) {
-      serverProcess.kill("SIGTERM");
-      serverProcess = null;
-    }
-    if (process.platform !== "darwin") {
-      app.quit();
-    }
-    // On macOS, quit if setup was dismissed (no config yet)
-    if (process.platform === "darwin" && setupWindow === null && mainWindow === null) {
-      const config = loadAppConfig();
-      if (!config.mode) app.quit();
-    }
-  });
+	app.on("window-all-closed", () => {
+		if (serverProcess) {
+			serverProcess.kill("SIGTERM");
+			serverProcess = null;
+		}
+		if (process.platform !== "darwin") {
+			app.quit();
+		}
+		// On macOS, quit if setup was dismissed (no config yet)
+		if (
+			process.platform === "darwin" &&
+			setupWindow === null &&
+			mainWindow === null
+		) {
+			const config = loadAppConfig();
+			if (!config.mode) app.quit();
+		}
+	});
 
-  app.on("before-quit", () => {
-    if (serverProcess) {
-      serverProcess.kill("SIGTERM");
-    }
-  });
+	app.on("before-quit", () => {
+		if (serverProcess) {
+			serverProcess.kill("SIGTERM");
+		}
+	});
 }

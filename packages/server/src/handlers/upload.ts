@@ -1,11 +1,10 @@
-import { Effect, Layer } from "effect";
-import { SqlClient } from "@effect/sql";
-import { ulid } from "ulidx";
 import { mkdir, writeFile } from "node:fs/promises";
-import { join } from "node:path";
-import { BLOCK_COLS } from "../mappers.js";
+import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
-import { dirname } from "node:path";
+import { SqlClient } from "@effect/sql";
+import { Effect } from "effect";
+import { ulid } from "ulidx";
+import { BLOCK_COLS } from "../mappers.js";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
@@ -14,85 +13,89 @@ const __dirname = dirname(__filename);
 const rootDir = join(__dirname, "../../../..");
 
 const ATTACHMENTS_DIR = (() => {
-  const dataDir = process.env.DATA_DIR
-    ? join(process.env.DATA_DIR, "attachments")
-    : join(rootDir, ".data", "attachments");
-  return dataDir;
+	const dataDir = process.env.DATA_DIR
+		? join(process.env.DATA_DIR, "attachments")
+		: join(rootDir, ".data", "attachments");
+	return dataDir;
 })();
 
 // Allowed MIME types
 const ALLOWED_IMAGE_TYPES = new Set([
-  "image/png", "image/jpeg", "image/gif", "image/webp", "image/svg+xml",
+	"image/png",
+	"image/jpeg",
+	"image/gif",
+	"image/webp",
+	"image/svg+xml",
 ]);
 const ALLOWED_PDF_TYPE = "application/pdf";
 
 function blockTypeForMimeType(mimeType: string): "image" | "pdf" | "file" {
-  if (mimeType === ALLOWED_PDF_TYPE) return "pdf";
-  if (ALLOWED_IMAGE_TYPES.has(mimeType)) return "image";
-  return "file";
+	if (mimeType === ALLOWED_PDF_TYPE) return "pdf";
+	if (ALLOWED_IMAGE_TYPES.has(mimeType)) return "image";
+	return "file";
 }
 
 /**
  * Upload a file: save to disk, record in DB, create block, return block.
  */
 export const uploadFile = (req: {
-  pageId: string;
-  fileName: string;
-  mimeType: string;
-  fileBuffer: Buffer;
+	pageId: string;
+	fileName: string;
+	mimeType: string;
+	fileBuffer: Buffer;
 }) =>
-  Effect.gen(function* () {
-    const sql = yield* SqlClient.SqlClient;
+	Effect.gen(function* () {
+		const sql = yield* SqlClient.SqlClient;
 
-    // Generate ULID for the file
-    const fileId = ulid();
-    const ext = req.fileName.split(".").pop() || "bin";
-    const fileName = `${fileId}.${ext}`;
-    const filePath = join(ATTACHMENTS_DIR, fileName);
+		// Generate ULID for the file
+		const fileId = ulid();
+		const ext = req.fileName.split(".").pop() || "bin";
+		const fileName = `${fileId}.${ext}`;
+		const filePath = join(ATTACHMENTS_DIR, fileName);
 
-    // Ensure attachments directory exists
-    yield* Effect.promise(() => mkdir(ATTACHMENTS_DIR, { recursive: true }));
+		// Ensure attachments directory exists
+		yield* Effect.promise(() => mkdir(ATTACHMENTS_DIR, { recursive: true }));
 
-    // Save file to disk
-    yield* Effect.promise(() => writeFile(filePath, req.fileBuffer));
+		// Save file to disk
+		yield* Effect.promise(() => writeFile(filePath, req.fileBuffer));
 
-    // Insert attachment record
-    const now = new Date().toISOString();
-    yield* sql`
+		// Insert attachment record
+		const now = new Date().toISOString();
+		yield* sql`
       INSERT INTO attachments (id, page_id, file_name, file_path, mime_type, size, created_at)
       VALUES (${fileId}, ${req.pageId}, ${req.fileName}, ${fileName}, ${req.mimeType}, ${req.fileBuffer.length}, ${now})
     `;
 
-    // Create the block
-    const blockId = ulid();
-    const blockType = blockTypeForMimeType(req.mimeType);
+		// Create the block
+		const blockId = ulid();
+		const blockType = blockTypeForMimeType(req.mimeType);
 
-    // Get the next index for this page
-    const indexRows = yield* sql<{ maxIndex: number }>`
+		// Get the next index for this page
+		const indexRows = yield* sql<{ maxIndex: number }>`
       SELECT COALESCE(MAX("index"), -1) as maxIndex FROM blocks WHERE page_id = ${req.pageId}
     `;
-    const index = indexRows[0].maxIndex + 1;
+		const index = indexRows[0].maxIndex + 1;
 
-    // Content as JSON
-    const content = JSON.stringify({
-      src: `/attachments/${fileName}`,
-      mimeType: req.mimeType,
-      fileName: req.fileName,
-      size: req.fileBuffer.length,
-    });
+		// Content as JSON
+		const content = JSON.stringify({
+			src: `/attachments/${fileName}`,
+			mimeType: req.mimeType,
+			fileName: req.fileName,
+			size: req.fileBuffer.length,
+		});
 
-    const blockRows = yield* sql`
+		const _blockRows = yield* sql`
       INSERT INTO blocks (id, page_id, type, content, "index", parent_id)
       VALUES (${blockId}, ${req.pageId}, ${blockType}, ${content}, ${index}, NULL)
       RETURNING ${sql.unsafe(BLOCK_COLS)}
     `;
 
-    const fileUrl = `/attachments/${fileName}`;
+		const fileUrl = `/attachments/${fileName}`;
 
-    return {
-      blockId,
-      fileUrl,
-      mimeType: req.mimeType,
-      size: req.fileBuffer.length,
-    };
-  }).pipe(Effect.mapError(String));
+		return {
+			blockId,
+			fileUrl,
+			mimeType: req.mimeType,
+			size: req.fileBuffer.length,
+		};
+	}).pipe(Effect.mapError(String));

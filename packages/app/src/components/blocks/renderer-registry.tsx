@@ -1,5 +1,5 @@
-import type React from "react";
 import type { Block } from "@notara/shared";
+import type React from "react";
 
 /**
  * BlockRenderer interface — each block type implements this.
@@ -62,9 +62,9 @@ export function hasBlockRenderer(type: string): boolean {
 // ── Import and register all built-in renderers ──────────────────────────────
 
 import { DividerBlock } from "./divider-block.js";
+import { FileBlock } from "./file-block.js";
 import { ImageBlock } from "./image-block.js";
 import { PdfBlock } from "./pdf-block.js";
-import { FileBlock } from "./file-block.js";
 import { PeopleBlock } from "./people-block.js";
 import { ViewReferenceBlock } from "./view-reference-block.js";
 

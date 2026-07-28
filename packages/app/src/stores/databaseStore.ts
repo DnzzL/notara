@@ -1,12 +1,12 @@
-import { create } from "zustand";
-import { api } from "../rpc-client.js";
 import type {
 	Database,
 	DatabaseField,
 	DatabaseRecord,
 	DatabaseView,
 } from "@notara/shared";
+import { create } from "zustand";
 import type { Filter, Sort } from "../lib/filterEngine.js";
+import { api } from "../rpc-client.js";
 
 type RecordWithValues = {
 	record: DatabaseRecord;

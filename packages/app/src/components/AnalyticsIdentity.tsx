@@ -1,6 +1,6 @@
 import { useEffect, useRef } from "react";
-import { useSession } from "../auth-client.js";
 import { identify, resetAnalytics } from "../analytics.js";
+import { useSession } from "../auth-client.js";
 
 /**
  * Bridges the auth session to PostHog's distinct_id. Mounted once at the
@@ -12,21 +12,21 @@ import { identify, resetAnalytics } from "../analytics.js";
  * PostHog has actually been initialised (which only happens after Accept).
  */
 export function AnalyticsIdentity() {
-  const { data: session } = useSession();
-  const lastUserId = useRef<string | null>(null);
+	const { data: session } = useSession();
+	const lastUserId = useRef<string | null>(null);
 
-  useEffect(() => {
-    const userId = session?.user?.id ?? null;
-    if (userId === lastUserId.current) return;
+	useEffect(() => {
+		const userId = session?.user?.id ?? null;
+		if (userId === lastUserId.current) return;
 
-    if (userId) {
-      identify(userId, { email_domain: session?.user?.email?.split("@")[1] });
-    } else if (lastUserId.current) {
-      // Sign-out
-      resetAnalytics();
-    }
-    lastUserId.current = userId;
-  }, [session]);
+		if (userId) {
+			identify(userId, { email_domain: session?.user?.email?.split("@")[1] });
+		} else if (lastUserId.current) {
+			// Sign-out
+			resetAnalytics();
+		}
+		lastUserId.current = userId;
+	}, [session]);
 
-  return null;
+	return null;
 }

@@ -10,9 +10,9 @@
  * and cleaned up when the TCP connection drops.
  */
 
-import { Effect, Stream, Context } from "effect";
 import * as HttpServerRequest from "@effect/platform/HttpServerRequest";
 import * as HttpServerResponse from "@effect/platform/HttpServerResponse";
+import { Effect, Stream } from "effect";
 
 export type ViewConfigEvent = {
 	type: "view.configChanged";
@@ -99,8 +99,8 @@ export function makeViewConfigStreamHandler() {
 
 			return Effect.sync(() => {
 				clearInterval(keepAlive);
-				set!.delete(sub);
-				if (set!.size === 0) subscribers.delete(k);
+				set?.delete(sub);
+				if (set?.size === 0) subscribers.delete(k);
 			});
 		});
 

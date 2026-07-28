@@ -1,0 +1,7 @@
+# Coverage thresholds per package (statement coverage %)
+# Update these when coverage improves — higher is always better.
+thresholds:
+  "@notara/server": 40
+  "@notara/app": 15
+  "@notara/shared": 35
+  "@notara/electron": 80

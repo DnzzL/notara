@@ -1,0 +1,121 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+env:
+  CI: true
+
+jobs:
+  type-check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: latest
+
+      - run: bun install --frozen-lockfile
+
+      - name: Build shared package
+        run: bun run --filter @notara/shared build
+
+      - name: Type-check all packages
+        run: |
+          for pkg in packages/*/; do
+            if [ -f "$pkg/tsconfig.json" ]; then
+              echo "::group::Type-check $pkg"
+              (cd "$pkg" && bunx tsc --noEmit) || FAILED=1
+              echo "::endgroup::"
+            fi
+          done
+          [ -z "${FAILED:-}" ]
+
+  unit-tests:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: latest
+
+      - run: bun install --frozen-lockfile
+
+      - name: Build shared package
+        run: bun run --filter @notara/shared build
+
+      - name: Run server tests with coverage
+        working-directory: packages/server
+        run: bash ../../scripts/check-coverage.sh "@notara/server" . bun test
+
+      - name: Run app tests with coverage
+        working-directory: packages/app
+        run: bash ../../scripts/check-coverage.sh "@notara/app" . bun test
+
+      - name: Run electron tests with coverage
+        working-directory: packages/electron
+        run: bash ../../scripts/check-coverage.sh "@notara/electron" . bun test
+
+      - name: Run shared tests with coverage
+        working-directory: packages/shared
+        run: bash ../../scripts/check-coverage.sh "@notara/shared" . bunx vitest run
+
+  lint:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: latest
+
+      - run: bun install --frozen-lockfile
+
+      - name: Run Biome lint + format check
+        run: bunx biome ci packages/ e2e/
+
+  e2e-tests:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: latest
+
+      - run: bun install --frozen-lockfile
+
+      - name: Build shared package
+        run: bun run --filter @notara/shared build
+
+      - name: Install Playwright browsers
+        run: bunx playwright install --with-deps chromium
+
+      - name: Run Playwright E2E tests
+        run: bunx playwright test
+        env:
+          PLAYWRIGHT_AUTH_SECRET: dummy-secret-for-ci
+
+  merge-gate:
+    runs-on: ubuntu-latest
+    needs: [lint, type-check, unit-tests, e2e-tests]
+    if: always()
+    steps:
+      - run: |
+          echo "Lint: ${{ needs.lint.result }}"
+          echo "Type-check: ${{ needs.type-check.result }}"
+          echo "Unit tests: ${{ needs.unit-tests.result }}"
+          echo "E2E tests: ${{ needs.e2e-tests.result }}"
+          if [ "${{ needs.lint.result }}" != "success" ] || \
+             [ "${{ needs.type-check.result }}" != "success" ] || \
+             [ "${{ needs.unit-tests.result }}" != "success" ] || \
+             [ "${{ needs.e2e-tests.result }}" != "success" ]; then
+            echo "❌ Merge blocked: one or more checks failed"
+            exit 1
+          fi
+          echo "✅ All checks passed — ready to merge"

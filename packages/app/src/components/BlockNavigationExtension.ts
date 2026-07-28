@@ -1,11 +1,11 @@
-import { Extension, type Editor } from "@tiptap/core";
+import { type Editor, Extension } from "@tiptap/core";
+import { splitInlineHTML } from "./blockEditing.js";
 import {
 	BLOCK_TYPE_CONFIG,
-	blockTypeFromHtml,
-	blockTagForType,
 	type BlockType,
+	blockTagForType,
+	blockTypeFromHtml,
 } from "./blockTypes.js";
-import { splitInlineHTML } from "./blockEditing.js";
 
 /** Callback invoked when the editor requests an inter-block operation. */
 export interface BlockNavigationCallbacks {

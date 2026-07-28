@@ -42,8 +42,8 @@ describe("ViewReferenceBlock data parsing", () => {
 		const content = JSON.stringify({ databaseId: "db-1", viewId: "view-1" });
 		const result = tryParseBlockContent<ViewReferenceData>(content);
 		expect(result).not.toBeNull();
-		expect(result!.databaseId).toBe("db-1");
-		expect(result!.viewId).toBe("view-1");
+		expect(result?.databaseId).toBe("db-1");
+		expect(result?.viewId).toBe("view-1");
 	});
 
 	test("returns null for empty content (new block, picker opens)", () => {
@@ -55,8 +55,8 @@ describe("ViewReferenceBlock data parsing", () => {
 		const content = `<p>${JSON.stringify({ databaseId: "db-2", viewId: "view-5" })}</p>`;
 		const result = tryParseBlockContent<ViewReferenceData>(content);
 		expect(result).not.toBeNull();
-		expect(result!.databaseId).toBe("db-2");
-		expect(result!.viewId).toBe("view-5");
+		expect(result?.databaseId).toBe("db-2");
+		expect(result?.viewId).toBe("view-5");
 	});
 
 	test("returns null for non-JSON content", () => {
@@ -74,8 +74,8 @@ describe("ViewReferenceBlock data parsing", () => {
 		});
 		const result = tryParseBlockContent<ViewReferenceData>(content);
 		expect(result).not.toBeNull();
-		expect(result!.databaseId).toBe("db-3");
-		expect(result!.viewId).toBe("view-2");
+		expect(result?.databaseId).toBe("db-3");
+		expect(result?.viewId).toBe("view-2");
 	});
 });
 
@@ -125,7 +125,7 @@ describe("ViewReferenceBlock rendering states", () => {
 
 	test("loading state when data is being fetched", () => {
 		// When records/fields are still being loaded, the component shows "Loading…"
-		const cfg = { databaseId: "db-1", viewId: "view-1" };
+		const _cfg = { databaseId: "db-1", viewId: "view-1" };
 		const fields: any[] = [];
 		const records: any[] = [];
 		// Initially empty → component renders loading or empty table
@@ -137,7 +137,7 @@ describe("ViewReferenceBlock rendering states", () => {
 
 	test("read-only table renders without editing controls", () => {
 		// Verify the read-only table has no add-record button, no inline edit inputs
-		const fields = [
+		const _fields = [
 			{ id: "f1", name: "Name" },
 			{ id: "f2", name: "Status" },
 		];

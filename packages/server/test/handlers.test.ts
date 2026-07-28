@@ -1,14 +1,14 @@
-import { describe, test, expect, afterEach } from "bun:test";
-import { Effect, Layer } from "effect";
+import { Database } from "bun:sqlite";
+import { describe, expect, test } from "bun:test";
+import fs from "node:fs";
+import os from "node:os";
+import path from "node:path";
 import { SqlClient } from "@effect/sql";
 import { SqliteClient } from "@effect/sql-sqlite-bun";
-import { Database } from "bun:sqlite";
-import fs from "node:fs";
-import path from "node:path";
-import os from "node:os";
-import * as Pages from "../src/handlers/pages.js";
+import { Effect } from "effect";
 import * as Blocks from "../src/handlers/blocks.js";
 import * as Databases from "../src/handlers/databases.js";
+import * as Pages from "../src/handlers/pages.js";
 
 function makeTestDb() {
 	const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), "notara-test-"));
@@ -240,15 +240,15 @@ describe("Pages CRUD", () => {
 		const { filename, tmpDir } = makeTestDb();
 		try {
 			runMigrations(filename);
-			const p1 = await Pages.createPage({
+			const _p1 = await Pages.createPage({
 				title: "First",
 				parentId: null,
 			}).pipe(Effect.provide(TestDbLayer(filename)), Effect.runPromise);
-			const p2 = await Pages.createPage({
+			const _p2 = await Pages.createPage({
 				title: "Second",
 				parentId: null,
 			}).pipe(Effect.provide(TestDbLayer(filename)), Effect.runPromise);
-			const p3 = await Pages.createPage({
+			const _p3 = await Pages.createPage({
 				title: "Third",
 				parentId: null,
 			}).pipe(Effect.provide(TestDbLayer(filename)), Effect.runPromise);
@@ -769,7 +769,7 @@ describe("Database CRUD", () => {
 				record.id,
 			).pipe(Effect.provide(TestDbLayer(filename)), Effect.runPromise);
 			expect(rec.title).toBe("Task 1");
-			expect(values["Status"]).toBe("todo");
+			expect(values.Status).toBe("todo");
 		} finally {
 			cleanup(tmpDir);
 		}
@@ -834,9 +834,9 @@ describe("Database CRUD", () => {
 				Effect.provide(TestDbLayer(filename)),
 				Effect.runPromise,
 			);
-			expect(values["Priority"]).toBe(5);
-			expect(values["Done"]).toBe(true);
-			expect(values["Tags"]).toEqual(["urgent", "important"]);
+			expect(values.Priority).toBe(5);
+			expect(values.Done).toBe(true);
+			expect(values.Tags).toEqual(["urgent", "important"]);
 		} finally {
 			cleanup(tmpDir);
 		}
@@ -1204,7 +1204,7 @@ describe("Trash lifecycle", () => {
 				title: "Record to Trash",
 			}).pipe(Effect.provide(TestDbLayer(filename)), Effect.runPromise);
 			// Create backing page
-			const opened = await Databases.openRecordAsPage(record.id).pipe(
+			const _opened = await Databases.openRecordAsPage(record.id).pipe(
 				Effect.provide(TestDbLayer(filename)),
 				Effect.runPromise,
 			);
@@ -1269,7 +1269,7 @@ describe("Trash lifecycle", () => {
 				options: null,
 				relationTargetDbId: null,
 			}).pipe(Effect.provide(TestDbLayer(filename)), Effect.runPromise);
-			const record = await Databases.createRecord({
+			const _record = await Databases.createRecord({
 				databaseId: db.id,
 				title: "Sub Record",
 			}).pipe(Effect.provide(TestDbLayer(filename)), Effect.runPromise);
@@ -1329,7 +1329,7 @@ describe("Trash lifecycle", () => {
 				options: null,
 				relationTargetDbId: null,
 			}).pipe(Effect.provide(TestDbLayer(filename)), Effect.runPromise);
-			const record = await Databases.createRecord({
+			const _record = await Databases.createRecord({
 				databaseId: db.id,
 				title: "Record A",
 			}).pipe(Effect.provide(TestDbLayer(filename)), Effect.runPromise);
@@ -1489,7 +1489,7 @@ describe("Trash lifecycle", () => {
 		const { filename, tmpDir } = makeTestDb();
 		try {
 			runMigrations(filename);
-			const page = await Pages.createPage({
+			const _page = await Pages.createPage({
 				title: "Active",
 				parentId: null,
 			}).pipe(Effect.provide(TestDbLayer(filename)), Effect.runPromise);

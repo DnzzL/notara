@@ -1,9 +1,9 @@
-import { useState, useEffect, useCallback, useMemo } from "react";
+import type { Database, DatabaseField, DatabaseView } from "@notara/shared";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { api } from "../../rpc-client.js";
 import { useDatabaseStore } from "../../stores/databaseStore.js";
-import { tryParseBlockContent } from "./renderer-registry.js";
 import type { BlockRendererProps } from "./renderer-registry.js";
-import type { Database, DatabaseField, DatabaseView } from "@notara/shared";
+import { tryParseBlockContent } from "./renderer-registry.js";
 
 interface ViewReferenceData {
 	databaseId: string;
@@ -70,6 +70,34 @@ export function ViewReferenceBlock({
 			});
 	}, [selectedDbId]);
 
+	/** Re-fetch the full view definition from the source and apply its config. */
+	const applyViewConfig = useCallback(
+		(view: {
+			id: string;
+			type: string;
+			groupByFieldId: string | null;
+			config: string;
+		}) => {
+			let config: ViewConfig = { filters: [], sorts: [], boardHidden: [] };
+			try {
+				const parsed = JSON.parse(view.config);
+				config = {
+					filters: Array.isArray(parsed.filters) ? parsed.filters : [],
+					sorts: Array.isArray(parsed.sorts) ? parsed.sorts : [],
+					boardHidden: Array.isArray(parsed.boardHidden)
+						? parsed.boardHidden
+						: [],
+				};
+			} catch {
+				/* no config */
+			}
+			setViewType(view.type as ViewType);
+			setGroupByFieldId(view.groupByFieldId);
+			setViewCfg(config);
+		},
+		[],
+	);
+
 	/**
 	 * Subscribe to live config changes from the source view via SSE.
 	 * When the view's config/type/groupBy changes on the server, the event
@@ -99,35 +127,7 @@ export function ViewReferenceBlock({
 		return () => {
 			source.close();
 		};
-	}, [cfg]);
-
-	/** Re-fetch the full view definition from the source and apply its config. */
-	const applyViewConfig = useCallback(
-		(view: {
-			id: string;
-			type: string;
-			groupByFieldId: string | null;
-			config: string;
-		}) => {
-			let config: ViewConfig = { filters: [], sorts: [], boardHidden: [] };
-			try {
-				const parsed = JSON.parse(view.config);
-				config = {
-					filters: Array.isArray(parsed.filters) ? parsed.filters : [],
-					sorts: Array.isArray(parsed.sorts) ? parsed.sorts : [],
-					boardHidden: Array.isArray(parsed.boardHidden)
-						? parsed.boardHidden
-						: [],
-				};
-			} catch {
-				/* no config */
-			}
-			setViewType(view.type as ViewType);
-			setGroupByFieldId(view.groupByFieldId);
-			setViewCfg(config);
-		},
-		[],
-	);
+	}, [cfg, applyViewConfig]);
 
 	// Load the referenced view's data
 	useEffect(() => {
@@ -199,7 +199,10 @@ export function ViewReferenceBlock({
 			setLoading(false);
 		};
 		load();
-	}, [cfg]);
+	}, [
+		cfg, // Parse the view config centrally, apply filters + sorts
+		applyViewConfig,
+	]);
 
 	const handleConfirmPicker = useCallback(async () => {
 		if (!selectedDbId || !selectedViewId) return;
@@ -365,7 +368,7 @@ export function ViewReferenceBlock({
 				? String(r.values?.[groupField.name] ?? r.record?.title ?? "No group")
 				: "Records";
 			if (!groups.has(key)) groups.set(key, []);
-			groups.get(key)!.push(r);
+			groups.get(key)?.push(r);
 		}
 
 		return (
@@ -424,7 +427,7 @@ export function ViewReferenceBlock({
 			const dateStr = dateField ? String(r.values?.[dateField.name] ?? "") : "";
 			const monthKey = dateStr ? dateStr.slice(0, 7) : "No date";
 			if (!monthGroups.has(monthKey)) monthGroups.set(monthKey, []);
-			monthGroups.get(monthKey)!.push(r);
+			monthGroups.get(monthKey)?.push(r);
 		}
 
 		return (

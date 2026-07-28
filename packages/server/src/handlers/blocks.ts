@@ -1,6 +1,6 @@
-import { Effect } from "effect";
 import { SqlClient } from "@effect/sql";
-import { Block, Backlink } from "@notara/shared";
+import { Backlink } from "@notara/shared";
+import { Effect } from "effect";
 import { ulid } from "ulidx";
 import { BLOCK_COLS, blockFromRow } from "../mappers.js";
 

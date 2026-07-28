@@ -1,4 +1,4 @@
-import { describe, test, expect } from "bun:test";
+import { describe, expect, test } from "bun:test";
 
 // ── Helper: compute numbered-run index for consecutive numberedList blocks ──
 // This utility is extracted from the BlockEditor render loop. It assigns each

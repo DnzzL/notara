@@ -1,20 +1,18 @@
-import { useState, useRef, useEffect, useCallback } from "react";
-import { cn } from "../ui/cn.js";
+import type { DatabaseView } from "@notara/shared";
+import { useCallback, useEffect, useRef, useState } from "react";
 import {
-	useDatabaseStore,
-	selectDbViews,
 	selectActiveViewId,
+	selectBoardGroupBy,
+	selectBoardHidden,
+	selectDbViews,
+	selectFilters,
 	selectIsViewDirty,
 	selectSavedViewConfig,
-	serializeViewConfig,
-} from "../../stores/databaseStore.js";
-import {
-	selectFilters,
 	selectSorts,
-	selectBoardHidden,
-	selectBoardGroupBy,
+	serializeViewConfig,
+	useDatabaseStore,
 } from "../../stores/databaseStore.js";
-import type { DatabaseView } from "@notara/shared";
+import { cn } from "../ui/cn.js";
 
 export function ViewSwitcher({
 	databaseId,

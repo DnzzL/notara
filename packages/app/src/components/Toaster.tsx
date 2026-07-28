@@ -1,4 +1,9 @@
-import { Toast, Toaster as ArkToaster, ToastActionTrigger, type ToastOptions } from "@ark-ui/react/toast";
+import {
+	Toast,
+	Toaster as ArkToaster,
+	ToastActionTrigger,
+	type ToastOptions,
+} from "@ark-ui/react/toast";
 import { Portal } from "@ark-ui/react/portal";
 import { toaster } from "../toaster.js";
 

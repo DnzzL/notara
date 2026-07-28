@@ -1,6 +1,6 @@
-import { Node, mergeAttributes, Extension } from "@tiptap/core";
-import { Suggestion } from "@tiptap/suggestion";
 import type { Editor, Range } from "@tiptap/core";
+import { Extension, mergeAttributes, Node } from "@tiptap/core";
+import { Suggestion } from "@tiptap/suggestion";
 
 /**
  * PageReference extension — inline @mention for pages and people.

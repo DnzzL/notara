@@ -1,14 +1,14 @@
 import {
-	useState,
-	useEffect,
-	useRef,
-	useLayoutEffect,
 	useCallback,
+	useEffect,
+	useLayoutEffect,
+	useRef,
+	useState,
 } from "react";
 import { createPortal } from "react-dom";
+import { tryEvaluate } from "../../lib/formula.js";
 import { api, getCurrentWorkspaceId } from "../../rpc-client.js";
 import { usePageStore } from "../../stores/pageStore.js";
-import { tryEvaluate } from "../../lib/formula.js";
 
 // ── Shared constants ──────────────────────────────────────────────────────
 
@@ -665,7 +665,7 @@ function SelectPopover({
 	const [options, setOptions] = useState<string[]>(field.options || []);
 	useEffect(() => {
 		setOptions(field.options || []);
-	}, [field.id, field.options]);
+	}, [field.options]);
 
 	const currentArr: string[] =
 		field.type === "multiSelect"
@@ -740,7 +740,6 @@ function SelectPopover({
 	return (
 		<CellAnchoredPopover onClose={onCancel}>
 			<input
-				autoFocus
 				name="cell-select-search"
 				className="w-full px-2 py-[7px] border border-border rounded-[5px] text-[13px] outline-none box-border mb-1 bg-surface-2 text-text [font-family:var(--font-ui)] focus:border-accent"
 				placeholder="Search or create…"
@@ -879,7 +878,7 @@ export function RelationPicker({
 
 	const q = query.trim().toLowerCase();
 	const filteredRecords = q
-		? records.filter((r: any) => r.title && r.title.toLowerCase().includes(q))
+		? records.filter((r: any) => r.title?.toLowerCase().includes(q))
 		: records;
 
 	const toggle = (id: string) => {
@@ -917,7 +916,6 @@ export function RelationPicker({
 					</div>
 					{records.length > 0 && (
 						<input
-							autoFocus
 							name="cell-relation-search"
 							className="w-full px-2 py-[7px] border border-border rounded-[5px] text-[13px] outline-none box-border mb-1 bg-surface-2 text-text [font-family:var(--font-ui)] focus:border-accent"
 							placeholder="Search records…"
@@ -1156,7 +1154,7 @@ function CellInlineMultiAutocomplete<T extends { id: string; title?: string }>({
 
 	const q = query.trim().toLowerCase();
 	const filtered = q
-		? items.filter((item) => item.title && item.title.toLowerCase().includes(q))
+		? items.filter((item) => item.title?.toLowerCase().includes(q))
 		: items;
 
 	const toggle = (id: string) => {
@@ -1257,7 +1255,7 @@ function CellInlineMultiAutocomplete<T extends { id: string; title?: string }>({
 		if (left + w > vw - margin) left = vw - margin - w;
 		if (top + 300 > vh - margin) top = rect.top - margin - 300;
 		setDropdownPos({ top, left, width: Math.min(w, vw - margin - left) });
-	}, [showDropdown, filtered.length, q]);
+	}, [showDropdown]);
 
 	return (
 		<>
@@ -1413,7 +1411,6 @@ export function InlineCellEditor({
 					cursor: "pointer",
 				}}
 				onClick={() => onSave(String(!checked))}
-				tabIndex={0}
 				onKeyDown={(e) => {
 					if (e.key === "Enter" || e.key === " ") {
 						e.preventDefault();

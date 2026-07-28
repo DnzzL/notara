@@ -20,30 +20,31 @@ const Email = Schema.String.pipe(
 );
 const SearchQuery = Schema.String.pipe(Schema.maxLength(500));
 const BlockContent = Schema.String.pipe(Schema.maxLength(1_048_576));
+
 import {
-	Page,
+	AclRelation,
+	AclRevision,
+	ApiKey,
+	ApiKeyCreated,
+	Backlink,
 	Block,
 	Database,
+	DatabaseCsvExport,
 	DatabaseField,
 	DatabaseFieldType,
 	DatabaseRecord,
-	RecordFieldValue,
 	DatabaseView,
-	Backlink,
-	SearchResult,
-	PageExport,
-	DatabaseCsvExport,
-	ImportResult,
 	ExportAllResult,
+	ImportResult,
+	Page,
+	PageExport,
+	PagePermissions,
+	RecordFieldValue,
+	SearchResult,
+	Subject,
+	TrashContents,
 	Workspace,
 	WorkspaceMember,
-	ApiKey,
-	ApiKeyCreated,
-	AclRelation,
-	AclRevision,
-	Subject,
-	PagePermissions,
-	TrashContents,
 } from "./schema.js";
 
 // Combined RPC group — all requests

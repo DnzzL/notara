@@ -1,4 +1,4 @@
-import { describe, test, expect } from "bun:test";
+import { describe, expect, test } from "bun:test";
 
 // ── Helper: determine which block to focus based on click position ──
 // These utilities model the "click below last block" (AC#1) and

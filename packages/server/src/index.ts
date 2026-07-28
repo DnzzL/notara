@@ -1,45 +1,45 @@
 // Side-effect import: must run before anything else so PostHog catches early errors.
-import { reportError, LoggerLive } from "./observability.js";
-import { Effect, Layer } from "effect";
+
+import * as fs from "node:fs";
+import { createServer } from "node:http";
+import * as path from "node:path";
+import { dirname } from "node:path";
+import { fileURLToPath } from "node:url";
 import * as HttpLayerRouter from "@effect/platform/HttpLayerRouter";
 import * as HttpRouter from "@effect/platform/HttpRouter";
-import * as HttpServerResponse from "@effect/platform/HttpServerResponse";
 import * as HttpServerRequest from "@effect/platform/HttpServerRequest";
-
+import * as HttpServerResponse from "@effect/platform/HttpServerResponse";
 import { NodeHttpServer, NodeRuntime } from "@effect/platform-node";
-import * as RpcServer from "@effect/rpc/RpcServer";
 import * as RpcSerialization from "@effect/rpc/RpcSerialization";
+import * as RpcServer from "@effect/rpc/RpcServer";
+import { AppRpc } from "@notara/shared";
+import { Effect, Layer } from "effect";
+import { registerV1Routes } from "./api-v1/routes.js";
+import { auth } from "./auth.js";
+import { startBackupScheduler } from "./backup-scheduler.js";
 import {
-	SqliteLive,
 	runMigrations,
+	SqliteLive,
 	WorkspaceDb,
 	WorkspaceDbLive,
 } from "./db.js";
+import { listBackups, triggerBackup } from "./handlers/backup.js";
 import * as ImportExport from "./handlers/importExport.js";
-import * as Upload from "./handlers/upload.js";
-import { loadSettings, saveSettings } from "./handlers/settings.js";
-import { triggerBackup, listBackups } from "./handlers/backup.js";
 import { restoreBackup } from "./handlers/restore.js";
-import { AppRpc } from "@notara/shared";
-import { registerV1Routes } from "./api-v1/routes.js";
-import { rpcHandlersLayer } from "./rpc-handlers.js";
-import { auth } from "./auth.js";
-import { startBackupScheduler } from "./backup-scheduler.js";
-import { startTrashSweep } from "./trash-sweeper.js";
-import { PlatformDbLive, PlatformDb, platformDb } from "./platform-db.js";
+import { loadSettings, saveSettings } from "./handlers/settings.js";
+import * as Upload from "./handlers/upload.js";
 import {
-	corsHeaders,
 	checkRateLimit,
+	corsHeaders,
 	getIp,
 	tooManyRequests,
 } from "./middleware.js";
+import { LoggerLive, reportError } from "./observability.js";
+import { PlatformDbLive, platformDb } from "./platform-db.js";
 import { makeHeartbeatHandler, makeStreamHandler } from "./presence/routes.js";
+import { rpcHandlersLayer } from "./rpc-handlers.js";
+import { startTrashSweep } from "./trash-sweeper.js";
 import { makeViewConfigStreamHandler } from "./view-config-stream.js";
-import { createServer } from "node:http";
-import * as path from "node:path";
-import * as fs from "node:fs";
-import { fileURLToPath } from "node:url";
-import { dirname } from "node:path";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
@@ -179,7 +179,7 @@ const staticFilesRoute = Effect.gen(function* () {
 	yield* router.add(
 		"GET",
 		"/api/settings",
-		Effect.gen(function* () {
+		Effect.sync(() => {
 			const settings = loadSettings();
 			return HttpServerResponse.text(JSON.stringify(settings), {
 				headers: { "Content-Type": "application/json", ...corsHeaders },
@@ -382,7 +382,7 @@ const staticFilesRoute = Effect.gen(function* () {
 		"GET",
 		"/api/admin/users",
 		requireAdmin(
-			Effect.gen(function* () {
+			Effect.sync(() => {
 				const users = platformDb
 					.prepare(
 						`SELECT u.id, u.name, u.email, u.createdAt,
@@ -404,7 +404,7 @@ const staticFilesRoute = Effect.gen(function* () {
 		"GET",
 		"/api/admin/workspaces",
 		requireAdmin(
-			Effect.gen(function* () {
+			Effect.sync(() => {
 				const workspaces = platformDb
 					.prepare(
 						`SELECT w.id, w.name, w.slug, w.created_at,
@@ -428,7 +428,7 @@ const staticFilesRoute = Effect.gen(function* () {
 		requireAdmin(
 			Effect.gen(function* () {
 				const params = yield* HttpRouter.params;
-				const userId = params["userId"] as string | undefined;
+				const userId = params.userId as string | undefined;
 				if (!userId) {
 					return HttpServerResponse.text(
 						JSON.stringify({ error: "Missing userId" }),
@@ -631,7 +631,7 @@ const staticFilesRoute = Effect.gen(function* () {
 		"/attachments/:fileName",
 		Effect.gen(function* () {
 			const params = yield* HttpRouter.params;
-			const fileName = params["fileName"] as string | undefined;
+			const fileName = params.fileName as string | undefined;
 
 			if (!fileName) {
 				return HttpServerResponse.text("Not found", {

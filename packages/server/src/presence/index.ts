@@ -9,7 +9,7 @@ export const presence = createPresenceService();
 // Periodic sweep — drop entries past TTL.
 const sweepHandle = setInterval(() => presence.sweep(), 5_000);
 if (typeof sweepHandle === "object" && "unref" in sweepHandle) {
-  (sweepHandle as NodeJS.Timeout).unref();
+	(sweepHandle as NodeJS.Timeout).unref();
 }
 
 export * from "./PresenceService.js";

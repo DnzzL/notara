@@ -1,41 +1,9 @@
-import { useEffect, useRef, useCallback, useState } from "react";
-import { useEditor, EditorContent, type Editor } from "@tiptap/react";
-import { Button } from "./ui/index.js";
-import StarterKit from "@tiptap/starter-kit";
-import TaskList from "@tiptap/extension-task-list";
-import TaskItem from "@tiptap/extension-task-item";
-import HorizontalRule from "@tiptap/extension-horizontal-rule";
-import Image from "@tiptap/extension-image";
-import Placeholder from "@tiptap/extension-placeholder";
-import Link from "@tiptap/extension-link";
-import { Extension, InputRule } from "@tiptap/core";
-import { BubbleMenu } from "@tiptap/react";
-import {
-	DetailsNode,
-	DetailsSummary,
-	DetailsContent,
-} from "./DetailsExtension.js";
-import { CalloutNode } from "./CalloutExtension.js";
-import {
-	BlockNavigationExtension,
-	detectBlockTypeFromEditor,
-	type BlockNavigationCallbacks,
-} from "./BlockNavigationExtension.js";
-import {
-	PageReferenceNode,
-	PageReferenceExtension,
-} from "./PageReferenceExtension.js";
-import { createPageReferenceRender } from "./PageReferenceMenu.js";
-import { api } from "../rpc-client.js";
-import { usePageStore, useBlockStore, useDatabaseStore } from "../store.js";
-import { DatabaseView } from "./DatabaseView.js";
-import { SlashMenu } from "./SlashMenu.js";
 import {
 	DndContext,
 	type DragEndEvent,
-	type DragStartEvent,
 	type DragOverEvent,
 	DragOverlay,
+	type DragStartEvent,
 	PointerSensor,
 	useSensor,
 	useSensors,
@@ -46,41 +14,76 @@ import {
 	verticalListSortingStrategy,
 } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
-import { DragHandle } from "./DragHandle.js";
-import { BlockContextMenu, type BlockMenuItem } from "./BlockContextMenu.js";
-import { BacklinksPanel } from "./BacklinksPanel.js";
+import { Extension, InputRule } from "@tiptap/core";
+import HorizontalRule from "@tiptap/extension-horizontal-rule";
+import Image from "@tiptap/extension-image";
+import Link from "@tiptap/extension-link";
+import Placeholder from "@tiptap/extension-placeholder";
+import TaskItem from "@tiptap/extension-task-item";
+import TaskList from "@tiptap/extension-task-list";
 import {
-	BLOCK_TYPE_CONFIG,
-	SLASH_COMMANDS,
-	blockTypeFromHtml,
-	headingLevelFromType,
-	type BlockType,
-} from "./blockTypes.js";
-import { EmojiPicker } from "./EmojiPicker.js";
-import { PageMenu } from "./PageMenu.js";
-import { getCurrentWorkspaceId } from "../rpc-client.js";
-import { uploadFile as apiUploadFile, isUploadable } from "../uploader.js";
-import { toaster } from "../toaster.js";
-import { usePresenceStore } from "../stores/presenceStore.js";
+	BubbleMenu,
+	type Editor,
+	EditorContent,
+	useEditor,
+} from "@tiptap/react";
+import StarterKit from "@tiptap/starter-kit";
+import { useCallback, useEffect, useRef, useState } from "react";
+import { useSession } from "../auth-client.js";
 import {
+	setFocusedBlock,
 	startPresence,
 	stopPresence,
-	setFocusedBlock,
 } from "../lib/presenceConnection.js";
-import { useSession } from "../auth-client.js";
-import { PresenceAvatars } from "./PresenceAvatars.js";
+import { api, getCurrentWorkspaceId } from "../rpc-client.js";
+import { useBlockStore, useDatabaseStore, usePageStore } from "../store.js";
+import { usePresenceStore } from "../stores/presenceStore.js";
+import { toaster } from "../toaster.js";
+import { uploadFile as apiUploadFile, isUploadable } from "../uploader.js";
+import { BacklinksPanel } from "./BacklinksPanel.js";
+import { BlockContextMenu, type BlockMenuItem } from "./BlockContextMenu.js";
+import {
+	type BlockNavigationCallbacks,
+	BlockNavigationExtension,
+	detectBlockTypeFromEditor,
+} from "./BlockNavigationExtension.js";
+import {
+	applyFocus,
+	consumeFocus,
+	extractInlineHTML,
+	requestFocus,
+	subscribeFocus,
+} from "./blockEditing.js";
+import { PageLinkBlock } from "./blocks/page-link-block.js";
 import {
 	getBlockRenderer,
 	hasBlockRenderer,
 } from "./blocks/renderer-registry.js";
-import { PageLinkBlock } from "./blocks/page-link-block.js";
 import {
-	requestFocus,
-	applyFocus,
-	consumeFocus,
-	subscribeFocus,
-	extractInlineHTML,
-} from "./blockEditing.js";
+	BLOCK_TYPE_CONFIG,
+	type BlockType,
+	blockTypeFromHtml,
+	headingLevelFromType,
+	SLASH_COMMANDS,
+} from "./blockTypes.js";
+import { CalloutNode } from "./CalloutExtension.js";
+import { DatabaseView } from "./DatabaseView.js";
+import {
+	DetailsContent,
+	DetailsNode,
+	DetailsSummary,
+} from "./DetailsExtension.js";
+import { DragHandle } from "./DragHandle.js";
+import { EmojiPicker } from "./EmojiPicker.js";
+import { PageMenu } from "./PageMenu.js";
+import {
+	PageReferenceExtension,
+	PageReferenceNode,
+} from "./PageReferenceExtension.js";
+import { createPageReferenceRender } from "./PageReferenceMenu.js";
+import { PresenceAvatars } from "./PresenceAvatars.js";
+import { SlashMenu } from "./SlashMenu.js";
+import { Button } from "./ui/index.js";
 
 /** Placeholder text shown on empty blocks, keyed by block type. */
 function placeholderForType(blockType: string): string {
@@ -140,8 +143,8 @@ function sharedExtensions(blockType: string) {
 					new InputRule({
 						find: /\[([^\]]+)\]\(([^)\s]+)\)$/,
 						handler({ range, match, commands }) {
-							const start = range.from;
-							const end = range.to;
+							const _start = range.from;
+							const _end = range.to;
 							const text = match[1];
 							const url = match[2];
 							// Insert HTML with the link already baked in
@@ -405,7 +408,7 @@ function SingleBlockEditor({
 		if (current !== expected) {
 			editor.commands.setContent(expected, false);
 		}
-	}, [block.id, block.content, editor]);
+	}, [block.id, block.content, editor, block]);
 
 	// Consume pending focus requests. Declared after the content-sync effect so
 	// that, on a re-render that updates content (merge/split), the editor already
@@ -423,7 +426,7 @@ function SingleBlockEditor({
 		};
 		tryConsume();
 		return subscribeFocus(tryConsume);
-	}, [block.id, block.content, editor]);
+	}, [block.id, editor]);
 
 	// Reflect remote lock: non-editable while another user holds the block.
 	useEffect(() => {
@@ -791,7 +794,7 @@ export function BlockEditor() {
 		return () => {
 			stopPresence();
 		};
-	}, [currentPage?.id, session?.user?.id]);
+	}, [currentPage?.id, session?.user?.id, session?.user, currentPage]);
 
 	const handleFiles = useCallback(
 		async (files: FileList | File[]) => {
@@ -857,7 +860,7 @@ export function BlockEditor() {
 	const [dropIndicatorIndex, setDropIndicatorIndex] = useState<number | null>(
 		null,
 	);
-	const dragCancelRequested = useRef(false);
+	const _dragCancelRequested = useRef(false);
 
 	// Pointer sensor for drag-drop - prevent text selection during drag
 	const sensors = useSensors(
@@ -1121,7 +1124,7 @@ export function BlockEditor() {
 	// ── Drag-Drop handlers ──────────────────────────────────────────────
 
 	/** Determine converted type when a block is dragged to a new position. */
-	function getConvertedType(
+	function _getConvertedType(
 		draggedType: string,
 		targetIndex: number,
 		allBlocks: typeof sortedBlocks,
@@ -1140,7 +1143,7 @@ export function BlockEditor() {
 			(nextBlock.type === "bulletList" || nextBlock.type === "numberedList");
 
 		if (prevIsList || nextIsList) {
-			const listType = prevIsList ? prevBlock!.type : nextBlock!.type;
+			const listType = prevIsList ? prevBlock?.type : nextBlock?.type;
 			if (
 				draggedType === "paragraph" ||
 				draggedType === "heading1" ||
@@ -1585,7 +1588,6 @@ export function BlockEditor() {
 								onChange={(e) => setTitleValue(e.target.value)}
 								onBlur={handleTitleSave}
 								onKeyDown={handleTitleKeyDown}
-								autoFocus
 								placeholder="Page title..."
 							/>
 						) : (

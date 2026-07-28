@@ -12,7 +12,9 @@
     "build:electron": "bun run --filter @notara/shared build && bun run --filter @notara/server build && bun run --filter @notara/app build && bun run --filter @notara/electron build",
     "db:migrate": "bun run --filter @notara/server db:migrate",
     "test": "bun run --filter '*' test",
-    "postinstall": "bash scripts/patch-msgpackr.sh"
+    "postinstall": "bash scripts/patch-msgpackr.sh && npx simple-git-hooks",
+    "typecheck": "for pkg in packages/*/; do if [ -f \"$pkg/tsconfig.json\" ]; then (cd \"$pkg\" && bunx tsc --noEmit) || exit 1; fi; done",
+    "quickcheck": "bun run --filter @notara/shared build && bun typecheck && bun run --filter @notara/server test && bun run --filter @notara/app test"
   },
   "workspaces": [
     "packages/*"
@@ -49,9 +51,15 @@
   "resolutions": {
     "@effect/platform": "0.96.0"
   },
+  "simple-git-hooks": {
+    "pre-commit": "bunx biome check --write --unsafe packages/ e2e/ && git add -u",
+    "pre-push": "bun run --filter @notara/shared build && bun typecheck && bunx biome ci packages/ e2e/ && bun run --filter @notara/server test && bun run --filter @notara/app test"
+  },
   "devDependencies": {
+    "@biomejs/biome": "^2.5.6",
     "@playwright/test": "^1.60.0",
-    "patch-package": "^8.0.1"
+    "patch-package": "^8.0.1",
+    "simple-git-hooks": "^2.13.1"
   },
   "dependencies": {
     "@dnd-kit/core": "^6.3.1",
