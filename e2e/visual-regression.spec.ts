@@ -8,130 +8,168 @@ import { expect, test } from "@playwright/test";
  *
  * Run with:   bunx playwright test --update-snapshots   to update baselines.
  * Run in CI:  bunx playwright test
+ *
+ * NOTE: The app has overlays that intercept pointer events. We use
+ * page.evaluate() to click through them or interact with them directly.
+ * Cookie consent is dismissed in auth setup, and the onboarding tour is
+ * marked as completed via localStorage.
  */
+
+/**
+ * Click [data-new-page], then select "Blank page" from the template picker.
+ */
+async function createBlankPage(page: any) {
+	await page.evaluate(() => {
+		const btn = document.querySelector("[data-new-page]");
+		if (btn) (btn as HTMLElement).click();
+	});
+	const blankPage = page.getByText("Blank page");
+	await expect(blankPage).toBeVisible({ timeout: 5000 });
+	await blankPage.click();
+	await page.waitForTimeout(1000);
+}
+
+/**
+ * Set the page title. The title renders as an h1; clicking it shows an input.
+ */
+async function setPageTitle(page: any, title: string) {
+	await page.evaluate(() => {
+		const h1 = document.querySelector("h1");
+		if (h1) (h1 as HTMLElement).click();
+	});
+	const input = page.locator('input[name="page-title"]');
+	await expect(input).toBeVisible({ timeout: 5000 });
+	await input.fill(title);
+	await input.press("Enter");
+}
+
+/**
+ * Ensure the page has at least one block (click "This page is empty" if needed).
+ */
+async function ensureEditor(page: any) {
+	const emptyState = page.getByText("This page is empty");
+	if (await emptyState.isVisible({ timeout: 2000 }).catch(() => false)) {
+		await emptyState.click();
+	}
+	const editor = page.locator(".ProseMirror");
+	await editor.waitFor({ state: "attached", timeout: 10000 });
+	return editor;
+}
+
+/**
+ * Stabilise the page for screenshot: hide caret + wait for animations.
+ */
+async function stabiliseForScreenshot(page: any) {
+	await page.addStyleTag({
+		content: `* { caret-color: transparent !important; }`,
+	});
+	await page.waitForTimeout(500);
+}
 
 test.describe("Visual regression", () => {
 	test.beforeEach(async ({ page }) => {
 		await page.goto("/");
+		await page.emulateMedia({ reducedMotion: "reduce" });
+		await page.waitForSelector("h1", { timeout: 15000 });
 		try {
-			await page.waitForSelector("[data-sidebar]", { timeout: 15000 });
+			await page.waitForSelector("[data-sidebar]", { timeout: 10000 });
 		} catch {
-			// Authenticated page not reached — test will fail informatively
+			// Authenticated page not reached
 		}
 	});
 
 	test("block editor with typed content", async ({ page }) => {
-		// Navigate to an existing page or create one
-		const newPageBtn = page.locator("[data-new-page]");
-		await expect(newPageBtn).toBeVisible({ timeout: 10000 });
-		await newPageBtn.click();
+		await createBlankPage(page);
+		await setPageTitle(page, "Visual Regression");
 
-		const titleInput = page.locator('input[name="page-title"]');
-		await expect(titleInput).toBeVisible({ timeout: 5000 });
-		await titleInput.fill("Visual Regression");
-		await titleInput.press("Enter");
-
-		// Type content in the editor
-		const editor = page.locator(".ProseMirror");
-		await expect(editor).toBeVisible({ timeout: 5000 });
-		await editor.click();
+		const editor = await ensureEditor(page);
+		await page.evaluate(() => {
+			const el = document.querySelector(".ProseMirror");
+			if (el) (el as HTMLElement).focus();
+		});
 		await editor.fill(
 			"This is some sample content for visual regression testing.",
 		);
 
-		// Wait for content to settle
-		await page.waitForTimeout(500);
-
-		// Take screenshot of the editor area
-		await expect(page.locator("main")).toHaveScreenshot("block-editor.png", {
+		await stabiliseForScreenshot(page);
+		await expect(page.locator(".editor")).toHaveScreenshot("block-editor.png", {
 			maxDiffPixels: 100,
+			animations: "disabled",
+			timeout: 15000,
 		});
 	});
 
 	test("sidebar with pages", async ({ page }) => {
-		// Wait for sidebar to render
 		const sidebar = page.locator("[data-sidebar]");
 		await expect(sidebar).toBeVisible({ timeout: 10000 });
 
-		// Create a couple pages so sidebar has content
 		for (const title of ["Page Alpha", "Page Beta"]) {
-			await page.locator("[data-new-page]").click();
-			await page.locator('input[name="page-title"]').fill(title);
-			await page.locator('input[name="page-title"]').press("Enter");
+			await createBlankPage(page);
+			await setPageTitle(page, title);
 			await page.waitForTimeout(300);
 		}
 
 		await page.waitForTimeout(500);
 		await expect(sidebar).toHaveScreenshot("sidebar-pages.png", {
 			maxDiffPixels: 100,
+			animations: "disabled",
 		});
 	});
 
 	test("database table view", async ({ page }) => {
-		// Create page
-		await page.locator("[data-new-page]").click();
-		await page.locator('input[name="page-title"]').fill("DB Table Snap");
-		await page.locator('input[name="page-title"]').press("Enter");
+		await createBlankPage(page);
+		await setPageTitle(page, "DB Table Snap");
 
-		// Insert database via slash command
-		const editor = page.locator(".ProseMirror");
-		await expect(editor).toBeVisible({ timeout: 5000 });
-		await editor.click();
+		const editor = await ensureEditor(page);
+		await page.evaluate(() => {
+			const el = document.querySelector(".ProseMirror");
+			if (el) (el as HTMLElement).focus();
+		});
 		await editor.press("Home");
 		await editor.press("/");
 
-		const slashMenu = page
-			.locator('[class*="shadow-"]')
-			.filter({ hasText: "Blocks" });
-		await expect(slashMenu).toBeVisible({ timeout: 3000 });
-		await page.locator("button").filter({ hasText: "Database" }).click();
+		// Wait for slash command menu (has heading "Blocks")
+		await expect(page.getByText("Blocks")).toBeVisible({ timeout: 3000 });
+		await page.getByRole("button", { name: /database/i }).click();
 
-		// Wait for database table to render
-		const dbTable = page.locator("table.w-full");
-		await expect(dbTable).toBeVisible({ timeout: 10000 });
-		await page.waitForTimeout(500);
+		// Wait for the database table to render
+		await expect(page.getByRole("table")).toBeVisible({ timeout: 10000 });
 
-		// Screenshot the database area
-		const dbSection = page.locator("section").filter({ has: dbTable });
-		await expect(dbSection).toHaveScreenshot("database-table-view.png", {
-			maxDiffPixels: 100,
-		});
+		await stabiliseForScreenshot(page);
+		await expect(page.locator(".editor")).toHaveScreenshot(
+			"database-table-view.png",
+			{ maxDiffPixels: 100, animations: "disabled" },
+		);
 	});
 
 	test("board view", async ({ page }) => {
-		// Create page
-		await page.locator("[data-new-page]").click();
-		await page.locator('input[name="page-title"]').fill("Board View Snap");
-		await page.locator('input[name="page-title"]').press("Enter");
+		await createBlankPage(page);
+		await setPageTitle(page, "Board View Snap");
 
-		// Insert database
-		const editor = page.locator(".ProseMirror");
-		await expect(editor).toBeVisible({ timeout: 5000 });
-		await editor.click();
+		const editor = await ensureEditor(page);
+		await page.evaluate(() => {
+			const el = document.querySelector(".ProseMirror");
+			if (el) (el as HTMLElement).focus();
+		});
 		await editor.press("Home");
 		await editor.press("/");
 
-		const slashMenu = page
-			.locator('[class*="shadow-"]')
-			.filter({ hasText: "Blocks" });
-		await expect(slashMenu).toBeVisible({ timeout: 3000 });
-		await page.locator("button").filter({ hasText: "Database" }).click();
-		await expect(page.locator("table.w-full")).toBeVisible({ timeout: 10000 });
+		// Wait for slash command menu (has heading "Blocks")
+		await expect(page.getByText("Blocks")).toBeVisible({ timeout: 3000 });
+		await page.getByRole("button", { name: /database/i }).click();
+		await expect(page.getByRole("table")).toBeVisible({ timeout: 10000 });
 
-		// Switch to board view if tabs are available
-		const boardTab = page
-			.locator('button[role="tab"]')
-			.filter({ hasText: /board/i });
+		// Switch to board view
+		const boardTab = page.getByRole("tab").filter({ hasText: /board/i });
 		if (await boardTab.isVisible({ timeout: 3000 }).catch(() => false)) {
 			await boardTab.click();
-			await page.waitForTimeout(500);
+			await page.waitForTimeout(1000);
 		}
 
-		const dbSection = page
-			.locator("section")
-			.filter({ has: page.locator("table.w-full") });
-		await expect(dbSection).toHaveScreenshot("database-board-view.png", {
-			maxDiffPixels: 100,
-		});
+		await stabiliseForScreenshot(page);
+		await expect(page.locator(".editor")).toHaveScreenshot(
+			"database-board-view.png",
+			{ maxDiffPixels: 100, animations: "disabled" },
+		);
 	});
 });

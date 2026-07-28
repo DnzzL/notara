@@ -1,13 +1,13 @@
-import { test as setup } from "@playwright/test";
+import { expect, test as setup } from "@playwright/test";
 
 const AUTH_FILE = "playwright/.auth/user.json";
 
 /**
- * Auth setup: signs up a fresh test user via the UI, then saves the
- * authenticated storage state so downstream tests can skip the login flow.
+ * Auth setup: signs up a fresh test user via the UI, creates a workspace,
+ * then saves the authenticated storage state so downstream tests can skip
+ * the login + workspace-creation flow.
  *
- * Using a timestamp-based email to avoid collisions across runs.
- * In CI you'd use a seeded test user instead.
+ * Uses a timestamp-based email to avoid collisions across runs.
  */
 setup("authenticate as test user", async ({ page }) => {
 	const ts = Date.now();
@@ -15,16 +15,32 @@ setup("authenticate as test user", async ({ page }) => {
 	const password = "TestPassword123!";
 	const name = "E2E Tester";
 
-	// Navigate directly to /login — the landing page is public and doesn't redirect
+	// Navigate directly to /login — the landing page is public
 	await page.goto("/login");
 
-	// Switch to registration mode — the page toggles between "Log in" / "Create an account"
+	// Dismiss the cookie consent banner so it doesn't block clicks
+	try {
+		const consent = page.getByRole("dialog", { name: "Cookie consent" });
+		await consent
+			.getByLabel("Accept analytics cookies")
+			.click({ timeout: 3000 });
+	} catch {
+		// Banner already dismissed or not shown
+	}
+
+	// Mark the onboarding tour as completed so it doesn't auto-start
+	// and block interactions in the workspace page.
+	await page.evaluate(() =>
+		localStorage.setItem("notara:tourCompleted", "true"),
+	);
+
+	// Switch to registration mode
 	const createAccountBtn = page.getByText("Create an account");
 	if (await createAccountBtn.isVisible()) {
 		await createAccountBtn.click();
 	}
 
-	// Fill in the registration form — inputs use type= selectors
+	// Fill registration form — inputs identified by type= attribute
 	const nameInput = page.locator('input[type="text"]');
 	const emailInput = page.locator('input[type="email"]');
 	const passwordInput = page.locator('input[type="password"]');
@@ -35,44 +51,57 @@ setup("authenticate as test user", async ({ page }) => {
 	await emailInput.fill(email);
 	await passwordInput.fill(password);
 
-	// Submit the form
+	// Submit
 	await page.getByRole("button", { name: /create account/i }).click();
 
-	// After signup, the app may redirect to:
-	//   - /workspaces (no email verification)
-	//   - a verification page (if email verification is enabled)
-	// Handle both cases.
+	// Wait for redirect after signup. Without SMTP configured, Better Auth
+	// skips email verification and redirects straight to /workspaces.
 	try {
-		await page.waitForURL(/\/workspaces|\/verify|\/login/, { timeout: 10000 });
+		await page.waitForURL(/\/workspaces/, { timeout: 10000 });
 	} catch {
-		// If we didn't reach any expected page, the signup may have failed or
-		// the server already had the user. That's OK — we'll try to proceed.
+		const u = page.url();
+		if (u.includes("verify") || u.includes("confirm")) {
+			console.log("⚠ Email verification required — auth setup incomplete");
+			return;
+		}
+		await page.screenshot({ path: "test-results/auth-failed.png" });
+		throw new Error(`Signup did not redirect to /workspaces. Current: ${u}`);
 	}
 
-	const currentUrl = page.url();
-	if (currentUrl.includes("verify") || currentUrl.includes("confirm")) {
-		// Email verification is enabled — we can't complete signup via UI.
-		// The tests below will need a pre-verified user or auth bypass.
-		// For now, skip storing state — tests will handle being unauthenticated.
-		// eslint-disable-next-line no-console
-		console.log("⚠ Email verification required — auth setup incomplete");
-		return;
-	}
+	// Verify the session cookie is present
+	await expect(async () => {
+		const cookies = await page.context().cookies();
+		const sessionCookie = cookies.find(
+			(c) => c.name === "better-auth.session_token",
+		);
+		expect(sessionCookie).toBeTruthy();
+	}).toPass({ timeout: 5000 });
 
-	// We're at /workspaces or similar authenticated page.
-	// NOTE: Workspace auto-creation during auth setup is tracked in a follow-up
-	// ticket. Currently the storageState captures the auth session but downstream
-	// tests need a workspace to land on — see NOT-71.
-	if (currentUrl.includes("/workspaces")) {
-		// The user might be auto-redirected to a workspace, or see the workspaces list
-		try {
-			await page.waitForURL(/\$workspaceSlug/, { timeout: 5000 });
-		} catch {
-			// Still on /workspaces — no workspace exists yet; downstream tests
-			// will need to handle this or we need workspace creation here.
+	// Create a workspace so downstream tests have a page to land on.
+	// Only if we're on the bare /workspaces list (not already inside one).
+	const url = page.url();
+	const isWorkspacesList =
+		url.includes("/workspaces") && url.match(/\/workspaces\/?$/);
+
+	if (isWorkspacesList) {
+		// Wait for the workspaces list to finish loading
+		await page.waitForSelector("text=Your workspaces", { timeout: 10000 });
+
+		const newWsBtn = page.getByRole("button", { name: /new workspace/i });
+		if (await newWsBtn.isVisible({ timeout: 5000 }).catch(() => false)) {
+			await newWsBtn.click();
+			// Fill both name and slug. Slugs are globally unique, so use a
+			// timestamp to avoid collisions across runs.
+			const testSlug = `e2e-${Date.now()}`;
+			await page.locator('input[name="workspace-name"]').fill("E2E Workspace");
+			await page.locator('input[name="workspace-slug"]').fill(testSlug);
+			await page.getByRole("button", { name: "Create" }).click();
+			// Wait until we leave the /workspaces page (entered a workspace page)
+			await page.waitForURL((u) => !u.pathname.startsWith("/workspaces"), {
+				timeout: 10000,
+			});
 		}
 	}
 
-	// Save the authenticated state for downstream tests
 	await page.context().storageState({ path: AUTH_FILE });
 });
