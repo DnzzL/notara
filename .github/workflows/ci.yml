@@ -104,6 +104,11 @@ jobs:
         env:
           PLAYWRIGHT_AUTH_SECRET: dummy-secret-for-ci
 
+      - name: Run BDD (Cucumber) specs
+        run: bun run bdd
+        env:
+          PLAYWRIGHT_AUTH_SECRET: dummy-secret-for-ci
+
   merge-gate:
     runs-on: ubuntu-latest
     needs: [lint, type-check, unit-tests, e2e-tests]

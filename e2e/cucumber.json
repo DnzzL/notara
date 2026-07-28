@@ -1,0 +1,11 @@
+{
+	"default": {
+		"formatOptions": {
+			"snippetInterface": "async-await"
+		},
+		"paths": ["e2e/features/"],
+		"require": ["e2e/step-definitions/**/*.ts"],
+		"requireModule": ["tsx"],
+		"publishQuiet": true
+	}
+}
