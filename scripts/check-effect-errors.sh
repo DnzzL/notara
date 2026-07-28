@@ -1,36 +1,30 @@
 #!/usr/bin/env bash
-# Check that Effect programs in Zustand stores handle their error channels.
+# Check that every Zustand store with async RPC calls has error handling.
+# Simple heuristic: if a store has "await api." it should also have a try block.
+# AC #3 for NOT-70: runs as part of the lint/CI pipeline.
 set -euo pipefail
 
-# Patterns we check: stores that call api.* without try/catch
-# This finds async store methods that don't have error handling
-
-echo "🔍 Checking for unhandled Effect errors in Zustand stores..."
+echo "🔍 Checking for unhandled RPC errors in Zustand stores..."
 echo ""
 
 PASS=true
 
-# Check zustand stores for unhandled async errors
 for store in packages/app/src/stores/*.ts; do
   name=$(basename "$store" .ts)
-  # Skip files that already have proper error handling
-  if grep -q "catch\|try {" "$store" 2>/dev/null; then
-    continue
-  fi
-  # Find async methods without error handling
-  unhandled=$(grep -c "await api\." "$store" 2>/dev/null || echo 0)
-  if [ "$unhandled" -gt 0 ]; then
-    echo "  ⚠️  $name has $unhandled await api.* calls without error handling"
-    PASS=false
+  if grep -q "await api\." "$store" 2>/dev/null; then
+    if ! grep -q "\btry\b" "$store" 2>/dev/null; then
+      echo "  ❌ $name has await api.* calls with zero error handling"
+      PASS=false
+    fi
   fi
 done
 
 echo ""
 
 if [ "$PASS" = false ]; then
-  echo "❌ Some Zustand stores have unhandled Effect errors"
-  echo "   Add try/catch or use Effect.catchAll to handle errors"
+  echo "❌ Some Zustand stores have no error handling at all."
+  echo "   Add try/catch around async operations."
   exit 1
 fi
 
-echo "✅ All Effect error channels are properly handled"
+echo "✅ All Zustand stores with RPC calls have error handling."

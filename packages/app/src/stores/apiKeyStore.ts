@@ -1,6 +1,12 @@
 import type { ApiKey, ApiKeyCreated } from "@notara/shared";
 import { create } from "zustand";
-import { api } from "../rpc-client.js";
+import { AccessDeniedError, api } from "../rpc-client.js";
+import { toaster } from "../toaster.js";
+
+function showError(title: string, e: unknown) {
+	if (e instanceof AccessDeniedError) return;
+	toaster.create({ type: "error", title, description: String(e) });
+}
 
 export interface ApiKeyState {
 	apiKeys: ApiKey[];
@@ -25,24 +31,33 @@ export const useApiKeyStore = create<ApiKeyState>((set) => ({
 	},
 
 	createApiKey: async (name) => {
-		const created = await api.createApiKey({ name });
-		set((s) => ({
-			apiKeys: [
-				{
-					id: created.id,
-					name: created.name,
-					keyPrefix: created.keyPrefix,
-					createdAt: created.createdAt,
-					lastUsedAt: null,
-				},
-				...s.apiKeys,
-			],
-		}));
-		return created;
+		try {
+			const created = await api.createApiKey({ name });
+			set((s) => ({
+				apiKeys: [
+					{
+						id: created.id,
+						name: created.name,
+						keyPrefix: created.keyPrefix,
+						createdAt: created.createdAt,
+						lastUsedAt: null,
+					},
+					...s.apiKeys,
+				],
+			}));
+			return created;
+		} catch (e) {
+			showError("Failed to create API key", e);
+			throw e;
+		}
 	},
 
 	revokeApiKey: async (id) => {
-		await api.revokeApiKey({ id });
-		set((s) => ({ apiKeys: s.apiKeys.filter((k) => k.id !== id) }));
+		try {
+			await api.revokeApiKey({ id });
+			set((s) => ({ apiKeys: s.apiKeys.filter((k) => k.id !== id) }));
+		} catch (e) {
+			showError("Failed to revoke API key", e);
+		}
 	},
 }));

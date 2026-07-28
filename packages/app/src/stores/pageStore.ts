@@ -4,6 +4,11 @@ import { AccessDeniedError, api } from "../rpc-client.js";
 import { toaster } from "../toaster.js";
 import { useHistoryStore } from "./historyStore.js";
 
+function showError(title: string, e: unknown) {
+	if (e instanceof AccessDeniedError) return;
+	toaster.create({ type: "error", title, description: String(e) });
+}
+
 export interface PageState {
 	pages: Page[];
 	currentPage: Page | null;
@@ -159,60 +164,96 @@ export const usePageStore = create<PageState>((set, get) => ({
 	},
 
 	createPage: async (title, parentId = null) => {
-		const page = await api.createPage({ title, parentId });
-		set((s) => ({ pages: [page, ...s.pages] }));
-		return page;
+		try {
+			const page = await api.createPage({ title, parentId });
+			set((s) => ({ pages: [page, ...s.pages] }));
+			return page;
+		} catch (e) {
+			showError("Failed to create page", e);
+			throw e;
+		}
 	},
 
 	createPageFromTemplate: async (templateId, parentId = null) => {
-		const page = await api.createPageFromTemplate({ templateId, parentId });
-		// Templates may create sub-pages; reload the full tree so they appear in
-		// the sidebar and pageLink blocks can resolve their targets.
-		await get().loadPages();
-		return page;
+		try {
+			const page = await api.createPageFromTemplate({ templateId, parentId });
+			await get().loadPages();
+			return page;
+		} catch (e) {
+			showError("Failed to create page from template", e);
+			throw e;
+		}
 	},
 
 	updatePage: async (id, patch) => {
-		const page = await api.updatePage({ id, ...patch });
-		set((s) => ({
-			pages: s.pages.map((p) => (p.id === id ? page : p)),
-			currentPage: s.currentPage?.id === id ? page : s.currentPage,
-		}));
+		try {
+			const page = await api.updatePage({ id, ...patch });
+			set((s) => ({
+				pages: s.pages.map((p) => (p.id === id ? page : p)),
+				currentPage: s.currentPage?.id === id ? page : s.currentPage,
+			}));
+		} catch (e) {
+			showError("Failed to update page", e);
+		}
 	},
 
 	setPageIcon: async (id, icon) => {
-		await get().updatePage(id, { icon });
+		try {
+			await get().updatePage(id, { icon });
+		} catch (e) {
+			showError("Failed to set page icon", e);
+		}
 	},
 
 	toggleFavorite: async (id) => {
-		const page = get().pages.find((p) => p.id === id);
-		await get().updatePage(id, { isFavorite: !page?.isFavorite });
+		try {
+			const page = get().pages.find((p) => p.id === id);
+			await get().updatePage(id, { isFavorite: !page?.isFavorite });
+		} catch (e) {
+			showError("Failed to toggle favorite", e);
+		}
 	},
 
 	deletePage: async (id) => {
-		await api.deletePage({ id });
-		set((s) => ({
-			pages: s.pages.filter((p) => p.id !== id),
-			currentPage: s.currentPage?.id === id ? null : s.currentPage,
-		}));
+		try {
+			await api.deletePage({ id });
+			set((s) => ({
+				pages: s.pages.filter((p) => p.id !== id),
+				currentPage: s.currentPage?.id === id ? null : s.currentPage,
+			}));
+		} catch (e) {
+			showError("Failed to delete page", e);
+		}
 	},
 
 	movePage: async (id, parentId) => {
-		const page = await api.movePage({ id, parentId });
-		set((s) => ({
-			pages: s.pages.map((p) => (p.id === id ? page : p)),
-			currentPage: s.currentPage?.id === id ? page : s.currentPage,
-		}));
+		try {
+			const page = await api.movePage({ id, parentId });
+			set((s) => ({
+				pages: s.pages.map((p) => (p.id === id ? page : p)),
+				currentPage: s.currentPage?.id === id ? page : s.currentPage,
+			}));
+		} catch (e) {
+			showError("Failed to move page", e);
+		}
 	},
 
 	reorderPages: async (parentId, pageIds) => {
-		await api.reorderPages({ parentId, pageIds });
-		await get().loadPages();
+		try {
+			await api.reorderPages({ parentId, pageIds });
+			await get().loadPages();
+		} catch (e) {
+			showError("Failed to reorder pages", e);
+		}
 	},
 
 	globalSearch: async (query) => {
-		const results = await api.globalSearch({ query });
-		set({ searchResults: results });
+		try {
+			const results = await api.globalSearch({ query });
+			set({ searchResults: results });
+		} catch (e) {
+			showError("Search failed", e);
+		}
 	},
 
 	loadBacklinks: async (pageId) => {

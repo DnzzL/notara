@@ -79,6 +79,9 @@ jobs:
       - name: Run Biome lint + format check
         run: bunx biome ci packages/ e2e/
 
+      - name: Check Effect error handling in Zustand stores
+        run: bash scripts/check-effect-errors.sh
+
   e2e-tests:
     runs-on: ubuntu-latest
     steps:
