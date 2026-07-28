@@ -1,194 +1,297 @@
 import { Extension, type Editor } from "@tiptap/core";
-import { BLOCK_TYPE_CONFIG } from "./blockTypes.js";
+import {
+	BLOCK_TYPE_CONFIG,
+	blockTypeFromHtml,
+	blockTagForType,
+	type BlockType,
+} from "./blockTypes.js";
 import { splitInlineHTML } from "./blockEditing.js";
 
 /** Callback invoked when the editor requests an inter-block operation. */
 export interface BlockNavigationCallbacks {
-  /**
-   * Move focus to the block at `targetIndex`, entering from `edge`. When `x`
-   * (the caret's screen x-coordinate) is given, the caret is placed at the
-   * same horizontal position so vertical movement keeps its column.
-   */
-  navigateToBlock?: (targetIndex: number, edge: "top" | "bottom", x?: number) => void;
+	/**
+	 * Move focus to the block at `targetIndex`, entering from `edge`. When `x`
+	 * (the caret's screen x-coordinate) is given, the caret is placed at the
+	 * same horizontal position so vertical movement keeps its column.
+	 */
+	navigateToBlock?: (
+		targetIndex: number,
+		edge: "top" | "bottom",
+		x?: number,
+	) => void;
 
-  /** Merge the current block with the previous block. Called on Backspace at position 0. */
-  mergeWithPrevious?: () => void;
+	/** Merge the current block with the previous block. Called on Backspace at position 0. */
+	mergeWithPrevious?: () => void;
 
-  /**
-   * Split the current block at the cursor.
-   * - `beforeContent`: HTML that stays in the current block.
-   * - `afterContent`: HTML for the new block below.
-   * - `newBlockType`: Type hint for the new block (e.g. "paragraph" after heading).
-   */
-  splitBlock?: (beforeContent: string, afterContent: string, newBlockType?: string) => void;
+	/**
+	 * Split the current block at the cursor.
+	 * - `beforeContent`: HTML that stays in the current block.
+	 * - `afterContent`: HTML for the new block below.
+	 * - `newBlockType`: Type hint for the new block (e.g. "paragraph" after heading).
+	 */
+	splitBlock?: (
+		beforeContent: string,
+		afterContent: string,
+		newBlockType?: string,
+	) => void;
 
-  /** Create a new empty block below this one. Called on Enter at the end of a block. */
-  insertBlockAfter?: () => void;
+	/** Create a new empty block below this one. Called on Enter at the end of a block. */
+	insertBlockAfter?: () => void;
 
-  /** Update the content of the current block (for debounced saves). */
-  updateBlock?: (id: string, content: string) => void;
+	/** Update the content (and optionally type) of the current block (for debounced saves). */
+	updateBlock?: (id: string, content: string, type?: string) => void;
+}
+
+/**
+ * Derive the current block type from the editor's live top-level node HTML.
+ * Thin wrapper around {@link blockTypeFromHtml} for the TipTap Editor API.
+ * This is used instead of the stored `blockType` option so that markdown
+ * transforms (e.g. typing `# ` which changes the node to <h1>) are reflected
+ * immediately in split/merge/Enter behavior, without waiting for the debounced
+ * store update.
+ */
+export function detectBlockTypeFromEditor(editor: Editor): BlockType {
+	return blockTypeFromHtml(editor.getHTML());
 }
 
 export const BlockNavigationExtension = Extension.create<{
-  blockIndex: number;
-  totalBlocks: number;
-  callbacks: BlockNavigationCallbacks;
-  blockType: string;
+	blockIndex: number;
+	totalBlocks: number;
+	callbacks: BlockNavigationCallbacks;
+	blockType: string;
 }>({
-  name: "blockNavigation",
+	name: "blockNavigation",
 
-  /**
-   * Outranks StarterKit (priority 100) so our Enter handler runs first.
-   * Without this, the paragraph node's default Enter creates a `<p>` inside
-   * the same TipTap editor instead of splitting into a separate block.
-   */
-  priority: 1000,
+	/**
+	 * Outranks StarterKit (priority 100) so our Enter handler runs first.
+	 * Without this, the paragraph node's default Enter creates a `<p>` inside
+	 * the same TipTap editor instead of splitting into a separate block.
+	 */
+	priority: 1000,
 
-  addOptions() {
-    return {
-      blockIndex: 0,
-      totalBlocks: 0,
-      callbacks: {} as BlockNavigationCallbacks,
-      blockType: "paragraph",
-    };
-  },
+	addOptions() {
+		return {
+			blockIndex: 0,
+			totalBlocks: 0,
+			callbacks: {} as BlockNavigationCallbacks,
+			blockType: "paragraph",
+		};
+	},
 
-  addKeyboardShortcuts() {
-    const { blockIndex, totalBlocks, callbacks, blockType } = this.options;
-    const { navigateToBlock, mergeWithPrevious, splitBlock, insertBlockAfter } = callbacks;
+	addKeyboardShortcuts() {
+		const { blockIndex, totalBlocks, callbacks } = this.options;
+		const { navigateToBlock, mergeWithPrevious, splitBlock, insertBlockAfter } =
+			callbacks;
 
-    return {
-      // ── Arrow Down: move to next block ──────────────────────────────
-      ArrowDown: ({ editor }) => {
-        const { state } = editor;
-        const pos = state.selection.anchor;
-        const docSize = state.doc.content.size;
+		return {
+			// ── Arrow Down: move to next block ──────────────────────────────
+			ArrowDown: ({ editor }) => {
+				const { state } = editor;
+				const pos = state.selection.anchor;
+				const docSize = state.doc.content.size;
 
-        // If cursor is at the end of the document (end of this block), navigate to next block
-        if (pos >= docSize - 1 && blockIndex < totalBlocks - 1) {
-          navigateToBlock?.(blockIndex + 1, "top", caretX(editor, pos));
-          return true;
-        }
-        return false;
-      },
+				// If cursor is at the end of the document (end of this block), navigate to next block
+				if (pos >= docSize - 1 && blockIndex < totalBlocks - 1) {
+					navigateToBlock?.(blockIndex + 1, "top", caretX(editor, pos));
+					return true;
+				}
+				return false;
+			},
 
-      // ── Arrow Up: move to previous block ────────────────────────────
-      ArrowUp: ({ editor }) => {
-        const { state } = editor;
-        const pos = state.selection.anchor;
+			// ── Arrow Up: move to previous block ────────────────────────────
+			ArrowUp: ({ editor }) => {
+				const { state } = editor;
+				const pos = state.selection.anchor;
 
-        // If cursor is at the start of the document (start of this block), navigate to previous block
-        if (pos <= 1 && blockIndex > 0) {
-          navigateToBlock?.(blockIndex - 1, "bottom", caretX(editor, pos));
-          return true;
-        }
-        return false;
-      },
+				// If cursor is at the start of the document (start of this block), navigate to previous block
+				if (pos <= 1 && blockIndex > 0) {
+					navigateToBlock?.(blockIndex - 1, "bottom", caretX(editor, pos));
+					return true;
+				}
+				return false;
+			},
 
-      // ── Backspace at position 0: merge with previous block ──────────
-      Backspace: () => {
-        // At start of block (position <= 1 within this TipTap doc)
-        const pos = this.editor?.state?.selection?.anchor;
-        if (pos !== undefined && pos <= 1 && blockIndex > 0) {
-          mergeWithPrevious?.();
-          return true;
-        }
-        return false;
-      },
+			// ── Backspace at position 0: merge with previous block ──────────
+			Backspace: () => {
+				const editor = this.editor;
+				if (!editor) return false;
+				const pos = editor.state?.selection?.anchor;
+				if (pos === undefined || pos > 1) return false;
 
-      // ── Cmd/Ctrl+Enter: explicit new block (cursor follows) ─────────
-      "Mod-Enter": ({ editor }) => {
-        const { state } = editor;
-        const pos = state.selection.anchor;
-        const docSize = state.doc.content.size;
-        const isEmpty = editor.isEmpty;
-        const newType = blockType.startsWith("heading") ? "paragraph" : "paragraph";
+				// At start of a list or todo block → convert to paragraph (exit the list)
+				// so Backspace doesn't feel like a no-op.
+				const liveType = detectBlockTypeFromEditor(editor);
+				const splitBehavior =
+					BLOCK_TYPE_CONFIG[liveType]?.splitBehavior ?? "normal";
+				if (splitBehavior === "list" || splitBehavior === "todo") {
+					const text = editor.state.doc.textContent;
+					editor.commands.setContent(`<p>${text}</p>`, false);
+					return true;
+				}
 
-        if (isEmpty || pos >= docSize - 1) {
-          insertBlockAfter?.();
-        } else {
-          const splitResult = splitAtCursor(editor, pos);
-          splitBlock?.(splitResult.before, splitResult.after, newType);
-        }
-        return true;
-      },
+				// Non-list block at position 0 → merge with previous block
+				if (blockIndex > 0) {
+					mergeWithPrevious?.();
+					return true;
+				}
+				return false;
+			},
 
-      // ── Enter ───────────────────────────────────────────────────────
-      // For text blocks (paragraph/heading/quote/code): insert a soft
-      // line break — stay within the same block. For lists/todos, split
-      // into a new list item (still the same logical block type). New
-      // blocks are created explicitly via Cmd+Enter or the "+" gutter.
-      Enter: ({ editor }) => {
-        const { state } = editor;
-        const pos = state.selection.anchor;
-        const docSize = state.doc.content.size;
-        const isEmpty = editor.isEmpty;
+			// ── Cmd/Ctrl+Enter: explicit new block (cursor follows) ─────────
+			"Mod-Enter": ({ editor }) => {
+				const { state } = editor;
+				const pos = state.selection.anchor;
+				const docSize = state.doc.content.size;
+				const isEmpty = editor.isEmpty;
 
-        const splitBehavior = BLOCK_TYPE_CONFIG[blockType]?.splitBehavior ?? "normal";
+				if (isEmpty || pos >= docSize - 1) {
+					insertBlockAfter?.();
+				} else {
+					const splitResult = splitAtCursor(editor, pos);
+					splitBlock?.(splitResult.before, splitResult.after, "paragraph");
+				}
+				return true;
+			},
 
-        if (splitBehavior === "list") {
-          if (isEmpty || pos >= docSize - 1) {
-            splitBlock?.(editor.getHTML(), "", "paragraph");
-            return true;
-          }
-          const splitResult = splitListAtCursor(editor, pos, blockType);
-          splitBlock?.(splitResult.before, splitResult.after, blockType);
-          return true;
-        }
-        if (splitBehavior === "todo") {
-          if (isEmpty || pos >= docSize - 1) {
-            splitBlock?.(editor.getHTML(), "", "paragraph");
-            return true;
-          }
-          const splitResult = splitTodoAtCursor(editor, pos);
-          splitBlock?.(splitResult.before, splitResult.after, "todo");
-          return true;
-        }
+			// ── Enter ───────────────────────────────────────────────────────
+			// Derives the split behavior from the editor's LIVE top node type,
+			// not the stored block.type, so markdown transforms take effect
+			// immediately without waiting for the 500ms debounced save.
+			Enter: ({ editor }) => {
+				const { state } = editor;
+				const pos = state.selection.anchor;
+				const docSize = state.doc.content.size;
+				const isEmpty = editor.isEmpty;
+				// textContent is empty for both empty paragraphs AND empty list/todo
+				// blocks (where editor.isEmpty returns false for nested nodes).
+				const blockIsEmpty = isEmpty || !state.doc.textContent.trim();
 
-        // Paragraph / heading / quote / code / normal: soft line break.
-        (editor.chain().focus() as any).setHardBreak().run();
-        return true;
-      },
+				const liveType = detectBlockTypeFromEditor(editor);
+				const splitBehavior =
+					BLOCK_TYPE_CONFIG[liveType]?.splitBehavior ?? "normal";
 
-      // ── Shift+Enter: same as Enter for symmetry ─────────────────────
-      "Shift-Enter": ({ editor }) => {
-        (editor.chain().focus() as any).setHardBreak().run();
-        return true;
-      },
-    };
-  },
+				if (splitBehavior === "list") {
+					if (blockIsEmpty) {
+						splitBlock?.(editor.getHTML(), "", "paragraph");
+						return true;
+					}
+					if (pos >= docSize - 1) {
+						// Cursor at end of non-empty list → create new empty list item
+						const emptyContent =
+							BLOCK_TYPE_CONFIG[liveType as BlockType]?.defaultContent ??
+							"<ul><li></li></ul>";
+						splitBlock?.(editor.getHTML(), emptyContent, liveType);
+						return true;
+					}
+					const splitResult = splitListAtCursor(editor, pos, liveType);
+					splitBlock?.(splitResult.before, splitResult.after, liveType);
+					return true;
+				}
+				if (splitBehavior === "todo") {
+					if (blockIsEmpty) {
+						splitBlock?.(editor.getHTML(), "", "paragraph");
+						return true;
+					}
+					if (pos >= docSize - 1) {
+						// Cursor at end of non-empty todo → create new empty todo
+						const emptyContent =
+							BLOCK_TYPE_CONFIG[liveType as BlockType]?.defaultContent ??
+							'<ul data-type="taskList"><li data-type="taskItem" data-checked="false"><p></p></li></ul>';
+						splitBlock?.(editor.getHTML(), emptyContent, liveType);
+						return true;
+					}
+					const splitResult = splitTodoAtCursor(editor, pos);
+					splitBlock?.(splitResult.before, splitResult.after, "todo");
+					return true;
+				}
+				if (splitBehavior === "split-paragraph") {
+					if (blockIsEmpty || pos >= docSize - 1) {
+						splitBlock?.(editor.getHTML(), "", "paragraph");
+						return true;
+					}
+					const splitResult = splitToParagraphAtCursor(editor, pos, liveType);
+					splitBlock?.(splitResult.before, splitResult.after, "paragraph");
+					return true;
+				}
+
+				// Paragraph / code / normal: soft line break.
+				(editor.chain().focus() as any).setHardBreak().run();
+				return true;
+			},
+
+			// ── Shift+Enter: same as Enter for symmetry ─────────────────────
+			"Shift-Enter": ({ editor }) => {
+				// Code blocks: Shift+Enter produces a soft break, keeping the caret
+				// inside the code block. Plain Enter below handles it via splitBehavior,
+				// but for code blocks the splitBehavior is "normal" so it inserts a
+				// hard break too. That's fine — both Enter and Shift+Enter add lines
+				// inside a code block.
+				(editor.chain().focus() as any).setHardBreak().run();
+				return true;
+			},
+		};
+	},
 });
 
 /** Screen x-coordinate of the caret, for column-preserving navigation. */
 function caretX(editor: Editor, pos: number): number | undefined {
-  try {
-    return editor.view.coordsAtPos(pos).left;
-  } catch {
-    return undefined;
-  }
+	try {
+		return editor.view.coordsAtPos(pos).left;
+	} catch {
+		return undefined;
+	}
 }
 
 /** Split a paragraph block at the cursor, preserving inline marks. */
-function splitAtCursor(editor: Editor, cursorPos: number): { before: string; after: string } {
-  const { before, after } = splitInlineHTML(editor, cursorPos);
-  return { before: `<p>${before}</p>`, after: `<p>${after}</p>` };
+function splitAtCursor(
+	editor: Editor,
+	cursorPos: number,
+): { before: string; after: string } {
+	const { before, after } = splitInlineHTML(editor, cursorPos);
+	return { before: `<p>${before}</p>`, after: `<p>${after}</p>` };
+}
+
+/**
+ * Split a heading or blockquote block at the cursor.
+ * The "before" part stays in the current block (wrapped in the
+ * block's original HTML tag), and the "after" part becomes a new
+ * paragraph block.
+ */
+function splitToParagraphAtCursor(
+	editor: Editor,
+	cursorPos: number,
+	blockType: string,
+): { before: string; after: string } {
+	const { before, after } = splitInlineHTML(editor, cursorPos);
+	const tag = blockTagForType(blockType as BlockType);
+	return {
+		before: `<${tag}>${before}</${tag}>`,
+		after: `<p>${after}</p>`,
+	};
 }
 
 /** Split a list item at the cursor into two items, preserving inline marks. */
-function splitListAtCursor(editor: Editor, cursorPos: number, listType: string): { before: string; after: string } {
-  const { before, after } = splitInlineHTML(editor, cursorPos);
-  const tag = listType === "numberedList" ? "ol" : "ul";
-  return {
-    before: `<${tag}><li>${before}</li></${tag}>`,
-    after: `<${tag}><li>${after}</li></${tag}>`,
-  };
+function splitListAtCursor(
+	editor: Editor,
+	cursorPos: number,
+	listType: string,
+): { before: string; after: string } {
+	const { before, after } = splitInlineHTML(editor, cursorPos);
+	const tag = listType === "numberedList" ? "ol" : "ul";
+	return {
+		before: `<${tag}><li>${before}</li></${tag}>`,
+		after: `<${tag}><li>${after}</li></${tag}>`,
+	};
 }
 
 /** Split a todo item at the cursor into two items, preserving inline marks. */
-function splitTodoAtCursor(editor: Editor, cursorPos: number): { before: string; after: string } {
-  const { before, after } = splitInlineHTML(editor, cursorPos);
-  return {
-    before: `<ul data-type="taskList"><li data-type="taskItem" data-checked="false">${before}</li></ul>`,
-    after: `<ul data-type="taskList"><li data-type="taskItem" data-checked="false">${after}</li></ul>`,
-  };
+function splitTodoAtCursor(
+	editor: Editor,
+	cursorPos: number,
+): { before: string; after: string } {
+	const { before, after } = splitInlineHTML(editor, cursorPos);
+	return {
+		before: `<ul data-type="taskList"><li data-type="taskItem" data-checked="false">${before}</li></ul>`,
+		after: `<ul data-type="taskList"><li data-type="taskItem" data-checked="false">${after}</li></ul>`,
+	};
 }

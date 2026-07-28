@@ -177,7 +177,7 @@ body {
   font-family: var(--font-title);
   font-size: 1.82em;
   font-weight: 700;
-  margin: 30px 0 10px;
+  margin: 0 0 10px;
   letter-spacing: -0.025em;
   color: var(--text);
   line-height: 1.28;
@@ -186,7 +186,7 @@ body {
   font-family: var(--font-title);
   font-size: 1.38em;
   font-weight: 600;
-  margin: 22px 0 8px;
+  margin: 0 0 8px;
   letter-spacing: -0.018em;
   color: var(--text);
   line-height: 1.35;
@@ -195,7 +195,7 @@ body {
   font-family: var(--font-title);
   font-size: 1.14em;
   font-weight: 600;
-  margin: 16px 0 6px;
+  margin: 0 0 6px;
   color: var(--text);
   line-height: 1.4;
 }
@@ -251,6 +251,35 @@ body {
 .editor .ProseMirror ul.task-list { list-style: none; padding-left: 0; margin: 0; }
 /* Bullet / numbered lists: drop the UA-default block margin (no Preflight reset). */
 .editor .ProseMirror ul:not(.task-list), .editor .ProseMirror ol { margin: 0; }
+
+/* ── Block-list visual continuity (AC#2) — collapse gap between consecutive same-type list blocks ── */
+[data-block-type="bulletList"] + [data-block-type="bulletList"] .group,
+[data-block-type="numberedList"] + [data-block-type="numberedList"] .group,
+[data-block-type="todo"] + [data-block-type="todo"] .group {
+	padding-top: 0;
+}
+[data-block-type="bulletList"]:has(+ [data-block-type="bulletList"]) .group,
+[data-block-type="numberedList"]:has(+ [data-block-type="numberedList"]) .group,
+[data-block-type="todo"]:has(+ [data-block-type="todo"]) .group {
+	padding-bottom: 0;
+}
+
+/* ── Numbered list counter (AC#3) — replace default <ol> marker with computed run index ── */
+[data-block-type="numberedList"] .ProseMirror ol {
+	list-style: none;
+	padding-left: 1.5em;
+}
+[data-block-type="numberedList"] .ProseMirror ol li::before {
+	content: var(--numbered-run) ". ";
+	position: absolute;
+	left: 0;
+	color: var(--text-3);
+	font-variant-numeric: tabular-nums;
+}
+[data-block-type="numberedList"] .ProseMirror ol li {
+	position: relative;
+	padding-left: 2em;
+}
 .editor .ProseMirror ul.task-list li.task-item {
   display: flex; align-items: flex-start; gap: 9px; margin-bottom: 5px; list-style: none;
 }
