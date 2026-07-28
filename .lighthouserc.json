@@ -1,0 +1,37 @@
+{
+	"ci": {
+		"collect": {
+			"startServerCommand": "cd packages/app && bunx vite --port 5173 & cd packages/server && bun src/index.ts",
+			"url": [
+				"http://localhost:5173",
+				"http://localhost:5173/login",
+				"http://localhost:5173/workspaces"
+			],
+			"numberOfRuns": 1,
+			"settings": {
+				"preset": "desktop",
+				"onlyCategories": ["performance", "accessibility", "best-practices", "seo"]
+			}
+		},
+		"assert": {
+			"assertions": {
+				"categories:performance": ["warn", { "minScore": 0.6 }],
+				"categories:accessibility": ["warn", { "minScore": 0.8 }],
+				"categories:best-practices": ["warn", { "minScore": 0.8 }],
+				"categories:seo": ["warn", { "minScore": 0.8 }],
+				"resource-summary": ["warn", {
+					"resourceSizes": {
+						"total": 3145728,
+						"script": 1048576,
+						"stylesheet": 131072,
+						"document": 10240
+					}
+				}]
+			}
+		},
+		"upload": {
+			"target": "filesystem",
+			"outputDir": "test-results/lighthouse"
+		}
+	}
+}

@@ -13,7 +13,10 @@
     "db:migrate": "bun run --filter @notara/server db:migrate",
     "test": "bun run --filter '*' test",
     "bdd": "bash scripts/run-bdd.sh",
-  "postinstall": "bash scripts/patch-msgpackr.sh && npx simple-git-hooks",
+    "check-bundle-size": "bash scripts/check-bundle-size.sh",
+    "lhci": "lhci autorun",
+    "perf": "bunx playwright test e2e/performance-regression.spec.ts --project=chromium",
+    "postinstall": "bash scripts/patch-msgpackr.sh && npx simple-git-hooks",
     "typecheck": "for pkg in packages/*/; do if [ -f \"$pkg/tsconfig.json\" ]; then (cd \"$pkg\" && bunx tsc --noEmit) || exit 1; fi; done",
     "quickcheck": "bun run --filter @notara/shared build && bun typecheck && bun run --filter @notara/server test && bun run --filter @notara/app test"
   },
@@ -59,6 +62,7 @@
   "devDependencies": {
     "@biomejs/biome": "^2.5.6",
     "@cucumber/cucumber": "^13.2.0",
+    "@lhci/cli": "^0.15.1",
     "@playwright/test": "^1.60.0",
     "patch-package": "^8.0.1",
     "simple-git-hooks": "^2.13.1",

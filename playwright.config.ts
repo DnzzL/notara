@@ -27,7 +27,7 @@ export default defineConfig({
     },
   ],
   webServer: {
-    command: "cd packages/server && bun src/index.ts & cd packages/app && bunx vite",
+    command: "set -a && . ./.env && set +a && cd packages/server && bun src/index.ts & cd packages/app && bunx vite",
     url: "http://localhost:5173",
     reuseExistingServer: true,
     timeout: 120 * 1000,

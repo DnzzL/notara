@@ -1,0 +1,19 @@
+{
+	"packages/app/dist/assets/index-D3EMQMAB.css": {
+		"size": 88359,
+		"gzip": 15820
+	},
+	"packages/app/dist/assets/index-mdfZgkvm.js": {
+		"size": 2484644,
+		"gzip": 624830
+	},
+	"packages/app/dist/index.html": {
+		"size": 1438,
+		"gzip": 620
+	},
+	"packages/shared/dist/index.js": {
+		"size": 117,
+		"gzip": 0
+	},
+	"timestamp": "2026-07-28T18:30:00Z"
+}
