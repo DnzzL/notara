@@ -15,9 +15,8 @@ setup("authenticate as test user", async ({ page }) => {
 	const password = "TestPassword123!";
 	const name = "E2E Tester";
 
-	// Start at the app root — unauthenticated users get redirected to /login
-	await page.goto("/");
-	await page.waitForURL("**/login");
+	// Navigate directly to /login — the landing page is public and doesn't redirect
+	await page.goto("/login");
 
 	// Switch to registration mode — the page toggles between "Log in" / "Create an account"
 	const createAccountBtn = page.getByText("Create an account");
@@ -25,10 +24,10 @@ setup("authenticate as test user", async ({ page }) => {
 		await createAccountBtn.click();
 	}
 
-	// Fill in the registration form
-	const nameInput = page.locator('input[name="name"]');
-	const emailInput = page.locator('input[name="email"]');
-	const passwordInput = page.locator('input[name="password"]');
+	// Fill in the registration form — inputs use type= selectors
+	const nameInput = page.locator('input[type="text"]');
+	const emailInput = page.locator('input[type="email"]');
+	const passwordInput = page.locator('input[type="password"]');
 
 	if (await nameInput.isVisible()) {
 		await nameInput.fill(name);
@@ -60,18 +59,17 @@ setup("authenticate as test user", async ({ page }) => {
 		return;
 	}
 
-	// We're at /workspaces or similar authenticated page
-	// Create a workspace if we're on the workspaces page
+	// We're at /workspaces or similar authenticated page.
+	// NOTE: Workspace auto-creation during auth setup is tracked in a follow-up
+	// ticket. Currently the storageState captures the auth session but downstream
+	// tests need a workspace to land on — see NOT-71.
 	if (currentUrl.includes("/workspaces")) {
 		// The user might be auto-redirected to a workspace, or see the workspaces list
 		try {
 			await page.waitForURL(/\$workspaceSlug/, { timeout: 5000 });
 		} catch {
-			// Still on /workspaces — create one
-			const createBtn = page.getByText(/create workspace|new workspace/i);
-			if (await createBtn.isVisible()) {
-				// For now just wait — workspace creation flow may vary
-			}
+			// Still on /workspaces — no workspace exists yet; downstream tests
+			// will need to handle this or we need workspace creation here.
 		}
 	}
 
