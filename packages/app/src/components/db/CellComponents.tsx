@@ -1150,6 +1150,7 @@ function CellInlineMultiAutocomplete<T extends { id: string; title?: string }>({
 }) {
 	const inputRef = useRef<HTMLInputElement>(null);
 	const anchorRef = useRef<HTMLDivElement>(null);
+	const dropdownRef = useRef<HTMLDivElement>(null);
 	const [query, setQuery] = useState("");
 	const [focused, setFocused] = useState(false);
 
@@ -1211,7 +1212,12 @@ function CellInlineMultiAutocomplete<T extends { id: string; title?: string }>({
 	useEffect(() => {
 		if (!focused) return;
 		const handler = (e: MouseEvent) => {
-			if (anchorRef.current && !anchorRef.current.contains(e.target as Node)) {
+			if (
+				anchorRef.current &&
+				!anchorRef.current.contains(e.target as Node) &&
+				// Don't close when clicking inside the portal dropdown
+				!(dropdownRef.current && dropdownRef.current.contains(e.target as Node))
+			) {
 				setFocused(false);
 				// Save on outside click
 				onSave(JSON.stringify(selectedIds));
@@ -1283,6 +1289,7 @@ function CellInlineMultiAutocomplete<T extends { id: string; title?: string }>({
 				dropdownPos &&
 				createPortal(
 					<div
+						ref={dropdownRef}
 						style={{
 							position: "fixed",
 							top: dropdownPos.top,
