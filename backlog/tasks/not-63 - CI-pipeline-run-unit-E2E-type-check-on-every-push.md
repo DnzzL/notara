@@ -4,7 +4,7 @@ title: 'CI pipeline: run unit + E2E + type-check on every push'
 status: ready-for-agent
 assignee: []
 created_date: '2026-07-28 14:52'
-updated_date: '2026-07-28 15:04'
+updated_date: '2026-07-28 15:43'
 labels:
   - enhancement
 dependencies: []
@@ -21,7 +21,7 @@ Add a GitHub Actions workflow that runs bun test, playwright test, and tsc --noE
 <!-- AC:BEGIN -->
 - [x] #1 GitHub Actions workflow triggers on push and PR to main
 - [x] #2 bun test runs across all packages and must pass
-- [ ] #3 playwright test runs and must pass (with web server started)
+- [x] #3 playwright test runs and must pass (with web server started)
 - [x] #4 tsc --noEmit type-checks the project and must pass
 - [ ] #5 Merge to main is blocked on CI failure
 <!-- AC:END -->
@@ -51,4 +51,6 @@ CI workflow runs:
 2. unit-tests: bun test for server, app, electron; vitest for shared
 3. e2e-tests: playwright test with chromium
 4. merge-gate: blocks merge if any job fails
+
+Code review fix: AC#3 (playwright with web server started) was actually already satisfied by playwright.config.ts's webServer config — marking complete.
 <!-- SECTION:NOTES:END -->
