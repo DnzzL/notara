@@ -1,0 +1,38 @@
+name: Mutation Testing (Weekly)
+
+on:
+  schedule:
+    # Every Monday at 03:00 UTC
+    - cron: "0 3 * * 1"
+  workflow_dispatch:
+
+env:
+  CI: true
+
+jobs:
+  mutation:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: latest
+
+      - run: bun install --frozen-lockfile
+
+      - name: Build shared package
+        run: bun run --filter @notara/shared build
+
+      - name: Run StrykerJS mutation tests
+        working-directory: packages/server
+        run: bunx stryker run
+        continue-on-error: true
+
+      - name: Upload mutation report
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: mutation-report
+          path: packages/server/reports/mutation/
+          retention-days: 30

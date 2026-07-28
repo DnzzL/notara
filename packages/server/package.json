@@ -27,6 +27,8 @@
 		"ulidx": "^2.3.0"
 	},
 	"devDependencies": {
+		"@stryker-mutator/core": "^9.6.1",
+		"@stryker-mutator/typescript-checker": "^9.6.1",
 		"@types/bun": "^1.2.0",
 		"@types/nodemailer": "^8.0.0",
 		"typescript": "^5.7.0"

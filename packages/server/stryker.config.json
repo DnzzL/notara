@@ -1,0 +1,25 @@
+{
+	"$schema": "node_modules/@stryker-mutator/core/schema/stryker-schema.json",
+	"packageManager": "bun",
+	"testRunner": "command",
+	"commandRunner": {
+		"command": "bun test"
+	},
+	"checkers": ["typescript"],
+	"tsconfigFile": "tsconfig.json",
+	"mutate": [
+		"src/handlers/*.ts",
+		"!src/handlers/*.test.ts",
+		"!src/handlers/index.ts"
+	],
+	"reporters": ["html", "clear-text", "progress"],
+	"coverageAnalysis": "off",
+	"concurrency": 2,
+	"thresholds": {
+		"high": 80,
+		"low": 60,
+		"break": null
+	},
+	"tempDir": ".stryker-tmp",
+	"cleanTempDir": true
+}
