@@ -12,7 +12,7 @@
     "build:electron": "bun run --filter @notara/shared build && bun run --filter @notara/server build && bun run --filter @notara/app build && bun run --filter @notara/electron build",
     "db:migrate": "bun run --filter @notara/server db:migrate",
     "test": "bun run --filter '*' test",
-    "bdd": "cucumber-js --config e2e/cucumber.json",
+    "bdd": "bash scripts/run-bdd.sh",
   "postinstall": "bash scripts/patch-msgpackr.sh && npx simple-git-hooks",
     "typecheck": "for pkg in packages/*/; do if [ -f \"$pkg/tsconfig.json\" ]; then (cd \"$pkg\" && bunx tsc --noEmit) || exit 1; fi; done",
     "quickcheck": "bun run --filter @notara/shared build && bun typecheck && bun run --filter @notara/server test && bun run --filter @notara/app test"
