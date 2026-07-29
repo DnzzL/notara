@@ -19,7 +19,9 @@
     "postinstall": "bash scripts/patch-msgpackr.sh && npx simple-git-hooks",
     "apply-patches": "bash scripts/patch-msgpackr.sh",
     "typecheck": "for pkg in packages/*/; do if [ -f \"$pkg/tsconfig.json\" ]; then (cd \"$pkg\" && bunx tsc --noEmit) || exit 1; fi; done",
-    "quickcheck": "bun run --filter @notara/shared build && bun typecheck && bun run --filter @notara/server test && bun run --filter @notara/app test"
+		"quickcheck": "bun run --filter @notara/shared build && bun typecheck && bun run --filter @notara/server test && bun run --filter @notara/app test",
+		"pre-merge": "bun run quickcheck && bunx biome ci packages/ e2e/ && bash scripts/check-effect-errors.sh && bash scripts/check-bundle-size.sh",
+		"coverage": "bash scripts/check-coverage.sh '@notara/server' packages/server 'bun test' && bash scripts/check-coverage.sh '@notara/app' packages/app 'bun test' && bash scripts/check-coverage.sh '@notara/electron' packages/electron 'bun test' && bash scripts/check-coverage.sh '@notara/shared' packages/shared 'bunx vitest run'"
   },
   "workspaces": [
     "packages/*"
@@ -58,7 +60,7 @@
   },
   "simple-git-hooks": {
     "pre-commit": "bunx biome check --write --unsafe packages/ e2e/ && git add -u",
-    "pre-push": "bun run --filter @notara/shared build && bun typecheck && bunx biome ci packages/ e2e/ && bun run --filter @notara/server test && bun run --filter @notara/app test"
+    "pre-push": "bun run --filter @notara/shared build && bun typecheck && bunx biome ci packages/ e2e/ && bash scripts/check-effect-errors.sh && bun run --filter @notara/server test && bun run --filter @notara/app test"
   },
   "devDependencies": {
     "@biomejs/biome": "^2.5.6",

@@ -58,9 +58,9 @@ style rather than reformatting adjacent code.
 
 ## Performance gates
 
-The CI pipeline runs three performance regression checks on every PR:
+Run before merging to catch regressions. Each check has a `bun run` script:
 
-**Bundle-size** (`bash scripts/check-bundle-size.sh`)
+**Bundle-size** (`bash scripts/check-bundle-size.sh`, `bun run check-bundle-size`)
 
 - Builds packages/app (Vite) + packages/shared (tsc) and compares output sizes
   against the baseline in `.github/bundle-sizes.json`.
