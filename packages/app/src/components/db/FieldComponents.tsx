@@ -1,24 +1,24 @@
-import { useState, useEffect, useRef } from "react";
-import { Button } from "../ui/index.js";
 import {
+	closestCenter,
 	DndContext,
+	type DragEndEvent,
 	MouseSensor,
 	TouchSensor,
 	useSensor,
 	useSensors,
-	closestCenter,
-	type DragEndEvent,
 } from "@dnd-kit/core";
 import {
+	arrayMove,
 	SortableContext,
 	useSortable,
 	verticalListSortingStrategy,
-	arrayMove,
 } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
-import { Popover, optionColor } from "./CellComponents.js";
+import { useEffect, useRef, useState } from "react";
 import { api } from "../../rpc-client.js";
 import { usePageStore } from "../../stores/pageStore.js";
+import { Button } from "../ui/index.js";
+import { optionColor, Popover } from "./CellComponents.js";
 
 export type FieldType =
 	| "text"
@@ -215,7 +215,6 @@ export function ColumnHeader({
 									if (name.trim()) onRename(name);
 									handleMenuClose();
 								}}
-								autoFocus
 								style={{
 									width: "100%",
 									border: "1px solid #2eaadc",
@@ -403,7 +402,6 @@ export function ColumnHeader({
 								if (name.trim()) onRename(name);
 								handleMenuClose();
 							}}
-							autoFocus
 							style={{
 								width: "100%",
 								border: "1px solid #2eaadc",

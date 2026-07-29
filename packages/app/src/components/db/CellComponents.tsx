@@ -1214,7 +1214,7 @@ function CellInlineMultiAutocomplete<T extends { id: string; title?: string }>({
 				anchorRef.current &&
 				!anchorRef.current.contains(e.target as Node) &&
 				// Don't close when clicking inside the portal dropdown
-				!(dropdownRef.current && dropdownRef.current.contains(e.target as Node))
+				!dropdownRef.current?.contains(e.target as Node)
 			) {
 				setFocused(false);
 				// Save on outside click

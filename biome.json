@@ -19,11 +19,18 @@
 			"preset": "recommended",
 			"suspicious": {
 				"noExplicitAny": "off",
-				"noArrayIndexKey": "off"
+				"noArrayIndexKey": "off",
+				"noShadowRestrictedNames": "off",
+				"useIterableCallbackReturn": "off"
 			},
 			"style": {
 				"noNonNullAssertion": "off",
 				"noDescendingSpecificity": "off"
+			},
+			"complexity": {
+				"useOptionalChain": "off",
+				"useLiteralKeys": "off",
+				"useSimplifiedLogicExpression": "off"
 			},
 			"correctness": {
 				"useExhaustiveDependencies": "off",

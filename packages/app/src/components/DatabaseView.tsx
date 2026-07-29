@@ -1,49 +1,49 @@
-import { useState, useEffect, useCallback, useRef, useMemo } from "react";
-import { cn } from "./ui/cn.js";
 import {
 	DndContext,
+	type DragEndEvent,
 	DragOverlay,
+	type DragStartEvent,
 	PointerSensor,
 	useSensor,
 	useSensors,
-	type DragEndEvent,
-	type DragStartEvent,
 } from "@dnd-kit/core";
 import {
+	horizontalListSortingStrategy,
 	SortableContext,
 	useSortable,
 	verticalListSortingStrategy,
-	horizontalListSortingStrategy,
 } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
-import {
-	useDatabaseStore,
-	selectFields,
-	selectRecords,
-	selectFilters,
-	selectSorts,
-	selectActiveViewId,
-	selectDbViews,
-} from "../stores/databaseStore.js";
-import { usePageStore } from "../stores/pageStore.js";
-import { api } from "../rpc-client.js";
-import { toaster } from "../toaster.js";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { applyFiltersAndSorts } from "../lib/filterEngine.js";
 import { tryEvaluate } from "../lib/formula.js";
-import { CellDisplay, InlineCellEditor, Popover } from "./db/CellComponents.js";
+import { api } from "../rpc-client.js";
 import {
-	ColumnHeader,
-	AddFieldPopover,
-	OptionsEditor,
-	FormulaEditor,
-	getDefaultWidthForType,
-	type FieldType,
-} from "./db/FieldComponents.js";
-import { FilterBar, SortBar, makeDefaultFilter } from "./db/QueryBar.js";
+	selectActiveViewId,
+	selectDbViews,
+	selectFields,
+	selectFilters,
+	selectRecords,
+	selectSorts,
+	useDatabaseStore,
+} from "../stores/databaseStore.js";
+import { usePageStore } from "../stores/pageStore.js";
+import { toaster } from "../toaster.js";
 import { BoardView } from "./db/BoardView.js";
 import { CalendarView } from "./db/CalendarView.js";
+import { CellDisplay, InlineCellEditor, Popover } from "./db/CellComponents.js";
+import {
+	AddFieldPopover,
+	ColumnHeader,
+	type FieldType,
+	FormulaEditor,
+	getDefaultWidthForType,
+	OptionsEditor,
+} from "./db/FieldComponents.js";
+import { FilterBar, makeDefaultFilter, SortBar } from "./db/QueryBar.js";
 import { RecordPanel } from "./db/RecordPanel.js";
 import { ViewSwitcher } from "./db/ViewSwitcher.js";
+import { cn } from "./ui/cn.js";
 
 const COL_WIDTHS_STORAGE_KEY_PREFIX = "db-col-widths:";
 /** Sentinel field id for the record-title column in focus navigation. */
@@ -368,7 +368,6 @@ function TitleCell({
 	}
 	return (
 		<input
-			autoFocus
 			name="record-title"
 			className="w-full border-[1.5px] border-accent rounded-[5px] px-1.5 py-[3px] text-[14px] font-medium outline-none bg-surface text-text [font-family:var(--font-ui)]"
 			value={value}
@@ -1285,7 +1284,6 @@ export function DatabaseView({
 								onChange={(e) => setDbName(e.target.value)}
 								onBlur={handleNameSave}
 								onKeyDown={handleNameKeyDown}
-								autoFocus
 								style={{
 									fontSize: 13,
 									padding: "2px 6px",
@@ -1340,7 +1338,7 @@ export function DatabaseView({
 											await loadDatabases(database.pageId);
 										}}
 										isTitle
-										width={columnWidths["__title__"]}
+										width={columnWidths.__title__}
 										onResize={handleColumnResize}
 									/>
 								)}
@@ -1388,7 +1386,7 @@ export function DatabaseView({
 											}
 											onDuplicate={() =>
 												handleAddField(
-													f.name + " (copy)",
+													`${f.name} (copy)`,
 													f.type,
 													f.options || undefined,
 													f.relationTargetDbId || null,
@@ -1465,7 +1463,7 @@ export function DatabaseView({
 														}
 														className="px-2 py-1.5 border-b border-border border-r border-border last:border-r-0 align-middle min-h-[32px] relative font-medium text-[14px] min-w-[180px] text-text"
 														style={(() => {
-															const w = columnWidths["__title__"];
+															const w = columnWidths.__title__;
 															const base = w
 																? { minWidth: w, width: w }
 																: {
@@ -1567,7 +1565,6 @@ export function DatabaseView({
 																	dir,
 																)
 															}
-															databases={databases}
 															allRecords={dbRecordCache}
 														/>
 													) : (
@@ -1649,7 +1646,7 @@ export function DatabaseView({
 											style={{
 												borderTop: "1px solid #e9e9e7",
 												...(() => {
-													const w = columnWidths["__title__"];
+													const w = columnWidths.__title__;
 													return w
 														? { minWidth: w, width: w }
 														: {
@@ -1666,7 +1663,7 @@ export function DatabaseView({
 													type: "text",
 												}}
 												rows={sortedRecords}
-												agg={footerAggs["__title__"] ?? "none"}
+												agg={footerAggs.__title__ ?? "none"}
 												onChange={(a) => setFooterAgg("__title__", a)}
 												isTitle
 											/>

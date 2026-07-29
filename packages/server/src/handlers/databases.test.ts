@@ -1,17 +1,17 @@
 import {
-	describe,
-	it,
-	expect,
-	beforeAll,
 	afterAll,
+	beforeAll,
 	beforeEach,
+	describe,
+	expect,
+	it,
 } from "bun:test";
-import { Effect } from "effect";
+import * as fs from "node:fs";
+import * as os from "node:os";
+import * as path from "node:path";
 import { SqlClient } from "@effect/sql";
 import { SqliteClient } from "@effect/sql-sqlite-bun";
-import * as path from "node:path";
-import * as os from "node:os";
-import * as fs from "node:fs";
+import { Effect } from "effect";
 import * as Databases from "./databases.js";
 
 const testDbPath = path.join(os.tmpdir(), `test-databases-${Date.now()}.db`);

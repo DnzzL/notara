@@ -1,10 +1,10 @@
+import { Portal } from "@ark-ui/react/portal";
 import {
-	Toast,
 	Toaster as ArkToaster,
+	Toast,
 	ToastActionTrigger,
 	type ToastOptions,
 } from "@ark-ui/react/toast";
-import { Portal } from "@ark-ui/react/portal";
 import { toaster } from "../toaster.js";
 
 function CheckIcon() {
