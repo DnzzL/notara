@@ -19,7 +19,13 @@ jobs:
         with:
           bun-version: latest
 
-      - run: bun install --frozen-lockfile
+      - run: bun install --frozen-lockfile --ignore-scripts
+
+      - name: Apply runtime patches
+        run: bun run apply-patches
+
+      - name: Apply runtime patches
+        run: bun run apply-patches
 
       - name: Build shared package
         run: bun run --filter @notara/shared build
@@ -44,7 +50,10 @@ jobs:
         with:
           bun-version: latest
 
-      - run: bun install --frozen-lockfile
+      - run: bun install --frozen-lockfile --ignore-scripts
+
+      - name: Apply runtime patches
+        run: bun run apply-patches
 
       - name: Build shared package
         run: bun run --filter @notara/shared build
@@ -74,7 +83,10 @@ jobs:
         with:
           bun-version: latest
 
-      - run: bun install --frozen-lockfile
+      - run: bun install --frozen-lockfile --ignore-scripts
+
+      - name: Apply runtime patches
+        run: bun run apply-patches
 
       - name: Run Biome lint + format check
         run: bunx biome ci packages/ e2e/
@@ -91,7 +103,10 @@ jobs:
         with:
           bun-version: latest
 
-      - run: bun install --frozen-lockfile
+      - run: bun install --frozen-lockfile --ignore-scripts
+
+      - name: Apply runtime patches
+        run: bun run apply-patches
 
       - name: Build shared package
         run: bun run --filter @notara/shared build
@@ -118,7 +133,10 @@ jobs:
         with:
           bun-version: latest
 
-      - run: bun install --frozen-lockfile
+      - run: bun install --frozen-lockfile --ignore-scripts
+
+      - name: Apply runtime patches
+        run: bun run apply-patches
 
       - name: Check bundle sizes
         run: bash scripts/check-bundle-size.sh
@@ -134,7 +152,10 @@ jobs:
         with:
           bun-version: latest
 
-      - run: bun install --frozen-lockfile
+      - run: bun install --frozen-lockfile --ignore-scripts
+
+      - name: Apply runtime patches
+        run: bun run apply-patches
 
       - name: Build shared package
         run: bun run --filter @notara/shared build
@@ -156,7 +177,10 @@ jobs:
         with:
           bun-version: latest
 
-      - run: bun install --frozen-lockfile
+      - run: bun install --frozen-lockfile --ignore-scripts
+
+      - name: Apply runtime patches
+        run: bun run apply-patches
 
       - name: Build shared package
         run: bun run --filter @notara/shared build
