@@ -1167,7 +1167,7 @@ export function DatabaseView({
 			onDragStart={handleAllDragStart}
 			onDragEnd={handleAllDragEnd}
 		>
-			<div ref={tableWrapRef}>
+			<div ref={tableWrapRef} data-database-view>
 				{/* Toolbar */}
 				<div className="flex gap-1.5 mb-2.5 items-center flex-wrap py-1">
 					<ViewSwitcher

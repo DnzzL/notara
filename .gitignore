@@ -30,3 +30,7 @@ test-results/lighthouse/
 
 # advisor / PM brainstorm — local only
 plans/
+
+# Playwright run artifacts
+test-results/
+playwright-report/

@@ -1,148 +1,129 @@
 import { expect, test } from "@playwright/test";
-import { createPage, gotoApp, openSlashMenu } from "./helpers.js";
+import {
+	createPage,
+	gotoApp,
+	openSlashMenu,
+	runSlashCommand,
+	slashMenu,
+} from "./helpers.js";
 
 /**
  * Block Types via Slash Menu
  *
- * Re-written with current Tailwind-based selectors.
- * Tests assume authenticated session from auth setup.
+ * The slash menu is deliberately slim: it only carries block types that cannot
+ * be produced by typing. Headings, quotes, todos and code blocks are markdown
+ * input rules (`# `, `> `, `- [] `, ```` ``` ````), not menu entries — an earlier
+ * version of this spec drove them through the menu and could never have passed.
+ *
+ * Commands split into three shapes, which is what these tests cover:
+ *   - in-place: the current block's content is replaced (Callout, Toggle)
+ *   - new block: a sibling block is appended (Divider)
+ *   - picker: a block is appended that opens its own picker (Link to page,
+ *     People, View reference) — the picker is asserted, not driven
+ * Image and File open a native file dialog, so they are not covered here.
  */
+
+/** Every command the menu offers, in render order. */
+const COMMANDS = [
+	"Image",
+	"File",
+	"Divider",
+	"Callout",
+	"Toggle",
+	"Database",
+	"Link to page",
+	"People",
+	"View reference",
+];
 
 test.describe("Block Types via Slash Menu", () => {
 	test.beforeEach(async ({ page }) => {
 		await gotoApp(page);
 	});
 
-	const getEditorHtml = async (page: any): Promise<string> => {
-		const editor = page.locator(".ProseMirror").first();
-		return await editor.evaluate((el: HTMLElement) => el.innerHTML);
-	};
-
-	test("slash menu shows all block types", async ({ page }) => {
-		const testId = Date.now().toString(36);
-		await createPage(page, `Block Types List ${testId}`);
-		const editor = page.locator(".ProseMirror").first();
-		await editor.click();
-		await editor.press("Home");
-		await editor.press("/");
-		await page
-			.locator("text=Blocks")
+	const editorHtml = (page: any) =>
+		page
+			.locator(".ProseMirror")
 			.first()
-			.waitFor({ state: "visible", timeout: 3000 });
+			.evaluate((el: HTMLElement) => el.innerHTML);
 
-		// Count visible block option buttons
-		const blockButtons = page.locator("button").filter({ hasText: /^[A-Z]/ });
-		const count = await blockButtons.count();
-		// There should be at least 8 block types
-		expect(count).toBeGreaterThanOrEqual(8);
-	});
+	test("slash menu lists exactly the supported commands", async ({ page }) => {
+		await createPage(page, "Menu List");
+		const menu = await openSlashMenu(page);
 
-	test("insert heading via slash command", async ({ page }) => {
-		const testId = Date.now().toString(36);
-		await createPage(page, `Heading Test ${testId}`);
-		await openSlashMenu(page);
-		await page.locator("button").filter({ hasText: "Heading 1" }).click();
-		await page.waitForTimeout(500);
-
-		const editor = page.locator(".ProseMirror").first();
-		await editor.fill("My Heading");
-		await page.waitForTimeout(500);
-
-		const html = await getEditorHtml(page);
-		expect(html).toContain("<h1>");
-		expect(html).toContain("My Heading");
-	});
-
-	test("insert quote via slash command", async ({ page }) => {
-		const testId = Date.now().toString(36);
-		await createPage(page, `Quote Test ${testId}`);
-		await openSlashMenu(page);
-		await page.locator("button").filter({ hasText: "Quote" }).click();
-		await page.waitForTimeout(500);
-
-		const editor = page.locator(".ProseMirror").first();
-		await editor.fill("This is a quote");
-		await page.waitForTimeout(500);
-
-		const html = await getEditorHtml(page);
-		expect(html).toContain("<blockquote>");
-		expect(html).toContain("This is a quote");
-	});
-
-	test("insert divider via slash command", async ({ page }) => {
-		const testId = Date.now().toString(36);
-		await createPage(page, `Divider Test ${testId}`);
-		await openSlashMenu(page);
-		await page.locator("button").filter({ hasText: "Divider" }).click();
-		await page.waitForTimeout(500);
-
-		const html = await getEditorHtml(page);
-		expect(html).toContain("<hr");
-	});
-
-	test("insert todo list via slash command", async ({ page }) => {
-		const testId = Date.now().toString(36);
-		await createPage(page, `Todo Test ${testId}`);
-		await openSlashMenu(page);
-		await page.locator("button").filter({ hasText: "Todo List" }).click();
-		await page.waitForTimeout(500);
-
-		const editor = page.locator(".ProseMirror").first();
-		await editor.fill("My task");
-		await page.waitForTimeout(500);
-
-		const html = await getEditorHtml(page);
-		expect(html).toContain("My task");
-	});
-
-	test("insert toggle via slash command", async ({ page }) => {
-		const testId = Date.now().toString(36);
-		await createPage(page, `Toggle Test ${testId}`);
-		await openSlashMenu(page);
-		await page.locator("button").filter({ hasText: "Toggle" }).click();
-		await page.waitForTimeout(500);
-
-		const html = await getEditorHtml(page);
-		expect(html).toContain("<details");
-		expect(html).toContain("<summary");
-	});
-
-	test("insert code block via slash command", async ({ page }) => {
-		const testId = Date.now().toString(36);
-		await createPage(page, `Code Test ${testId}`);
-		await openSlashMenu(page);
-		await page.locator("button").filter({ hasText: "Code Block" }).click();
-		await page.waitForTimeout(500);
-
-		const editor = page.locator(".ProseMirror").first();
-		await editor.fill("console.log('hello')");
-		await page.waitForTimeout(500);
-
-		const html = await getEditorHtml(page);
-		expect(html).toContain("<pre");
-		expect(html).toContain("<code");
-		expect(html).toContain("console.log('hello')");
+		await expect(menu.getByRole("button")).toHaveCount(COMMANDS.length);
+		for (const name of COMMANDS) {
+			await expect(
+				menu.getByRole("button").filter({ hasText: name }),
+			).toBeVisible();
+		}
 	});
 
 	test("slash menu filters by query", async ({ page }) => {
-		const testId = Date.now().toString(36);
-		await createPage(page, `Filter Test ${testId}`);
-		const editor = page.locator(".ProseMirror").first();
-		await editor.click();
-		await editor.press("Home");
-		await editor.press("/");
-		await page
-			.locator("text=Blocks")
-			.first()
-			.waitFor({ state: "visible", timeout: 3000 });
+		const editor = await createPage(page, "Filter");
+		const menu = await openSlashMenu(page, editor);
 
-		// Type "code" to filter
-		await editor.pressSequentially("code");
-		await page.waitForTimeout(1500);
+		await editor.pressSequentially("tog");
 
-		// Verify Code Block is visible in filtered results
-		await expect(
-			page.locator("button").filter({ hasText: "Code Block" }),
-		).toBeVisible();
+		// "tog" matches Toggle only.
+		await expect(menu.getByRole("button")).toHaveCount(1);
+		await expect(menu.getByRole("button").first()).toContainText("Toggle");
+	});
+
+	test("filtering to nothing closes the menu", async ({ page }) => {
+		const editor = await createPage(page, "NoMatch");
+		await openSlashMenu(page, editor);
+
+		await editor.pressSequentially("zzzz");
+
+		// The menu unmounts when no command matches.
+		await expect(slashMenu(page)).toBeHidden({ timeout: 5000 });
+	});
+
+	test("Callout replaces the current block in place", async ({ page }) => {
+		const editor = await createPage(page, "Callout");
+		await openSlashMenu(page, editor);
+		await runSlashCommand(page, "Callout");
+
+		await expect
+			.poll(() => editorHtml(page), { timeout: 10000 })
+			.toContain("data-callout");
+	});
+
+	test("Toggle replaces the current block in place", async ({ page }) => {
+		const editor = await createPage(page, "Toggle");
+		await openSlashMenu(page, editor);
+		await runSlashCommand(page, "Toggle");
+
+		// The details/summary source content is rendered by TipTap as a
+		// div.toggle-block wrapper — there is no <details> element in the DOM.
+		await expect
+			.poll(() => editorHtml(page), { timeout: 10000 })
+			.toContain("toggle-block");
+		expect(await editorHtml(page)).toContain("<summary");
+	});
+
+	test("Divider appends a divider block", async ({ page }) => {
+		const editor = await createPage(page, "Divider");
+		await openSlashMenu(page, editor);
+		await runSlashCommand(page, "Divider");
+
+		// Divider renders outside TipTap as its own block, not inside the editor.
+		await expect(page.locator("hr.block-divider")).toBeVisible({
+			timeout: 10000,
+		});
+	});
+
+	test("Link to page appends a block that opens a page picker", async ({
+		page,
+	}) => {
+		const editor = await createPage(page, "PageLink");
+		await openSlashMenu(page, editor);
+		await runSlashCommand(page, "Link to page");
+
+		// The new pageLink block auto-opens its picker because it has no target.
+		await expect(page.getByPlaceholder(/search|page/i).first()).toBeVisible({
+			timeout: 10000,
+		});
 	});
 });

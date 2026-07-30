@@ -931,6 +931,7 @@ export function AddFieldPopover({
 	return (
 		<Popover triggerRect={triggerRect} onClose={onClose} minWidth={300}>
 			<div
+				data-add-field
 				style={{
 					padding: 4,
 					display: "flex",

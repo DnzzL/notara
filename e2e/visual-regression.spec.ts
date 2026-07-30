@@ -1,4 +1,10 @@
 import { expect, test } from "@playwright/test";
+import {
+	createBlankPage,
+	ensureEditor,
+	insertDatabase,
+	setPageTitle,
+} from "./helpers.js";
 
 /**
  * Visual regression tests for NOT-66.
@@ -16,54 +22,31 @@ import { expect, test } from "@playwright/test";
  */
 
 /**
- * Click [data-new-page], then select "Blank page" from the template picker.
- */
-async function createBlankPage(page: any) {
-	await page.evaluate(() => {
-		const btn = document.querySelector("[data-new-page]");
-		if (btn) (btn as HTMLElement).click();
-	});
-	const blankPage = page.getByText("Blank page");
-	await expect(blankPage).toBeVisible({ timeout: 5000 });
-	await blankPage.click();
-	await page.waitForTimeout(1000);
-}
-
-/**
- * Set the page title. The title renders as an h1; clicking it shows an input.
- */
-async function setPageTitle(page: any, title: string) {
-	await page.evaluate(() => {
-		const h1 = document.querySelector("h1");
-		if (h1) (h1 as HTMLElement).click();
-	});
-	const input = page.locator('input[name="page-title"]');
-	await expect(input).toBeVisible({ timeout: 5000 });
-	await input.fill(title);
-	await input.press("Enter");
-}
-
-/**
- * Ensure the page has at least one block (click "This page is empty" if needed).
- */
-async function ensureEditor(page: any) {
-	const emptyState = page.getByText("This page is empty");
-	if (await emptyState.isVisible({ timeout: 2000 }).catch(() => false)) {
-		await emptyState.click();
-	}
-	const editor = page.locator(".ProseMirror");
-	await editor.waitFor({ state: "attached", timeout: 10000 });
-	return editor;
-}
-
-/**
  * Stabilise the page for screenshot: hide caret + wait for animations.
+ *
+ * Database blocks load their rows after the editor first paints, which changes
+ * the element's height mid-capture (254px -> 263px was a real failure). Waiting
+ * for the box to stop moving is what makes these snapshots reproducible.
  */
-async function stabiliseForScreenshot(page: any) {
+async function stabiliseForScreenshot(page: any, locator = ".editor") {
 	await page.addStyleTag({
 		content: `* { caret-color: transparent !important; }`,
 	});
-	await page.waitForTimeout(500);
+	// Not networkidle: the app holds a live-collab websocket open, so it never
+	// fires. Poll the bounding box until it is identical twice in a row instead.
+	let previous = "";
+	await expect
+		.poll(
+			async () => {
+				const box = await page.locator(locator).first().boundingBox();
+				const current = JSON.stringify(box);
+				const settled = current === previous;
+				previous = current;
+				return settled;
+			},
+			{ timeout: 10000, intervals: [250] },
+		)
+		.toBe(true);
 }
 
 test.describe("Visual regression", () => {
@@ -109,7 +92,7 @@ test.describe("Visual regression", () => {
 			await page.waitForTimeout(300);
 		}
 
-		await page.waitForTimeout(500);
+		await stabiliseForScreenshot(page, "[data-sidebar]");
 		await expect(sidebar).toHaveScreenshot("sidebar-pages.png", {
 			maxDiffPixels: 100,
 			animations: "disabled",
@@ -120,23 +103,17 @@ test.describe("Visual regression", () => {
 		await createBlankPage(page);
 		await setPageTitle(page, "DB Table Snap");
 
+		// insertDatabase scopes the command to [data-slash-menu]; an unscoped
+		// /database/i button match also hits sidebar pages named "Database …"
+		// once earlier specs have created them.
 		const editor = await ensureEditor(page);
-		await page.evaluate(() => {
-			const el = document.querySelector(".ProseMirror");
-			if (el) (el as HTMLElement).focus();
-		});
-		await editor.press("Home");
-		await editor.press("/");
+		await insertDatabase(page, editor);
 
-		// Wait for slash command menu (has heading "Blocks")
-		await expect(page.getByText("Blocks")).toBeVisible({ timeout: 3000 });
-		await page.getByRole("button", { name: /database/i }).click();
-
-		// Wait for the database table to render
-		await expect(page.getByRole("table")).toBeVisible({ timeout: 10000 });
-
-		await stabiliseForScreenshot(page);
-		await expect(page.locator(".editor")).toHaveScreenshot(
+		// Scoped to the database block, not .editor: the editor's height varies
+		// with how many blocks the page happens to have, which made the snapshot
+		// depend on run order (254px vs 263px).
+		await stabiliseForScreenshot(page, "[data-database-view]");
+		await expect(page.locator("[data-database-view]")).toHaveScreenshot(
 			"database-table-view.png",
 			{ maxDiffPixels: 100, animations: "disabled" },
 		);
@@ -147,27 +124,17 @@ test.describe("Visual regression", () => {
 		await setPageTitle(page, "Board View Snap");
 
 		const editor = await ensureEditor(page);
-		await page.evaluate(() => {
-			const el = document.querySelector(".ProseMirror");
-			if (el) (el as HTMLElement).focus();
-		});
-		await editor.press("Home");
-		await editor.press("/");
+		await insertDatabase(page, editor);
 
-		// Wait for slash command menu (has heading "Blocks")
-		await expect(page.getByText("Blocks")).toBeVisible({ timeout: 3000 });
-		await page.getByRole("button", { name: /database/i }).click();
-		await expect(page.getByRole("table")).toBeVisible({ timeout: 10000 });
+		// Switch to board view. Asserted rather than guarded — a silent skip here
+		// would snapshot the table view under the board's baseline name.
+		await page.getByRole("tab").filter({ hasText: /board/i }).click();
+		await expect(
+			page.locator('[role="tab"][aria-selected="true"]'),
+		).toContainText("Board");
 
-		// Switch to board view
-		const boardTab = page.getByRole("tab").filter({ hasText: /board/i });
-		if (await boardTab.isVisible({ timeout: 3000 }).catch(() => false)) {
-			await boardTab.click();
-			await page.waitForTimeout(1000);
-		}
-
-		await stabiliseForScreenshot(page);
-		await expect(page.locator(".editor")).toHaveScreenshot(
+		await stabiliseForScreenshot(page, "[data-database-view]");
+		await expect(page.locator("[data-database-view]")).toHaveScreenshot(
 			"database-board-view.png",
 			{ maxDiffPixels: 100, animations: "disabled" },
 		);

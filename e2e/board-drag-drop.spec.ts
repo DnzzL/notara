@@ -1,5 +1,5 @@
 import { expect, test } from "@playwright/test";
-import { createPage, gotoApp, openSlashMenu } from "./helpers.js";
+import { addField, createPage, gotoApp, insertDatabase } from "./helpers.js";
 
 /**
  * Board View Drag-Drop
@@ -20,40 +20,53 @@ test.describe("Board View Drag-Drop", () => {
 		await gotoApp(page);
 	});
 
-	const createDatabaseWithBoardView = async (page: any) => {
-		const editor = await createPage(
-			page,
-			`Board Test ${Date.now().toString(36)}`,
-		);
+	/**
+	 * @param withSelectField adds a "Status" select field, which is what the
+	 * board groups by — without one it falls back to a single "All" column.
+	 */
+	const createDatabaseWithBoardView = async (
+		page: any,
+		withSelectField = false,
+	) => {
+		const editor = await createPage(page, "Board Test");
+		await insertDatabase(page, editor);
 
-		// Open slash menu and insert Database
-		await openSlashMenu(page, editor);
-		await page.locator("button").filter({ hasText: "Database" }).click();
-
-		// Wait for the database table to render
-		await page
-			.locator("table.w-full")
-			.waitFor({ state: "visible", timeout: 10000 });
+		if (withSelectField) {
+			await addField(page, "Status", "Select", ["Todo", "Done"]);
+			await page.getByText("+ New record").click();
+			const recordTitleInput = page
+				.locator('input[name="record-title"]')
+				.first();
+			await expect(recordTitleInput).toBeVisible({ timeout: 10000 });
+			await recordTitleInput.fill("Board Card");
+			await recordTitleInput.press("Enter");
+			await page.keyboard.press("Escape");
+			await expect(recordTitleInput).toBeHidden({ timeout: 10000 });
+		}
 
 		// Switch to Board view by clicking the "Board" tab
 		const boardTab = page.locator('[role="tab"]').filter({ hasText: "Board" });
 		await boardTab.click();
-		await page.waitForTimeout(1500);
+		await expect(
+			page.locator('[role="tab"][aria-selected="true"]'),
+		).toContainText("Board");
 	};
 
 	test("board view shows cards grouped by a select field", async ({ page }) => {
-		await createDatabaseWithBoardView(page);
+		await createDatabaseWithBoardView(page, true);
 
-		// The board view renders a DndContext with droppable columns.
-		// Look for the board view container — columns are rendered as divs
-		// with cards inside them.
-		// When there's no select field to group by, the board shows a prompt.
-		const boardContainer = page.locator('[class*="grid"]').first();
-		await expect(boardContainer).toBeVisible();
+		// The board renders one column per select option, plus an "Untitled"
+		// column holding records that have no value for the field yet.
+		for (const column of ["Todo", "Done", "Untitled"]) {
+			await expect(page.getByText(column, { exact: true }).first()).toBeVisible(
+				{ timeout: 10000 },
+			);
+		}
 
-		// Verify the Board tab has aria-selected="true"
-		const boardTab = page.locator('[role="tab"][aria-selected="true"]');
-		await expect(boardTab).toContainText("Board");
+		// The record with no Status lands in the ungrouped column.
+		await expect(page.getByText("Board Card").first()).toBeVisible({
+			timeout: 10000,
+		});
 	});
 
 	test("switching between board and table views works", async ({ page }) => {

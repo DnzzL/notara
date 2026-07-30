@@ -482,7 +482,7 @@ export function BoardView({
 			onDragOver={handleDragOver}
 			onDragEnd={handleDragEnd}
 		>
-			<div className="w-full">
+			<div className="w-full" data-database-view>
 				<div className="flex gap-1.5 mb-2.5 items-center flex-wrap py-1">
 					<ViewSwitcher
 						databaseId={database.id}

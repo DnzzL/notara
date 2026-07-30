@@ -6,5 +6,7 @@
 		"lib": ["ES2022", "DOM", "DOM.Iterable"],
 		"types": ["bun"]
 	},
-	"include": ["packages/*/test", "e2e"]
+	// packages/*/src/**/*.test.ts is excluded from the server build so it is not
+	// emitted to dist; it still needs typechecking, so it is picked up here.
+	"include": ["packages/*/test", "packages/*/src/**/*.test.ts", "e2e"]
 }

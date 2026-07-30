@@ -7,5 +7,9 @@
 		// the bun:sqlite / bun:test module declarations don't resolve.
 		"types": ["bun"]
 	},
-	"include": ["src"]
+	"include": ["src"],
+	// Tests live alongside the code they cover. Without this they are emitted to
+	// dist/, where `bun test` discovers the compiled copies too and runs every
+	// src-side test twice (172 -> 223), as well as shipping them in the build.
+	"exclude": ["src/**/*.test.ts"]
 }

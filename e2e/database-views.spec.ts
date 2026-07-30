@@ -1,5 +1,5 @@
 import { expect, test } from "@playwright/test";
-import { createPage, gotoApp, openSlashMenu } from "./helpers.js";
+import { addField, createPage, gotoApp, insertDatabase } from "./helpers.js";
 
 /**
  * Database View Regression Specs
@@ -21,51 +21,22 @@ test.describe("Database Views", () => {
 	 * records so the Calendar view is meaningful.
 	 */
 	const createDatabaseWithDateField = async (page: any) => {
-		const editor = await createPage(
-			page,
-			`Calendar Test ${Date.now().toString(36)}`,
-		);
+		const editor = await createPage(page, "Calendar Test");
+		await insertDatabase(page, editor);
 
-		// Open slash menu and insert Database
-		await openSlashMenu(page, editor);
-		await page.locator("button").filter({ hasText: "Database" }).click();
+		// The Calendar view only renders a month grid once a date field exists.
+		await addField(page, "Event Date", "Date");
 
-		// Wait for the database table to render
-		await page
-			.locator("table.w-full")
-			.waitFor({ state: "visible", timeout: 10000 });
+		// Add a record. "+ New record" opens the RecordPanel drawer.
+		await page.getByText("+ New record").click();
+		const recordTitleInput = page.locator('input[name="record-title"]').first();
+		await expect(recordTitleInput).toBeVisible({ timeout: 10000 });
+		await recordTitleInput.fill("Test Event");
+		await recordTitleInput.press("Enter");
 
-		// Add a Date field via the "+" add-property button
-		const addFieldBtn = page.locator('button[title="Add property"]');
-		await addFieldBtn.click();
-
-		// Look for the AddFieldPopover — it has a type selector and name input
-		const fieldNameInput = page.locator('input[placeholder="Field name"]');
-		if (await fieldNameInput.isVisible({ timeout: 3000 }).catch(() => false)) {
-			await fieldNameInput.fill("Event Date");
-			// Change type to "date" — there's a type selector somewhere in the popover
-			const typeSelect = page
-				.locator("select")
-				.filter({ hasText: /text|number|select/i })
-				.first();
-			if (await typeSelect.isVisible()) {
-				await typeSelect.selectOption("date");
-			}
-			await fieldNameInput.blur();
-		}
-
-		// Add a record via the "+ New record" button
-		const newRecordBtn = page.getByText("+ New record");
-		await newRecordBtn.click();
-
-		// If a record panel opens, fill the title
-		const recordTitleInput = page.locator('input[name="record-title"]');
-		if (
-			await recordTitleInput.isVisible({ timeout: 3000 }).catch(() => false)
-		) {
-			await recordTitleInput.fill("Test Event");
-			await recordTitleInput.press("Enter");
-		}
+		// Close the drawer — it overlays the view tabs.
+		await page.keyboard.press("Escape");
+		await expect(recordTitleInput).toBeHidden({ timeout: 10000 });
 	};
 
 	test("CR-1: Board → Calendar switching persists (does not revert to Board)", async ({
@@ -113,41 +84,25 @@ test.describe("Database Views", () => {
 		await calendarTab.click();
 		await page.waitForTimeout(1000);
 
-		// The Calendar view shows the current month in a header (e.g. "June 2026")
-		// and prev/next buttons with "‹" and "›" text
-		const monthLabel = page.locator("text=June|July|August|January").first();
+		// The header renders "<Month> <year>" between the ‹ and › buttons.
+		const monthLabel = page.getByText(/^[A-Z][a-z]+ \d{4}$/).first();
+		await expect(monthLabel).toBeVisible({ timeout: 10000 });
 
-		// If the calendar has no date field, it shows a message — skip if so
-		const noDateFieldMsg = page.getByText(
-			"Add a Date field to use the calendar view",
-		);
-		if (await noDateFieldMsg.isVisible({ timeout: 2000 }).catch(() => false)) {
-			test.skip();
-			return;
-		}
+		const initial = await monthLabel.textContent();
+		if (!initial) throw new Error("month label empty");
 
-		// Capture the current month text
-		const currentMonthText = await monthLabel.textContent();
+		// Next moves forward a month.
+		await page.getByRole("button", { name: "›" }).click();
+		await expect(monthLabel).not.toHaveText(initial, { timeout: 5000 });
+		const next = await monthLabel.textContent();
 
-		// Click "next" (›) button
-		const nextBtn = page.locator("button").filter({ hasText: "›" });
-		await nextBtn.click();
-		await page.waitForTimeout(500);
+		// Prev twice lands one month before where we started.
+		await page.getByRole("button", { name: "‹" }).click();
+		await expect(monthLabel).toHaveText(initial, { timeout: 5000 });
+		await page.getByRole("button", { name: "‹" }).click();
 
-		// The month label should have changed
-		const newMonthText = await monthLabel.textContent();
-		expect(newMonthText).not.toBe(currentMonthText);
-
-		// Click "prev" (‹) button twice to go back one month
-		const prevBtn = page.locator("button").filter({ hasText: "‹" });
-		await prevBtn.click();
-		await page.waitForTimeout(500);
-		await prevBtn.click();
-		await page.waitForTimeout(500);
-
-		// We should be one month before the original
-		const finalMonthText = await monthLabel.textContent();
-		expect(finalMonthText).not.toBe(newMonthText);
+		await expect(monthLabel).not.toHaveText(initial, { timeout: 5000 });
+		await expect(monthLabel).not.toHaveText(next as string);
 	});
 
 	test("CR-3: '+' on a day creates a record dialog", async ({ page }) => {
@@ -159,15 +114,6 @@ test.describe("Database Views", () => {
 			.filter({ hasText: "Calendar" });
 		await calendarTab.click();
 		await page.waitForTimeout(1000);
-
-		// If the calendar has no date field, skip
-		const noDateFieldMsg = page.getByText(
-			"Add a Date field to use the calendar view",
-		);
-		if (await noDateFieldMsg.isVisible({ timeout: 2000 }).catch(() => false)) {
-			test.skip();
-			return;
-		}
 
 		// Click the "+" button on a day cell — it appears on hover
 		// Each day cell has a "+" button with title "Add record"
