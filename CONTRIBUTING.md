@@ -58,29 +58,13 @@ style rather than reformatting adjacent code.
 
 ## Performance gates
 
-Run before merging to catch regressions. Each check has a `bun run` script:
+Run before merging to catch regressions: `bun run pre-merge`
 
 **Bundle-size** (`bash scripts/check-bundle-size.sh`, `bun run check-bundle-size`)
 
 - Builds packages/app (Vite) + packages/shared (tsc) and compares output sizes
   against the baseline in `.github/bundle-sizes.json`.
 - Fails if any tracked file grows by more than **10%** (configurable as first arg).
-- Run locally: `bun run check-bundle-size`
 - Update baseline: rebuild and overwrite `.github/bundle-sizes.json`.
-
-**Lighthouse CI** (`lhci autorun` via `.lighthorserc.json`)
-
-- Audits `/`, `/login`, and `/workspaces` for performance, accessibility, best
-  practices, and SEO.
-- Thresholds: performance ≥0.6, a11y ≥0.8, best-practices ≥0.8, SEO ≥0.8.
-- Also enforces resource budgets (total <3 MB, script <1 MB, etc.).
-- Reports saved to `test-results/lighthouse/`.
-
-**Render-bench / Playwright performance tests** (`bun run perf`)
-
-- E2E tests in `e2e/performance-regression.spec.ts` measure critical rendering
-  paths against a running dev server.
-- Current thresholds: sidebar render <2 s, editor load <3 s.
-- Thresholds live inline in the test file; adjust as baseline renders improve.
 
 Be kind; assume good intent. Reviews are about the change, not the person.
