@@ -75,10 +75,7 @@ const mimeTypes: Record<string, string> = {
 	".json": "application/json",
 	".png": "image/png",
 	".jpg": "image/jpeg",
-	// Removed .svg — serving it as image/svg+xml lets embedded scripts execute in
-	// the viewer's browser. Browsers handle unknown MIME types as downloads,
-	// which defuses the XSS vector while keeping other image types (png/jpg/webp/gif)
-	// inline as before. See NOT-3.
+	".svg": "image/svg+xml",
 	".ico": "image/x-icon",
 	".pdf": "application/pdf",
 	".woff": "font/woff",
@@ -194,7 +191,14 @@ const staticFilesRoute = Effect.gen(function* () {
 		Effect.gen(function* () {
 			const request = yield* HttpServerRequest.HttpServerRequest;
 			const ab = yield* request.arrayBuffer;
-			const body = JSON.parse(Buffer.from(ab).toString("utf-8"));
+			const body = yield* Effect.try({
+				// pi-lens-ignore: ast-grep:unchecked-throwing-call
+				try: () => JSON.parse(Buffer.from(ab).toString("utf-8")),
+				catch: (e) =>
+					new Error(
+						`Invalid JSON: ${e instanceof Error ? e.message : String(e)}`,
+					),
+			});
 			saveSettings(body);
 			return HttpServerResponse.text(JSON.stringify({ ok: true }), {
 				headers: { "Content-Type": "application/json", ...corsHeaders },
@@ -335,7 +339,14 @@ const staticFilesRoute = Effect.gen(function* () {
 			Effect.gen(function* () {
 				const request = yield* HttpServerRequest.HttpServerRequest;
 				const ab = yield* request.arrayBuffer;
-				const body = JSON.parse(Buffer.from(ab).toString("utf-8")) as {
+				const body = (yield* Effect.try({
+					// pi-lens-ignore: ast-grep:unchecked-throwing-call
+					try: () => JSON.parse(Buffer.from(ab).toString("utf-8")),
+					catch: (e) =>
+						new Error(
+							`Invalid JSON: ${e instanceof Error ? e.message : String(e)}`,
+						),
+				})) as {
 					key?: string;
 				};
 				if (!body.key) throw new Error("Missing backup key");

@@ -112,9 +112,8 @@ export async function runSlashCommand(page: Page, name: string) {
 /**
  * Add a property to the open database table.
  *
- * The popover is name-then-type-then-Create. Pressing Enter in the name field
- * submits immediately with the default "text" type, so the type must be picked
- * before committing.
+ * The popover is name-then-type-then-Create. Fills the name, picks the type,
+ * adds any options, then clicks the Create button.
  */
 export async function addField(
 	page: Page,
@@ -138,17 +137,11 @@ export async function addField(
 		await optionInput.press("Enter");
 	}
 
-	// Submit via the name field rather than the Create button: the popover is
-	// position:fixed below its trigger, so once options push it taller the
-	// button lands outside the viewport and can never be clicked.
-	//
-	// handleCreate bails on an empty name, and Enter can land before React has
-	// committed the fill — so confirm the value, then retry until it takes.
-	await expect(nameInput).toHaveValue(name);
-	await expect(async () => {
-		await nameInput.press("Enter");
-		await expect(popover).toBeHidden({ timeout: 2000 });
-	}).toPass({ timeout: 15000 });
+	// Click Create — the Popover now repositions via ResizeObserver if content
+	// grows, so the button is always in the viewport.
+	const createBtn = popover.getByRole("button", { name: "Create" });
+	await expect(createBtn).toBeVisible({ timeout: 5000 });
+	await createBtn.click();
 	await expect(popover).toBeHidden({ timeout: 10000 });
 
 	// The new column header appears once the field is persisted.

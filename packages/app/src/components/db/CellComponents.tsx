@@ -70,6 +70,28 @@ function useAutocomplete<T>(
 	return { activeIndex, setActiveIndex, handleKeyDown };
 }
 
+// ── Positioning helpers ────────────────────────────────────────────────────
+
+function calcPopoverPosition(
+	triggerRect: DOMRect,
+	elWidth: number,
+	elHeight: number,
+): { top: number; left: number } {
+	const vw = window.innerWidth;
+	const vh = window.innerHeight;
+	const margin = 8;
+
+	let top = triggerRect.bottom + margin;
+	if (top + elHeight > vh - margin) top = triggerRect.top - elHeight - margin;
+	if (top < margin) top = margin;
+
+	let left = triggerRect.left;
+	if (left + elWidth > vw - margin) left = triggerRect.right - elWidth;
+	if (left < margin) left = margin;
+
+	return { top, left };
+}
+
 // ── Auto-positioned Popover ───────────────────────────────────────────────
 
 export function Popover({
@@ -89,6 +111,9 @@ export function Popover({
 		left: 0,
 	});
 
+	// Initial measurement + position when triggerRect changes.
+	// Uses a hide-measure-restore cycle to read natural dimensions before
+	// the element is styled with the computed position.
 	useEffect(() => {
 		if (!triggerRect || !ref.current) return;
 		const el = ref.current;
@@ -99,20 +124,38 @@ export function Popover({
 		el.style.display = "";
 		el.style.visibility = "";
 
-		const vw = window.innerWidth;
-		const vh = window.innerHeight;
-		const margin = 8;
-
-		let top = triggerRect.bottom + margin;
-		if (top + h > vh - margin) top = triggerRect.top - h - margin;
-		if (top < margin) top = margin;
-
-		let left = triggerRect.left;
-		if (left + w > vw - margin) left = triggerRect.right - w;
-		if (left < margin) left = margin;
-
-		setPos({ top, left });
+		setPos(calcPopoverPosition(triggerRect, w, h));
 	}, [triggerRect]);
+
+	// ResizeObserver: reposition whenever the popover content grows or shrinks
+	// (e.g. options added, "Show advanced" toggled, async DB list loaded).
+	// Uses a ref-based copy of triggerRect so the RO callback reads the latest
+	// value even if the component re-renders without triggerRect reference
+	// changing (which is the common case — content grows without the anchor
+	// moving).
+	const triggerRectRef = useRef(triggerRect);
+	triggerRectRef.current = triggerRect;
+
+	useEffect(() => {
+		const el = ref.current;
+		if (!el || !triggerRectRef.current) return;
+		const ro = new ResizeObserver(() => {
+			const tr = triggerRectRef.current;
+			const currentEl = ref.current;
+			if (!tr || !currentEl) return;
+			setPos((prev) => {
+				const next = calcPopoverPosition(
+					tr,
+					currentEl.offsetWidth,
+					currentEl.offsetHeight,
+				);
+				if (prev.top === next.top && prev.left === next.left) return prev;
+				return next;
+			});
+		});
+		ro.observe(el);
+		return () => ro.disconnect();
+	}, []);
 
 	useEffect(() => {
 		if (!triggerRect) return;
@@ -178,14 +221,14 @@ export function CellAnchoredPopover({
 	const popRef = useRef<HTMLDivElement>(null);
 	const [pos, setPos] = useState<{ top: number; left: number } | null>(null);
 
-	useLayoutEffect(() => {
+	const calcAnchoredPos = useCallback(() => {
 		const anchor = anchorRef.current;
 		const pop = popRef.current;
-		if (!anchor || !pop) return;
+		if (!anchor || !pop) return null;
 		const cell = anchor.closest(
 			".db-cell, .record-panel-prop-value",
 		) as HTMLElement | null;
-		if (!cell) return;
+		if (!cell) return null;
 		const cellRect = cell.getBoundingClientRect();
 		const popRect = pop.getBoundingClientRect();
 		const margin = 6;
@@ -197,8 +240,29 @@ export function CellAnchoredPopover({
 		let left = cellRect.left;
 		if (left + popRect.width > vw - margin) left = vw - margin - popRect.width;
 		if (left < margin) left = margin;
-		setPos({ top, left });
+		return { top, left };
 	}, []);
+
+	useLayoutEffect(() => {
+		const p = calcAnchoredPos();
+		if (p) setPos(p);
+	}, [calcAnchoredPos]);
+
+	// ResizeObserver: reposition content growth/shrinkage in the popover
+	useEffect(() => {
+		const el = popRef.current;
+		if (!el) return;
+		const ro = new ResizeObserver(() => {
+			const p = calcAnchoredPos();
+			if (!p) return;
+			setPos((prev) => {
+				if (prev && prev.top === p.top && prev.left === p.left) return prev;
+				return p;
+			});
+		});
+		ro.observe(el);
+		return () => ro.disconnect();
+	}, [calcAnchoredPos]);
 
 	useEffect(() => {
 		const onDown = (e: MouseEvent) => {
