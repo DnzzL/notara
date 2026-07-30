@@ -2,10 +2,15 @@ import { defineConfig, devices } from "@playwright/test";
 
 export default defineConfig({
   testDir: "./e2e",
-  fullyParallel: true,
+  // Every spec shares one auth session and one workspace, and the app pushes
+  // live-collab updates between sessions — so concurrent workers mutate each
+  // other's view (pages created by one worker re-render another's sidebar and
+  // can navigate it away mid-test). Serial until each worker gets its own
+  // workspace.
+  fullyParallel: false,
   forbidOnly: !!process.env.CI,
   retries: process.env.CI ? 2 : 0,
-  workers: process.env.CI ? 1 : undefined,
+  workers: 1,
   reporter: "list",
   use: {
     baseURL: "http://localhost:5173",

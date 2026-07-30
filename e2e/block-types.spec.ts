@@ -1,4 +1,5 @@
 import { expect, test } from "@playwright/test";
+import { createPage, gotoApp, openSlashMenu } from "./helpers.js";
 
 /**
  * Block Types via Slash Menu
@@ -9,43 +10,18 @@ import { expect, test } from "@playwright/test";
 
 test.describe("Block Types via Slash Menu", () => {
 	test.beforeEach(async ({ page }) => {
-		await page.goto("/");
-		await page
-			.locator("[data-sidebar]")
-			.waitFor({ state: "visible", timeout: 15000 });
+		await gotoApp(page);
 	});
 
-	const createPage = async (page: any, name: string) => {
-		await page.locator("[data-new-page]").click();
-		const titleInput = page.locator('input[name="page-title"]');
-		await titleInput.fill(name);
-		await titleInput.press("Enter");
-		await page
-			.locator(".ProseMirror")
-			.waitFor({ state: "visible", timeout: 5000 });
-	};
-
-	const openSlashMenu = async (page: any) => {
-		const editor = page.locator(".ProseMirror");
-		await editor.click();
-		await editor.press("Home");
-		await editor.press("/");
-		// Wait for the slash menu to appear — it's a floating div with "Blocks" text
-		await page
-			.locator("text=Blocks")
-			.first()
-			.waitFor({ state: "visible", timeout: 3000 });
-	};
-
 	const getEditorHtml = async (page: any): Promise<string> => {
-		const editor = page.locator(".ProseMirror");
+		const editor = page.locator(".ProseMirror").first();
 		return await editor.evaluate((el: HTMLElement) => el.innerHTML);
 	};
 
 	test("slash menu shows all block types", async ({ page }) => {
 		const testId = Date.now().toString(36);
 		await createPage(page, `Block Types List ${testId}`);
-		const editor = page.locator(".ProseMirror");
+		const editor = page.locator(".ProseMirror").first();
 		await editor.click();
 		await editor.press("Home");
 		await editor.press("/");
@@ -68,7 +44,7 @@ test.describe("Block Types via Slash Menu", () => {
 		await page.locator("button").filter({ hasText: "Heading 1" }).click();
 		await page.waitForTimeout(500);
 
-		const editor = page.locator(".ProseMirror");
+		const editor = page.locator(".ProseMirror").first();
 		await editor.fill("My Heading");
 		await page.waitForTimeout(500);
 
@@ -84,7 +60,7 @@ test.describe("Block Types via Slash Menu", () => {
 		await page.locator("button").filter({ hasText: "Quote" }).click();
 		await page.waitForTimeout(500);
 
-		const editor = page.locator(".ProseMirror");
+		const editor = page.locator(".ProseMirror").first();
 		await editor.fill("This is a quote");
 		await page.waitForTimeout(500);
 
@@ -111,7 +87,7 @@ test.describe("Block Types via Slash Menu", () => {
 		await page.locator("button").filter({ hasText: "Todo List" }).click();
 		await page.waitForTimeout(500);
 
-		const editor = page.locator(".ProseMirror");
+		const editor = page.locator(".ProseMirror").first();
 		await editor.fill("My task");
 		await page.waitForTimeout(500);
 
@@ -138,7 +114,7 @@ test.describe("Block Types via Slash Menu", () => {
 		await page.locator("button").filter({ hasText: "Code Block" }).click();
 		await page.waitForTimeout(500);
 
-		const editor = page.locator(".ProseMirror");
+		const editor = page.locator(".ProseMirror").first();
 		await editor.fill("console.log('hello')");
 		await page.waitForTimeout(500);
 
@@ -151,7 +127,7 @@ test.describe("Block Types via Slash Menu", () => {
 	test("slash menu filters by query", async ({ page }) => {
 		const testId = Date.now().toString(36);
 		await createPage(page, `Filter Test ${testId}`);
-		const editor = page.locator(".ProseMirror");
+		const editor = page.locator(".ProseMirror").first();
 		await editor.click();
 		await editor.press("Home");
 		await editor.press("/");

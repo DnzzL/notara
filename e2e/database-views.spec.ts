@@ -1,4 +1,5 @@
 import { expect, test } from "@playwright/test";
+import { createPage, gotoApp, openSlashMenu } from "./helpers.js";
 
 /**
  * Database View Regression Specs
@@ -12,10 +13,7 @@ import { expect, test } from "@playwright/test";
 
 test.describe("Database Views", () => {
 	test.beforeEach(async ({ page }) => {
-		await page.goto("/");
-		await page
-			.locator("[data-sidebar]")
-			.waitFor({ state: "visible", timeout: 15000 });
+		await gotoApp(page);
 	});
 
 	/**
@@ -23,22 +21,13 @@ test.describe("Database Views", () => {
 	 * records so the Calendar view is meaningful.
 	 */
 	const createDatabaseWithDateField = async (page: any) => {
-		// Create a new page
-		await page.locator("[data-new-page]").click();
-		const titleInput = page.locator('input[name="page-title"]');
-		await titleInput.fill(`Calendar Test ${Date.now().toString(36)}`);
-		await titleInput.press("Enter");
-		const editor = page.locator(".ProseMirror");
-		await editor.waitFor({ state: "visible", timeout: 5000 });
+		const editor = await createPage(
+			page,
+			`Calendar Test ${Date.now().toString(36)}`,
+		);
 
 		// Open slash menu and insert Database
-		await editor.click();
-		await editor.press("Home");
-		await editor.press("/");
-		await page
-			.locator("text=Blocks")
-			.first()
-			.waitFor({ state: "visible", timeout: 3000 });
+		await openSlashMenu(page, editor);
 		await page.locator("button").filter({ hasText: "Database" }).click();
 
 		// Wait for the database table to render
