@@ -1,0 +1,39 @@
+name: ci
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+# One run per ref: a new push supersedes the in-flight run instead of queueing another.
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+      - uses: oven-sh/setup-bun@v2
+
+      # --ignore-scripts skips postinstall (simple-git-hooks is a local-dev concern);
+      # the msgpackr patch still has to be applied explicitly.
+      - run: bun install --frozen-lockfile --ignore-scripts
+      - run: bun run apply-patches
+
+      # @notara/shared is consumed as built output by app and server.
+      - run: bun run --filter @notara/shared build
+
+      - name: typecheck (src)
+        run: bun typecheck
+      - name: typecheck (tests + e2e)
+        run: bunx tsc --noEmit -p tsconfig.tests.json
+
+      - name: lint
+        run: bunx biome ci packages/ e2e/
+      - name: effect error channels
+        run: bash scripts/check-effect-errors.sh
+
+      - name: test
+        run: bun run test

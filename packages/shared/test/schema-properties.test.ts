@@ -6,7 +6,8 @@ import { Block, DatabaseField, DatabaseView, Page } from "../src/schema.js";
 // ── Arbitraries ──────────────────────────────────────────────────────────
 
 const ulidArb = fc.string({ minLength: 10, maxLength: 30 });
-const isoDateArb = fc.date().map((d) => d.toISOString());
+// noInvalidDate: fc.date() otherwise yields Invalid Date, and toISOString() throws on it.
+const isoDateArb = fc.date({ noInvalidDate: true }).map((d) => d.toISOString());
 
 const blockTypeArb = fc.constantFrom(
 	"paragraph",

@@ -2,7 +2,10 @@
 	"extends": "../../tsconfig.base.json",
 	"compilerOptions": {
 		"outDir": "dist",
-		"rootDir": "src"
+		"rootDir": "src",
+		// TS7 no longer auto-discovers @types from nested node_modules; without this
+		// the bun:sqlite / bun:test module declarations don't resolve.
+		"types": ["bun"]
 	},
 	"include": ["src"]
 }

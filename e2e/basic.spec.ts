@@ -116,7 +116,7 @@ test.describe("Basic User Stories", () => {
 
 		// Click Database
 		await page.locator("button").filter({ hasText: "Database" }).click();
-		await page.locator("table.w-full").toBeVisible({ timeout: 10000 });
+		await expect(page.locator("table.w-full")).toBeVisible({ timeout: 10000 });
 
 		// Click the "+" add-field button (in the table header)
 		const addFieldBtn = page.locator('button[title="Add property"]');
