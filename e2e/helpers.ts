@@ -128,7 +128,17 @@ export async function addField(
 
 	const nameInput = popover.locator('input[name="new-property-name"]');
 	await nameInput.fill(name);
-	await popover.getByText(typeLabel, { exact: true }).click();
+
+	// Basic types are always visible. Advanced types (Multi-select, Relation,
+	// Formula, People, Page link) require clicking "Show advanced" first.
+	const typeOpt = popover.getByText(typeLabel, { exact: true });
+	try {
+		await typeOpt.click({ timeout: 1000 });
+	} catch {
+		await popover.getByText("Show advanced").click();
+		await page.waitForTimeout(200);
+		await typeOpt.click({ timeout: 3000 });
+	}
 
 	// Select/multi-select reveal an option editor; each Enter commits one option.
 	for (const option of options) {

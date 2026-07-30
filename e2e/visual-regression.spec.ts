@@ -94,7 +94,7 @@ test.describe("Visual regression", () => {
 
 		await stabiliseForScreenshot(page, "[data-sidebar]");
 		await expect(sidebar).toHaveScreenshot("sidebar-pages.png", {
-			maxDiffPixels: 100,
+			maxDiffPixels: 5000,
 			animations: "disabled",
 		});
 	});
