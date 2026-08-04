@@ -1,6 +1,7 @@
 import { createRoute, redirect, useParams } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
 import { BlockEditor } from "../components/BlockEditor.js";
+import { DemoBanner } from "../components/DemoBanner.js";
 import { KeyboardShortcuts } from "../components/KeyboardShortcuts.js";
 import { OnboardingTour } from "../components/OnboardingTour.js";
 import { SearchModal } from "../components/SearchModal.js";
@@ -52,6 +53,7 @@ function HamburgerIcon() {
 function WorkspaceLayout() {
 	const loadPages = usePageStore((s) => s.loadPages);
 	const { workspaceSlug } = useParams({ from: "/$workspaceSlug" });
+	const { workspace } = Route.useRouteContext();
 	const [sidebarOpen, setSidebarOpen] = useState(false);
 	const [tourStartKey, setTourStartKey] = useState(0);
 	const closeSidebar = () => setSidebarOpen(false);
@@ -133,6 +135,8 @@ function WorkspaceLayout() {
 					minWidth: 0,
 				}}
 			>
+				{workspace.isDemo && <DemoBanner />}
+
 				{/* Mobile topbar */}
 				<div className="mobile-topbar">
 					<button

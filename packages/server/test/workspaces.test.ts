@@ -229,4 +229,82 @@ describe("Workspaces", () => {
 
 		expect(result._tag).toBe("Failure");
 	});
+
+	describe("startDemo", () => {
+		afterEach(() => {
+			delete process.env.DEMO_MODE;
+		});
+
+		test("is rejected when DEMO_MODE is off", async () => {
+			const result = await Workspaces.startDemo("visitor-1").pipe(
+				Effect.provide(makeLayer(db)),
+				Effect.runPromiseExit,
+			);
+
+			expect(result._tag).toBe("Failure");
+			expect(db.prepare("SELECT COUNT(*) AS n FROM workspaces").get()).toEqual({
+				n: 0,
+			});
+		});
+
+		test("creates a demo workspace with a lowercased slug and owner membership", async () => {
+			process.env.DEMO_MODE = "true";
+
+			const { workspace, created } = await Workspaces.startDemo(
+				"visitor-2",
+			).pipe(Effect.provide(makeLayer(db)), Effect.runPromise);
+
+			expect(created).toBe(true);
+			expect(workspace.isDemo).toBe(true);
+			expect(workspace.slug).toBe(workspace.slug.toLowerCase());
+			expect(workspace.slug.startsWith("demo-")).toBe(true);
+			expect(
+				db
+					.prepare(
+						"SELECT role FROM workspace_members WHERE workspace_id = ? AND user_id = ?",
+					)
+					.get(workspace.id, "visitor-2"),
+			).toEqual({ role: "owner" });
+		});
+
+		test("is idempotent per user: a second call returns the same workspace", async () => {
+			process.env.DEMO_MODE = "true";
+
+			const first = await Workspaces.startDemo("visitor-3").pipe(
+				Effect.provide(makeLayer(db)),
+				Effect.runPromise,
+			);
+			const second = await Workspaces.startDemo("visitor-3").pipe(
+				Effect.provide(makeLayer(db)),
+				Effect.runPromise,
+			);
+
+			expect(second.created).toBe(false);
+			expect(second.workspace.id).toBe(first.workspace.id);
+			expect(db.prepare("SELECT COUNT(*) AS n FROM workspaces").get()).toEqual({
+				n: 1,
+			});
+		});
+
+		test("getMyWorkspaces surfaces isDemo per workspace", async () => {
+			process.env.DEMO_MODE = "true";
+			const demo = await Workspaces.startDemo("visitor-4").pipe(
+				Effect.provide(makeLayer(db)),
+				Effect.runPromise,
+			);
+			const real = await Workspaces.createWorkspace({
+				userId: "visitor-4",
+				name: "Real",
+				slug: "real",
+			}).pipe(Effect.provide(makeLayer(db)), Effect.runPromise);
+
+			const mine = await Workspaces.getMyWorkspaces("visitor-4").pipe(
+				Effect.provide(makeLayer(db)),
+				Effect.runPromise,
+			);
+
+			expect(mine.find((w) => w.id === demo.workspace.id)?.isDemo).toBe(true);
+			expect(mine.find((w) => w.id === real.id)?.isDemo).toBe(false);
+		});
+	});
 });

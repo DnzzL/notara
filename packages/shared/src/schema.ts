@@ -172,6 +172,7 @@ export class Workspace extends Schema.Class<Workspace>("Workspace")({
 	slug: Schema.String,
 	role: Schema.Literal("owner", "member"),
 	inviteToken: Schema.NullOr(Schema.String),
+	isDemo: Schema.Boolean,
 }) {}
 
 export class WorkspaceMember extends Schema.Class<WorkspaceMember>(

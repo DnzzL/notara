@@ -746,6 +746,20 @@ export const rpcHandlersLayer = AppRpc.toLayer({
 				inviteToken,
 			});
 		}).pipe(Effect.orDie),
+	startDemo: () =>
+		Effect.gen(function* () {
+			const user = yield* getSessionUser;
+			const { workspace, created } = yield* Workspaces.startDemo(user.id);
+			if (created) {
+				// Same tolerant seeding as createWorkspace: an unseeded demo is still usable.
+				yield* Onboarding.seedStarterContent(workspace.id).pipe(
+					Effect.catchAll((err) =>
+						Effect.logError("seedStarterContent failed", err),
+					),
+				);
+			}
+			return workspace;
+		}).pipe(Effect.orDie),
 	getWorkspaceMembers: ({ workspaceId }) =>
 		Effect.gen(function* () {
 			yield* requireWorkspaceRole(workspaceId);

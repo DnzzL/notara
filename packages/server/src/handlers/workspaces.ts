@@ -1,6 +1,7 @@
 import { Workspace, WorkspaceMember } from "@notara/shared";
 import { Effect } from "effect";
 import { ulid } from "ulidx";
+import { demoMode } from "../demo.js";
 import { BASE_URL, sendEmail } from "../email.js";
 import { PlatformDb } from "../platform-db.js";
 
@@ -10,6 +11,7 @@ type WorkspaceRow = {
 	slug: string;
 	owner_id: string;
 	invite_token: string;
+	is_demo: number;
 };
 
 const toWorkspace = (row: WorkspaceRow, role: "owner" | "member"): Workspace =>
@@ -19,6 +21,7 @@ const toWorkspace = (row: WorkspaceRow, role: "owner" | "member"): Workspace =>
 		slug: row.slug,
 		role,
 		inviteToken: role === "owner" ? row.invite_token : null,
+		isDemo: row.is_demo === 1,
 	});
 
 export const createWorkspace = (req: {
@@ -51,9 +54,62 @@ export const createWorkspace = (req: {
 				slug: req.slug,
 				owner_id: req.userId,
 				invite_token: inviteToken,
+				is_demo: 0,
 			},
 			"owner",
 		);
+	});
+
+/**
+ * Hosted-demo entry point: hand the (anonymous) caller a throwaway workspace
+ * marked is_demo=1 so the demo purge can reclaim it later. Idempotent per user —
+ * a second call returns the demo workspace the caller already owns instead of
+ * piling up new ones.
+ *
+ * `created` tells the caller whether starter content still needs seeding.
+ */
+export const startDemo = (userId: string) =>
+	Effect.gen(function* () {
+		if (!demoMode()) {
+			return yield* Effect.fail(new Error("Demo mode is not enabled"));
+		}
+		const db = yield* PlatformDb;
+
+		const existing = db
+			.prepare(
+				"SELECT * FROM workspaces WHERE owner_id = ? AND is_demo = 1 ORDER BY created_at ASC LIMIT 1",
+			)
+			.get(userId) as WorkspaceRow | null;
+		if (existing) {
+			return { workspace: toWorkspace(existing, "owner"), created: false };
+		}
+
+		const id = ulid();
+		const inviteToken = ulid();
+		const slug = `demo-${id.toLowerCase()}`;
+		const now = new Date().toISOString();
+
+		db.prepare(
+			"INSERT INTO workspaces (id, name, slug, owner_id, invite_token, created_at, is_demo) VALUES (?, ?, ?, ?, ?, ?, 1)",
+		).run(id, "Demo workspace", slug, userId, inviteToken, now);
+		db.prepare(
+			"INSERT INTO workspace_members (workspace_id, user_id, role, joined_at) VALUES (?, ?, 'owner', ?)",
+		).run(id, userId, now);
+
+		return {
+			workspace: toWorkspace(
+				{
+					id,
+					name: "Demo workspace",
+					slug,
+					owner_id: userId,
+					invite_token: inviteToken,
+					is_demo: 1,
+				},
+				"owner",
+			),
+			created: true,
+		};
 	});
 
 export const getMyWorkspaces = (userId: string) =>

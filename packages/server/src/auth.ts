@@ -1,5 +1,7 @@
 import { betterAuth } from "better-auth";
+import { anonymous } from "better-auth/plugins/anonymous";
 import { BunSqliteDialect } from "kysely-bun-sqlite";
+import { demoMode } from "./demo.js";
 import { BASE_URL, sendEmail } from "./email.js";
 import { track } from "./observability.js";
 import { platformDb } from "./platform-db.js";
@@ -15,7 +17,12 @@ const smtpConfigured = !!(
 	process.env.SMTP_PASS
 );
 
+// Anonymous sign-in exists only for the hosted demo. On a normal install the
+// plugin list is empty, so /sign-in/anonymous is not even routed.
+const plugins = demoMode() ? [anonymous()] : [];
+
 export const auth = betterAuth({
+	plugins,
 	database: {
 		dialect: new BunSqliteDialect({ database: platformDb }),
 		type: "sqlite",
@@ -63,6 +70,9 @@ ${button("Confirm email", url)}
 		user: {
 			create: {
 				after: async (user) => {
+					// Demo visitors are not signups: no funnel event, and no welcome
+					// email to the throwaway address the anonymous plugin invents.
+					if ((user as { isAnonymous?: boolean }).isAnonymous) return;
 					track("signup_completed", user.id, {
 						email_verified: (user as any).emailVerified ?? false,
 					});

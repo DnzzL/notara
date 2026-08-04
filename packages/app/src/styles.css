@@ -881,6 +881,12 @@ select, input, textarea, button { font-family: var(--font-ui); }
 .lp-feat-row code { font-family: var(--font-mono); font-size: 0.86em; background: var(--surface-3); padding: 1px 5px; }
 .lp-feat-row:hover code { background: rgba(255,255,255,0.15); }
 
+/* Temporary demo workspace notice */
+.demo-banner { display: flex; align-items: center; gap: 16px; padding: 10px 18px; background: var(--surface); border-bottom: 1px solid var(--border); font-size: 13px; color: var(--text-2); line-height: 1.5; }
+.demo-banner strong { color: var(--text); font-weight: 600; }
+.demo-banner-dismiss { margin-left: auto; flex-shrink: 0; background: none; border: none; cursor: pointer; color: var(--text-3); font-size: 18px; line-height: 1; padding: 0 4px; }
+.demo-banner-dismiss:hover { color: var(--text); }
+
 /* Consent banner — bottom-anchored, non-modal */
 .consent-banner { position: fixed; left: 0; right: 0; bottom: 0; z-index: 100; background: var(--surface); border-top: 1px solid var(--border); box-shadow: 0 -4px 24px rgba(0,0,0,0.08); animation: consent-rise 240ms var(--ease) both; }
 @keyframes consent-rise { from { transform: translateY(100%); } to { transform: translateY(0); } }

@@ -1,5 +1,13 @@
-import { Link } from "@tanstack/react-router";
+import { Link, useNavigate } from "@tanstack/react-router";
+import { useState } from "react";
 import { capture } from "../analytics.js";
+import { authClient } from "../auth-client.js";
+import { api } from "../rpc-client.js";
+import { toaster } from "../toaster.js";
+
+// Advertise the hosted demo only where one actually runs. Off by default, so a
+// self-hosted build never shows the button.
+const DEMO_MODE = import.meta.env.VITE_DEMO_MODE === "true";
 
 // Public source-available repository. Notara is fair-source (FSL-1.1-ALv2):
 // free to self-host, no purchase step.
@@ -63,6 +71,26 @@ const planFeatures = [
 ];
 
 export function LandingPage() {
+	const navigate = useNavigate();
+	const [startingDemo, setStartingDemo] = useState(false);
+
+	const onTryDemoClick = async () => {
+		setStartingDemo(true);
+		try {
+			capture("demo_started");
+			await authClient.signIn.anonymous();
+			const ws = await api.startDemo();
+			navigate({ to: "/$workspaceSlug", params: { workspaceSlug: ws.slug } });
+		} catch (err: any) {
+			setStartingDemo(false);
+			toaster.create({
+				title: "Could not start the demo",
+				description: err?.message ?? "Please try again in a moment.",
+				type: "error",
+			});
+		}
+	};
+
 	return (
 		<div className="landing">
 			<div className="lp-gridlines" aria-hidden="true" />
@@ -150,6 +178,16 @@ export function LandingPage() {
 								>
 									Get the source →
 								</a>
+								{DEMO_MODE && (
+									<button
+										type="button"
+										className="landing-cta-secondary"
+										onClick={onTryDemoClick}
+										disabled={startingDemo}
+									>
+										{startingDemo ? "Starting demo…" : "Try the live demo →"}
+									</button>
+								)}
 								<a href="#features" className="landing-cta-secondary">
 									See the app →
 								</a>

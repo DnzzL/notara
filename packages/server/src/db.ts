@@ -41,6 +41,23 @@ export class WorkspaceDb extends Context.Tag("WorkspaceDb")<
 
 const workspaceLayerCache = new Map<string, WorkspaceLayer>();
 
+/** Absolute path of a workspace's SQLite file. */
+export const workspaceDbFile = (workspaceId: string) =>
+	path.join(workspacesDir, `${workspaceId}.db`);
+
+/**
+ * Tear a workspace's storage down: drop its cached SQL layer and remove the
+ * SQLite file along with its WAL sidecars. Idempotent — safe to call for a
+ * workspace that was never opened or is already gone.
+ */
+export const deleteWorkspaceDb = (workspaceId: string): void => {
+	workspaceLayerCache.delete(workspaceId);
+	const filename = workspaceDbFile(workspaceId);
+	for (const f of [filename, `${filename}-wal`, `${filename}-shm`]) {
+		fs.rmSync(f, { force: true });
+	}
+};
+
 export const WorkspaceDbLive = Layer.succeed(WorkspaceDb, {
 	getLayer: (workspaceId: string) => {
 		const cached = workspaceLayerCache.get(workspaceId);
@@ -49,7 +66,7 @@ export const WorkspaceDbLive = Layer.succeed(WorkspaceDb, {
 		if (!fs.existsSync(workspacesDir)) {
 			fs.mkdirSync(workspacesDir, { recursive: true });
 		}
-		const filename = path.join(workspacesDir, `${workspaceId}.db`);
+		const filename = workspaceDbFile(workspaceId);
 
 		// Run migrations on first open
 		const migrationsDir = path.join(__dirname, "../migrations");

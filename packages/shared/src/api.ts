@@ -322,6 +322,8 @@ export const AppRpc = RpcGroup.make(
 		payload: { inviteToken: Schema.String },
 		success: Workspace,
 	}),
+	// Hosted-demo entry point. Rejected unless the server runs with DEMO_MODE=true.
+	Rpc.make("startDemo", { success: Workspace }),
 	Rpc.make("getWorkspaceMembers", {
 		payload: { workspaceId: Schema.String },
 		success: Schema.Array(WorkspaceMember),

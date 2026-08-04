@@ -23,6 +23,7 @@ import {
 	WorkspaceDb,
 	WorkspaceDbLive,
 } from "./db.js";
+import { demoMode, startDemoPurge } from "./demo.js";
 import { listBackups, triggerBackup } from "./handlers/backup.js";
 import * as ImportExport from "./handlers/importExport.js";
 import { restoreBackup } from "./handlers/restore.js";
@@ -770,6 +771,7 @@ const program = Effect.gen(function* () {
 	yield* runMigrations;
 	startBackupScheduler();
 	startTrashSweep();
+	if (demoMode()) startDemoPurge();
 	yield* Effect.logInfo(
 		`Server running on http://localhost:${process.env.PORT ?? 3000}`,
 	);

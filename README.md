@@ -251,6 +251,20 @@ PostHog only loads after the user accepts the consent banner (GDPR opt-in). The 
 </details>
 
 <details>
+<summary><strong>Hosted demo mode</strong> (optional, off by default)</summary>
+
+Turns the instance into a public "try it now" demo: visitors get a throwaway workspace with no signup, and it is deleted automatically once it expires.
+
+| Variable | Default | Description |
+|----------|---------|-------------|
+| `DEMO_MODE` | `false` | Set to `true` to enable anonymous sign-in and the demo-purge job. Leave unset for a normal instance. |
+| `DEMO_TTL_HOURS` | `24` | How long a demo workspace lives before it is purged (workspace, its SQLite file, and the anonymous user). |
+| `VITE_DEMO_MODE` | `false` | Build-time Vite var. Set to `true` to show the "Try the live demo" button on the landing page. |
+
+Only enable this on an instance you are happy to have anonymous strangers write to — `DEMO_MODE=true` switches on anonymous authentication. Non-demo workspaces are never touched by the purge.
+</details>
+
+<details>
 <summary><strong>Running behind a reverse proxy</strong></summary>
 
 Set `BASE_URL` and `TRUSTED_ORIGINS` to your public domain.
