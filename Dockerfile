@@ -15,13 +15,17 @@ COPY package.json bun.lock bunfig.toml ./
 COPY packages/shared/package.json ./packages/shared/
 COPY packages/server/package.json ./packages/server/
 COPY packages/app/package.json ./packages/app/
+# The lockfile covers every workspace, so --frozen-lockfile needs all of their
+# manifests present — even the ones this image doesn't build.
+COPY packages/cli/package.json ./packages/cli/
+COPY packages/electron/package.json ./packages/electron/
 
-# Postinstall hook in package.json runs `bash scripts/patch-msgpackr.sh`;
-# the script must exist when `bun install` runs or the install fails 127.
 COPY scripts/ ./scripts/
 
-# Install deps (postinstall now finds the patch script)
-RUN bun install --frozen-lockfile --no-cache
+# --ignore-scripts skips the root postinstall (`npx simple-git-hooks` needs a .git
+# dir that doesn't exist here); the msgpackr patch still has to be applied.
+RUN bun install --frozen-lockfile --no-cache --ignore-scripts
+RUN bun run apply-patches
 
 # Copy source
 COPY packages/shared/tsconfig.json ./packages/shared/
@@ -46,8 +50,8 @@ WORKDIR /app
 
 # Copy runtime node_modules from builder
 COPY --from=builder /app/node_modules ./node_modules
-COPY --from=builder /app/packages/shared/node_modules ./packages/shared/node_modules 2>/dev/null || true
-COPY --from=builder /app/packages/server/node_modules ./packages/server/node_modules 2>/dev/null || true
+COPY --from=builder /app/packages/shared/node_modules ./packages/shared/node_modules
+COPY --from=builder /app/packages/server/node_modules ./packages/server/node_modules
 
 # Copy built artifacts
 COPY --from=builder /app/packages/shared/dist ./packages/shared/dist

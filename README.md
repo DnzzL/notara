@@ -22,6 +22,16 @@ guiding rule is *fewer features, done well* — so the list below is deliberatel
 <img src="packages/app/public/notara-hero-poster.jpg" width="720" alt="Notara" />
 </div>
 
+## Quick start
+
+```bash
+docker run -d --name notara -p 3000:3000 -v notara-data:/data -e BETTER_AUTH_SECRET="$(openssl rand -base64 32)" ghcr.io/dnzzl/notara:latest
+```
+
+Open `http://localhost:3000` and create your account. Your data lives in the
+`notara-data` volume at `/data`. See [Self-host](#self-host) for other ways to run it and
+[Configuration](#configuration) for everything you can set.
+
 ## Features
 
 | | |
@@ -39,8 +49,16 @@ guiding rule is *fewer features, done well* — so the list below is deliberatel
 ## Self-host
 
 Notara is a **single container** with no external services — one SQLite file on a mounted
-volume is the whole database. There's no prebuilt image to trust: every method below
-**builds from the source in this repo**, so you run exactly what you can read.
+volume is the whole database. The published image is built by GitHub Actions from the
+source in this repo and carries a [build provenance
+attestation](https://docs.github.com/actions/security-guides/using-artifact-attestations),
+so you can verify it came from this commit rather than trusting it blindly:
+
+```bash
+gh attestation verify oci://ghcr.io/dnzzl/notara:latest --owner dnzzl
+```
+
+Prefer to build it yourself? Every method below does exactly that.
 
 > **It runs as one instance, on purpose.** The rate limiter and presence state live
 > in-process. Run a single container behind your reverse proxy and scale *up* (a bigger
