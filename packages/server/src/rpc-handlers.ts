@@ -21,9 +21,28 @@ import { track } from "./observability.js";
 import { presence } from "./presence/index.js";
 import {
 	getSessionUser,
+	requireWorkspaceOwner,
+	requireWorkspaceRole,
 	withAuthedWorkspace,
 	withWorkspaceDb,
 } from "./workspace-context.js";
+
+/**
+ * Refusal of a write to a block another user currently holds.
+ *
+ * A plain `Error` does not survive the RPC boundary — Effect.orDie turns it into
+ * a defect that serializes to `{}`, so the client could not tell a lock refusal
+ * from any other failure. A tagged class with an own `message` field crosses
+ * intact (same shape as AuthError), which is what the editor's
+ * "<name> is editing this block" toast keys off.
+ */
+class BlockLockedError {
+	readonly _tag = "BlockLockedError";
+	readonly message: string;
+	constructor(readonly holderUserId: string) {
+		this.message = `BlockLocked:${holderUserId}`;
+	}
+}
 
 export const rpcHandlersLayer = AppRpc.toLayer({
 	listPages: () =>
@@ -182,7 +201,7 @@ export const rpcHandlersLayer = AppRpc.toLayer({
 				if (pageId) {
 					const holder = presence.lockHolder(workspaceId, pageId, req.id);
 					if (holder && holder !== userId) {
-						return yield* Effect.fail(new Error(`BlockLocked:${holder}`));
+						return yield* Effect.fail(new BlockLockedError(holder));
 					}
 				}
 				const block = yield* Blocks.updateBlock(req);
@@ -210,7 +229,7 @@ export const rpcHandlersLayer = AppRpc.toLayer({
 				if (pageId) {
 					const holder = presence.lockHolder(workspaceId, pageId, id);
 					if (holder && holder !== userId) {
-						return yield* Effect.fail(new Error(`BlockLocked:${holder}`));
+						return yield* Effect.fail(new BlockLockedError(holder));
 					}
 				}
 				const result = yield* Blocks.deleteBlock(id);
@@ -728,11 +747,20 @@ export const rpcHandlersLayer = AppRpc.toLayer({
 			});
 		}).pipe(Effect.orDie),
 	getWorkspaceMembers: ({ workspaceId }) =>
-		Workspaces.getWorkspaceMembers(workspaceId).pipe(Effect.orDie),
+		Effect.gen(function* () {
+			yield* requireWorkspaceRole(workspaceId);
+			return yield* Workspaces.getWorkspaceMembers(workspaceId);
+		}).pipe(Effect.orDie),
 	removeMember: ({ workspaceId, userId }) =>
-		Workspaces.removeMember({ workspaceId, userId }).pipe(Effect.orDie),
+		Effect.gen(function* () {
+			yield* requireWorkspaceOwner(workspaceId);
+			return yield* Workspaces.removeMember({ workspaceId, userId });
+		}).pipe(Effect.orDie),
 	regenerateInviteLink: ({ workspaceId }) =>
-		Workspaces.regenerateInviteLink(workspaceId).pipe(Effect.orDie),
+		Effect.gen(function* () {
+			yield* requireWorkspaceOwner(workspaceId);
+			return yield* Workspaces.regenerateInviteLink(workspaceId);
+		}).pipe(Effect.orDie),
 	inviteMemberByEmail: ({ workspaceId, email }) =>
 		Effect.gen(function* () {
 			yield* getSessionUser;

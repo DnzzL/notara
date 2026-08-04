@@ -36,7 +36,11 @@ import {
 } from "./middleware.js";
 import { LoggerLive, reportError } from "./observability.js";
 import { PlatformDbLive, platformDb } from "./platform-db.js";
-import { makeHeartbeatHandler, makeStreamHandler } from "./presence/routes.js";
+import {
+	leaveHandler,
+	makeHeartbeatHandler,
+	makeStreamHandler,
+} from "./presence/routes.js";
 import { rpcHandlersLayer } from "./rpc-handlers.js";
 import { startTrashSweep } from "./trash-sweeper.js";
 import { makeViewConfigStreamHandler } from "./view-config-stream.js";
@@ -467,6 +471,7 @@ const staticFilesRoute = Effect.gen(function* () {
 		"/api/presence/heartbeat",
 		makeHeartbeatHandler(wdb),
 	);
+	yield* router.add("POST", "/api/presence/leave", leaveHandler);
 	yield* router.add("GET", "/api/presence/stream", makeStreamHandler(wdb));
 
 	// View-config SSE stream — notifies ViewReferenceBlock instances of config changes.

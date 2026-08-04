@@ -29,6 +29,18 @@ export default defineConfig({
         storageState: "playwright/.auth/user.json",
       },
       dependencies: ["setup"],
+      // The multiuser specs build one context per user and must not inherit the
+      // single-user storageState above.
+      testIgnore: /multiuser-.*\.spec\.ts/,
+    },
+    {
+      // Multiuser specs sign up their own users and get a fresh workspace per
+      // test, so they need neither the shared auth session nor the serial
+      // execution the comment above describes.
+      name: "multiuser",
+      testMatch: /multiuser-.*\.spec\.ts/,
+      use: { ...devices["Desktop Chrome"] },
+      fullyParallel: true,
     },
   ],
   webServer: {

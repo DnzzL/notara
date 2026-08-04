@@ -62,6 +62,39 @@ export const getSessionUser = Effect.gen(function* () {
 	return session.user;
 });
 
+/**
+ * Membership check against a workspace id taken from the *request payload*
+ * rather than the X-Workspace-Id header — the workspace-settings screens call
+ * the membership RPCs without that header set.
+ *
+ * Yields the caller's role so owner-only actions can gate on it.
+ */
+export const requireWorkspaceRole = (workspaceId: string) =>
+	Effect.gen(function* () {
+		const user = yield* getSessionUser;
+		const db = yield* PlatformDb;
+		const memberRow = db
+			.prepare(
+				"SELECT role FROM workspace_members WHERE workspace_id = ? AND user_id = ?",
+			)
+			.get(workspaceId, user.id) as { role: "owner" | "member" } | null;
+		if (!memberRow) {
+			return yield* Effect.fail(new AuthError(403, "Not a workspace member"));
+		}
+		return memberRow.role;
+	});
+
+/** Same, but rejects anyone who is not the workspace owner. */
+export const requireWorkspaceOwner = (workspaceId: string) =>
+	Effect.gen(function* () {
+		const role = yield* requireWorkspaceRole(workspaceId);
+		if (role !== "owner") {
+			return yield* Effect.fail(
+				new AuthError(403, "Workspace owner role required"),
+			);
+		}
+	});
+
 /** Resolve workspace DB from X-Workspace-Id header and provide the SqlClient layer. */
 export const withWorkspaceDb = <A, E, R>(inner: Effect.Effect<A, E, R>) =>
 	Effect.gen(function* () {

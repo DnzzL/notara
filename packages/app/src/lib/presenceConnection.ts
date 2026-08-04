@@ -9,8 +9,9 @@
  * No auto-reconnect on auth failure; EventSource handles transient drops automatically.
  */
 
-import type { Block } from "@notara/shared";
+import { type Block, Page } from "@notara/shared";
 import { useBlockStore } from "../stores/blockStore.js";
+import { usePageStore } from "../stores/pageStore.js";
 import { usePresenceStore } from "../stores/presenceStore.js";
 
 type StartArgs = {
@@ -58,11 +59,15 @@ type Connection = {
 	timer: ReturnType<typeof setInterval> | null;
 	focusedBlockId: string | null;
 	stopped: boolean;
+	onPageHide: ((e: PageTransitionEvent) => void) | null;
 };
 
 let active: Connection | null = null;
 
 async function sendHeartbeat(c: Connection) {
+	// A heartbeat that outlives the leave would resurrect us on the page peers
+	// just watched us leave.
+	if (c.stopped) return;
 	try {
 		await fetch("/api/presence/heartbeat", {
 			method: "POST",
@@ -79,6 +84,41 @@ async function sendHeartbeat(c: Connection) {
 	}
 }
 
+/**
+ * Tell the server we are no longer on this page, so peers stop seeing our
+ * avatar. Without this the entry would linger until the presence TTL.
+ *
+ * `keepalive` so the request outlives a document being torn down. Note this
+ * still loses the race against a cross-document navigation (the browser aborts
+ * it); the server's TTL sweep is the backstop for that. navigator.sendBeacon,
+ * the obvious tool here, is aborted in that case too.
+ *
+ * A repeated leave is a no-op server-side, so firing from more than one path is
+ * safe.
+ */
+function sendLeave(c: Connection) {
+	// Silence the heartbeat first, otherwise the interval keeps firing while the
+	// document is torn down and the last one lands after this leave.
+	c.stopped = true;
+	if (c.timer) {
+		clearInterval(c.timer);
+		c.timer = null;
+	}
+	try {
+		void fetch("/api/presence/leave", {
+			method: "POST",
+			keepalive: true,
+			credentials: "same-origin",
+			headers: { "Content-Type": "application/json" },
+			body: JSON.stringify({ workspaceId: c.workspaceId, pageId: c.pageId }),
+		}).catch(() => {
+			// Unreachable server: the presence TTL sweep still expires us.
+		});
+	} catch {
+		// Same.
+	}
+}
+
 export function startPresence(args: StartArgs) {
 	stopPresence();
 	const store = usePresenceStore.getState();
@@ -92,8 +132,19 @@ export function startPresence(args: StartArgs) {
 		timer: null,
 		focusedBlockId: null,
 		stopped: false,
+		onPageHide: null,
 	};
 	active = c;
+
+	// Closing the tab tears the document down without running React cleanup, so
+	// the departure is announced here too. `persisted` means the page is going
+	// into the back/forward cache and may be restored with this connection still
+	// live — leaving then would strand a returning user as invisible to peers,
+	// and the TTL sweep already covers them if they never come back.
+	c.onPageHide = (e: PageTransitionEvent) => {
+		if (!e.persisted) sendLeave(c);
+	};
+	window.addEventListener("pagehide", c.onPageHide);
 
 	// Initial heartbeat populates presence on first tick.
 	void sendHeartbeat(c);
@@ -189,6 +240,19 @@ export function startPresence(args: StartArgs) {
 		>;
 		if (e.actorUserId === args.selfUserId) return;
 		args.onPageMetaUpdated?.(e.fields);
+		// Mirror into the page store like the block events do — the callback alone
+		// left every viewer on the stale title/icon/cover until a reload. The
+		// stream is per-page, so the event applies to args.pageId.
+		const patch = e.fields as Pick<Page, "title" | "icon" | "coverUrl">;
+		usePageStore.setState((s) => ({
+			pages: s.pages.map((p) =>
+				p.id === args.pageId ? new Page({ ...p, ...patch }) : p,
+			),
+			currentPage:
+				s.currentPage?.id === args.pageId
+					? new Page({ ...s.currentPage, ...patch })
+					: s.currentPage,
+		}));
 	});
 }
 
@@ -205,6 +269,9 @@ export function stopPresence() {
 	active.stopped = true;
 	if (active.timer) clearInterval(active.timer);
 	if (active.source) active.source.close();
+	if (active.onPageHide)
+		window.removeEventListener("pagehide", active.onPageHide);
+	sendLeave(active);
 	active = null;
 	usePresenceStore.getState().reset();
 }
