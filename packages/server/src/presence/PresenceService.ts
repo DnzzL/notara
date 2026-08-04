@@ -60,11 +60,15 @@ export function createPresenceService(opts: PresenceServiceOptions = {}) {
 	const lockTtl = opts.lockTtlMs ?? DEFAULT_LOCK_TTL;
 
 	const key = (ws: string, page: string) => `${ws}::${page}`;
-	const entries = new Map<string, Map<string, Entry>>();
+	/** Keyed by `key(ws, page)`; the pair is kept so sweeps can address the page. */
+	const entries = new Map<
+		string,
+		{ ws: string; page: string; users: Map<string, Entry> }
+	>();
 	const subscribers = new Map<string, Set<Subscriber>>();
 
 	function snapshot(ws: string, page: string): UserPresence[] {
-		const pageMap = entries.get(key(ws, page));
+		const pageMap = entries.get(key(ws, page))?.users;
 		if (!pageMap) return [];
 		const t = now();
 		const out: UserPresence[] = [];
@@ -106,11 +110,16 @@ export function createPresenceService(opts: PresenceServiceOptions = {}) {
 			focusedBlockId: string | null;
 		}) {
 			const k = key(input.workspaceId, input.pageId);
-			let pageMap = entries.get(k);
-			if (!pageMap) {
-				pageMap = new Map();
-				entries.set(k, pageMap);
+			let entry = entries.get(k);
+			if (!entry) {
+				entry = {
+					ws: input.workspaceId,
+					page: input.pageId,
+					users: new Map(),
+				};
+				entries.set(k, entry);
 			}
+			const pageMap = entry.users;
 			const t = now();
 			const prev = pageMap.get(input.user.id);
 			const focusChanged =
@@ -144,7 +153,7 @@ export function createPresenceService(opts: PresenceServiceOptions = {}) {
 			pageId: string,
 			blockId: string,
 		): string | null {
-			const pageMap = entries.get(key(workspaceId, pageId));
+			const pageMap = entries.get(key(workspaceId, pageId))?.users;
 			if (!pageMap) return null;
 			const t = now();
 			for (const e of pageMap.values()) {
@@ -182,13 +191,57 @@ export function createPresenceService(opts: PresenceServiceOptions = {}) {
 			emit(workspaceId, pageId, event, actor);
 		},
 
+		/**
+		 * Drop a user from a page and tell whoever is left. Called when the client
+		 * reports it has stopped watching the page. Without this the departing
+		 * user's entry would sit there until the TTL, and nobody would be told.
+		 *
+		 * A user with two tabs on the same page briefly disappears when one
+		 * closes; the surviving tab's next heartbeat (≤5s) puts them back.
+		 */
+		leave(workspaceId: string, pageId: string, userId: string) {
+			const k = key(workspaceId, pageId);
+			const entry = entries.get(k);
+			if (!entry?.users.delete(userId)) return;
+			emit(
+				workspaceId,
+				pageId,
+				{
+					type: "presence.changed",
+					users: snapshot(workspaceId, pageId),
+				},
+				null,
+			);
+			if (entry.users.size === 0) entries.delete(k);
+		},
+
+		/**
+		 * Evict entries whose presence TTL lapsed. Emits per page that lost
+		 * someone so remaining viewers stop showing avatars for users who
+		 * vanished without reporting a departure.
+		 */
 		sweep() {
 			const t = now();
-			for (const [k, pageMap] of entries) {
-				for (const [uid, e] of pageMap) {
-					if (t - e.presenceAt > presenceTtl) pageMap.delete(uid);
+			for (const [k, entry] of entries) {
+				let evicted = false;
+				for (const [uid, e] of entry.users) {
+					if (t - e.presenceAt > presenceTtl) {
+						entry.users.delete(uid);
+						evicted = true;
+					}
 				}
-				if (pageMap.size === 0) entries.delete(k);
+				if (evicted) {
+					emit(
+						entry.ws,
+						entry.page,
+						{
+							type: "presence.changed",
+							users: snapshot(entry.ws, entry.page),
+						},
+						null,
+					);
+				}
+				if (entry.users.size === 0) entries.delete(k);
 			}
 		},
 	};

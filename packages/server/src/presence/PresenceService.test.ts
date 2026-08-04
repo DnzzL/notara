@@ -195,6 +195,117 @@ describe("PresenceService", () => {
 		expect(events).toEqual([]);
 	});
 
+	// ── Leaving and expiring must reach the users who stayed ──────────────────
+	it("leave() removes the user and tells the remaining subscribers", () => {
+		const svc = createPresenceService({ now: clock.now });
+		svc.heartbeat({
+			workspaceId: WS,
+			pageId: PAGE,
+			user: ALICE,
+			focusedBlockId: null,
+		});
+		svc.heartbeat({
+			workspaceId: WS,
+			pageId: PAGE,
+			user: BOB,
+			focusedBlockId: BLOCK_A,
+		});
+
+		const events: PresenceEvent[] = [];
+		svc.subscribe(WS, PAGE, ALICE.id, (e) => events.push(e));
+
+		svc.leave(WS, PAGE, BOB.id);
+
+		expect(svc.presence(WS, PAGE).map((p) => p.userId)).toEqual([ALICE.id]);
+		expect(events).toEqual([
+			{
+				type: "presence.changed",
+				users: [{ userId: ALICE.id, name: ALICE.name, focusedBlockId: null }],
+			},
+		]);
+		// A departing user cannot keep holding a block lock.
+		expect(svc.lockHolder(WS, PAGE, BLOCK_A)).toBeNull();
+	});
+
+	it("leave() is silent when the user was not present on the page", () => {
+		const svc = createPresenceService({ now: clock.now });
+		svc.heartbeat({
+			workspaceId: WS,
+			pageId: PAGE,
+			user: ALICE,
+			focusedBlockId: null,
+		});
+
+		const events: PresenceEvent[] = [];
+		svc.subscribe(WS, PAGE, ALICE.id, (e) => events.push(e));
+
+		svc.leave(WS, PAGE, BOB.id);
+
+		expect(events).toEqual([]);
+	});
+
+	it("sweep() tells the remaining subscribers when it evicts an expired user", () => {
+		const svc = createPresenceService({
+			now: clock.now,
+			presenceTtlMs: 30_000,
+			lockTtlMs: 10_000,
+		});
+		svc.heartbeat({
+			workspaceId: WS,
+			pageId: PAGE,
+			user: ALICE,
+			focusedBlockId: null,
+		});
+		svc.heartbeat({
+			workspaceId: WS,
+			pageId: PAGE,
+			user: BOB,
+			focusedBlockId: null,
+		});
+
+		const events: PresenceEvent[] = [];
+		svc.subscribe(WS, PAGE, ALICE.id, (e) => events.push(e));
+
+		// Alice keeps heartbeating, Bob goes silent past the TTL.
+		clock.advance(31_000);
+		svc.heartbeat({
+			workspaceId: WS,
+			pageId: PAGE,
+			user: ALICE,
+			focusedBlockId: null,
+		});
+		svc.sweep();
+
+		expect(svc.presence(WS, PAGE).map((p) => p.userId)).toEqual([ALICE.id]);
+		expect(events).toEqual([
+			{
+				type: "presence.changed",
+				users: [{ userId: ALICE.id, name: ALICE.name, focusedBlockId: null }],
+			},
+		]);
+	});
+
+	it("sweep() stays quiet when nothing expired", () => {
+		const svc = createPresenceService({
+			now: clock.now,
+			presenceTtlMs: 30_000,
+		});
+		svc.heartbeat({
+			workspaceId: WS,
+			pageId: PAGE,
+			user: ALICE,
+			focusedBlockId: null,
+		});
+
+		const events: PresenceEvent[] = [];
+		svc.subscribe(WS, PAGE, BOB.id, (e) => events.push(e));
+
+		clock.advance(5_000);
+		svc.sweep();
+
+		expect(events).toEqual([]);
+	});
+
 	it("unsubscribe stops further delivery", () => {
 		const svc = createPresenceService({ now: clock.now });
 		const events: PresenceEvent[] = [];

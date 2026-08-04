@@ -94,6 +94,42 @@ export const makeHeartbeatHandler = (wdb: WorkspaceDbService) =>
 		),
 	);
 
+/**
+ * POST /api/presence/leave — body: { workspaceId, pageId }
+ *
+ * Sent by the client when it stops watching a page. Removing your own presence
+ * needs no page permission check beyond having a session.
+ */
+export const leaveHandler = Effect.gen(function* () {
+	const req = yield* HttpServerRequest.HttpServerRequest;
+	const headers = toHeaders(
+		req.headers as Record<string, string | string[] | undefined>,
+	);
+	const session = yield* Effect.promise(() => auth.api.getSession({ headers }));
+	if (!session) return jsonResponse({ error: "Unauthorized" }, 401);
+
+	const ab = yield* req.arrayBuffer;
+	let body: { workspaceId?: string; pageId?: string };
+	try {
+		body = JSON.parse(Buffer.from(ab).toString("utf-8"));
+	} catch {
+		return jsonResponse({ error: "Invalid JSON" }, 400);
+	}
+	const { workspaceId, pageId } = body;
+	if (!workspaceId || !pageId)
+		return jsonResponse({ error: "Missing workspaceId or pageId" }, 400);
+
+	presence.leave(workspaceId, pageId, session.user.id);
+	return jsonResponse({ ok: true });
+}).pipe(
+	Effect.catchAllCause((cause) =>
+		Effect.zipRight(
+			Effect.logError("presence route failed", cause),
+			Effect.succeed(jsonResponse({ error: "Server error" }, 500)),
+		),
+	),
+);
+
 /** GET /api/presence/stream?workspaceId=…&pageId=… — SSE */
 export const makeStreamHandler = (wdb: WorkspaceDbService) =>
 	Effect.gen(function* () {
@@ -157,6 +193,11 @@ export const makeStreamHandler = (wdb: WorkspaceDbService) =>
 			return Effect.sync(() => {
 				clearInterval(keepAlive);
 				unsubscribe();
+				// Note: this finalizer does not run when the client disconnects on
+				// this platform — Bun's streaming response never surfaces it, and a
+				// failed keep-alive write does not either. Departures are reported
+				// by the client via /api/presence/leave, with the TTL sweep as the
+				// backstop for clients that vanish without saying anything.
 			});
 		});
 
