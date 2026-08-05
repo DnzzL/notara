@@ -70,6 +70,24 @@ const planFeatures = [
 	"Apache-2.0 after 2 years",
 ];
 
+/**
+ * The server is the only reliable judge of whether we hold a usable session:
+ * the client cache can be stale after a sign-out, and the anonymous user may
+ * have been purged out from under us. So try startDemo first, and only sign in
+ * if it refuses. better-auth rejects a second anonymous sign-in while already
+ * anonymous, hence the inner catch — the retry surfaces any real error.
+ */
+async function startDemoSession() {
+	try {
+		return await api.startDemo();
+	} catch {
+		try {
+			await authClient.signIn.anonymous();
+		} catch {}
+		return await api.startDemo();
+	}
+}
+
 export function LandingPage() {
 	const navigate = useNavigate();
 	const [startingDemo, setStartingDemo] = useState(false);
@@ -78,11 +96,7 @@ export function LandingPage() {
 		setStartingDemo(true);
 		try {
 			capture("demo_started");
-			// A returning demo visitor is still signed in, and better-auth rejects a
-			// second anonymous sign-in. startDemo is idempotent, so reuse the session.
-			const existing = await authClient.getSession();
-			if (!existing?.data) await authClient.signIn.anonymous();
-			const ws = await api.startDemo();
+			const ws = await startDemoSession();
 			navigate({ to: "/$workspaceSlug", params: { workspaceSlug: ws.slug } });
 		} catch (err: any) {
 			setStartingDemo(false);
