@@ -888,7 +888,6 @@ cli(process.argv).pipe(
 			),
 		),
 	),
-	Effect.provide(NodeHttpClient.layer),
-	Effect.provide(NodeContext.layer),
+	Effect.provide([NodeHttpClient.layer, NodeContext.layer]),
 	NodeRuntime.runMain,
 );

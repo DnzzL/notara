@@ -18,7 +18,8 @@
     "typecheck": "for pkg in packages/*/; do if [ -f \"$pkg/tsconfig.json\" ]; then (cd \"$pkg\" && bunx tsc --noEmit) || exit 1; fi; done",
 		"typecheck:tests": "bunx tsc --noEmit -p tsconfig.tests.json",
 		"quickcheck": "bun run --filter @notara/shared build && bun typecheck && bun run typecheck:tests && bun run test",
-		"pre-merge": "bun run quickcheck && bunx @biomejs/biome ci packages/ e2e/ && bash scripts/check-effect-errors.sh && bash scripts/check-bundle-size.sh",
+		"lint:effect": "for pkg in packages/*/; do if [ -f \"$pkg/tsconfig.json\" ]; then bunx effect-tsgo diagnostics --project \"$pkg/tsconfig.json\" --severity error,warning --strict --format text || exit 1; fi; done",
+		"pre-merge": "bun run quickcheck && bunx @biomejs/biome ci packages/ e2e/ && bun run lint:effect && bash scripts/check-effect-errors.sh && bash scripts/check-bundle-size.sh",
 		"coverage": "bash scripts/check-coverage.sh '@notara/server' packages/server 'bun test' && bash scripts/check-coverage.sh '@notara/app' packages/app 'bun test' && bash scripts/check-coverage.sh '@notara/electron' packages/electron 'bun test' && bash scripts/check-coverage.sh '@notara/shared' packages/shared 'bunx vitest run'"
   },
   "workspaces": [
@@ -62,6 +63,7 @@
   },
   "devDependencies": {
     "@biomejs/biome": "^2.5.6",
+    "@effect/tsgo": "^0.32.1",
     "@playwright/test": "^1.60.0",
     "@types/bun": "^1.2.0",
     "patch-package": "^8.0.1",

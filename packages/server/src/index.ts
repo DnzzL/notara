@@ -814,15 +814,12 @@ const program = Effect.gen(function* () {
 		`Server running on http://localhost:${process.env.PORT ?? 3000}`,
 	);
 	// Keep the server running
-	yield* Effect.never;
+	return yield* Effect.never;
 });
 
 // Server program - combine migrations with server layer
-const main = program.pipe(
-	Effect.provide(ServerLive),
-	Effect.provide(LoggerLive),
-);
+const main = program.pipe(Effect.provide([ServerLive, LoggerLive]));
 
 NodeRuntime.runMain(
-	main as import("effect/Effect").Effect<void, unknown, never>,
+	main as unknown as import("effect/Effect").Effect<void, unknown, never>,
 );

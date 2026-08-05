@@ -10,7 +10,20 @@
     "declarationMap": true,
     "sourceMap": true,
     "resolveJsonModule": true,
-    "forceConsistentCasingInFileNames": true
+    "forceConsistentCasingInFileNames": true,
+    "plugins": [
+      {
+        "name": "@effect/language-service",
+        // The server fails with untagged Error on purpose and maps every failure
+        // once at the HTTP edge (catchAllCause in packages/server/src/index.ts).
+        // Moving to tagged errors is its own task (NOT-89), not a side effect of
+        // installing the language service.
+        "diagnosticSeverity": {
+          "globalErrorInEffectFailure": "off",
+          "globalErrorInEffectCatch": "off"
+        }
+      }
+    ]
   },
   "exclude": ["node_modules", "dist"]
 }
