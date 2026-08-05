@@ -78,7 +78,10 @@ export function LandingPage() {
 		setStartingDemo(true);
 		try {
 			capture("demo_started");
-			await authClient.signIn.anonymous();
+			// A returning demo visitor is still signed in, and better-auth rejects a
+			// second anonymous sign-in. startDemo is idempotent, so reuse the session.
+			const existing = await authClient.getSession();
+			if (!existing?.data) await authClient.signIn.anonymous();
 			const ws = await api.startDemo();
 			navigate({ to: "/$workspaceSlug", params: { workspaceSlug: ws.slug } });
 		} catch (err: any) {

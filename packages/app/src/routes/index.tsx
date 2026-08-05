@@ -12,7 +12,10 @@ export const Route = createRoute({
 		const session = await client.getSession();
 		if (!session?.data) return { loggedIn: false };
 		const workspaces = await api.getMyWorkspaces();
-		if (workspaces.length > 0) {
+		// Demo visitors keep access to the landing page — it's the pitch they came
+		// for. Only a real workspace triggers auto-resume.
+		const real = workspaces.filter((w) => !w.isDemo);
+		if (real.length > 0) {
 			// Restore last-active workspace from localStorage, fall back to first workspace
 			const lastSlug = (() => {
 				try {
@@ -22,9 +25,9 @@ export const Route = createRoute({
 				}
 			})();
 			const target =
-				lastSlug && workspaces.some((w) => w.slug === lastSlug)
+				lastSlug && real.some((w) => w.slug === lastSlug)
 					? lastSlug
-					: workspaces[0].slug;
+					: real[0].slug;
 			throw redirect({
 				to: "/$workspaceSlug",
 				params: { workspaceSlug: target },
