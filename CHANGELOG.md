@@ -7,7 +7,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-## [0.1.0] - 2026-08-04
+## [0.1.0] - 2026-08-05
 
 First tagged release. Notara is a self-hostable, fair-source Notion alternative:
 a block editor, inline databases and real-time collaboration over one SQLite file
@@ -44,10 +44,31 @@ per workspace, in a single container.
   Google OAuth, admin panel and opt-in PostHog analytics.
 - **Licensed FSL-1.1-ALv2** (fair-source; converts to Apache-2.0 two years per
   release), with GDPR consent banner, privacy policy and terms pages.
+- **Hosted demo mode** (`DEMO_MODE`, off by default) — a visitor gets a throwaway,
+  isolated workspace with no signup, purged automatically after `DEMO_TTL_HOURS`.
+  Read at runtime, so the published image serves demo and normal instances alike.
 - **Test and quality infrastructure** — unit, property-based, E2E (including a
   two-user multiuser suite and full database-CRUD coverage), Gherkin BDD specs,
   visual regression snapshots, Biome lint, an Effect error-channel check, and a
   bundle-size/Lighthouse performance gate, all wired into CI.
+
+### Security
+
+Six HTTP routes reached workspace data without proving who the caller was. All
+were pre-release, so no released version is affected.
+
+- `GET`/`POST /api/settings` and `POST /api/backup/trigger` had no authentication.
+  The GET disclosed the S3 access key and secret; chained with the POST and the
+  trigger, an anonymous caller could repoint backups at their own bucket and have
+  the instance write itself there.
+- `POST /api/upload` and `POST /import-notion` took the target workspace from a
+  client-supplied header and never checked membership, so anyone knowing a
+  workspace id could write attachments, blocks, pages and databases into it.
+- `GET /api/stream/view-config` subscribed callers with no session and no
+  workspace scoping.
+- All six now go through the documented chokepoints (`requireAdmin`,
+  `withAuthedWorkspace`, `resolveWorkspaceContext`), and a route-auth test boots a
+  real server to assert every non-public route refuses anonymous callers.
 
 ### Fixed
 

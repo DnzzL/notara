@@ -20,6 +20,9 @@ guiding rule is *fewer features, done well* — so the list below is deliberatel
 
 <div align="center">
 <img src="packages/app/public/notara-hero-poster.jpg" width="720" alt="Notara" />
+
+**[Try the live demo →](https://demo.notara.legrand.sh)** — no signup, throwaway
+workspace, deleted automatically.
 </div>
 
 ## Quick start
