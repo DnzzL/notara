@@ -12,7 +12,7 @@
  * Adding a route means adding a line here.
  */
 
-import { afterAll, beforeAll, describe, expect, test } from "bun:test";
+import { afterAll, describe, expect, test } from "bun:test";
 import { rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
@@ -21,10 +21,11 @@ const PORT = 3457;
 const BASE = `http://localhost:${PORT}`;
 const DATA_DIR = join(tmpdir(), `notara-route-auth-${process.pid}`);
 
-let server: ReturnType<typeof Bun.spawn>;
-
-beforeAll(async () => {
-	server = Bun.spawn(["bun", join(import.meta.dir, "..", "src", "index.ts")], {
+// Booted at module scope rather than in beforeAll: hooks carry bun's 5s default
+// timeout, and a cold CI runner needs longer than that to migrate and listen.
+const server = Bun.spawn(
+	["bun", join(import.meta.dir, "..", "src", "index.ts")],
+	{
 		env: {
 			...process.env,
 			PORT: String(PORT),
@@ -35,17 +36,22 @@ beforeAll(async () => {
 		},
 		stdout: "pipe",
 		stderr: "pipe",
-	});
+	},
+);
 
-	for (let i = 0; i < 100; i++) {
-		try {
-			const r = await fetch(`${BASE}/health`);
-			if (r.ok) return;
-		} catch {}
-		await Bun.sleep(100);
-	}
-	throw new Error("server did not come up");
-});
+let up = false;
+for (let i = 0; i < 300 && !up; i++) {
+	try {
+		up = (await fetch(`${BASE}/health`)).ok;
+	} catch {}
+	if (!up) await Bun.sleep(100);
+}
+if (!up) {
+	// Surface the server's own output; an opaque timeout is undebuggable in CI.
+	const stderr = await new Response(server.stderr as ReadableStream).text();
+	server.kill();
+	throw new Error(`server did not come up in 30s:\n${stderr}`);
+}
 
 afterAll(() => {
 	server?.kill();
