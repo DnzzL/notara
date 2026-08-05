@@ -1,5 +1,6 @@
 import { Rpc, RpcGroup } from "@effect/rpc";
 import { Schema } from "effect";
+import { ApiError } from "./errors.js";
 
 // ── Validation-only primitives ────────────────────────────────────────────────
 // Constrained string types used at RPC boundaries to bound payload sizes and
@@ -47,19 +48,30 @@ import {
 	WorkspaceMember,
 } from "./schema.js";
 
-// Combined RPC group — all requests
+// Combined RPC group — all requests.
+//
+// Every method declares the same `error: ApiError` union rather than a per-method
+// subset: each one runs behind the auth/workspace check, so each one can already
+// fail with AuthError, and one shared contract keeps the server side to a single
+// `dieUnlessApiError` step instead of 68 bespoke error lists.
 export const AppRpc = RpcGroup.make(
 	// Pages
-	Rpc.make("listPages", { success: Schema.Array(Page) }),
+	Rpc.make("listPages", {
+		error: ApiError,
+		success: Schema.Array(Page),
+	}),
 	Rpc.make("getPage", {
+		error: ApiError,
 		payload: { id: Schema.String },
 		success: Page,
 	}),
 	Rpc.make("createPage", {
+		error: ApiError,
 		payload: { title: TitleString, parentId: Schema.NullOr(Schema.String) },
 		success: Page,
 	}),
 	Rpc.make("updatePage", {
+		error: ApiError,
 		payload: {
 			id: Schema.String,
 			title: Schema.optional(Schema.NullOr(TitleString)),
@@ -70,18 +82,22 @@ export const AppRpc = RpcGroup.make(
 		success: Page,
 	}),
 	Rpc.make("deletePage", {
+		error: ApiError,
 		payload: { id: Schema.String },
 		success: Schema.Void,
 	}),
 	Rpc.make("globalSearch", {
+		error: ApiError,
 		payload: { query: SearchQuery },
 		success: Schema.Array(SearchResult),
 	}),
 	Rpc.make("movePage", {
+		error: ApiError,
 		payload: { id: Schema.String, parentId: Schema.NullOr(Schema.String) },
 		success: Page,
 	}),
 	Rpc.make("reorderPages", {
+		error: ApiError,
 		payload: {
 			parentId: Schema.NullOr(Schema.String),
 			pageIds: Schema.Array(Schema.String),
@@ -91,10 +107,12 @@ export const AppRpc = RpcGroup.make(
 
 	// Blocks
 	Rpc.make("listBlocks", {
+		error: ApiError,
 		payload: { pageId: Schema.String },
 		success: Schema.Array(Block),
 	}),
 	Rpc.make("createBlock", {
+		error: ApiError,
 		payload: {
 			pageId: Schema.String,
 			type: Schema.String,
@@ -105,6 +123,7 @@ export const AppRpc = RpcGroup.make(
 		success: Block,
 	}),
 	Rpc.make("updateBlock", {
+		error: ApiError,
 		payload: {
 			id: Schema.String,
 			content: BlockContent,
@@ -113,37 +132,48 @@ export const AppRpc = RpcGroup.make(
 		success: Block,
 	}),
 	Rpc.make("deleteBlock", {
+		error: ApiError,
 		payload: { id: Schema.String },
 		success: Schema.Void,
 	}),
 	Rpc.make("reorderBlocks", {
+		error: ApiError,
 		payload: { pageId: Schema.String, blockIds: Schema.Array(Schema.String) },
 		success: Schema.Array(Block),
 	}),
 	Rpc.make("getBacklinks", {
+		error: ApiError,
 		payload: { pageId: Schema.String },
 		success: Schema.Array(Backlink),
 	}),
 
 	// Databases
 	Rpc.make("listDatabases", {
+		error: ApiError,
 		payload: { pageId: Schema.String },
 		success: Schema.Array(Database),
 	}),
-	Rpc.make("listAllDatabases", { success: Schema.Array(Database) }),
+	Rpc.make("listAllDatabases", {
+		error: ApiError,
+		success: Schema.Array(Database),
+	}),
 	Rpc.make("getDatabase", {
+		error: ApiError,
 		payload: { id: Schema.String },
 		success: Database,
 	}),
 	Rpc.make("createDatabase", {
+		error: ApiError,
 		payload: { pageId: Schema.String, name: Schema.String },
 		success: Database,
 	}),
 	Rpc.make("listFields", {
+		error: ApiError,
 		payload: { databaseId: Schema.String },
 		success: Schema.Array(DatabaseField),
 	}),
 	Rpc.make("createField", {
+		error: ApiError,
 		payload: {
 			databaseId: Schema.String,
 			name: Schema.String,
@@ -155,10 +185,12 @@ export const AppRpc = RpcGroup.make(
 		success: DatabaseField,
 	}),
 	Rpc.make("listRecords", {
+		error: ApiError,
 		payload: { databaseId: Schema.String },
 		success: Schema.Array(DatabaseRecord),
 	}),
 	Rpc.make("listRecordsWithValues", {
+		error: ApiError,
 		payload: { databaseId: Schema.String },
 		success: Schema.Array(
 			Schema.Struct({
@@ -168,6 +200,7 @@ export const AppRpc = RpcGroup.make(
 		),
 	}),
 	Rpc.make("getRecordWithValues", {
+		error: ApiError,
 		payload: { recordId: Schema.String },
 		success: Schema.Struct({
 			record: DatabaseRecord,
@@ -175,10 +208,12 @@ export const AppRpc = RpcGroup.make(
 		}),
 	}),
 	Rpc.make("createRecord", {
+		error: ApiError,
 		payload: { databaseId: Schema.String, title: Schema.String },
 		success: DatabaseRecord,
 	}),
 	Rpc.make("updateFieldValue", {
+		error: ApiError,
 		payload: {
 			recordId: Schema.String,
 			fieldId: Schema.String,
@@ -187,14 +222,17 @@ export const AppRpc = RpcGroup.make(
 		success: RecordFieldValue,
 	}),
 	Rpc.make("deleteRecord", {
+		error: ApiError,
 		payload: { id: Schema.String },
 		success: Schema.Void,
 	}),
 	Rpc.make("listViews", {
+		error: ApiError,
 		payload: { databaseId: Schema.String },
 		success: Schema.Array(DatabaseView),
 	}),
 	Rpc.make("createView", {
+		error: ApiError,
 		payload: {
 			databaseId: Schema.String,
 			name: Schema.String,
@@ -206,6 +244,7 @@ export const AppRpc = RpcGroup.make(
 		success: DatabaseView,
 	}),
 	Rpc.make("updateView", {
+		error: ApiError,
 		payload: {
 			id: Schema.String,
 			name: Schema.optional(Schema.String),
@@ -217,10 +256,12 @@ export const AppRpc = RpcGroup.make(
 		success: DatabaseView,
 	}),
 	Rpc.make("deleteView", {
+		error: ApiError,
 		payload: { id: Schema.String },
 		success: Schema.Struct({ deleted: Schema.Boolean }),
 	}),
 	Rpc.make("updateField", {
+		error: ApiError,
 		payload: {
 			id: Schema.String,
 			name: Schema.optional(Schema.String),
@@ -232,6 +273,7 @@ export const AppRpc = RpcGroup.make(
 		success: DatabaseField,
 	}),
 	Rpc.make("reorderFields", {
+		error: ApiError,
 		payload: {
 			databaseId: Schema.String,
 			fieldIds: Schema.Array(Schema.String),
@@ -239,6 +281,7 @@ export const AppRpc = RpcGroup.make(
 		success: Schema.Struct({ reordered: Schema.Boolean }),
 	}),
 	Rpc.make("updateRecord", {
+		error: ApiError,
 		payload: {
 			id: Schema.String,
 			title: Schema.optional(Schema.String),
@@ -247,6 +290,7 @@ export const AppRpc = RpcGroup.make(
 		success: Schema.Struct({ updated: Schema.Boolean }),
 	}),
 	Rpc.make("reorderRecords", {
+		error: ApiError,
 		payload: {
 			databaseId: Schema.String,
 			recordIds: Schema.Array(Schema.String),
@@ -254,14 +298,17 @@ export const AppRpc = RpcGroup.make(
 		success: Schema.Struct({ reordered: Schema.Boolean }),
 	}),
 	Rpc.make("openRecordAsPage", {
+		error: ApiError,
 		payload: { recordId: Schema.String },
 		success: Schema.Struct({ pageId: Schema.String }),
 	}),
 	Rpc.make("renameDatabase", {
+		error: ApiError,
 		payload: { id: Schema.String, name: Schema.String },
 		success: Database,
 	}),
 	Rpc.make("updateDatabase", {
+		error: ApiError,
 		payload: {
 			id: Schema.String,
 			titleLabel: Schema.optional(Schema.String),
@@ -270,10 +317,12 @@ export const AppRpc = RpcGroup.make(
 		success: Database,
 	}),
 	Rpc.make("deleteField", {
+		error: ApiError,
 		payload: { id: Schema.String },
 		success: Schema.Struct({ deleted: Schema.Boolean }),
 	}),
 	Rpc.make("reorderDatabases", {
+		error: ApiError,
 		payload: {
 			pageId: Schema.String,
 			databaseIds: Schema.Array(Schema.String),
@@ -281,73 +330,100 @@ export const AppRpc = RpcGroup.make(
 		success: Schema.Struct({ reordered: Schema.Boolean }),
 	}),
 	Rpc.make("deleteDatabase", {
+		error: ApiError,
 		payload: { id: Schema.String },
 		success: Schema.Struct({ deleted: Schema.Boolean }),
 	}),
 
 	// Trash: restore / permanent purge / listing
-	Rpc.make("listTrash", { success: TrashContents }),
+	Rpc.make("listTrash", {
+		error: ApiError,
+		success: TrashContents,
+	}),
 	Rpc.make("restorePage", {
+		error: ApiError,
 		payload: { id: Schema.String },
 		success: Schema.Struct({ restored: Schema.Boolean }),
 	}),
 	Rpc.make("restoreDatabase", {
+		error: ApiError,
 		payload: { id: Schema.String },
 		success: Schema.Struct({ restored: Schema.Boolean }),
 	}),
 	Rpc.make("restoreRecord", {
+		error: ApiError,
 		payload: { id: Schema.String },
 		success: Schema.Struct({ restored: Schema.Boolean }),
 	}),
 	Rpc.make("purgePage", {
+		error: ApiError,
 		payload: { id: Schema.String },
 		success: Schema.Struct({ purged: Schema.Boolean }),
 	}),
 	Rpc.make("purgeDatabase", {
+		error: ApiError,
 		payload: { id: Schema.String },
 		success: Schema.Struct({ purged: Schema.Boolean }),
 	}),
 	Rpc.make("purgeRecord", {
+		error: ApiError,
 		payload: { id: Schema.String },
 		success: Schema.Struct({ purged: Schema.Boolean }),
 	}),
 
 	// Workspaces
-	Rpc.make("getMyWorkspaces", { success: Schema.Array(Workspace) }),
+	Rpc.make("getMyWorkspaces", {
+		error: ApiError,
+		success: Schema.Array(Workspace),
+	}),
 	Rpc.make("createWorkspace", {
+		error: ApiError,
 		payload: { name: ShortName, slug: Slug },
 		success: Workspace,
 	}),
 	Rpc.make("joinWorkspaceByToken", {
+		error: ApiError,
 		payload: { inviteToken: Schema.String },
 		success: Workspace,
 	}),
 	// Hosted-demo entry point. Rejected unless the server runs with DEMO_MODE=true.
-	Rpc.make("startDemo", { success: Workspace }),
+	Rpc.make("startDemo", {
+		error: ApiError,
+		success: Workspace,
+	}),
 	Rpc.make("getWorkspaceMembers", {
+		error: ApiError,
 		payload: { workspaceId: Schema.String },
 		success: Schema.Array(WorkspaceMember),
 	}),
 	Rpc.make("removeMember", {
+		error: ApiError,
 		payload: { workspaceId: Schema.String, userId: Schema.String },
 		success: Schema.Void,
 	}),
 	Rpc.make("regenerateInviteLink", {
+		error: ApiError,
 		payload: { workspaceId: Schema.String },
 		success: Schema.Struct({ inviteToken: Schema.String }),
 	}),
 	Rpc.make("inviteMemberByEmail", {
+		error: ApiError,
 		payload: { workspaceId: Schema.String, email: Email },
 		success: Schema.Void,
 	}),
 
 	// API keys
-	Rpc.make("listApiKeys", { success: Schema.Array(ApiKey) }),
+	Rpc.make("listApiKeys", {
+		error: ApiError,
+		success: Schema.Array(ApiKey),
+	}),
 	Rpc.make("createApiKey", {
+		error: ApiError,
 		payload: { name: ShortName },
 		success: ApiKeyCreated,
 	}),
 	Rpc.make("revokeApiKey", {
+		error: ApiError,
 		payload: { id: Schema.String },
 		success: Schema.Void,
 	}),
@@ -357,16 +433,19 @@ export const AppRpc = RpcGroup.make(
 	// Returns only the locked-page IDs the caller can actually see; safe for use
 	// as a "which of my visible pages are restricted?" hint in the sidebar.
 	Rpc.make("listLockedPageIds", {
+		error: ApiError,
 		success: Schema.Array(Schema.String),
 	}),
 	// Read direct grants on a page plus the inherited grants from the nearest
 	// locked ancestor (if any), along with a revision token.
 	Rpc.make("getPagePermissions", {
+		error: ApiError,
 		payload: { pageId: Schema.String },
 		success: PagePermissions,
 	}),
 	// Cheap UI-gating check. Never throws — returns { allowed: false } on deny.
 	Rpc.make("checkPagePermission", {
+		error: ApiError,
 		payload: { pageId: Schema.String, relation: AclRelation },
 		success: Schema.Struct({ allowed: Schema.Boolean }),
 	}),
@@ -374,6 +453,7 @@ export const AppRpc = RpcGroup.make(
 	// single transaction. `ifRevision`, when provided, fails the call if the
 	// page's current ACL revision differs (optimistic concurrency, à la zookie).
 	Rpc.make("writePagePermissions", {
+		error: ApiError,
 		payload: {
 			pageId: Schema.String,
 			set: Schema.Array(
@@ -387,6 +467,7 @@ export const AppRpc = RpcGroup.make(
 
 	// Templates
 	Rpc.make("listTemplates", {
+		error: ApiError,
 		success: Schema.Array(
 			Schema.Struct({
 				id: Schema.String,
@@ -397,6 +478,7 @@ export const AppRpc = RpcGroup.make(
 		),
 	}),
 	Rpc.make("createPageFromTemplate", {
+		error: ApiError,
 		payload: {
 			templateId: Schema.String,
 			parentId: Schema.NullOr(Schema.String),
@@ -406,18 +488,22 @@ export const AppRpc = RpcGroup.make(
 
 	// Import/Export
 	Rpc.make("importNotion", {
+		error: ApiError,
 		payload: { directory: Schema.String },
 		success: ImportResult,
 	}),
 	Rpc.make("exportPage", {
+		error: ApiError,
 		payload: { pageId: Schema.String, includeDatabases: Schema.Boolean },
 		success: PageExport,
 	}),
 	Rpc.make("exportDatabase", {
+		error: ApiError,
 		payload: { dbId: Schema.String },
 		success: DatabaseCsvExport,
 	}),
 	Rpc.make("exportAll", {
+		error: ApiError,
 		payload: { outputDir: Schema.String },
 		success: ExportAllResult,
 	}),

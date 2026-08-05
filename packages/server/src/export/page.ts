@@ -1,7 +1,12 @@
 import { mkdir, writeFile } from "node:fs/promises";
 import * as path from "node:path";
 import { SqlClient } from "@effect/sql";
-import { DatabaseCsvExport, ExportAllResult, PageExport } from "@notara/shared";
+import {
+	DatabaseCsvExport,
+	ExportAllResult,
+	NotFoundError,
+	PageExport,
+} from "@notara/shared";
 import { Effect } from "effect";
 import {
 	blockFromRow,
@@ -113,7 +118,7 @@ export function exportPageAsMarkdown(pageId: string) {
       FROM pages WHERE id = ${pageId} AND is_deleted = 0
     `;
 		if (pageRows.length === 0) {
-			return yield* Effect.fail(new Error(`Page ${pageId} not found`));
+			return yield* new NotFoundError({ resource: "page", id: pageId });
 		}
 		const page = pageFromRow(pageRows[0]);
 
@@ -193,7 +198,7 @@ export function exportDatabaseAsCsv(dbId: string) {
       FROM databases WHERE id = ${dbId} AND is_deleted = 0
     `;
 		if (dbRows.length === 0) {
-			return yield* Effect.fail(new Error(`Database ${dbId} not found`));
+			return yield* new NotFoundError({ resource: "database", id: dbId });
 		}
 		const database = dbFromRow(dbRows[0]);
 

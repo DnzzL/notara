@@ -1,12 +1,16 @@
 import { SqlClient } from "@effect/sql";
 import {
 	type AclEntry,
+	type ApiError,
+	AuthError,
+	ConflictError,
 	decodeSubject,
 	encodeSubject,
+	NotFoundError,
+	type NotFoundResource,
 	type Subject,
 } from "@notara/shared";
 import { Effect } from "effect";
-import { ApiError } from "../api-v1/auth.js";
 import { PlatformDb } from "../platform-db.js";
 
 export type AclRelation = "owner" | "editor" | "viewer";
@@ -99,7 +103,7 @@ export const resolveEffectiveRelation = (
 
 /**
  * Checks that `userId` has at least `requiredRelation` on `pageId` within
- * `workspaceId`. Fails with ApiError(403) if access is denied.
+ * `workspaceId`. Fails with AuthError(403) if access is denied.
  */
 export const checkPagePermission = (
 	userId: string,
@@ -115,19 +119,18 @@ export const checkPagePermission = (
 		);
 		if (effective === null) {
 			const isMember = yield* checkIsMember(userId, workspaceId);
-			return yield* Effect.fail(
-				new ApiError({
-					status: 403,
-					message: isMember
-						? "Insufficient permission"
-						: "Not a member of this workspace",
-				}),
-			);
+			return yield* new AuthError({
+				status: 403,
+				message: isMember
+					? "Insufficient permission"
+					: "Not a member of this workspace",
+			});
 		}
 		if (!satisfies(effective, requiredRelation)) {
-			return yield* Effect.fail(
-				new ApiError({ status: 403, message: "Insufficient permission" }),
-			);
+			return yield* new AuthError({
+				status: 403,
+				message: "Insufficient permission",
+			});
 		}
 	});
 
@@ -210,7 +213,7 @@ export const filterPagesByPermission = <
 		});
 	});
 
-/** Fails with ApiError(403) if the caller is not a workspace owner. */
+/** Fails with AuthError(403) if the caller is not a workspace owner. */
 export const requireWorkspaceOwner = (userId: string, workspaceId: string) =>
 	Effect.gen(function* () {
 		const db = yield* PlatformDb;
@@ -220,17 +223,16 @@ export const requireWorkspaceOwner = (userId: string, workspaceId: string) =>
 			)
 			.get(workspaceId, userId) as { role: "owner" | "member" } | null;
 		if (!member) {
-			return yield* Effect.fail(
-				new ApiError({
-					status: 403,
-					message: "Not a member of this workspace",
-				}),
-			);
+			return yield* new AuthError({
+				status: 403,
+				message: "Not a member of this workspace",
+			});
 		}
 		if (member.role !== "owner") {
-			return yield* Effect.fail(
-				new ApiError({ status: 403, message: "Workspace owner role required" }),
-			);
+			return yield* new AuthError({
+				status: 403,
+				message: "Workspace owner role required",
+			});
 		}
 	});
 
@@ -338,7 +340,7 @@ const checkVia =
 		lookup: (
 			id: string,
 		) => Effect.Effect<string | null, E, SqlClient.SqlClient>,
-		kind: string,
+		kind: NotFoundResource,
 	) =>
 	(
 		userId: string,
@@ -349,18 +351,16 @@ const checkVia =
 		Effect.gen(function* () {
 			const pageId = yield* lookup(id);
 			if (!pageId) {
-				return yield* Effect.fail(
-					new ApiError({ status: 404, message: `${kind} ${id} not found` }),
-				);
+				return yield* new NotFoundError({ resource: kind, id });
 			}
 			yield* checkPagePermission(userId, workspaceId, pageId, requiredRelation);
 		});
 
-export const checkBlockPermission = checkVia(getBlockPageId, "Block");
-export const checkDatabasePermission = checkVia(getDatabasePageId, "Database");
-export const checkRecordPermission = checkVia(getRecordPageId, "Record");
-export const checkFieldPermission = checkVia(getFieldPageId, "Field");
-export const checkViewPermission = checkVia(getViewPageId, "Database view");
+export const checkBlockPermission = checkVia(getBlockPageId, "block");
+export const checkDatabasePermission = checkVia(getDatabasePageId, "database");
+export const checkRecordPermission = checkVia(getRecordPageId, "record");
+export const checkFieldPermission = checkVia(getFieldPageId, "field");
+export const checkViewPermission = checkVia(getViewPageId, "view");
 
 // ── Page-ACL CRUD ─────────────────────────────────────────────────────────────
 
@@ -491,12 +491,9 @@ export const writePagePermissions = (input: {
 					if (input.ifRevision !== undefined) {
 						const current = yield* readRevision(pageId);
 						if (current !== input.ifRevision) {
-							return yield* Effect.fail(
-								new ApiError({
-									status: 409,
-									message: `Page permissions changed since revision ${input.ifRevision} (current: ${current})`,
-								}),
-							);
+							return yield* new ConflictError({
+								message: `Page permissions changed since revision ${input.ifRevision} (current: ${current})`,
+							});
 						}
 					}
 
@@ -532,12 +529,9 @@ export const writePagePermissions = (input: {
 						!remaining.some((r) => r.relation === "owner") &&
 						input.callerWorkspaceRole !== "owner"
 					) {
-						return yield* Effect.fail(
-							new ApiError({
-								status: 409,
-								message: "Refusing to leave page without any owner grant",
-							}),
-						);
+						return yield* new ConflictError({
+							message: "Refusing to leave page without any owner grant",
+						});
 					}
 
 					const revision = yield* bumpRevision(pageId);
@@ -545,7 +539,7 @@ export const writePagePermissions = (input: {
 				}),
 			)
 			.pipe(
-				// Surface SqlError as die; ApiError surfaces normally.
+				// Surface SqlError as die; ConflictError surfaces normally.
 				Effect.catchTag("SqlError", (e) => Effect.die(e)),
 			);
 	});

@@ -5,7 +5,13 @@
  * RPC routing.
  */
 
-import { AppRpc, RecordFieldValue } from "@notara/shared";
+import {
+	type ApiError,
+	AppRpc,
+	BlockLockedError,
+	isApiError,
+	RecordFieldValue,
+} from "@notara/shared";
 import { Effect } from "effect";
 import * as ApiKeys from "./handlers/api-keys.js";
 import * as Blocks from "./handlers/blocks.js";
@@ -28,21 +34,18 @@ import {
 } from "./workspace-context.js";
 
 /**
- * Refusal of a write to a block another user currently holds.
- *
- * A plain `Error` does not survive the RPC boundary — Effect.orDie turns it into
- * a defect that serializes to `{}`, so the client could not tell a lock refusal
- * from any other failure. A tagged class with an own `message` field crosses
- * intact (same shape as AuthError), which is what the editor's
- * "<name> is editing this block" toast keys off.
+ * Keep the API's declared failures (`error: ApiError` on every RPC) in the error
+ * channel so they cross the boundary decoded and the client can switch on
+ * `_tag`. Everything else — SQL errors, missing headers, bugs — becomes a defect,
+ * exactly as the previous blanket `Effect.orDie` did: those are incidents, not
+ * answers, and the client only needs "something went wrong" for them.
  */
-class BlockLockedError {
-	readonly _tag = "BlockLockedError";
-	readonly message: string;
-	constructor(readonly holderUserId: string) {
-		this.message = `BlockLocked:${holderUserId}`;
-	}
-}
+export const dieUnlessApiError = <A, E, R>(
+	self: Effect.Effect<A, E, R>,
+): Effect.Effect<A, ApiError, R> =>
+	Effect.catchAll(self, (error) =>
+		isApiError(error) ? Effect.fail(error) : Effect.die(error),
+	);
 
 export const rpcHandlersLayer = AppRpc.toLayer({
 	listPages: () =>
@@ -56,7 +59,7 @@ export const rpcHandlersLayer = AppRpc.toLayer({
 					all,
 				);
 			}),
-		).pipe(Effect.orDie),
+		).pipe(dieUnlessApiError),
 	getPage: ({ id }) =>
 		withAuthedWorkspace(({ userId, workspaceId }) =>
 			Effect.gen(function* () {
@@ -68,7 +71,7 @@ export const rpcHandlersLayer = AppRpc.toLayer({
 				);
 				return yield* Pages.getPage(id);
 			}),
-		).pipe(Effect.orDie),
+		).pipe(dieUnlessApiError),
 	createPage: (req) =>
 		withAuthedWorkspace(({ userId, workspaceId }) =>
 			Effect.gen(function* () {
@@ -79,7 +82,7 @@ export const rpcHandlersLayer = AppRpc.toLayer({
 				});
 				return page;
 			}),
-		).pipe(Effect.orDie),
+		).pipe(dieUnlessApiError),
 	updatePage: (req) =>
 		withAuthedWorkspace(({ userId, workspaceId }) =>
 			Effect.gen(function* () {
@@ -101,7 +104,7 @@ export const rpcHandlersLayer = AppRpc.toLayer({
 				});
 				return page;
 			}),
-		).pipe(Effect.orDie),
+		).pipe(dieUnlessApiError),
 	deletePage: ({ id }) =>
 		withAuthedWorkspace(({ userId, workspaceId }) =>
 			Effect.gen(function* () {
@@ -113,7 +116,7 @@ export const rpcHandlersLayer = AppRpc.toLayer({
 				);
 				return yield* Pages.deletePage(id);
 			}),
-		).pipe(Effect.orDie),
+		).pipe(dieUnlessApiError),
 	globalSearch: ({ query }) =>
 		withAuthedWorkspace(({ userId, workspaceId, role }) =>
 			Effect.gen(function* () {
@@ -130,7 +133,7 @@ export const rpcHandlersLayer = AppRpc.toLayer({
 					visibleIds.has(r.type === "page" ? r.id : r.pageId),
 				);
 			}),
-		).pipe(Effect.orDie),
+		).pipe(dieUnlessApiError),
 	movePage: (req) =>
 		withAuthedWorkspace(({ userId, workspaceId }) =>
 			Effect.gen(function* () {
@@ -142,7 +145,7 @@ export const rpcHandlersLayer = AppRpc.toLayer({
 				);
 				return yield* Pages.movePage(req);
 			}),
-		).pipe(Effect.orDie),
+		).pipe(dieUnlessApiError),
 	reorderPages: ({ parentId, pageIds }) =>
 		withAuthedWorkspace(({ userId, workspaceId }) =>
 			Effect.gen(function* () {
@@ -156,7 +159,7 @@ export const rpcHandlersLayer = AppRpc.toLayer({
 				}
 				return yield* Pages.reorderPages({ parentId, pageIds: [...pageIds] });
 			}),
-		).pipe(Effect.orDie),
+		).pipe(dieUnlessApiError),
 
 	listBlocks: ({ pageId }) =>
 		withAuthedWorkspace(({ userId, workspaceId }) =>
@@ -169,7 +172,7 @@ export const rpcHandlersLayer = AppRpc.toLayer({
 				);
 				return yield* Blocks.listBlocks(pageId);
 			}),
-		).pipe(Effect.orDie),
+		).pipe(dieUnlessApiError),
 	createBlock: (req) =>
 		withAuthedWorkspace(({ userId, workspaceId }) =>
 			Effect.gen(function* () {
@@ -187,7 +190,7 @@ export const rpcHandlersLayer = AppRpc.toLayer({
 				});
 				return block;
 			}),
-		).pipe(Effect.orDie),
+		).pipe(dieUnlessApiError),
 	updateBlock: (req) =>
 		withAuthedWorkspace(({ userId, workspaceId }) =>
 			Effect.gen(function* () {
@@ -201,7 +204,9 @@ export const rpcHandlersLayer = AppRpc.toLayer({
 				if (pageId) {
 					const holder = presence.lockHolder(workspaceId, pageId, req.id);
 					if (holder && holder !== userId) {
-						return yield* Effect.fail(new BlockLockedError(holder));
+						return yield* Effect.fail(
+							new BlockLockedError({ holderUserId: holder }),
+						);
 					}
 				}
 				const block = yield* Blocks.updateBlock(req);
@@ -215,7 +220,7 @@ export const rpcHandlersLayer = AppRpc.toLayer({
 				}
 				return block;
 			}),
-		).pipe(Effect.orDie),
+		).pipe(dieUnlessApiError),
 	deleteBlock: ({ id }) =>
 		withAuthedWorkspace(({ userId, workspaceId }) =>
 			Effect.gen(function* () {
@@ -229,7 +234,9 @@ export const rpcHandlersLayer = AppRpc.toLayer({
 				if (pageId) {
 					const holder = presence.lockHolder(workspaceId, pageId, id);
 					if (holder && holder !== userId) {
-						return yield* Effect.fail(new BlockLockedError(holder));
+						return yield* Effect.fail(
+							new BlockLockedError({ holderUserId: holder }),
+						);
 					}
 				}
 				const result = yield* Blocks.deleteBlock(id);
@@ -242,7 +249,7 @@ export const rpcHandlersLayer = AppRpc.toLayer({
 				}
 				return result;
 			}),
-		).pipe(Effect.orDie),
+		).pipe(dieUnlessApiError),
 	reorderBlocks: ({ pageId, blockIds }) =>
 		withAuthedWorkspace(({ userId, workspaceId }) =>
 			Effect.gen(function* () {
@@ -260,7 +267,7 @@ export const rpcHandlersLayer = AppRpc.toLayer({
 				});
 				return result;
 			}),
-		).pipe(Effect.orDie),
+		).pipe(dieUnlessApiError),
 	getBacklinks: ({ pageId }) =>
 		withAuthedWorkspace(({ userId, workspaceId, role }) =>
 			Effect.gen(function* () {
@@ -281,7 +288,7 @@ export const rpcHandlersLayer = AppRpc.toLayer({
 				const visibleIds = new Set(visible.map((p) => p.id));
 				return all.filter((b) => visibleIds.has(b.pageId));
 			}),
-		).pipe(Effect.orDie),
+		).pipe(dieUnlessApiError),
 
 	listDatabases: ({ pageId }) =>
 		withAuthedWorkspace(({ userId, workspaceId }) =>
@@ -294,7 +301,7 @@ export const rpcHandlersLayer = AppRpc.toLayer({
 				);
 				return yield* Databases.listDatabases(pageId);
 			}),
-		).pipe(Effect.orDie),
+		).pipe(dieUnlessApiError),
 	listAllDatabases: () =>
 		withAuthedWorkspace(({ userId, workspaceId, role }) =>
 			Effect.gen(function* () {
@@ -309,7 +316,7 @@ export const rpcHandlersLayer = AppRpc.toLayer({
 				const visibleIds = new Set(visible.map((p) => p.id));
 				return all.filter((db) => visibleIds.has(db.pageId));
 			}),
-		).pipe(Effect.orDie),
+		).pipe(dieUnlessApiError),
 	getDatabase: ({ id }) =>
 		withAuthedWorkspace(({ userId, workspaceId }) =>
 			Effect.gen(function* () {
@@ -321,7 +328,7 @@ export const rpcHandlersLayer = AppRpc.toLayer({
 				);
 				return yield* Databases.getDatabase(id);
 			}),
-		).pipe(Effect.orDie),
+		).pipe(dieUnlessApiError),
 	createDatabase: (req) =>
 		withAuthedWorkspace(({ userId, workspaceId }) =>
 			Effect.gen(function* () {
@@ -333,7 +340,7 @@ export const rpcHandlersLayer = AppRpc.toLayer({
 				);
 				return yield* Databases.createDatabase(req);
 			}),
-		).pipe(Effect.orDie),
+		).pipe(dieUnlessApiError),
 	listFields: ({ databaseId }) =>
 		withAuthedWorkspace(({ userId, workspaceId }) =>
 			Effect.gen(function* () {
@@ -345,7 +352,7 @@ export const rpcHandlersLayer = AppRpc.toLayer({
 				);
 				return yield* Databases.listFields(databaseId);
 			}),
-		).pipe(Effect.orDie),
+		).pipe(dieUnlessApiError),
 	createField: (req) =>
 		withAuthedWorkspace(({ userId, workspaceId }) =>
 			Effect.gen(function* () {
@@ -364,7 +371,7 @@ export const rpcHandlersLayer = AppRpc.toLayer({
 					formula: req.formula ?? null,
 				});
 			}),
-		).pipe(Effect.orDie),
+		).pipe(dieUnlessApiError),
 	listRecords: ({ databaseId }) =>
 		withAuthedWorkspace(({ userId, workspaceId }) =>
 			Effect.gen(function* () {
@@ -376,7 +383,7 @@ export const rpcHandlersLayer = AppRpc.toLayer({
 				);
 				return yield* Databases.listRecords(databaseId);
 			}),
-		).pipe(Effect.orDie),
+		).pipe(dieUnlessApiError),
 	listRecordsWithValues: ({ databaseId }) =>
 		withAuthedWorkspace(({ userId, workspaceId }) =>
 			Effect.gen(function* () {
@@ -388,7 +395,7 @@ export const rpcHandlersLayer = AppRpc.toLayer({
 				);
 				return yield* Databases.listRecordsWithValues(databaseId);
 			}),
-		).pipe(Effect.orDie),
+		).pipe(dieUnlessApiError),
 	getRecordWithValues: ({ recordId }) =>
 		withAuthedWorkspace(({ userId, workspaceId }) =>
 			Effect.gen(function* () {
@@ -400,7 +407,7 @@ export const rpcHandlersLayer = AppRpc.toLayer({
 				);
 				return yield* Databases.getRecordWithValues(recordId);
 			}),
-		).pipe(Effect.orDie),
+		).pipe(dieUnlessApiError),
 	createRecord: (req) =>
 		withAuthedWorkspace(({ userId, workspaceId }) =>
 			Effect.gen(function* () {
@@ -412,7 +419,7 @@ export const rpcHandlersLayer = AppRpc.toLayer({
 				);
 				return yield* Databases.createRecord(req);
 			}),
-		).pipe(Effect.orDie),
+		).pipe(dieUnlessApiError),
 	updateFieldValue: (req) =>
 		withAuthedWorkspace(({ userId, workspaceId }) =>
 			Effect.gen(function* () {
@@ -430,7 +437,7 @@ export const rpcHandlersLayer = AppRpc.toLayer({
 					value: row.value as string,
 				});
 			}),
-		).pipe(Effect.orDie),
+		).pipe(dieUnlessApiError),
 	deleteRecord: ({ id }) =>
 		withAuthedWorkspace(({ userId, workspaceId }) =>
 			Effect.gen(function* () {
@@ -442,7 +449,7 @@ export const rpcHandlersLayer = AppRpc.toLayer({
 				);
 				return yield* Databases.deleteRecord(id);
 			}),
-		).pipe(Effect.orDie),
+		).pipe(dieUnlessApiError),
 	listViews: ({ databaseId }) =>
 		withAuthedWorkspace(({ userId, workspaceId }) =>
 			Effect.gen(function* () {
@@ -454,7 +461,7 @@ export const rpcHandlersLayer = AppRpc.toLayer({
 				);
 				return yield* Databases.listViews(databaseId);
 			}),
-		).pipe(Effect.orDie),
+		).pipe(dieUnlessApiError),
 	createView: (req) =>
 		withAuthedWorkspace(({ userId, workspaceId }) =>
 			Effect.gen(function* () {
@@ -473,7 +480,7 @@ export const rpcHandlersLayer = AppRpc.toLayer({
 					isDefault: req.isDefault,
 				});
 			}),
-		).pipe(Effect.orDie),
+		).pipe(dieUnlessApiError),
 	updateView: (req) =>
 		withAuthedWorkspace(({ userId, workspaceId }) =>
 			Effect.gen(function* () {
@@ -492,7 +499,7 @@ export const rpcHandlersLayer = AppRpc.toLayer({
 					isDefault: req.isDefault,
 				});
 			}),
-		).pipe(Effect.orDie),
+		).pipe(dieUnlessApiError),
 	deleteView: ({ id }) =>
 		withAuthedWorkspace(({ userId, workspaceId }) =>
 			Effect.gen(function* () {
@@ -504,7 +511,7 @@ export const rpcHandlersLayer = AppRpc.toLayer({
 				);
 				return yield* Databases.deleteView(id);
 			}),
-		).pipe(Effect.orDie),
+		).pipe(dieUnlessApiError),
 	updateField: (req) =>
 		withAuthedWorkspace(({ userId, workspaceId }) =>
 			Effect.gen(function* () {
@@ -528,7 +535,7 @@ export const rpcHandlersLayer = AppRpc.toLayer({
 					formula: req.formula,
 				});
 			}),
-		).pipe(Effect.orDie),
+		).pipe(dieUnlessApiError),
 	reorderFields: ({ databaseId, fieldIds }) =>
 		withAuthedWorkspace(({ userId, workspaceId }) =>
 			Effect.gen(function* () {
@@ -543,7 +550,7 @@ export const rpcHandlersLayer = AppRpc.toLayer({
 					fieldIds: [...fieldIds],
 				});
 			}),
-		).pipe(Effect.orDie),
+		).pipe(dieUnlessApiError),
 	updateRecord: (req) =>
 		withAuthedWorkspace(({ userId, workspaceId }) =>
 			Effect.gen(function* () {
@@ -555,7 +562,7 @@ export const rpcHandlersLayer = AppRpc.toLayer({
 				);
 				return yield* Databases.updateRecord(req);
 			}),
-		).pipe(Effect.orDie),
+		).pipe(dieUnlessApiError),
 	reorderRecords: ({ databaseId, recordIds }) =>
 		withAuthedWorkspace(({ userId, workspaceId }) =>
 			Effect.gen(function* () {
@@ -570,10 +577,10 @@ export const rpcHandlersLayer = AppRpc.toLayer({
 					recordIds: [...recordIds],
 				});
 			}),
-		).pipe(Effect.orDie),
+		).pipe(dieUnlessApiError),
 	openRecordAsPage: ({ recordId }) =>
 		withAuthedWorkspace(() => Databases.openRecordAsPage(recordId)).pipe(
-			Effect.orDie,
+			dieUnlessApiError,
 		),
 	renameDatabase: (req) =>
 		withAuthedWorkspace(({ userId, workspaceId }) =>
@@ -586,7 +593,7 @@ export const rpcHandlersLayer = AppRpc.toLayer({
 				);
 				return yield* Databases.renameDatabase({ id: req.id, name: req.name });
 			}),
-		).pipe(Effect.orDie),
+		).pipe(dieUnlessApiError),
 	updateDatabase: (req) =>
 		withAuthedWorkspace(({ userId, workspaceId }) =>
 			Effect.gen(function* () {
@@ -598,7 +605,7 @@ export const rpcHandlersLayer = AppRpc.toLayer({
 				);
 				return yield* Databases.updateDatabase(req);
 			}),
-		).pipe(Effect.orDie),
+		).pipe(dieUnlessApiError),
 	deleteField: ({ id }) =>
 		withAuthedWorkspace(({ userId, workspaceId }) =>
 			Effect.gen(function* () {
@@ -610,7 +617,7 @@ export const rpcHandlersLayer = AppRpc.toLayer({
 				);
 				return yield* Databases.deleteField(id);
 			}),
-		).pipe(Effect.orDie),
+		).pipe(dieUnlessApiError),
 	reorderDatabases: (req) =>
 		withAuthedWorkspace(({ userId, workspaceId }) =>
 			Effect.gen(function* () {
@@ -625,7 +632,7 @@ export const rpcHandlersLayer = AppRpc.toLayer({
 					databaseIds: [...req.databaseIds],
 				});
 			}),
-		).pipe(Effect.orDie),
+		).pipe(dieUnlessApiError),
 	deleteDatabase: ({ id }) =>
 		withAuthedWorkspace(({ userId, workspaceId }) =>
 			Effect.gen(function* () {
@@ -637,11 +644,11 @@ export const rpcHandlersLayer = AppRpc.toLayer({
 				);
 				return yield* Databases.deleteDatabase(id);
 			}),
-		).pipe(Effect.orDie),
+		).pipe(dieUnlessApiError),
 
 	// Trash: list / restore / permanent purge
 	listTrash: () =>
-		withAuthedWorkspace(() => Databases.listTrash).pipe(Effect.orDie),
+		withAuthedWorkspace(() => Databases.listTrash).pipe(dieUnlessApiError),
 	restorePage: ({ id }) =>
 		withAuthedWorkspace(({ userId, workspaceId }) =>
 			Effect.gen(function* () {
@@ -653,7 +660,7 @@ export const rpcHandlersLayer = AppRpc.toLayer({
 				);
 				return yield* Pages.restorePage(id);
 			}),
-		).pipe(Effect.orDie),
+		).pipe(dieUnlessApiError),
 	restoreDatabase: ({ id }) =>
 		withAuthedWorkspace(({ userId, workspaceId }) =>
 			Effect.gen(function* () {
@@ -665,7 +672,7 @@ export const rpcHandlersLayer = AppRpc.toLayer({
 				);
 				return yield* Databases.restoreDatabase(id);
 			}),
-		).pipe(Effect.orDie),
+		).pipe(dieUnlessApiError),
 	restoreRecord: ({ id }) =>
 		withAuthedWorkspace(({ userId, workspaceId }) =>
 			Effect.gen(function* () {
@@ -677,7 +684,7 @@ export const rpcHandlersLayer = AppRpc.toLayer({
 				);
 				return yield* Databases.restoreRecord(id);
 			}),
-		).pipe(Effect.orDie),
+		).pipe(dieUnlessApiError),
 	purgePage: ({ id }) =>
 		withAuthedWorkspace(({ userId, workspaceId }) =>
 			Effect.gen(function* () {
@@ -689,7 +696,7 @@ export const rpcHandlersLayer = AppRpc.toLayer({
 				);
 				return yield* Databases.purgePage(id);
 			}),
-		).pipe(Effect.orDie),
+		).pipe(dieUnlessApiError),
 	purgeDatabase: ({ id }) =>
 		withAuthedWorkspace(({ userId, workspaceId }) =>
 			Effect.gen(function* () {
@@ -701,7 +708,7 @@ export const rpcHandlersLayer = AppRpc.toLayer({
 				);
 				return yield* Databases.purgeDatabase(id);
 			}),
-		).pipe(Effect.orDie),
+		).pipe(dieUnlessApiError),
 	purgeRecord: ({ id }) =>
 		withAuthedWorkspace(({ userId, workspaceId }) =>
 			Effect.gen(function* () {
@@ -713,14 +720,14 @@ export const rpcHandlersLayer = AppRpc.toLayer({
 				);
 				return yield* Databases.purgeRecord(id);
 			}),
-		).pipe(Effect.orDie),
+		).pipe(dieUnlessApiError),
 
 	// Workspaces (use PlatformDb, session-based)
 	getMyWorkspaces: () =>
 		Effect.gen(function* () {
 			const user = yield* getSessionUser;
 			return yield* Workspaces.getMyWorkspaces(user.id);
-		}).pipe(Effect.orDie),
+		}).pipe(dieUnlessApiError),
 	createWorkspace: ({ name, slug }) =>
 		Effect.gen(function* () {
 			const user = yield* getSessionUser;
@@ -737,7 +744,7 @@ export const rpcHandlersLayer = AppRpc.toLayer({
 			);
 			track("workspace_created", user.id, { workspace_id: ws.id });
 			return ws;
-		}).pipe(Effect.orDie),
+		}).pipe(dieUnlessApiError),
 	joinWorkspaceByToken: ({ inviteToken }) =>
 		Effect.gen(function* () {
 			const user = yield* getSessionUser;
@@ -745,7 +752,7 @@ export const rpcHandlersLayer = AppRpc.toLayer({
 				userId: user.id,
 				inviteToken,
 			});
-		}).pipe(Effect.orDie),
+		}).pipe(dieUnlessApiError),
 	startDemo: () =>
 		Effect.gen(function* () {
 			const user = yield* getSessionUser;
@@ -759,50 +766,50 @@ export const rpcHandlersLayer = AppRpc.toLayer({
 				);
 			}
 			return workspace;
-		}).pipe(Effect.orDie),
+		}).pipe(dieUnlessApiError),
 	getWorkspaceMembers: ({ workspaceId }) =>
 		Effect.gen(function* () {
 			yield* requireWorkspaceRole(workspaceId);
 			return yield* Workspaces.getWorkspaceMembers(workspaceId);
-		}).pipe(Effect.orDie),
+		}).pipe(dieUnlessApiError),
 	removeMember: ({ workspaceId, userId }) =>
 		Effect.gen(function* () {
 			yield* requireWorkspaceOwner(workspaceId);
 			return yield* Workspaces.removeMember({ workspaceId, userId });
-		}).pipe(Effect.orDie),
+		}).pipe(dieUnlessApiError),
 	regenerateInviteLink: ({ workspaceId }) =>
 		Effect.gen(function* () {
 			yield* requireWorkspaceOwner(workspaceId);
 			return yield* Workspaces.regenerateInviteLink(workspaceId);
-		}).pipe(Effect.orDie),
+		}).pipe(dieUnlessApiError),
 	inviteMemberByEmail: ({ workspaceId, email }) =>
 		Effect.gen(function* () {
 			yield* getSessionUser;
 			return yield* Workspaces.inviteMemberByEmail({ workspaceId, email });
-		}).pipe(Effect.orDie),
+		}).pipe(dieUnlessApiError),
 
 	// API keys
 	listApiKeys: () =>
 		Effect.gen(function* () {
 			const user = yield* getSessionUser;
 			return yield* ApiKeys.listApiKeys(user.id);
-		}).pipe(Effect.orDie),
+		}).pipe(dieUnlessApiError),
 	createApiKey: ({ name }) =>
 		Effect.gen(function* () {
 			const user = yield* getSessionUser;
 			return yield* ApiKeys.createApiKey({ userId: user.id, name });
-		}).pipe(Effect.orDie),
+		}).pipe(dieUnlessApiError),
 	revokeApiKey: ({ id }) =>
 		Effect.gen(function* () {
 			const user = yield* getSessionUser;
 			return yield* ApiKeys.revokeApiKey({ userId: user.id, id });
-		}).pipe(Effect.orDie),
+		}).pipe(dieUnlessApiError),
 
 	// Page ACL — Zanzibar-style: structured subjects, atomic writes, revisions.
 	listLockedPageIds: () =>
 		withAuthedWorkspace(({ userId, workspaceId, role }) =>
 			Permissions.listVisibleLockedPageIds(userId, workspaceId, role),
-		).pipe(Effect.orDie),
+		).pipe(dieUnlessApiError),
 	getPagePermissions: ({ pageId }) =>
 		withAuthedWorkspace(({ userId, workspaceId }) =>
 			Effect.gen(function* () {
@@ -814,13 +821,13 @@ export const rpcHandlersLayer = AppRpc.toLayer({
 				);
 				return yield* Permissions.getPagePermissions(pageId);
 			}),
-		).pipe(Effect.orDie),
+		).pipe(dieUnlessApiError),
 	checkPagePermission: ({ pageId, relation }) =>
 		withAuthedWorkspace(({ userId, workspaceId }) =>
 			Permissions.canAccessPage(userId, workspaceId, pageId, relation).pipe(
 				Effect.map((allowed) => ({ allowed })),
 			),
-		).pipe(Effect.orDie),
+		).pipe(dieUnlessApiError),
 	writePagePermissions: ({ pageId, set, remove, ifRevision }) =>
 		withAuthedWorkspace(({ userId, workspaceId, role }) =>
 			Effect.gen(function* () {
@@ -838,7 +845,7 @@ export const rpcHandlersLayer = AppRpc.toLayer({
 					callerWorkspaceRole: role,
 				});
 			}),
-		).pipe(Effect.orDie),
+		).pipe(dieUnlessApiError),
 
 	// Import/Export
 	importNotion: ({ directory }) =>
@@ -847,7 +854,7 @@ export const rpcHandlersLayer = AppRpc.toLayer({
 				yield* Permissions.requireWorkspaceOwner(userId, workspaceId);
 				return yield* ImportExport.importNotion(directory);
 			}),
-		).pipe(Effect.orDie),
+		).pipe(dieUnlessApiError),
 	exportPage: ({ pageId, includeDatabases }) =>
 		withAuthedWorkspace(({ userId, workspaceId }) =>
 			Effect.gen(function* () {
@@ -859,7 +866,7 @@ export const rpcHandlersLayer = AppRpc.toLayer({
 				);
 				return yield* ImportExport.exportPage(pageId, includeDatabases);
 			}),
-		).pipe(Effect.orDie),
+		).pipe(dieUnlessApiError),
 	exportDatabase: ({ dbId }) =>
 		withAuthedWorkspace(({ userId, workspaceId }) =>
 			Effect.gen(function* () {
@@ -871,18 +878,18 @@ export const rpcHandlersLayer = AppRpc.toLayer({
 				);
 				return yield* ImportExport.exportDatabase(dbId);
 			}),
-		).pipe(Effect.orDie),
+		).pipe(dieUnlessApiError),
 	exportAll: ({ outputDir }) =>
 		withAuthedWorkspace(({ userId, workspaceId }) =>
 			Effect.gen(function* () {
 				yield* Permissions.requireWorkspaceOwner(userId, workspaceId);
 				return yield* ImportExport.exportAll(outputDir);
 			}),
-		).pipe(Effect.orDie),
+		).pipe(dieUnlessApiError),
 
 	listTemplates: () =>
 		withWorkspaceDb(Effect.sync(() => Templates.getTemplates())).pipe(
-			Effect.orDie,
+			dieUnlessApiError,
 		),
 
 	createPageFromTemplate: (req: {
@@ -899,5 +906,5 @@ export const rpcHandlersLayer = AppRpc.toLayer({
 				});
 				return page;
 			}),
-		).pipe(Effect.orDie),
+		).pipe(dieUnlessApiError),
 });

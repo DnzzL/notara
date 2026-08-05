@@ -1,4 +1,5 @@
 import { SqlClient, type SqlError } from "@effect/sql";
+import { NotFoundError } from "@notara/shared";
 import { Effect } from "effect";
 import { ulid } from "ulidx";
 import { PAGE_COLS, pageFromRow } from "../mappers.js";
@@ -750,9 +751,10 @@ export const createPageFromTemplate = (req: {
 		const sql = yield* SqlClient.SqlClient;
 		const template = TEMPLATES.find((t) => t.id === req.templateId);
 		if (!template)
-			return yield* Effect.fail(
-				new Error(`Unknown template: ${req.templateId}`),
-			);
+			return yield* new NotFoundError({
+				resource: "template",
+				id: req.templateId,
+			});
 
 		const now = new Date().toISOString();
 		const siblingMaxOrder = req.parentId

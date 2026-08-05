@@ -1,4 +1,5 @@
 import { HttpServerRequest } from "@effect/platform";
+import { AuthError } from "@notara/shared";
 import { Context, Effect } from "effect";
 import { auth } from "./auth.js";
 import { WorkspaceDb } from "./db.js";
@@ -8,14 +9,6 @@ export class WorkspaceContext extends Context.Tag("WorkspaceContext")<
 	WorkspaceContext,
 	{ userId: string; workspaceId: string; role: "owner" | "member" }
 >() {}
-
-export class AuthError {
-	readonly _tag = "AuthError";
-	constructor(
-		readonly status: 401 | 403,
-		readonly message: string,
-	) {}
-}
 
 export const resolveWorkspaceContext = (workspaceId: string) =>
 	Effect.gen(function* () {
@@ -31,7 +24,9 @@ export const resolveWorkspaceContext = (workspaceId: string) =>
 			auth.api.getSession({ headers }),
 		);
 		if (!session) {
-			return yield* Effect.fail(new AuthError(401, "Unauthorized"));
+			return yield* Effect.fail(
+				new AuthError({ status: 401, message: "Unauthorized" }),
+			);
 		}
 
 		const userId = session.user.id;
@@ -43,7 +38,9 @@ export const resolveWorkspaceContext = (workspaceId: string) =>
 			.get(workspaceId, userId) as { role: string } | null;
 
 		if (!memberRow) {
-			return yield* Effect.fail(new AuthError(403, "Forbidden"));
+			return yield* Effect.fail(
+				new AuthError({ status: 403, message: "Forbidden" }),
+			);
 		}
 
 		return { userId, workspaceId, role: memberRow.role as "owner" | "member" };
@@ -57,7 +54,9 @@ export const getSessionUser = Effect.gen(function* () {
 	}
 	const session = yield* Effect.promise(() => auth.api.getSession({ headers }));
 	if (!session) {
-		return yield* Effect.fail(new AuthError(401, "Unauthorized"));
+		return yield* Effect.fail(
+			new AuthError({ status: 401, message: "Unauthorized" }),
+		);
 	}
 	return session.user;
 });
@@ -79,7 +78,9 @@ export const requireWorkspaceRole = (workspaceId: string) =>
 			)
 			.get(workspaceId, user.id) as { role: "owner" | "member" } | null;
 		if (!memberRow) {
-			return yield* Effect.fail(new AuthError(403, "Not a workspace member"));
+			return yield* Effect.fail(
+				new AuthError({ status: 403, message: "Not a workspace member" }),
+			);
 		}
 		return memberRow.role;
 	});
@@ -90,7 +91,10 @@ export const requireWorkspaceOwner = (workspaceId: string) =>
 		const role = yield* requireWorkspaceRole(workspaceId);
 		if (role !== "owner") {
 			return yield* Effect.fail(
-				new AuthError(403, "Workspace owner role required"),
+				new AuthError({
+					status: 403,
+					message: "Workspace owner role required",
+				}),
 			);
 		}
 	});
@@ -132,7 +136,9 @@ export const withAuthedWorkspace = <A, E, R>(
 			)
 			.get(workspaceId, user.id) as { role: "owner" | "member" } | null;
 		if (!memberRow) {
-			return yield* Effect.fail(new AuthError(403, "Not a workspace member"));
+			return yield* Effect.fail(
+				new AuthError({ status: 403, message: "Not a workspace member" }),
+			);
 		}
 		const wdb = yield* WorkspaceDb;
 		return yield* build({

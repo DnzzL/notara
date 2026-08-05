@@ -7,7 +7,12 @@
  * Transport is fetch-based (works in browsers without Effect platform HttpClient).
  * Response types are validated through Effect's serialization protocol.
  */
-import { createTypedApiClient, type TypedApiClient } from "@notara/shared";
+import {
+	ApiCause,
+	createTypedApiClient,
+	type TypedApiClient,
+} from "@notara/shared";
+import { Cause, Option, Schema } from "effect";
 
 export type AclRelation = "owner" | "editor" | "viewer";
 
@@ -20,16 +25,24 @@ export class AccessDeniedError extends Error {
 	}
 }
 
-/** Heuristic: pick a 403 out of a serialized Effect failure cause or defect. */
-function looksLike403(cause: unknown): boolean {
-	const s = typeof cause === "string" ? cause : JSON.stringify(cause);
-	return (
-		s.includes('"status":403') ||
-		s.includes("Insufficient permission") ||
-		s.includes("Not a member of this workspace") ||
-		s.includes("Workspace owner role required")
+const decodeCause = Schema.decodeUnknownOption(ApiCause);
+
+/**
+ * Rebuild the typed failure a handler declared (`error: ApiError` on every RPC)
+ * from the serialized cause, so callers can switch on `_tag` / `instanceof`
+ * instead of matching substrings. `None` for anything untyped — a defect, a
+ * transport hiccup, an error shape this client is too old to know about.
+ */
+const typedFailure = (cause: unknown): Option.Option<Error> =>
+	decodeCause(cause).pipe(
+		Option.flatMap(Cause.failureOption),
+		// The app layer already special-cases denial; keep that single type.
+		Option.map((error) =>
+			error._tag === "AuthError" && error.status === 403
+				? new AccessDeniedError(error.message)
+				: error,
+		),
 	);
-}
 
 /** Extract a human-readable message from a Defect payload. */
 function defectMessage(defect: unknown): string {
@@ -96,28 +109,25 @@ async function rpcCall<T>(
 
 	if (exitResult) {
 		if (exitResult.exit._tag === "Failure") {
-			if (looksLike403(exitResult.exit.cause)) {
-				throw new AccessDeniedError();
-			}
-			throw new Error(
-				`RPC ${method} error: ${JSON.stringify(exitResult.exit.cause)}`,
+			throw Option.getOrElse(
+				typedFailure(exitResult.exit.cause),
+				() =>
+					new Error(
+						`RPC ${method} error: ${JSON.stringify(exitResult.exit.cause)}`,
+					),
 			);
 		}
 		return exitResult.exit.value as T;
 	}
 
-	// If no Exit matched, check for a Defect (handler used Effect.orDie, which
-	// converts failures to defects — the RPC framework sends these without a
-	// matching requestId). Extract the error from the defect payload.
+	// If no Exit matched, check for a Defect: everything a handler can fail with
+	// outside the declared ApiError union stays a defect (SQL errors, bugs), and
+	// the RPC framework sends those without a matching requestId.
 	const defectResult = (
 		results as Array<{ _tag: string; defect?: unknown }>
 	).find((r) => r._tag === "Defect");
 	if (defectResult && defectResult.defect !== undefined) {
-		const defect = defectResult.defect;
-		if (looksLike403(defect)) {
-			throw new AccessDeniedError();
-		}
-		throw new Error(defectMessage(defect));
+		throw new Error(defectMessage(defectResult.defect));
 	}
 
 	throw new Error(`RPC ${method}: no response for id ${id}`);

@@ -1,4 +1,5 @@
 import { SqlClient } from "@effect/sql";
+import { ConflictError, NotFoundError, ValidationError } from "@notara/shared";
 import { Effect } from "effect";
 import { ulid } from "ulidx";
 import { PAGE_COLS, pageFromRow } from "../mappers.js";
@@ -19,7 +20,7 @@ export const getPage = (id: string) =>
 			[id],
 		);
 		if (rows.length === 0)
-			return yield* Effect.fail(new Error(`Page ${id} not found`));
+			return yield* new NotFoundError({ resource: "page", id });
 		return pageFromRow(rows[0]);
 	});
 
@@ -91,7 +92,7 @@ export const updatePage = (req: {
 			[req.id],
 		);
 		if (rows.length === 0)
-			return yield* Effect.fail(new Error(`Page ${req.id} not found`));
+			return yield* new NotFoundError({ resource: "page", id: req.id });
 		return pageFromRow(rows[0]);
 	});
 
@@ -157,13 +158,15 @@ export const movePage = (req: { id: string; parentId: string | null }) =>
 	Effect.gen(function* () {
 		const sql = yield* SqlClient.SqlClient;
 		if (req.parentId === req.id)
-			return yield* Effect.fail(new Error("Cannot move a page into itself"));
+			return yield* new ConflictError({
+				message: "Cannot move a page into itself",
+			});
 		if (req.parentId) {
 			const descendants = yield* getDescendants(req.id);
 			if (descendants.has(req.parentId))
-				return yield* Effect.fail(
-					new Error("Cannot move a page into one of its descendants"),
-				);
+				return yield* new ConflictError({
+					message: "Cannot move a page into one of its descendants",
+				});
 		}
 		const now = new Date().toISOString();
 		yield* sql`
@@ -175,7 +178,7 @@ export const movePage = (req: { id: string; parentId: string | null }) =>
 			[req.id],
 		);
 		if (rows.length === 0)
-			return yield* Effect.fail(new Error(`Page ${req.id} not found`));
+			return yield* new NotFoundError({ resource: "page", id: req.id });
 		return pageFromRow(rows[0]);
 	});
 
@@ -194,9 +197,9 @@ export const reorderPages = (req: {
       WHERE id IN ${sql.in(req.pageIds)} AND ${parentCondition} AND is_deleted = 0
     `;
 		if (Number(countRow[0].cnt) !== req.pageIds.length) {
-			return yield* Effect.fail(
-				new Error("One or more pages do not belong to this sibling group"),
-			);
+			return yield* new ValidationError({
+				message: "One or more pages do not belong to this sibling group",
+			});
 		}
 		yield* Effect.all(
 			req.pageIds.map(

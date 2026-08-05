@@ -1,4 +1,5 @@
 import { SqlClient } from "@effect/sql";
+import { NotFoundError } from "@notara/shared";
 import { Effect } from "effect";
 import { ulid } from "ulidx";
 import {
@@ -103,7 +104,7 @@ export const getDatabase = (id: string) =>
       SELECT ${sql.unsafe(DB_COLS)} FROM databases WHERE id = ${id} AND is_deleted = 0
     `;
 		if (rows.length === 0)
-			return yield* Effect.fail(new Error(`Database ${id} not found`));
+			return yield* new NotFoundError({ resource: "database", id });
 		return dbFromRow(rows[0]);
 	});
 
@@ -230,7 +231,7 @@ export const getRecordWithValues = (recordId: string) =>
       SELECT ${sql.unsafe(RECORD_COLS)} FROM database_records WHERE id = ${recordId} AND is_deleted = 0
     `;
 		if (recordRows.length === 0)
-			return yield* Effect.fail(new Error(`Record ${recordId} not found`));
+			return yield* new NotFoundError({ resource: "record", id: recordId });
 		const record = recordFromRow(recordRows[0]);
 
 		const fieldValues = yield* sql`
@@ -344,7 +345,7 @@ export const updateField = (req: {
       FROM database_fields WHERE id = ${req.id}
     `;
 		if (existing.length === 0)
-			return yield* Effect.fail(new Error(`Field ${req.id} not found`));
+			return yield* new NotFoundError({ resource: "field", id: req.id });
 
 		const current = existing[0];
 		const newName = req.name ?? current.name;
@@ -468,7 +469,7 @@ export const renameDatabase = (req: { id: string; name: string }) =>
       SELECT ${sql.unsafe(DB_COLS)} FROM databases WHERE id = ${req.id}
     `;
 		if (rows.length === 0)
-			return yield* Effect.fail(new Error(`Database ${req.id} not found`));
+			return yield* new NotFoundError({ resource: "database", id: req.id });
 		return dbFromRow(rows[0]);
 	});
 
@@ -500,7 +501,7 @@ export const updateDatabase = (req: {
       SELECT ${sql.unsafe(DB_COLS)} FROM databases WHERE id = ${req.id}
     `;
 		if (rows.length === 0)
-			return yield* Effect.fail(new Error(`Database ${req.id} not found`));
+			return yield* new NotFoundError({ resource: "database", id: req.id });
 		return dbFromRow(rows[0]);
 	});
 
@@ -574,7 +575,7 @@ export const updateView = (req: {
     FROM database_views WHERE id = ${req.id}
   `;
 		if (existing.length === 0)
-			return yield* Effect.fail(new Error(`View ${req.id} not found`));
+			return yield* new NotFoundError({ resource: "view", id: req.id });
 		const cur = existing[0] as any;
 		const newName = req.name ?? cur.name;
 		const newType = req.type ?? cur.type;
@@ -604,7 +605,7 @@ export const updateView = (req: {
     RETURNING ${sql.unsafe(VIEW_COLS)}
   `;
 		if (rows.length === 0)
-			return yield* Effect.fail(new Error(`View ${req.id} not found`));
+			return yield* new NotFoundError({ resource: "view", id: req.id });
 		const result = viewFromRow(rows[0]);
 		// Notify SSE subscribers that this view's config changed
 		publishViewConfigChange({
@@ -768,7 +769,7 @@ export const openRecordAsPage = (recordId: string) =>
       FROM database_records WHERE id = ${recordId} AND is_deleted = 0
     `;
 		if (recRows.length === 0)
-			return yield* Effect.fail(new Error(`Record ${recordId} not found`));
+			return yield* new NotFoundError({ resource: "record", id: recordId });
 		const rec = recRows[0] as {
 			id: string;
 			title: string;
@@ -781,9 +782,10 @@ export const openRecordAsPage = (recordId: string) =>
 		const dbRows =
 			yield* sql`SELECT page_id as "pageId" FROM databases WHERE id = ${rec.databaseId}`;
 		if (dbRows.length === 0)
-			return yield* Effect.fail(
-				new Error(`Database ${rec.databaseId} not found`),
-			);
+			return yield* new NotFoundError({
+				resource: "database",
+				id: rec.databaseId,
+			});
 		const hostPageId = (dbRows[0] as { pageId: string }).pageId;
 
 		const pageId = ulid();

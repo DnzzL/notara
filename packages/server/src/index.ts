@@ -12,7 +12,7 @@ import * as HttpServerResponse from "@effect/platform/HttpServerResponse";
 import { NodeHttpServer, NodeRuntime } from "@effect/platform-node";
 import * as RpcSerialization from "@effect/rpc/RpcSerialization";
 import * as RpcServer from "@effect/rpc/RpcServer";
-import { AppRpc } from "@notara/shared";
+import { AppRpc, ValidationError } from "@notara/shared";
 import { Effect, Layer } from "effect";
 import { registerV1Routes } from "./api-v1/routes.js";
 import { auth } from "./auth.js";
@@ -29,6 +29,7 @@ import * as ImportExport from "./handlers/importExport.js";
 import { restoreBackup } from "./handlers/restore.js";
 import { loadSettings, saveSettings } from "./handlers/settings.js";
 import * as Upload from "./handlers/upload.js";
+import { failureResponse } from "./http-error.js";
 import {
 	checkRateLimit,
 	corsHeaders,
@@ -45,7 +46,7 @@ import {
 import { rpcHandlersLayer } from "./rpc-handlers.js";
 import { startTrashSweep } from "./trash-sweeper.js";
 import { makeViewConfigStreamHandler } from "./view-config-stream.js";
-import { AuthError, withAuthedWorkspace } from "./workspace-context.js";
+import { withAuthedWorkspace } from "./workspace-context.js";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
@@ -139,12 +140,7 @@ const staticFilesRoute = Effect.gen(function* () {
 	}).pipe(
 		Effect.catchAllCause((cause) => {
 			if (cause._tag === "Fail") {
-				const msg = String(cause.error);
-				reportError(cause.error);
-				return HttpServerResponse.text(JSON.stringify({ error: msg }), {
-					status: 500,
-					headers: { "Content-Type": "application/json", ...corsHeaders },
-				});
+				return failureResponse(cause.error);
 			}
 			reportError(new Error(cause.toString()));
 			return Effect.gen(function* () {
@@ -250,9 +246,9 @@ const staticFilesRoute = Effect.gen(function* () {
 					// pi-lens-ignore: ast-grep:unchecked-throwing-call
 					try: () => JSON.parse(Buffer.from(ab).toString("utf-8")),
 					catch: (e) =>
-						new Error(
-							`Invalid JSON: ${e instanceof Error ? e.message : String(e)}`,
-						),
+						new ValidationError({
+							message: `Invalid JSON: ${e instanceof Error ? e.message : String(e)}`,
+						}),
 				});
 				saveSettings(body);
 				return HttpServerResponse.text(JSON.stringify({ ok: true }), {
@@ -261,12 +257,7 @@ const staticFilesRoute = Effect.gen(function* () {
 			}).pipe(
 				Effect.catchAllCause((cause) => {
 					if (cause._tag === "Fail") {
-						const msg = String(cause.error);
-						reportError(cause.error);
-						return HttpServerResponse.text(JSON.stringify({ error: msg }), {
-							status: 500,
-							headers: { "Content-Type": "application/json", ...corsHeaders },
-						});
+						return failureResponse(cause.error);
 					}
 					reportError(new Error(cause.toString()));
 					return Effect.gen(function* () {
@@ -297,12 +288,7 @@ const staticFilesRoute = Effect.gen(function* () {
 			}).pipe(
 				Effect.catchAllCause((cause) => {
 					if (cause._tag === "Fail") {
-						const msg = String(cause.error);
-						reportError(cause.error);
-						return HttpServerResponse.text(JSON.stringify({ error: msg }), {
-							status: 500,
-							headers: { "Content-Type": "application/json", ...corsHeaders },
-						});
+						return failureResponse(cause.error);
 					}
 					reportError(new Error(cause.toString()));
 					return Effect.gen(function* () {
@@ -333,12 +319,7 @@ const staticFilesRoute = Effect.gen(function* () {
 			}).pipe(
 				Effect.catchAllCause((cause) => {
 					if (cause._tag === "Fail") {
-						const msg = String(cause.error);
-						reportError(cause.error);
-						return HttpServerResponse.text(JSON.stringify({ error: msg }), {
-							status: 500,
-							headers: { "Content-Type": "application/json", ...corsHeaders },
-						});
+						return failureResponse(cause.error);
 					}
 					reportError(new Error(cause.toString()));
 					return Effect.gen(function* () {
@@ -370,13 +351,16 @@ const staticFilesRoute = Effect.gen(function* () {
 					// pi-lens-ignore: ast-grep:unchecked-throwing-call
 					try: () => JSON.parse(Buffer.from(ab).toString("utf-8")),
 					catch: (e) =>
-						new Error(
-							`Invalid JSON: ${e instanceof Error ? e.message : String(e)}`,
-						),
+						new ValidationError({
+							message: `Invalid JSON: ${e instanceof Error ? e.message : String(e)}`,
+						}),
 				})) as {
 					key?: string;
 				};
-				if (!body.key) throw new Error("Missing backup key");
+				if (!body.key)
+					return yield* new ValidationError({
+						message: "Missing backup key",
+					});
 				const result = yield* Effect.promise(() => restoreBackup(body.key!));
 				// Flush the response, then exit so the container restarts.
 				setTimeout(() => {
@@ -393,12 +377,7 @@ const staticFilesRoute = Effect.gen(function* () {
 			}).pipe(
 				Effect.catchAllCause((cause) => {
 					if (cause._tag === "Fail") {
-						const msg = String(cause.error);
-						reportError(cause.error);
-						return HttpServerResponse.text(JSON.stringify({ error: msg }), {
-							status: 500,
-							headers: { "Content-Type": "application/json", ...corsHeaders },
-						});
+						return failureResponse(cause.error);
 					}
 					reportError(new Error(cause.toString()));
 					return Effect.gen(function* () {
@@ -554,21 +533,7 @@ const staticFilesRoute = Effect.gen(function* () {
 		).pipe(
 			Effect.catchAllCause((cause) => {
 				if (cause._tag === "Fail") {
-					if (cause.error instanceof AuthError) {
-						return HttpServerResponse.text(
-							JSON.stringify({ error: cause.error.message }),
-							{
-								status: cause.error.status,
-								headers: { "Content-Type": "application/json", ...corsHeaders },
-							},
-						);
-					}
-					const msg = String(cause.error);
-					reportError(cause.error);
-					return HttpServerResponse.text(JSON.stringify({ error: msg }), {
-						status: 500,
-						headers: { "Content-Type": "application/json", ...corsHeaders },
-					});
+					return failureResponse(cause.error);
 				}
 				reportError(new Error(cause.toString()));
 				return Effect.gen(function* () {
@@ -640,21 +605,7 @@ const staticFilesRoute = Effect.gen(function* () {
 		Effect.catchAllCause((cause) => {
 			if (cause._tag === "Fail") {
 				// 401/403 from the chokepoint must not be flattened into a 500.
-				if (cause.error instanceof AuthError) {
-					return HttpServerResponse.text(
-						JSON.stringify({ error: cause.error.message }),
-						{
-							status: cause.error.status,
-							headers: { "Content-Type": "application/json", ...corsHeaders },
-						},
-					);
-				}
-				const msg = String(cause.error);
-				reportError(cause.error);
-				return HttpServerResponse.text(JSON.stringify({ error: msg }), {
-					status: 500,
-					headers: { "Content-Type": "application/json", ...corsHeaders },
-				});
+				return failureResponse(cause.error);
 			}
 			reportError(new Error(cause.toString()));
 			return Effect.gen(function* () {

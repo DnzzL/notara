@@ -14,6 +14,7 @@ import {
 	verticalListSortingStrategy,
 } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
+import { BlockLockedError } from "@notara/shared";
 import { Extension, InputRule } from "@tiptap/core";
 import HorizontalRule from "@tiptap/extension-horizontal-rule";
 import Image from "@tiptap/extension-image";
@@ -997,15 +998,12 @@ export function BlockEditor() {
 			try {
 				await updateBlock(id, content, type);
 			} catch (err) {
-				const msg = err instanceof Error ? err.message : String(err);
-				if (msg.includes("BlockLocked")) {
-					const holderId =
-						msg.split("BlockLocked:")[1]?.split(/[^a-zA-Z0-9_-]/)[0] ?? null;
-					const holderName = holderId
-						? (usePresenceStore
-								.getState()
-								.others.find((u) => u.userId === holderId)?.name ?? "Someone")
-						: "Someone";
+				if (err instanceof BlockLockedError) {
+					const holderName =
+						usePresenceStore
+							.getState()
+							.others.find((u) => u.userId === err.holderUserId)?.name ??
+						"Someone";
 					toaster.create({
 						title: `${holderName} is editing this block`,
 						description: "Wait a moment and try again.",

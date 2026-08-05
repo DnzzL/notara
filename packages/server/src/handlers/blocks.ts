@@ -1,5 +1,5 @@
 import { SqlClient } from "@effect/sql";
-import { Backlink } from "@notara/shared";
+import { Backlink, NotFoundError } from "@notara/shared";
 import { Effect } from "effect";
 import { ulid } from "ulidx";
 import { BLOCK_COLS, blockFromRow } from "../mappers.js";
@@ -69,7 +69,7 @@ export const updateBlock = (req: {
         RETURNING ${sql.unsafe(BLOCK_COLS)}
       `;
 		if (rows.length === 0)
-			return yield* Effect.fail(new Error(`Block ${req.id} not found`));
+			return yield* new NotFoundError({ resource: "block", id: req.id });
 		return blockFromRow(rows[0]);
 	});
 

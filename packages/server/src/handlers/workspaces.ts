@@ -1,4 +1,10 @@
-import { Workspace, WorkspaceMember } from "@notara/shared";
+import {
+	ConflictError,
+	NotFoundError,
+	ValidationError,
+	Workspace,
+	WorkspaceMember,
+} from "@notara/shared";
 import { Effect } from "effect";
 import { ulid } from "ulidx";
 import { demoMode } from "../demo.js";
@@ -40,7 +46,7 @@ export const createWorkspace = (req: {
 				"INSERT INTO workspaces (id, name, slug, owner_id, invite_token, created_at) VALUES (?, ?, ?, ?, ?, ?)",
 			).run(id, req.name, req.slug, req.userId, inviteToken, now);
 		} catch (e: any) {
-			return yield* Effect.fail(new Error(e.message));
+			return yield* new ConflictError({ message: String(e.message) });
 		}
 
 		db.prepare(
@@ -71,7 +77,9 @@ export const createWorkspace = (req: {
 export const startDemo = (userId: string) =>
 	Effect.gen(function* () {
 		if (!demoMode()) {
-			return yield* Effect.fail(new Error("Demo mode is not enabled"));
+			return yield* new ValidationError({
+				message: "Demo mode is not enabled",
+			});
 		}
 		const db = yield* PlatformDb;
 
@@ -139,7 +147,7 @@ export const joinWorkspaceByToken = (req: {
 			.get(req.inviteToken) as WorkspaceRow | null;
 
 		if (!ws) {
-			return yield* Effect.fail(new Error("Invalid invite token"));
+			return yield* new ValidationError({ message: "Invalid invite token" });
 		}
 
 		const existing = db
@@ -196,7 +204,9 @@ export const removeMember = (req: { workspaceId: string; userId: string }) =>
 			.get(req.workspaceId) as { owner_id: string } | null;
 
 		if (ws?.owner_id === req.userId) {
-			return yield* Effect.fail(new Error("Cannot remove the workspace owner"));
+			return yield* new ConflictError({
+				message: "Cannot remove the workspace owner",
+			});
 		}
 
 		db.prepare(
@@ -225,7 +235,11 @@ export const inviteMemberByEmail = (req: {
 			.prepare("SELECT * FROM workspaces WHERE id = ?")
 			.get(req.workspaceId) as WorkspaceRow | null;
 
-		if (!ws) return yield* Effect.fail(new Error("Workspace not found"));
+		if (!ws)
+			return yield* new NotFoundError({
+				resource: "workspace",
+				id: req.workspaceId,
+			});
 
 		const joinUrl = `${BASE_URL}/join/${ws.invite_token}`;
 		yield* Effect.promise(() =>

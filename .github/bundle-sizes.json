@@ -1,19 +1,19 @@
 {
-	"packages/app/dist/assets/index-D3EMQMAB.css": {
-		"size": 88359,
-		"gzip": 15820
+	"packages/app/dist/assets/index-CFoLN7n8.css": {
+		"size": 89137,
+		"gzip": 15951
 	},
-	"packages/app/dist/assets/index-mdfZgkvm.js": {
-		"size": 2484644,
-		"gzip": 624830
+	"packages/app/dist/assets/index-BLSm3nKc.js": {
+		"size": 2496075,
+		"gzip": 627957
 	},
 	"packages/app/dist/index.html": {
 		"size": 1438,
-		"gzip": 620
+		"gzip": 633
 	},
 	"packages/shared/dist/index.js": {
-		"size": 117,
-		"gzip": 0
+		"size": 146,
+		"gzip": 114
 	},
-	"timestamp": "2026-07-28T18:30:00Z"
+	"timestamp": "2026-08-05T20:55:00Z"
 }
