@@ -8,9 +8,15 @@ export const Route = createRoute({
 	getParentRoute: () => rootRoute,
 	path: "/",
 	loader: async () => {
+		// Runtime, not build-time: one published image serves demo and non-demo
+		// instances, so the CTA cannot be compiled in or out.
+		const demoMode = await fetch("/api/public-config")
+			.then((r) => r.json())
+			.then((c) => c.demoMode === true)
+			.catch(() => false);
 		const client = createAuthClient({ baseURL: window.location.origin });
 		const session = await client.getSession();
-		if (!session?.data) return { loggedIn: false };
+		if (!session?.data) return { demoMode };
 		const workspaces = await api.getMyWorkspaces();
 		// Demo visitors keep access to the landing page — it's the pitch they came
 		// for. Only a real workspace triggers auto-resume.
@@ -33,11 +39,15 @@ export const Route = createRoute({
 				params: { workspaceSlug: target },
 			});
 		}
-		throw redirect({ to: "/workspaces" });
+		// No workspace at all means a real account that hasn't created one yet.
+		// Holding only a demo workspace falls through to the landing page.
+		if (workspaces.length === 0) throw redirect({ to: "/workspaces" });
+		return { demoMode };
 	},
 	component: IndexPage,
 });
 
 function IndexPage() {
-	return <LandingPage />;
+	const { demoMode } = Route.useLoaderData();
+	return <LandingPage demoMode={demoMode} />;
 }

@@ -177,6 +177,19 @@ const staticFilesRoute = Effect.gen(function* () {
 		Effect.succeed(HttpServerResponse.text("ok", { status: 200 })),
 	);
 
+	// Public instance config. Deliberately minimal: the landing page needs to know
+	// whether demo mode is on, and one published image has to serve both modes, so
+	// this cannot be a build-time flag. Nothing sensitive belongs here.
+	yield* router.add(
+		"GET",
+		"/api/public-config",
+		Effect.sync(() =>
+			HttpServerResponse.text(JSON.stringify({ demoMode: demoMode() }), {
+				headers: { "Content-Type": "application/json", ...corsHeaders },
+			}),
+		),
+	);
+
 	// Settings GET
 	yield* router.add(
 		"GET",

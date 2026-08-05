@@ -5,10 +5,6 @@ import { authClient } from "../auth-client.js";
 import { api } from "../rpc-client.js";
 import { toaster } from "../toaster.js";
 
-// Advertise the hosted demo only where one actually runs. Off by default, so a
-// self-hosted build never shows the button.
-const DEMO_MODE = import.meta.env.VITE_DEMO_MODE === "true";
-
 // Public source-available repository. Notara is fair-source (FSL-1.1-ALv2):
 // free to self-host, no purchase step.
 const REPO_URL = "https://github.com/dnzzl/notara";
@@ -88,7 +84,11 @@ async function startDemoSession() {
 	}
 }
 
-export function LandingPage() {
+/**
+ * @param demoMode Advertise the hosted demo only where one actually runs. The
+ * server decides at runtime, so a single published image serves both modes.
+ */
+export function LandingPage({ demoMode }: { demoMode: boolean }) {
 	const navigate = useNavigate();
 	const [startingDemo, setStartingDemo] = useState(false);
 
@@ -195,7 +195,7 @@ export function LandingPage() {
 								>
 									Get the source →
 								</a>
-								{DEMO_MODE && (
+								{demoMode && (
 									<button
 										type="button"
 										className="landing-cta-secondary"
