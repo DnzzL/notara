@@ -18,7 +18,7 @@
     "typecheck": "for pkg in packages/*/; do if [ -f \"$pkg/tsconfig.json\" ]; then (cd \"$pkg\" && bunx tsc --noEmit) || exit 1; fi; done",
 		"typecheck:tests": "bunx tsc --noEmit -p tsconfig.tests.json",
 		"quickcheck": "bun run --filter @notara/shared build && bun typecheck && bun run typecheck:tests && bun run test",
-		"pre-merge": "bun run quickcheck && bunx biome ci packages/ e2e/ && bash scripts/check-effect-errors.sh && bash scripts/check-bundle-size.sh",
+		"pre-merge": "bun run quickcheck && bunx @biomejs/biome ci packages/ e2e/ && bash scripts/check-effect-errors.sh && bash scripts/check-bundle-size.sh",
 		"coverage": "bash scripts/check-coverage.sh '@notara/server' packages/server 'bun test' && bash scripts/check-coverage.sh '@notara/app' packages/app 'bun test' && bash scripts/check-coverage.sh '@notara/electron' packages/electron 'bun test' && bash scripts/check-coverage.sh '@notara/shared' packages/shared 'bunx vitest run'"
   },
   "workspaces": [
@@ -57,8 +57,8 @@
     "@effect/platform": "0.96.0"
   },
   "simple-git-hooks": {
-    "pre-commit": "bunx biome check --write --unsafe packages/ e2e/ && git add -u",
-    "pre-push": "bunx biome ci packages/ e2e/ && bash scripts/check-effect-errors.sh && bun run quickcheck"
+    "pre-commit": "bunx @biomejs/biome check --write --unsafe packages/ e2e/ && git add -u",
+    "pre-push": "bunx @biomejs/biome ci packages/ e2e/ && bash scripts/check-effect-errors.sh && bun run quickcheck"
   },
   "devDependencies": {
     "@biomejs/biome": "^2.5.6",
