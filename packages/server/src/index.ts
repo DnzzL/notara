@@ -43,9 +43,9 @@ import {
 	makeStreamHandler,
 } from "./presence/routes.js";
 import { rpcHandlersLayer } from "./rpc-handlers.js";
-import { AuthError, withAuthedWorkspace } from "./workspace-context.js";
 import { startTrashSweep } from "./trash-sweeper.js";
 import { makeViewConfigStreamHandler } from "./view-config-stream.js";
+import { AuthError, withAuthedWorkspace } from "./workspace-context.js";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
@@ -259,15 +259,15 @@ const staticFilesRoute = Effect.gen(function* () {
 					headers: { "Content-Type": "application/json", ...corsHeaders },
 				});
 			}).pipe(
-			Effect.catchAllCause((cause) => {
-				if (cause._tag === "Fail") {
-					const msg = String(cause.error);
-					reportError(cause.error);
-					return HttpServerResponse.text(JSON.stringify({ error: msg }), {
-						status: 500,
-						headers: { "Content-Type": "application/json", ...corsHeaders },
-					});
-				}
+				Effect.catchAllCause((cause) => {
+					if (cause._tag === "Fail") {
+						const msg = String(cause.error);
+						reportError(cause.error);
+						return HttpServerResponse.text(JSON.stringify({ error: msg }), {
+							status: 500,
+							headers: { "Content-Type": "application/json", ...corsHeaders },
+						});
+					}
 					reportError(new Error(cause.toString()));
 					return Effect.gen(function* () {
 						yield* Effect.logError("Unhandled error", cause);
@@ -524,25 +524,24 @@ const staticFilesRoute = Effect.gen(function* () {
 				const request = yield* HttpServerRequest.HttpServerRequest;
 
 				const ab = yield* request.arrayBuffer;
-			const buffer = Buffer.from(ab);
+				const buffer = Buffer.from(ab);
 
-			if (buffer.length === 0) {
-				return HttpServerResponse.text(
-					JSON.stringify({ error: "Empty request body" }),
-					{
-						status: 400,
-						headers: { "Content-Type": "application/json", ...corsHeaders },
-					},
-				);
-			}
+				if (buffer.length === 0) {
+					return HttpServerResponse.text(
+						JSON.stringify({ error: "Empty request body" }),
+						{
+							status: 400,
+							headers: { "Content-Type": "application/json", ...corsHeaders },
+						},
+					);
+				}
 
-			const cd = request.headers["content-disposition"] || "";
-			const filenameMatch = cd.match(/filename="([^"]+)"/);
-			const fileName = filenameMatch ? filenameMatch[1] : "notion-export.zip";
+				const cd = request.headers["content-disposition"] || "";
+				const filenameMatch = cd.match(/filename="([^"]+)"/);
+				const fileName = filenameMatch ? filenameMatch[1] : "notion-export.zip";
 
 				// Workspace layer provided by withAuthedWorkspace, post membership check.
-				const result =
-					yield* ImportExport.importNotionZip(buffer, fileName);
+				const result = yield* ImportExport.importNotionZip(buffer, fileName);
 
 				return HttpServerResponse.text(
 					JSON.stringify({
@@ -596,33 +595,33 @@ const staticFilesRoute = Effect.gen(function* () {
 		Effect.gen(function* () {
 			const request = yield* HttpServerRequest.HttpServerRequest;
 			const pageId = request.headers["x-page-id"];
-		const fileNameRaw = request.headers["x-file-name"];
-		const mimeType =
-			request.headers["content-type"] || "application/octet-stream";
+			const fileNameRaw = request.headers["x-file-name"];
+			const mimeType =
+				request.headers["content-type"] || "application/octet-stream";
 
-		if (!pageId || !fileNameRaw) {
-			return HttpServerResponse.text(
-				JSON.stringify({ error: "Missing X-Page-Id or X-File-Name header" }),
-				{
-					status: 400,
-					headers: { "Content-Type": "application/json", ...corsHeaders },
-				},
-			);
-		}
+			if (!pageId || !fileNameRaw) {
+				return HttpServerResponse.text(
+					JSON.stringify({ error: "Missing X-Page-Id or X-File-Name header" }),
+					{
+						status: 400,
+						headers: { "Content-Type": "application/json", ...corsHeaders },
+					},
+				);
+			}
 
-		const fileName = decodeURIComponent(fileNameRaw);
-		const ab = yield* request.arrayBuffer;
-		const fileBuffer = Buffer.from(ab);
+			const fileName = decodeURIComponent(fileNameRaw);
+			const ab = yield* request.arrayBuffer;
+			const fileBuffer = Buffer.from(ab);
 
-		if (fileBuffer.length === 0) {
-			return HttpServerResponse.text(
-				JSON.stringify({ error: "Empty file body" }),
-				{
-					status: 400,
-					headers: { "Content-Type": "application/json", ...corsHeaders },
-				},
-			);
-		}
+			if (fileBuffer.length === 0) {
+				return HttpServerResponse.text(
+					JSON.stringify({ error: "Empty file body" }),
+					{
+						status: 400,
+						headers: { "Content-Type": "application/json", ...corsHeaders },
+					},
+				);
+			}
 
 			// The workspace layer now comes from withAuthedWorkspace, which only
 			// provides it after checking the caller's workspace_members row.

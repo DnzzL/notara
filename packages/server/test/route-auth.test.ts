@@ -24,21 +24,18 @@ const DATA_DIR = join(tmpdir(), `notara-route-auth-${process.pid}`);
 let server: ReturnType<typeof Bun.spawn>;
 
 beforeAll(async () => {
-	server = Bun.spawn(
-		["bun", join(import.meta.dir, "..", "src", "index.ts")],
-		{
-			env: {
-				...process.env,
-				PORT: String(PORT),
-				DATA_DIR,
-				BETTER_AUTH_SECRET: "test-secret-for-route-auth-checks-only",
-				// Admin deliberately unconfigured: requireAdmin must then close, not open.
-				ADMIN_EMAILS: "",
-			},
-			stdout: "pipe",
-			stderr: "pipe",
+	server = Bun.spawn(["bun", join(import.meta.dir, "..", "src", "index.ts")], {
+		env: {
+			...process.env,
+			PORT: String(PORT),
+			DATA_DIR,
+			BETTER_AUTH_SECRET: "test-secret-for-route-auth-checks-only",
+			// Admin deliberately unconfigured: requireAdmin must then close, not open.
+			ADMIN_EMAILS: "",
 		},
-	);
+		stdout: "pipe",
+		stderr: "pipe",
+	});
 
 	for (let i = 0; i < 100; i++) {
 		try {
@@ -56,7 +53,11 @@ afterAll(() => {
 });
 
 /** Fetch with a hard timeout so an unguarded SSE route fails instead of hanging. */
-const call = (method: string, path: string, headers: Record<string, string> = {}) =>
+const call = (
+	method: string,
+	path: string,
+	headers: Record<string, string> = {},
+) =>
 	fetch(`${BASE}${path}`, {
 		method,
 		headers,
@@ -79,7 +80,10 @@ const guarded: Array<[string, string, Record<string, string>?]> = [
 	["POST", "/api/presence/heartbeat"],
 	["POST", "/api/presence/leave"],
 	["GET", `/api/presence/stream?workspaceId=${WORKSPACE}&pageId=p1`],
-	["GET", `/api/stream/view-config?databaseId=d1&viewId=v1&workspaceId=${WORKSPACE}`],
+	[
+		"GET",
+		`/api/stream/view-config?databaseId=d1&viewId=v1&workspaceId=${WORKSPACE}`,
+	],
 	[
 		"POST",
 		"/api/upload",
@@ -128,6 +132,8 @@ describe("the specific holes that motivated this file", () => {
 			signal: AbortSignal.timeout(5000),
 		});
 		// Nothing was persisted, so the settings file was never created.
-		expect(await Bun.file(join(DATA_DIR, "settings.json")).exists()).toBe(false);
+		expect(await Bun.file(join(DATA_DIR, "settings.json")).exists()).toBe(
+			false,
+		);
 	});
 });
