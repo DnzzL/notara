@@ -10,6 +10,10 @@ FROM oven/bun:1-alpine AS builder
 
 WORKDIR /app
 
+# scripts/patch-msgpackr.sh has a `#!/usr/bin/env bash` shebang and alpine ships
+# only ash, so `bun run apply-patches` exits 127 without this.
+RUN apk add --no-cache bash
+
 # Copy dependency manifests first (Docker layer cache)
 COPY package.json bun.lock bunfig.toml ./
 COPY packages/shared/package.json ./packages/shared/
@@ -28,6 +32,8 @@ RUN bun install --frozen-lockfile --no-cache --ignore-scripts
 RUN bun run apply-patches
 
 # Copy source
+# Every package tsconfig does `"extends": "../../tsconfig.base.json"`.
+COPY tsconfig.base.json ./
 COPY packages/shared/tsconfig.json ./packages/shared/
 COPY packages/shared/src/ ./packages/shared/src/
 COPY packages/server/tsconfig.json ./packages/server/
