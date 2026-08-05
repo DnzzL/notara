@@ -502,7 +502,7 @@ const staticFilesRoute = Effect.gen(function* () {
 	yield* router.add(
 		"GET",
 		"/api/stream/view-config",
-		makeViewConfigStreamHandler(),
+		makeViewConfigStreamHandler(wdb),
 	);
 
 	// Handle CORS preflight

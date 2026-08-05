@@ -1,6 +1,6 @@
 import type { Database, DatabaseField, DatabaseView } from "@notara/shared";
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { api } from "../../rpc-client.js";
+import { api, getCurrentWorkspaceId } from "../../rpc-client.js";
 import { useDatabaseStore } from "../../stores/databaseStore.js";
 import type { BlockRendererProps } from "./renderer-registry.js";
 import { tryParseBlockContent } from "./renderer-registry.js";
@@ -106,7 +106,12 @@ export function ViewReferenceBlock({
 	useEffect(() => {
 		if (!cfg) return;
 
-		const url = `/api/stream/view-config?databaseId=${encodeURIComponent(cfg.databaseId)}&viewId=${encodeURIComponent(cfg.viewId)}`;
+		// EventSource cannot set headers, so the server proves membership from
+		// this workspace id instead of the usual X-Workspace-Id.
+		const workspaceId = getCurrentWorkspaceId();
+		if (!workspaceId) return;
+
+		const url = `/api/stream/view-config?databaseId=${encodeURIComponent(cfg.databaseId)}&viewId=${encodeURIComponent(cfg.viewId)}&workspaceId=${encodeURIComponent(workspaceId)}`;
 		const source = new EventSource(url, { withCredentials: true });
 
 		source.addEventListener("view.configChanged", () => {

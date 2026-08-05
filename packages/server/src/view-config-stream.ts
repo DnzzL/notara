@@ -12,7 +12,14 @@
 
 import * as HttpServerRequest from "@effect/platform/HttpServerRequest";
 import * as HttpServerResponse from "@effect/platform/HttpServerResponse";
-import { Effect, Stream } from "effect";
+import type { Context } from "effect";
+import { Effect, Layer, Stream } from "effect";
+import type { WorkspaceDb } from "./db.js";
+import * as Permissions from "./handlers/permissions.js";
+import { PlatformDbLive } from "./platform-db.js";
+import { resolveWorkspaceContext } from "./workspace-context.js";
+
+type WorkspaceDbService = Context.Tag.Service<WorkspaceDb>;
 
 export type ViewConfigEvent = {
 	type: "view.configChanged";
@@ -53,24 +60,59 @@ export function publishViewConfigChange(event: ViewConfigEvent) {
  * SSE handler: `GET /api/stream/view-config?databaseId=…&viewId=…`
  *
  * Subscribes the caller to config changes for the given view.
- * Authentication and permission checks must be done by the caller.
  *
- * Copied from `presence/routes.ts` `makeStreamHandler` — same pattern.
+ * Follows `presence/routes.ts` `makeStreamHandler`: session, then membership of
+ * the named workspace, then a view-level permission check. EventSource cannot
+ * send custom headers, so the workspace arrives as a query param and is proven
+ * here rather than through `withAuthedWorkspace`.
  */
-export function makeViewConfigStreamHandler() {
+export function makeViewConfigStreamHandler(wdb: WorkspaceDbService) {
 	return Effect.gen(function* () {
 		const req = yield* HttpServerRequest.HttpServerRequest;
 		const url = new URL(req.url, "http://localhost");
 		const databaseId = url.searchParams.get("databaseId");
 		const viewId = url.searchParams.get("viewId");
-		if (!databaseId || !viewId) {
+		const workspaceId = url.searchParams.get("workspaceId");
+		if (!databaseId || !viewId || !workspaceId) {
 			return HttpServerResponse.text(
-				JSON.stringify({ error: "Missing databaseId or viewId" }),
+				JSON.stringify({
+					error: "Missing databaseId, viewId or workspaceId",
+				}),
 				{
 					status: 400,
 					headers: { "Content-Type": "application/json" },
 				},
 			);
+		}
+
+		const ctx = yield* Effect.either(
+			resolveWorkspaceContext(workspaceId).pipe(Effect.provide(PlatformDbLive)),
+		);
+		if (ctx._tag === "Left") {
+			return HttpServerResponse.text(
+				JSON.stringify({ error: ctx.left.message }),
+				{
+					status: ctx.left.status,
+					headers: { "Content-Type": "application/json" },
+				},
+			);
+		}
+
+		const permCheck = yield* Effect.either(
+			Permissions.checkViewPermission(
+				ctx.right.userId,
+				workspaceId,
+				viewId,
+				"viewer",
+			).pipe(
+				Effect.provide(Layer.merge(wdb.getLayer(workspaceId), PlatformDbLive)),
+			),
+		);
+		if (permCheck._tag === "Left") {
+			return HttpServerResponse.text(JSON.stringify({ error: "Forbidden" }), {
+				status: 403,
+				headers: { "Content-Type": "application/json" },
+			});
 		}
 
 		const encoder = new TextEncoder();
