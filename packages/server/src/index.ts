@@ -177,110 +177,9 @@ const staticFilesRoute = Effect.gen(function* () {
 		Effect.succeed(HttpServerResponse.text("ok", { status: 200 })),
 	);
 
-	// Public instance config. Deliberately minimal: the landing page needs to know
-	// whether demo mode is on, and one published image has to serve both modes, so
-	// this cannot be a build-time flag. Nothing sensitive belongs here.
-	yield* router.add(
-		"GET",
-		"/api/public-config",
-		Effect.sync(() =>
-			HttpServerResponse.text(JSON.stringify({ demoMode: demoMode() }), {
-				headers: { "Content-Type": "application/json", ...corsHeaders },
-			}),
-		),
-	);
-
-	// Settings GET
-	yield* router.add(
-		"GET",
-		"/api/settings",
-		Effect.sync(() => {
-			const settings = loadSettings();
-			return HttpServerResponse.text(JSON.stringify(settings), {
-				headers: { "Content-Type": "application/json", ...corsHeaders },
-			});
-		}),
-	);
-
-	// Settings POST
-	yield* router.add(
-		"POST",
-		"/api/settings",
-		Effect.gen(function* () {
-			const request = yield* HttpServerRequest.HttpServerRequest;
-			const ab = yield* request.arrayBuffer;
-			const body = yield* Effect.try({
-				// pi-lens-ignore: ast-grep:unchecked-throwing-call
-				try: () => JSON.parse(Buffer.from(ab).toString("utf-8")),
-				catch: (e) =>
-					new Error(
-						`Invalid JSON: ${e instanceof Error ? e.message : String(e)}`,
-					),
-			});
-			saveSettings(body);
-			return HttpServerResponse.text(JSON.stringify({ ok: true }), {
-				headers: { "Content-Type": "application/json", ...corsHeaders },
-			});
-		}).pipe(
-			Effect.catchAllCause((cause) => {
-				if (cause._tag === "Fail") {
-					const msg = String(cause.error);
-					reportError(cause.error);
-					return HttpServerResponse.text(JSON.stringify({ error: msg }), {
-						status: 500,
-						headers: { "Content-Type": "application/json", ...corsHeaders },
-					});
-				}
-				reportError(new Error(cause.toString()));
-				return Effect.gen(function* () {
-					yield* Effect.logError("Unhandled error", cause);
-					return HttpServerResponse.text(
-						JSON.stringify({ error: "Something went wrong" }),
-						{
-							status: 500,
-							headers: { "Content-Type": "application/json", ...corsHeaders },
-						},
-					);
-				});
-			}),
-		),
-	);
-
-	// Backup trigger
-	yield* router.add(
-		"POST",
-		"/api/backup/trigger",
-		Effect.gen(function* () {
-			const result = yield* Effect.promise(() => triggerBackup());
-			return HttpServerResponse.text(JSON.stringify(result), {
-				headers: { "Content-Type": "application/json", ...corsHeaders },
-			});
-		}).pipe(
-			Effect.catchAllCause((cause) => {
-				if (cause._tag === "Fail") {
-					const msg = String(cause.error);
-					reportError(cause.error);
-					return HttpServerResponse.text(JSON.stringify({ error: msg }), {
-						status: 500,
-						headers: { "Content-Type": "application/json", ...corsHeaders },
-					});
-				}
-				reportError(new Error(cause.toString()));
-				return Effect.gen(function* () {
-					yield* Effect.logError("Unhandled error", cause);
-					return HttpServerResponse.text(
-						JSON.stringify({ error: "Something went wrong" }),
-						{
-							status: 500,
-							headers: { "Content-Type": "application/json", ...corsHeaders },
-						},
-					);
-				});
-			}),
-		),
-	);
-
-	// ── Admin routes ──────────────────────────────────────────────────────────
+	// ── Admin gate ────────────────────────────────────────────────────────────
+	// Declared before its first use: everything below runs top-to-bottom in this
+	// generator, so a later `const` would still be in its temporal dead zone.
 	const adminEmails = (process.env.ADMIN_EMAILS ?? "")
 		.split(",")
 		.map((e) => e.trim())
@@ -310,6 +209,115 @@ const staticFilesRoute = Effect.gen(function* () {
 			}
 			return yield* inner;
 		});
+
+	// Public instance config. Deliberately minimal: the landing page needs to know
+	// whether demo mode is on, and one published image has to serve both modes, so
+	// this cannot be a build-time flag. Nothing sensitive belongs here.
+	yield* router.add(
+		"GET",
+		"/api/public-config",
+		Effect.sync(() =>
+			HttpServerResponse.text(JSON.stringify({ demoMode: demoMode() }), {
+				headers: { "Content-Type": "application/json", ...corsHeaders },
+			}),
+		),
+	);
+
+	// Settings GET (admin only — the payload carries the S3 access key and secret)
+	yield* router.add(
+		"GET",
+		"/api/settings",
+		requireAdmin(
+			Effect.sync(() => {
+				const settings = loadSettings();
+				return HttpServerResponse.text(JSON.stringify(settings), {
+					headers: { "Content-Type": "application/json", ...corsHeaders },
+				});
+			}),
+		),
+	);
+
+	// Settings POST (admin only — this repoints where backups are written)
+	yield* router.add(
+		"POST",
+		"/api/settings",
+		requireAdmin(
+			Effect.gen(function* () {
+				const request = yield* HttpServerRequest.HttpServerRequest;
+				const ab = yield* request.arrayBuffer;
+				const body = yield* Effect.try({
+					// pi-lens-ignore: ast-grep:unchecked-throwing-call
+					try: () => JSON.parse(Buffer.from(ab).toString("utf-8")),
+					catch: (e) =>
+						new Error(
+							`Invalid JSON: ${e instanceof Error ? e.message : String(e)}`,
+						),
+				});
+				saveSettings(body);
+				return HttpServerResponse.text(JSON.stringify({ ok: true }), {
+					headers: { "Content-Type": "application/json", ...corsHeaders },
+				});
+			}).pipe(
+			Effect.catchAllCause((cause) => {
+				if (cause._tag === "Fail") {
+					const msg = String(cause.error);
+					reportError(cause.error);
+					return HttpServerResponse.text(JSON.stringify({ error: msg }), {
+						status: 500,
+						headers: { "Content-Type": "application/json", ...corsHeaders },
+					});
+				}
+					reportError(new Error(cause.toString()));
+					return Effect.gen(function* () {
+						yield* Effect.logError("Unhandled error", cause);
+						return HttpServerResponse.text(
+							JSON.stringify({ error: "Something went wrong" }),
+							{
+								status: 500,
+								headers: { "Content-Type": "application/json", ...corsHeaders },
+							},
+						);
+					});
+				}),
+			),
+		),
+	);
+
+	// Backup trigger (admin only — writes the whole instance to the S3 target)
+	yield* router.add(
+		"POST",
+		"/api/backup/trigger",
+		requireAdmin(
+			Effect.gen(function* () {
+				const result = yield* Effect.promise(() => triggerBackup());
+				return HttpServerResponse.text(JSON.stringify(result), {
+					headers: { "Content-Type": "application/json", ...corsHeaders },
+				});
+			}).pipe(
+				Effect.catchAllCause((cause) => {
+					if (cause._tag === "Fail") {
+						const msg = String(cause.error);
+						reportError(cause.error);
+						return HttpServerResponse.text(JSON.stringify({ error: msg }), {
+							status: 500,
+							headers: { "Content-Type": "application/json", ...corsHeaders },
+						});
+					}
+					reportError(new Error(cause.toString()));
+					return Effect.gen(function* () {
+						yield* Effect.logError("Unhandled error", cause);
+						return HttpServerResponse.text(
+							JSON.stringify({ error: "Something went wrong" }),
+							{
+								status: 500,
+								headers: { "Content-Type": "application/json", ...corsHeaders },
+							},
+						);
+					});
+				}),
+			),
+		),
+	);
 
 	// List available S3 backups (admin only)
 	yield* router.add(
