@@ -43,6 +43,7 @@ import {
 	makeStreamHandler,
 } from "./presence/routes.js";
 import { rpcHandlersLayer } from "./rpc-handlers.js";
+import { AuthError, withAuthedWorkspace } from "./workspace-context.js";
 import { startTrashSweep } from "./trash-sweeper.js";
 import { makeViewConfigStreamHandler } from "./view-config-stream.js";
 
@@ -513,14 +514,16 @@ const staticFilesRoute = Effect.gen(function* () {
 		),
 	);
 
-	// Import upload route
+	// Import upload route. Same chokepoint reasoning as /api/upload: it writes
+	// whole pages and databases into the workspace the header names.
 	yield* router.add(
 		"POST",
 		"/import-notion",
-		Effect.gen(function* () {
-			const request = yield* HttpServerRequest.HttpServerRequest;
+		withAuthedWorkspace(() =>
+			Effect.gen(function* () {
+				const request = yield* HttpServerRequest.HttpServerRequest;
 
-			const ab = yield* request.arrayBuffer;
+				const ab = yield* request.arrayBuffer;
 			const buffer = Buffer.from(ab);
 
 			if (buffer.length === 0) {
@@ -537,25 +540,30 @@ const staticFilesRoute = Effect.gen(function* () {
 			const filenameMatch = cd.match(/filename="([^"]+)"/);
 			const fileName = filenameMatch ? filenameMatch[1] : "notion-export.zip";
 
-			const workspaceId = request.headers["x-workspace-id"] as
-				| string
-				| undefined;
-			const dbLayer = workspaceId ? wdb.getLayer(workspaceId) : SqliteLive;
+				// Workspace layer provided by withAuthedWorkspace, post membership check.
+				const result =
+					yield* ImportExport.importNotionZip(buffer, fileName);
 
-			const result = yield* ImportExport.importNotionZip(buffer, fileName).pipe(
-				Effect.provide(dbLayer),
-			);
-
-			return HttpServerResponse.text(
-				JSON.stringify({
-					pagesImported: result.pagesImported,
-					databasesImported: result.databasesImported,
-				}),
-				{ headers: { "Content-Type": "application/json", ...corsHeaders } },
-			);
-		}).pipe(
+				return HttpServerResponse.text(
+					JSON.stringify({
+						pagesImported: result.pagesImported,
+						databasesImported: result.databasesImported,
+					}),
+					{ headers: { "Content-Type": "application/json", ...corsHeaders } },
+				);
+			}),
+		).pipe(
 			Effect.catchAllCause((cause) => {
 				if (cause._tag === "Fail") {
+					if (cause.error instanceof AuthError) {
+						return HttpServerResponse.text(
+							JSON.stringify({ error: cause.error.message }),
+							{
+								status: cause.error.status,
+								headers: { "Content-Type": "application/json", ...corsHeaders },
+							},
+						);
+					}
 					const msg = String(cause.error);
 					reportError(cause.error);
 					return HttpServerResponse.text(JSON.stringify({ error: msg }), {
@@ -581,9 +589,13 @@ const staticFilesRoute = Effect.gen(function* () {
 	// File upload route. Client sends raw bytes; metadata travels in headers.
 	// Headers: X-Page-Id, X-File-Name (URL-encoded), Content-Type (MIME).
 	// Rate-limited to 60 req/min per IP.
-	const uploadInner = Effect.gen(function* () {
-		const request = yield* HttpServerRequest.HttpServerRequest;
-		const pageId = request.headers["x-page-id"];
+	// Through the chokepoint: this writes an attachment row and a block into a
+	// workspace named by a client-supplied header, so membership has to be proven
+	// before the workspace layer is handed over.
+	const uploadInner = withAuthedWorkspace(() =>
+		Effect.gen(function* () {
+			const request = yield* HttpServerRequest.HttpServerRequest;
+			const pageId = request.headers["x-page-id"];
 		const fileNameRaw = request.headers["x-file-name"];
 		const mimeType =
 			request.headers["content-type"] || "application/octet-stream";
@@ -612,26 +624,32 @@ const staticFilesRoute = Effect.gen(function* () {
 			);
 		}
 
-		const uploadWorkspaceId = request.headers["x-workspace-id"] as
-			| string
-			| undefined;
-		const uploadDbLayer = uploadWorkspaceId
-			? wdb.getLayer(uploadWorkspaceId)
-			: SqliteLive;
+			// The workspace layer now comes from withAuthedWorkspace, which only
+			// provides it after checking the caller's workspace_members row.
+			const result = yield* Upload.uploadFile({
+				pageId,
+				fileName,
+				mimeType,
+				fileBuffer,
+			});
 
-		const result = yield* Upload.uploadFile({
-			pageId,
-			fileName,
-			mimeType,
-			fileBuffer,
-		}).pipe(Effect.provide(uploadDbLayer));
-
-		return HttpServerResponse.text(JSON.stringify(result), {
-			headers: { "Content-Type": "application/json", ...corsHeaders },
-		});
-	}).pipe(
+			return HttpServerResponse.text(JSON.stringify(result), {
+				headers: { "Content-Type": "application/json", ...corsHeaders },
+			});
+		}),
+	).pipe(
 		Effect.catchAllCause((cause) => {
 			if (cause._tag === "Fail") {
+				// 401/403 from the chokepoint must not be flattened into a 500.
+				if (cause.error instanceof AuthError) {
+					return HttpServerResponse.text(
+						JSON.stringify({ error: cause.error.message }),
+						{
+							status: cause.error.status,
+							headers: { "Content-Type": "application/json", ...corsHeaders },
+						},
+					);
+				}
 				const msg = String(cause.error);
 				reportError(cause.error);
 				return HttpServerResponse.text(JSON.stringify({ error: msg }), {
