@@ -43,6 +43,9 @@ COPY packages/app/tsconfig.json ./packages/app/
 COPY packages/app/vite.config.ts ./packages/app/
 COPY packages/app/index.html ./packages/app/
 COPY packages/app/src/ ./packages/app/src/
+# Vite copies public/ into dist/ verbatim. Without it the build silently
+# succeeds and ships a dist with no favicons, no PWA icons and no hero video.
+COPY packages/app/public/ ./packages/app/public/
 
 # Build all workspaces
 RUN cd packages/shared && bun run build
