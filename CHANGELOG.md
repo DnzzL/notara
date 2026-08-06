@@ -7,6 +7,44 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.1.1] - 2026-08-06
+
+Fixes the published image, which shipped without any of the app's static assets.
+
+### Added
+
+- **Typed API error contract** (NOT-89) — every RPC method now declares an
+  `ApiError` union (`AuthError`, `NotFoundError`, `ConflictError`,
+  `ValidationError`, `BlockLockedError`) as tagged schemas, so failures cross the
+  boundary decoded instead of as opaque defects. A missing page answers 404 rather
+  than 500, and clients switch on `_tag` instead of string-matching a cause.
+
+### Fixed
+
+- **The favicon, PWA icons and landing-page hero video were missing in
+  production.** The image build never copied `packages/app/public/`, which Vite
+  copies verbatim into `dist/` — so `0.1.0` shipped without favicons,
+  apple-touch-icon, the PWA icons (breaking "add to home screen") or the hero
+  video and poster. Serving `.mp4` also fell through to
+  `application/octet-stream`, which Safari refuses to play; the static MIME table
+  gained `mp4`, `webm`, `jpeg`, `gif` and `webp`.
+- The per-package server and app images ran lifecycle scripts during `bun install`
+  and failed on `simple-git-hooks` (NOT-90); both now install with
+  `--ignore-scripts` and apply the msgpackr patch explicitly, matching the root
+  image.
+- Landing-page hero: the demo CTA kept three user-agent button defaults and sat
+  mismatched against the neighbouring links; the SQLite mock's checkmark was
+  parked in the corner of its box (NOT-91).
+
+### Changed
+
+- Every biome invocation is pinned to `@biomejs/biome`. `bunx biome` resolved an
+  unrelated package, so the pre-commit hook silently ran a different tool and
+  formatted nothing.
+- `pre-merge` now gates on `@effect/tsgo` Effect diagnostics.
+- New end-to-end route-auth test: boots a real server and asserts every
+  non-public route refuses anonymous callers.
+
 ## [0.1.0] - 2026-08-05
 
 First tagged release. Notara is a self-hostable, fair-source Notion alternative:
@@ -98,5 +136,6 @@ Defects found and fixed during pre-release development:
 - Admin user deletion left orphaned workspaces.
 - Added missing database indexes on hot query paths.
 
-[Unreleased]: https://github.com/dnzzl/notara/compare/v0.1.0...HEAD
+[Unreleased]: https://github.com/dnzzl/notara/compare/v0.1.1...HEAD
+[0.1.1]: https://github.com/dnzzl/notara/compare/v0.1.0...v0.1.1
 [0.1.0]: https://github.com/dnzzl/notara/releases/tag/v0.1.0
