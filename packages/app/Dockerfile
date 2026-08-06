@@ -8,12 +8,17 @@ COPY packages/app/package.json ./packages/app/
 COPY packages/electron/package.json ./packages/electron/
 
 # The root package.json has a `postinstall: bash scripts/patch-msgpackr.sh`
-# hook that patches a missing @effect/platform export. Without the script
-# present at install time, `bun install` aborts with exit 127.
+# hook that patches a missing @effect/platform export; `bun run apply-patches`
+# below runs it explicitly, so the scripts have to be here.
 COPY scripts/ ./scripts/
 
 # Remove lockfile to allow platform-specific resolution (Linux ARM64 in container)
-RUN rm -f bun.lock && bun install
+# --ignore-scripts: the root postinstall runs `npx simple-git-hooks`, which needs a
+# .git dir this context does not have, and simple-git-hooks' own postinstall aborts
+# under the bun version in this image. Neither belongs in an image build; the
+# msgpackr patch does, so it is applied explicitly.
+RUN rm -f bun.lock && bun install --ignore-scripts
+RUN bun run apply-patches
 
 COPY packages/shared/tsconfig.json ./packages/shared/
 COPY packages/shared/src/ ./packages/shared/src/
