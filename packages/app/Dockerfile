@@ -28,6 +28,10 @@ COPY packages/app/tsconfig.json ./packages/app/
 COPY packages/app/vite.config.ts ./packages/app/
 COPY packages/app/index.html ./packages/app/
 COPY packages/app/src/ ./packages/app/src/
+# Vite copies public/ into dist/ verbatim. Without it the build silently
+# succeeds and nginx serves a root with no favicons, no PWA icons and no hero
+# video — every miss swallowed by the SPA fallback as a 200.
+COPY packages/app/public/ ./packages/app/public/
 RUN cd packages/app && bun run build
 
 FROM nginx:alpine
