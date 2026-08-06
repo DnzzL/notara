@@ -809,7 +809,9 @@ select, input, textarea, button { font-family: var(--font-ui); }
 .lp-hero-lower { display: grid; grid-template-columns: 1fr 1.5fr; gap: 48px; margin-top: 48px; padding-bottom: 64px; align-items: start; }
 .lp-hero-lower p { font-size: 18px; line-height: 1.6; color: var(--text-2); max-width: 580px; margin: 0; }
 .lp-hero-text { display: flex; flex-direction: column; gap: 28px; }
-.landing-hero-ctas { display: flex; align-items: center; gap: 0; justify-self: start; }
+/* stretch, not center: the row is a single seamed bar, so every button must
+   share the height of the tallest one whatever its label wraps to. */
+.landing-hero-ctas { display: flex; align-items: stretch; gap: 0; justify-self: start; }
 .lp-hero-visual {
   display: flex;
   background: var(--bg);
@@ -825,7 +827,9 @@ select, input, textarea, button { font-family: var(--font-ui); }
 }
 .landing-cta-primary { font-family: var(--font-mono); font-size: 13px; letter-spacing: 0.04em; text-transform: uppercase; background: var(--accent); color: #fff; padding: 18px 32px; border: 2px solid var(--accent); text-decoration: none; transition: all var(--t-slow) var(--ease); }
 .landing-cta-primary:hover { background: var(--text); border-color: var(--text); }
-.landing-cta-secondary { font-family: var(--font-mono); font-size: 13px; letter-spacing: 0.04em; text-transform: uppercase; padding: 18px 28px; border: 2px solid var(--text); border-left: none; color: var(--text); text-decoration: none; transition: all var(--t) var(--ease); }
+/* The demo CTA is a <button> next to two <a>s: reset the three user-agent
+   defaults that made it a shorter, grey, centred odd one out. */
+.landing-cta-secondary { font-family: var(--font-mono); font-size: 13px; line-height: inherit; letter-spacing: 0.04em; text-transform: uppercase; text-align: left; padding: 18px 28px; border: 2px solid var(--text); border-left: none; background: transparent; color: var(--text); text-decoration: none; cursor: pointer; transition: all var(--t) var(--ease); }
 .landing-cta-secondary:hover { background: var(--text); color: var(--bg); }
 
 /* Specs strip */
@@ -852,8 +856,8 @@ select, input, textarea, button { font-family: var(--font-ui); }
 .lp-frow .n { font-family: var(--font-mono); color: var(--text-3); font-size: 11px; width: 18px; flex-shrink: 0; text-align: right; padding-top: 3px; }
 .lp-frow.title { font-family: var(--font-title); font-weight: 700; font-size: 18px; color: var(--text); }
 .lp-chk { width: 14px; height: 14px; border: 1.5px solid var(--text-3); flex-shrink: 0; margin-top: 2px; }
-.lp-chk.on { background: var(--accent); border-color: var(--accent); position: relative; }
-.lp-chk.on::after { content: "✓"; position: absolute; color: #fff; font-size: 9px; top: -3px; left: 1px; }
+.lp-chk.on { background: var(--accent); border-color: var(--accent); display: flex; align-items: center; justify-content: center; }
+.lp-chk.on::after { content: "✓"; color: #fff; font-size: 9px; line-height: 1; }
 .lp-done { text-decoration: line-through; opacity: 0.45; }
 .lp-file-foot { border-top: 1px dashed var(--border); padding: 12px 22px; font-family: var(--font-mono); font-size: 10.5px; color: var(--text-3); display: flex; justify-content: space-between; }
 
