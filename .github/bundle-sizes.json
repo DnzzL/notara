@@ -8,8 +8,8 @@
 		"gzip": 627957
 	},
 	"packages/app/dist/index.html": {
-		"size": 1438,
-		"gzip": 633
+		"size": 2967,
+		"gzip": 988
 	},
 	"packages/shared/dist/index.js": {
 		"size": 146,
