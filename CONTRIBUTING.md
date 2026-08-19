@@ -1,7 +1,7 @@
 # Contributing to Notara
 
-Thanks for wanting to help. Notara is a **solo-maintained, fair-source** project
-([FSL-1.1-ALv2](./LICENSE)), so the contribution rules are shaped to protect one thing:
+Thanks for wanting to help. Notara is a **solo-maintained, copyleft** project
+([AGPL-3.0-or-later](./LICENSE)), so the contribution rules are shaped to protect one thing:
 your time. The worst outcome is you spending a weekend on a PR that gets closed. This
 page exists to prevent that.
 
@@ -30,8 +30,9 @@ not personal — it's the only way a one-person project survives past year one.
 ## Licensing of contributions
 
 By submitting a contribution, you agree that your contribution is licensed under the
-**Functional Source License, FSL-1.1-ALv2** — the same license as the project — and that,
-like the rest of the code, it converts to Apache-2.0 two years after the release it ships in.
+**GNU Affero General Public License v3.0 or later** — the same license as the project.
+Inbound equals outbound: there is no CLA and no copyright assignment, so your contribution
+stays yours under the same terms everyone else gets.
 
 A [DCO](https://developercertificate.org/) sign-off is appreciated but not required — add
 `-s` to your commit (`git commit -s`) to certify you wrote the change or have the right to

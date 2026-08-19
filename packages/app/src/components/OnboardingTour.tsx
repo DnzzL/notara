@@ -27,7 +27,7 @@ const steps: TourStepDetails[] = [
 		type: "dialog",
 		title: "Welcome to Notara 👋",
 		description:
-			"Your private, source-available Notion. Local-first, single tier, yours to keep. Quick 4-step tour?",
+			"Your private, open-source Notion. Local-first, single tier, yours to keep. Quick 4-step tour?",
 		actions: [
 			{ label: "Skip", action: "dismiss" },
 			{ label: "Show me", action: "next" },

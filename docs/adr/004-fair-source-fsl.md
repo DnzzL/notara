@@ -1,6 +1,6 @@
 # ADR-004: Fair-Source Relicense — FSL-1.1-ALv2, Retiring the One-Time Commercial Model
 
-**Status:** Accepted
+**Status:** Superseded by [ADR-005](./005-agpl.md) on 2026-08-19
 **Date:** 2026-07-01
 **Scope:** Licensing, distribution, and revenue posture. Supersedes ADR-002 and ADR-003.
 

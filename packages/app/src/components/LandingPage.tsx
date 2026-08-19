@@ -5,8 +5,8 @@ import { authClient } from "../auth-client.js";
 import { api } from "../rpc-client.js";
 import { toaster } from "../toaster.js";
 
-// Public source-available repository. Notara is fair-source (FSL-1.1-ALv2):
-// free to self-host, no purchase step.
+// Public repository. Notara is free software (AGPL-3.0-or-later): free to
+// self-host, no purchase step.
 const REPO_URL = "https://github.com/dnzzl/notara";
 
 const onGetSourceClick = (location: "hero" | "pricing") => () => {
@@ -63,7 +63,7 @@ const planFeatures = [
 	"Unlimited workspaces & members",
 	"Commercial & internal use",
 	"Modify and redistribute",
-	"Apache-2.0 after 2 years",
+	"No licence key, no paid tier",
 ];
 
 /**
@@ -161,8 +161,8 @@ export function LandingPage({ demoMode }: { demoMode: boolean }) {
 					>
 						<span className="sq" />
 						<span className="lp-kicker">
-							Fair-source · <b>Free to self-host</b> ·{" "}
-							<span className="lp-badge">FSL-1.1-ALv2</span>
+							Open source · <b>Free to self-host</b> ·{" "}
+							<span className="lp-badge">AGPL-3.0</span>
 						</span>
 					</div>
 					<h1
@@ -248,9 +248,9 @@ export function LandingPage({ demoMode }: { demoMode: boolean }) {
 					</div>
 					<div className="lp-spec">
 						<div className="num">
-							2<span className="u">yr</span>
+							100<span className="u">%</span>
 						</div>
-						<div className="lbl">Then Apache-2.0</div>
+						<div className="lbl">Open source · AGPL-3.0</div>
 					</div>
 				</div>
 			</section>
@@ -427,23 +427,22 @@ export function LandingPage({ demoMode }: { demoMode: boolean }) {
 				</div>
 			</section>
 
-			{/* Why source-available */}
+			{/* Why AGPL */}
 			<section id="why" className="landing-why">
 				<div className="lp-wrap lp-why-in">
 					<span className="lp-kicker">
 						<b>03</b> · A note from the developer
 					</span>
-					<h2>Why fair-source, not just MIT?</h2>
+					<h2>Why AGPL, not just MIT?</h2>
 					<p className="landing-why-body">
-						Honest framing: Notara is free to self-host, and the source is
-						public. The one thing the licence forbids is someone taking it,
-						wrapping it in a hosted service, and reselling it as a competitor —
-						that's the only way a one-person project gets strip-mined.
-						Everything else is fair game: run it, modify it, redistribute it,
-						use it commercially, export your data and walk away any time. And it
-						isn't a forever-catch: every release turns into plain Apache-2.0 two
-						years after it ships. Open by default, with just enough protection
-						to stay alive.
+						Honest framing: Notara is free software, and everything you'd want
+						from that is yours — run it, read it, modify it, redistribute it,
+						use it commercially, export your data and walk away any time. The
+						AGPL asks one thing back: if you improve Notara and let other people
+						use your version, over a network or otherwise, those people get your
+						source too. That's the deal that keeps a one-person project from
+						being strip-mined into a closed product, and it costs an honest
+						self-hoster nothing.
 					</p>
 					<p className="landing-why-signoff">
 						— Thomas Legrand, sole developer ·{" "}
@@ -471,7 +470,7 @@ export function LandingPage({ demoMode }: { demoMode: boolean }) {
 				<div className="lp-wrap">
 					<div className="lp-price-head">
 						<span className="lp-kicker">
-							<b>04</b> · Free &amp; fair-source
+							<b>04</b> · Free &amp; open source
 						</span>
 						<h2>
 							No tiers.
@@ -479,9 +478,9 @@ export function LandingPage({ demoMode }: { demoMode: boolean }) {
 							No price.
 						</h2>
 						<p className="sub">
-							Notara is free to self-host under the FSL-1.1-ALv2 licence — clone
-							it, run it, own it. Every release becomes Apache-2.0 two years
-							after it ships.
+							Notara is free software under the AGPL-3.0-or-later licence —
+							clone it, run it, own it. No tier is held back, and there is
+							nothing to upgrade to.
 						</p>
 					</div>
 					<div className="lp-sheet">
@@ -496,7 +495,7 @@ export function LandingPage({ demoMode }: { demoMode: boolean }) {
 							))}
 						</div>
 						<div className="lp-sheet-right">
-							<span className="badge">Fair-source · FSL-1.1-ALv2</span>
+							<span className="badge">Open source · AGPL-3.0</span>
 							<div className="amt">€0</div>
 							<div className="once">free · self-hosted</div>
 							<a
@@ -509,7 +508,7 @@ export function LandingPage({ demoMode }: { demoMode: boolean }) {
 								Clone &amp; self-host →
 							</a>
 							<div className="fine">
-								FSL-1.1-ALv2 · PUBLIC REPO · APACHE-2.0 IN 2 YEARS
+								AGPL-3.0-OR-LATER · PUBLIC REPO · NO PAID TIER
 							</div>
 						</div>
 					</div>

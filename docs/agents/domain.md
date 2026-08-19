@@ -20,7 +20,8 @@ get resolved.
 ├── CONTEXT.md          ← created lazily by /domain-modeling; not present yet
 ├── docs/adr/
 │   ├── 001-file-attachments.md
-│   └── 004-fair-source-fsl.md
+│   ├── 004-fair-source-fsl.md
+│   └── 005-agpl.md
 ├── packages/
 └── ...
 ```
@@ -43,4 +44,4 @@ language the project doesn't use (reconsider) or there's a real gap (note it for
 If your output contradicts an existing ADR, surface it explicitly rather than silently
 overriding:
 
-> _Contradicts ADR-004 (fair-source FSL) — but worth reopening because…_
+> _Contradicts ADR-005 (AGPL relicense) — but worth reopening because…_

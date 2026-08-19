@@ -5,15 +5,15 @@
 
 **The notes app you actually own.**
 
-![License](https://img.shields.io/badge/license-FSL--1.1--ALv2-2B4DFF)
-![Becomes Apache-2.0](https://img.shields.io/badge/then-Apache--2.0%20in%202%20yrs-blue)
+![License](https://img.shields.io/badge/license-AGPL--3.0--or--later-2B4DFF)
+![Self-hosted](https://img.shields.io/badge/self--hosted-one%20SQLite%20file-blue)
 </div>
 
 I wanted a Notion I could actually own — everything in **one SQLite file** on a box I
 control, no subscription, no cloud, and few enough features that one person can keep them
-all working. That's Notara: a self-hostable, **fair-source** Notion alternative with a
-block editor, inline databases, and real-time collaboration. The source is public, it's
-free to self-host, and there's nothing to be locked into.
+all working. That's Notara: a self-hostable, **open-source** Notion alternative with a
+block editor, inline databases, and real-time collaboration. It's free to self-host, and
+there's nothing to be locked into.
 
 It's built and maintained by one person ([me](https://thomas.legrand.sh)), on purpose. The
 guiding rule is *fewer features, done well* — so the list below is deliberately short.
@@ -353,13 +353,15 @@ bunx playwright test       # E2E (requires built app)
 
 ## License
 
-Notara is **fair-source** under the [Functional Source License, FSL-1.1-ALv2](./LICENSE).
+Notara is free software under the [GNU Affero General Public License v3.0 or later](./LICENSE).
 
-- **Free to self-host, run, modify, and redistribute** — personal, internal business, or commercial.
-- **One restriction:** you may not offer Notara (or a derivative) as a commercial hosted service that competes with it.
-- **Becomes fully open:** each release automatically converts to the **Apache License 2.0** two years after it ships.
+- **Free to run, study, modify, and redistribute** — personal, internal business, or commercial.
+- **Copyleft, including over a network:** if you modify Notara and let other people use it
+  over a network, those users are entitled to your modified source.
+- **No license key, no seat limit, no subscription**, and no paid tier to be upsold to.
 
-No license key, no seat limit, no subscription. See [LICENSE](./LICENSE) for the full terms.
+Releases up to and including `v0.1.2` shipped under FSL-1.1-ALv2; everything from `v0.1.3`
+on is AGPL-3.0-or-later. See [ADR-005](./docs/adr/005-agpl.md) for why.
 
 ## Contributing & bugs
 
@@ -370,7 +372,7 @@ template — version/commit, deployment, browser + OS, expected vs actual, steps
 Bug fixes and docs PRs are welcome directly. **New features need a
 [feature issue](https://github.com/dnzzl/notara/issues/new?template=feature_request.yml)
 that I've approved before you build** — I'm one person, and I'd rather you didn't sink a
-weekend into a PR I can't take. Contributions ship under FSL-1.1-ALv2; the full policy is
+weekend into a PR I can't take. Contributions ship under AGPL-3.0-or-later; the full policy is
 in [CONTRIBUTING.md](./CONTRIBUTING.md). Be kind; assume good intent.
 
 > **Security vulnerabilities:** email **legrand.thomas5@hotmail.fr** — never a public issue.

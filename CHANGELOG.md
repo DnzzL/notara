@@ -7,6 +7,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- **Relicensed to AGPL-3.0-or-later** (NOT-97, ADR-005). Notara is now open source in the
+  OSI sense rather than fair-source: free to run, study, modify and redistribute, with the
+  one obligation that a modified version offered to others — including over a network —
+  comes with its source. Releases up to and including `0.1.2` shipped under FSL-1.1-ALv2
+  and keep those terms, two-year Apache-2.0 tail included. Contributions are inbound =
+  outbound, with no CLA.
+
 ## [0.1.2] - 2026-08-19
 
 Makes the project presentable: a shared link renders as a card, and Enter behaves the way

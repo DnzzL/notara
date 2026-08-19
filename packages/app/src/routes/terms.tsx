@@ -31,12 +31,12 @@ function TermsPage() {
 
 				<h2>1. The service</h2>
 				<p>
-					Notara is a fair-source, self-hostable Notion alternative. It is free
-					to self-host under the Functional Source License (FSL-1.1-ALv2): the
-					source lives in a public GitHub repository, and you may run, modify,
-					and redistribute it — including for commercial use — provided you do
-					not offer it as a competing hosted service. Each release additionally
-					converts to the Apache License 2.0 two years after it ships. The full
+					Notara is an open-source, self-hostable Notion alternative. It is free
+					software under the GNU Affero General Public License, version 3 or
+					later: the source lives in a public GitHub repository, and you may
+					run, study, modify, and redistribute it — including for commercial use
+					— so long as you pass the same freedoms on, and make your modified
+					source available to anyone you let use it over a network. The full
 					terms are in <code>LICENSE</code> in the source tree.
 				</p>
 
@@ -65,7 +65,7 @@ function TermsPage() {
 				<p>
 					Notara is free to self-host — the marketing site sells nothing and we
 					take no payment for the software. Your rights to the source are
-					granted by the FSL-1.1-ALv2 licence, not by a purchase.
+					granted by the AGPL-3.0-or-later licence, not by a purchase.
 				</p>
 
 				<h2>5. Updates and changes</h2>

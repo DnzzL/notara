@@ -97,7 +97,7 @@ If you can't run these, say so explicitly rather than claiming success.
 
 **Decisions that already cost discussion. Don't re-debate without explicit ask.**
 
-- **Commercial posture is settled: fair-source, free.** Notara is licensed under **FSL-1.1-ALv2** (free to self-host; converts to Apache-2.0 two years per release). No purchase, no subscription, no cloud, no entitlements service. A future Team tier (SSO/multi-workspace) is *reserved but not built* — gate it only at seat-add if it ever lands. See `docs/adr/004-fair-source-fsl.md`. (The earlier €29/Polar commercial model is retired; its ADRs 002/003 are kept as private local notes, gitignored — not in the repo.)
+- **Commercial posture is settled: open source, free.** Notara is licensed under **AGPL-3.0-or-later** from `v0.1.3` on (releases up to `v0.1.2` shipped under FSL-1.1-ALv2 and keep those terms). No purchase, no subscription, no cloud, no entitlements service. Contributions are inbound = outbound with no CLA. A future Team tier (SSO/multi-workspace) would be a dual-licensing decision, not a licence-text reservation — gate it only at seat-add if it ever lands. See `docs/adr/005-agpl.md` (supersedes 004). (The earlier €29/Polar commercial model is retired; its ADRs 002/003 are kept as private local notes, gitignored — not in the repo.)
 
 - **No scattered tier/plan checks. Ever.** If a future Team tier lands, gating goes in `withAuthedWorkspace` (`packages/server/src/workspace-context.ts`) — and *only* there, at seat-add. Not in `createPage`, `createBlock`, `createDatabase`, or any other handler. If you find yourself reaching for an `entitlements` framework for 2 tiers, stop.
 
@@ -127,7 +127,7 @@ packages/app/src/
   components/
     ConsentBanner.tsx       bottom banner, Reject == Accept
     AnalyticsIdentity.tsx   binds session → identify()
-    LandingPage.tsx         fair-source, free self-host (FSL-1.1-ALv2)
+    LandingPage.tsx         open source, free self-host (AGPL-3.0-or-later)
   routes/{privacy,terms}.tsx  GDPR + ToS
 
 packages/shared/src/api.ts  RPC schema + bounded string types

@@ -28,4 +28,4 @@ Approved issue: #<!-- issue number -->
 - [ ] `bun test` passes
 - [ ] `bun --bun tsc --noEmit -p packages/server` and `-p packages/app` are clean (ignoring pre-existing errors)
 - [ ] Changes are surgical — no unrelated refactors or reformatting
-- [ ] I agree my contribution is licensed under FSL-1.1-ALv2 (see CONTRIBUTING.md)
+- [ ] I agree my contribution is licensed under AGPL-3.0-or-later (see CONTRIBUTING.md)
