@@ -5,7 +5,7 @@ status: done
 assignee:
   - '@claude'
 created_date: '2026-07-19 19:39'
-updated_date: '2026-07-20 08:42'
+updated_date: '2026-08-19 12:49'
 labels:
   - enhancement
 dependencies: []
@@ -126,6 +126,16 @@ Verify: bun tsc app + server; bun test server; manual smoke of markdown transfor
 - Trimmed slash menu from 16 to 8 items (removed heading1/2/3, quote, todo, bullet, numbered, code)
 - Added 3 server tests for updateBlock type persistence
 <!-- SECTION:NOTES:END -->
+
+## Comments
+
+<!-- COMMENTS:BEGIN -->
+author: @claude
+created: 2026-08-19 12:49
+---
+The paragraph half of this task's decision ("heading/quote/paragraph -> normal (soft break, unchanged)") is superseded by NOT-84: paragraph Enter now splits into a new block and Shift+Enter is the line break. Headings and quotes had already moved to split-paragraph under NOT-61.
+---
+<!-- COMMENTS:END -->
 
 ## Final Summary
 

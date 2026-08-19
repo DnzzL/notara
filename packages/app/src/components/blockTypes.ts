@@ -101,7 +101,8 @@ export const BLOCK_TYPE_CONFIG: Record<BlockType, BlockTypeConfig> = {
 	paragraph: {
 		placeholder: "Type '/' for commands",
 		defaultContent: "<p></p>",
-		splitBehavior: "normal",
+		// Enter splits into a new paragraph block; Shift+Enter is the line break.
+		splitBehavior: "split-paragraph",
 		rendersCustom: false,
 	},
 	heading1: {

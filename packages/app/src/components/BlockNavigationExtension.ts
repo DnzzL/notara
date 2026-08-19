@@ -210,22 +210,28 @@ export const BlockNavigationExtension = Extension.create<{
 						return true;
 					}
 					const splitResult = splitToParagraphAtCursor(editor, pos, liveType);
+					// Truncate this editor to the "before" half first. Its own debounced
+					// save still holds the whole pre-split line, and would otherwise land
+					// after splitBlock and restore it — leaving the text in both blocks.
+					// emitUpdate=false so this doesn't schedule yet another save.
+					// The list and todo branches above carry the same race (NOT-96).
+					editor.commands.setContent(splitResult.before, false);
 					splitBlock?.(splitResult.before, splitResult.after, "paragraph");
 					return true;
 				}
 
-				// Paragraph / code / normal: soft line break.
+				// Code / normal: soft line break, so Enter adds a line inside the
+				// block rather than leaving it.
 				(editor.chain().focus() as any).setHardBreak().run();
 				return true;
 			},
 
-			// ── Shift+Enter: same as Enter for symmetry ─────────────────────
+			// ── Shift+Enter: line break inside the current block ────────────
 			"Shift-Enter": ({ editor }) => {
-				// Code blocks: Shift+Enter produces a soft break, keeping the caret
-				// inside the code block. Plain Enter below handles it via splitBehavior,
-				// but for code blocks the splitBehavior is "normal" so it inserts a
-				// hard break too. That's fine — both Enter and Shift+Enter add lines
-				// inside a code block.
+				// The counterpart to Enter: wherever Enter leaves the block (paragraph,
+				// heading, quote, list, todo), Shift+Enter stays in it and inserts a
+				// break. For code blocks, whose splitBehavior is "normal", both keys
+				// add a line — which is what a code block wants.
 				(editor.chain().focus() as any).setHardBreak().run();
 				return true;
 			},
