@@ -7,6 +7,23 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- **Social cards** (NOT-94) — the app declares Open Graph and Twitter card meta with a
+  1200×630 image, so a shared link renders as a card instead of a bare URL.
+
+### Fixed
+
+- **Enter in a paragraph creates a new block** (NOT-84) — it inserted a hard break, so a
+  page written with Enter became one block full of `<br>`. Shift+Enter is now the line
+  break. Splitting a paragraph, heading or quote mid-text no longer leaves the text in
+  both blocks, which a stale debounced save used to cause.
+
+### Changed
+
+- Tagging a release now creates the GitHub Release too, with notes taken from this file
+  (NOT-95).
+
 ## [0.1.1] - 2026-08-06
 
 Fixes the published image, which shipped without any of the app's static assets.
