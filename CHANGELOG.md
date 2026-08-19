@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.1.2] - 2026-08-19
+
+Makes the project presentable: a shared link renders as a card, and Enter behaves the way
+every other notes app taught people it does.
+
 ### Added
 
 - **Social cards** (NOT-94) — the app declares Open Graph and Twitter card meta with a
@@ -153,6 +158,7 @@ Defects found and fixed during pre-release development:
 - Admin user deletion left orphaned workspaces.
 - Added missing database indexes on hot query paths.
 
-[Unreleased]: https://github.com/dnzzl/notara/compare/v0.1.1...HEAD
+[Unreleased]: https://github.com/dnzzl/notara/compare/v0.1.2...HEAD
+[0.1.2]: https://github.com/dnzzl/notara/compare/v0.1.1...v0.1.2
 [0.1.1]: https://github.com/dnzzl/notara/compare/v0.1.0...v0.1.1
 [0.1.0]: https://github.com/dnzzl/notara/releases/tag/v0.1.0
