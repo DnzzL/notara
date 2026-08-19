@@ -1,11 +1,11 @@
 ---
 id: NOT-94
 title: 'No Open Graph / Twitter card meta: shared links render as bare URLs'
-status: ready-for-human
+status: done
 assignee:
   - '@claude'
 created_date: '2026-08-19 12:21'
-updated_date: '2026-08-19 12:49'
+updated_date: '2026-08-19 13:15'
 labels:
   - bug
 dependencies: []
@@ -24,7 +24,7 @@ packages/app/index.html declares no og:*, twitter:* or meta description tags. Ev
 - [x] #1 index.html declares og:title, og:description, og:image (absolute URL), og:url, og:type and a meta description
 - [x] #2 twitter:card=summary_large_image plus twitter:title/description/image declared
 - [x] #3 og:image is a 1200x630 asset served from packages/app/public with a real MIME type
-- [ ] #4 Preview verified on the deployed URL with a card validator or by fetching the HTML
+- [x] #4 Preview verified on the deployed URL with a card validator or by fetching the HTML
 <!-- AC:END -->
 
 ## Implementation Plan
@@ -45,6 +45,8 @@ packages/app/index.html declares no og:*, twitter:* or meta description tags. Ev
 - .github/bundle-sizes.json baseline for index.html refreshed (1438B -> 2967B); the gate flagged the +106% as expected.
 
 - AC4 (preview verified on the deployed URL) is not checkable from the working tree: notara.legrand.sh still serves the pre-change head and /notara-og.jpg 404s to the SPA fallback. Re-run a card validator once this is deployed.
+
+- Verified live after v0.1.2: notara.legrand.sh and demo.notara.legrand.sh both serve the full og:*/twitter:* set, and /notara-og.jpg returns 200 image/jpeg on both hosts.
 <!-- SECTION:NOTES:END -->
 
 ## Final Summary
@@ -60,4 +62,6 @@ Changes:
 Verified: the built dist/index.html carries the tags and dist/notara-og.jpg ships; the bundle-size gate passes again.
 
 Follow-up: the card itself can only be validated once deployed — notara.legrand.sh still serves the old head.
+
+Shipped in v0.1.2 and verified on both deployed hosts (tags present, card image served as image/jpeg).
 <!-- SECTION:FINAL_SUMMARY:END -->
