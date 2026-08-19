@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.1.3] - 2026-08-19
+
+One change, and it's the licence: Notara is open source in the OSI sense from this
+release on.
+
 ### Changed
 
 - **Relicensed to AGPL-3.0-or-later** (NOT-97, ADR-005). Notara is now open source in the
@@ -167,7 +172,8 @@ Defects found and fixed during pre-release development:
 - Admin user deletion left orphaned workspaces.
 - Added missing database indexes on hot query paths.
 
-[Unreleased]: https://github.com/dnzzl/notara/compare/v0.1.2...HEAD
+[Unreleased]: https://github.com/dnzzl/notara/compare/v0.1.3...HEAD
+[0.1.3]: https://github.com/dnzzl/notara/compare/v0.1.2...v0.1.3
 [0.1.2]: https://github.com/dnzzl/notara/compare/v0.1.1...v0.1.2
 [0.1.1]: https://github.com/dnzzl/notara/compare/v0.1.0...v0.1.1
 [0.1.0]: https://github.com/dnzzl/notara/releases/tag/v0.1.0
