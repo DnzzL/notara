@@ -47,3 +47,41 @@ jobs:
           subject-name: ghcr.io/dnzzl/notara
           subject-digest: ${{ steps.build.outputs.digest }}
           push-to-registry: true
+
+  # The Releases page is a discovery surface: people watch it, directories link
+  # to it, and posts point at it. Notes come from the tag's CHANGELOG section, so
+  # there is one source of truth.
+  release:
+    runs-on: ubuntu-latest
+    needs: image
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v6
+
+      - name: Extract the notes for this tag
+        run: |
+          version="${GITHUB_REF_NAME#v}"
+          # Stops at the next version heading, or at the link definitions in the
+          # file footer — otherwise the oldest section swallows them.
+          awk -v v="$version" '
+            $0 ~ "^## \\[" v "\\]" { inside = 1; next }
+            inside && (/^## \[/ || /^\[[^]]+\]: /) { exit }
+            inside { print }
+          ' CHANGELOG.md > notes.md
+          if [ ! -s notes.md ]; then
+            echo "CHANGELOG.md has no section for $version" >&2
+            exit 1
+          fi
+          {
+            echo
+            echo '### Run it'
+            echo
+            echo '```bash'
+            echo "docker run -d --name notara -p 3000:3000 -v notara-data:/data -e BETTER_AUTH_SECRET=\"\$(openssl rand -base64 32)\" ghcr.io/dnzzl/notara:${version}"
+            echo '```'
+          } >> notes.md
+
+      - run: gh release create "$GITHUB_REF_NAME" --title "$GITHUB_REF_NAME" --notes-file notes.md --latest
+        env:
+          GH_TOKEN: ${{ github.token }}
