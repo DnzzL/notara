@@ -49,6 +49,20 @@ Open `http://localhost:3000` and create your account. Your data lives in the
 | **Desktop app** | Native Electron app for macOS — plus the web client |
 | **Own your data** | One SQLite file per workspace, on infrastructure you control |
 
+## What it looks like
+
+Write in blocks — markdown as you type, todos, callouts, code:
+
+![The Notara editor](docs/screenshots/editor.png)
+
+Put a database on any page, with typed fields and per-view filters and sorts:
+
+![An inline database in table view](docs/screenshots/database-table.png)
+
+The same records as a board, grouped by any select field:
+
+![The same database in board view](docs/screenshots/database-board.png)
+
 ## Self-host
 
 Notara is a **single container** with no external services — one SQLite file on a mounted
