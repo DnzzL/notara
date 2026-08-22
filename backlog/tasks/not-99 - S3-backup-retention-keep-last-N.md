@@ -4,7 +4,7 @@ title: 'S3 backup retention: keep last N'
 status: done
 assignee: []
 created_date: '2026-08-22 10:26'
-updated_date: '2026-08-22 10:26'
+updated_date: '2026-08-22 12:38'
 labels:
   - enhancement
 dependencies: []
@@ -26,6 +26,12 @@ Backups were never pruned; the bucket grew without bound (a full zip per run, up
 - [x] #4 A failed purge does not fail the backup
 - [x] #5 Setting is editable in the Backups settings panel
 <!-- AC:END -->
+
+## Implementation Notes
+
+<!-- SECTION:NOTES:BEGIN -->
+Follow-up (NOT-101): purge-after-backup alone left an already-oversized bucket untouched until the next scheduled run. pruneBackups() now also runs once at server startup.
+<!-- SECTION:NOTES:END -->
 
 ## Final Summary
 

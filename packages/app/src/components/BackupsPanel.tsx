@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { toaster } from "../toaster.js";
 import { Button } from "./ui/index.js";
 
@@ -69,12 +69,16 @@ export function BackupsPanel() {
 			.catch(() => {});
 	}, []);
 
-	const loadBackups = () => {
+	// useCallback so the effect below has a stable dependency. Without it the
+	// function's identity changed on every render, the effect refired, its
+	// setBackups triggered another render, and the panel hammered
+	// /api/backup/list about ten times a second for as long as it stayed open.
+	const loadBackups = useCallback(() => {
 		fetch("/api/backup/list")
 			.then((r) => (r.ok ? r.json() : []))
 			.then((data) => Array.isArray(data) && setBackups(data))
 			.catch(() => {});
-	};
+	}, []);
 
 	useEffect(() => {
 		if (settings.s3Enabled) loadBackups();

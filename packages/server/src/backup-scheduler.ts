@@ -1,4 +1,4 @@
-import { triggerBackup } from "./handlers/backup.js";
+import { pruneBackups, triggerBackup } from "./handlers/backup.js";
 import { loadSettings } from "./handlers/settings.js";
 
 const SCHEDULE_INTERVALS: Record<string, number | null> = {
@@ -37,4 +37,21 @@ export function startBackupScheduler() {
 
 	setInterval(tick, 60_000);
 	tick();
+
+	// Purge on boot too, not only after a backup. Otherwise a bucket that is
+	// already over the limit stays that way until the next scheduled run —
+	// which on the "manual" or "weekly" schedule may be never or a week away.
+	pruneBackups()
+		.then((removed) => {
+			if (removed.length)
+				console.log(
+					`[backup] startup retention purge removed ${removed.length} backup(s)`,
+				);
+		})
+		.catch((e) => {
+			// Not configured, or S3 unreachable — never block startup on this.
+			if (e instanceof Error && /not enabled|not configured/.test(e.message))
+				return;
+			console.error("[backup] startup retention purge failed:", e);
+		});
 }

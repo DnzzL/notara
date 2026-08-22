@@ -13,8 +13,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   zip, so an hourly schedule left 24 complete copies of the instance in the bucket per
   day, forever. A new `s3KeepLast` setting (default 10, `S3_KEEP_LAST` env override) keeps
   only the N most recent backups and deletes the rest after each successful run; set it to
-  `0` to keep everything. The pre-restore safety snapshot never triggers a purge, and a
-  failed purge is logged rather than failing the backup that just succeeded.
+  `0` to keep everything. The purge also runs once at server startup, so a bucket that is
+  already over the limit is brought back down without waiting for the next scheduled
+  backup. The pre-restore safety snapshot never triggers a purge, and a failed purge is
+  logged rather than failing the backup that just succeeded.
+
+### Fixed
+
+- **Settings backup panel hammered `/api/backup/list`** (NOT-101). The effect that loads the
+  backup list depended on a function recreated on every render, so it refired continuously —
+  roughly ten requests a second for as long as the Backups panel stayed open. The loader is
+  now memoized.
 
 ## [0.1.3] - 2026-08-19
 
