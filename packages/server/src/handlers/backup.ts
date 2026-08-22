@@ -1,6 +1,7 @@
 import fs from "node:fs";
 import path from "node:path";
 import {
+	DeleteObjectsCommand,
 	ListObjectsV2Command,
 	PutObjectCommand,
 	S3Client,
@@ -55,7 +56,51 @@ export function getS3(): { client: S3Client; bucket: string; prefix: string } {
 	return { client, bucket: settings.s3Bucket, prefix };
 }
 
-export async function triggerBackup(): Promise<BackupResult> {
+/**
+ * Retention: given backups newest-first, return the ones to delete so only the
+ * `keepLast` most recent survive. `keepLast <= 0` keeps everything.
+ */
+export function selectExpired(
+	items: BackupListItem[],
+	keepLast: number,
+): BackupListItem[] {
+	if (keepLast <= 0) return [];
+	return items.slice(keepLast);
+}
+
+/**
+ * Delete every backup beyond the `s3KeepLast` most recent. Returns the keys
+ * removed. Called after a successful backup so the bucket stays bounded.
+ */
+export async function pruneBackups(): Promise<string[]> {
+	const keepLast = loadSettings().s3KeepLast ?? 0;
+	const expired = selectExpired(await listBackups(), keepLast);
+	if (expired.length === 0) return [];
+
+	const { client, bucket } = getS3();
+	const keys = expired.map((b) => b.key);
+	// S3 DeleteObjects accepts at most 1000 keys per call.
+	for (let i = 0; i < keys.length; i += 1000) {
+		await client.send(
+			new DeleteObjectsCommand({
+				Bucket: bucket,
+				Delete: { Objects: keys.slice(i, i + 1000).map((Key) => ({ Key })) },
+			}),
+		);
+	}
+	return keys;
+}
+
+/**
+ * Zip the whole instance and upload it to S3. Prunes old backups afterwards
+ * unless `prune` is false — the restore handler's safety snapshot passes false
+ * so the purge can never delete the backup being restored.
+ */
+export async function triggerBackup({
+	prune = true,
+}: {
+	prune?: boolean;
+} = {}): Promise<BackupResult> {
 	const { client, bucket, prefix } = getS3();
 
 	const dataDir = process.env.DATA_DIR ?? path.join(process.cwd(), ".data");
@@ -91,6 +136,18 @@ export async function triggerBackup(): Promise<BackupResult> {
 			ContentType: "application/zip",
 		}),
 	);
+
+	if (prune) {
+		const removed = await pruneBackups().catch((e) => {
+			// A failed purge must not fail the backup that just succeeded.
+			console.error("[backup] retention purge failed:", e);
+			return [] as string[];
+		});
+		if (removed.length)
+			console.log(
+				`[backup] retention purge removed ${removed.length} backup(s)`,
+			);
+	}
 
 	return { key, size: zipBuffer.length, timestamp: new Date().toISOString() };
 }

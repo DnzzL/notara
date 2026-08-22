@@ -7,6 +7,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- **S3 backup retention** (NOT-99). Backups were never pruned: every run uploads a full
+  zip, so an hourly schedule left 24 complete copies of the instance in the bucket per
+  day, forever. A new `s3KeepLast` setting (default 10, `S3_KEEP_LAST` env override) keeps
+  only the N most recent backups and deletes the rest after each successful run; set it to
+  `0` to keep everything. The pre-restore safety snapshot never triggers a purge, and a
+  failed purge is logged rather than failing the backup that just succeeded.
+
 ## [0.1.3] - 2026-08-19
 
 One change, and it's the licence: Notara is open source in the OSI sense from this

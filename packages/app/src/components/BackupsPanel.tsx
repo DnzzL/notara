@@ -13,6 +13,7 @@ interface S3Settings {
 	s3SecretAccessKey: string;
 	s3Prefix: string;
 	s3Schedule: BackupSchedule;
+	s3KeepLast: number;
 }
 
 interface BackupListItem {
@@ -30,6 +31,7 @@ const DEFAULTS: S3Settings = {
 	s3SecretAccessKey: "",
 	s3Prefix: "backups",
 	s3Schedule: "manual",
+	s3KeepLast: 10,
 };
 
 const LAST_BACKUP_KEY = "notara:lastBackup";
@@ -301,6 +303,22 @@ export function BackupsPanel() {
 									</option>
 								))}
 							</select>
+						</label>
+						<label className="settings-field">
+							<span>Keep last</span>
+							<input
+								type="number"
+								min={0}
+								name="s3-keep-last"
+								value={settings.s3KeepLast}
+								onChange={(e) =>
+									set("s3KeepLast", Math.max(0, Number(e.target.value) || 0))
+								}
+							/>
+							<span className="settings-field-hint">
+								After each backup, older ones beyond this count are deleted from
+								the bucket. Set to <code>0</code> to keep every backup forever.
+							</span>
 						</label>
 					</div>
 

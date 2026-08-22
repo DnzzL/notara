@@ -21,6 +21,8 @@ export interface AppSettings {
 	s3SecretAccessKey: string;
 	s3Prefix: string;
 	s3Schedule: BackupSchedule;
+	/** Number of most recent backups to keep in the bucket. 0 = keep everything. */
+	s3KeepLast: number;
 	/** Days a trashed item is kept before the sweep permanently deletes it. */
 	trashRetentionDays: number;
 }
@@ -34,6 +36,7 @@ const defaults: AppSettings = {
 	s3SecretAccessKey: "",
 	s3Prefix: "backups",
 	s3Schedule: "manual",
+	s3KeepLast: 10,
 	trashRetentionDays: 30,
 };
 
@@ -52,6 +55,10 @@ function envOverrides(): Partial<AppSettings> {
 	if (process.env.S3_PREFIX) o.s3Prefix = process.env.S3_PREFIX;
 	if (process.env.S3_SCHEDULE)
 		o.s3Schedule = process.env.S3_SCHEDULE as BackupSchedule;
+	if (process.env.S3_KEEP_LAST) {
+		const n = Number.parseInt(process.env.S3_KEEP_LAST, 10);
+		if (Number.isFinite(n) && n >= 0) o.s3KeepLast = n;
+	}
 	if (process.env.TRASH_RETENTION_DAYS) {
 		const n = Number.parseInt(process.env.TRASH_RETENTION_DAYS, 10);
 		if (Number.isFinite(n) && n >= 0) o.trashRetentionDays = n;

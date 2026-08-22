@@ -44,7 +44,7 @@ export async function restoreBackup(key: string): Promise<RestoreResult> {
 		throw new Error("Key does not look like a backup zip");
 
 	// Safety: snapshot the current state to S3 before we overwrite anything.
-	const snapshot = await triggerBackup();
+	const snapshot = await triggerBackup({ prune: false });
 
 	// Download the chosen backup into memory.
 	const resp = await client.send(

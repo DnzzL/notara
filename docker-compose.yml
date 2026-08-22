@@ -27,6 +27,7 @@ services:
       - S3_ACCESS_KEY
       - S3_SECRET_KEY
       - S3_ENDPOINT
+      - S3_KEEP_LAST
     # healthcheck:
     #   test: ["CMD", "bun", "-e", "fetch('http://localhost:3000/health').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"]
     #   interval: 30s
