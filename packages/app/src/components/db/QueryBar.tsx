@@ -16,6 +16,8 @@ const VALUELESS: FilterOperator[] = ["is_empty", "is_not_empty"];
 
 function defaultValueForField(field: any): string {
 	if (!field) return "";
+	// The default a new filter starts with. Types whose cells are lists offer
+	// their first option; a checkbox defaults to checked.
 	if (field.type === "checkbox") return "true";
 	if (field.type === "select" || field.type === "multiSelect")
 		return field.options?.[0] ?? "";

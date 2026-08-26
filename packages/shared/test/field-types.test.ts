@@ -41,8 +41,10 @@ describe("the registry covers what exists", () => {
 
 	it("falls back to text for a type this build does not know", () => {
 		// A workspace written by a newer version must render badly, not crash.
-		expect(fieldTypeSpec("rollup").type).toBe("text");
-		expect(isKnownFieldType("rollup")).toBe(false);
+		// The example is deliberately not a plausible future field type: using
+		// one would make this test fail the day that type is actually added.
+		expect(fieldTypeSpec("not-a-real-field-type").type).toBe("text");
+		expect(isKnownFieldType("not-a-real-field-type")).toBe(false);
 	});
 });
 

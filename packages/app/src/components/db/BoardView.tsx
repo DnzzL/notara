@@ -19,6 +19,7 @@ import {
 	verticalListSortingStrategy,
 } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
+import { fieldTypeSpec } from "@notara/shared";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { api } from "../../rpc-client.js";
 import {
@@ -130,12 +131,15 @@ export function BoardView({
 				if (groupField.type === "select") {
 					key = String(r.values[groupField.name] || "Untitled");
 				} else if (groupField.type === "multiSelect") {
-					const vals =
-						typeof r.values[groupField.name] === "string"
-							? r.values[groupField.name]
-								? JSON.parse(r.values[groupField.name])
-								: []
-							: r.values[groupField.name] || [];
+					// Decoding a stored cell is the registry's job. This copy did not
+					// handle the legacy comma-joined form that Notion imports produced,
+					// so those rows grouped as "Untitled".
+					const raw = r.values[groupField.name];
+					const vals = Array.isArray(raw)
+						? raw
+						: (fieldTypeSpec("multiSelect").decode(
+								typeof raw === "string" ? raw : "",
+							) as string[]);
 					key = vals.length > 0 ? vals.join(", ") : "Untitled";
 				} else {
 					key = String(r.values[groupField.name] || "Untitled");

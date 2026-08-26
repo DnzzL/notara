@@ -1,4 +1,4 @@
-import { fieldTypeSpec } from "@notara/shared";
+import { type FieldType, fieldTypeSpec } from "@notara/shared";
 import {
 	useCallback,
 	useEffect,
@@ -365,7 +365,7 @@ export function CellDisplay({
 	field: {
 		id: string;
 		name: string;
-		type: string;
+		type: FieldType;
 		options?: string[];
 		relationTargetDbId?: string | null;
 		formula?: string | null;
@@ -700,7 +700,12 @@ function SelectPopover({
 	onSave,
 	onCancel,
 }: {
-	field: { id: string; name: string; type: string; options?: string[] | null };
+	field: {
+		id: string;
+		name: string;
+		type: FieldType;
+		options?: string[] | null;
+	};
 	value: any;
 	onSave: (val: string) => void;
 	onCancel: () => void;
@@ -890,7 +895,7 @@ export function RelationPicker({
 	field: {
 		id: string;
 		name: string;
-		type: string;
+		type: FieldType;
 		relationTargetDbId?: string | null;
 	};
 	value: any;
@@ -1393,7 +1398,7 @@ export function InlineCellEditor({
 	field: {
 		id: string;
 		name: string;
-		type: string;
+		type: FieldType;
 		options?: string[];
 		relationTargetDbId?: string | null;
 	};
