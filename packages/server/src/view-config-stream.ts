@@ -5,18 +5,18 @@
  * publishes an event that all open SSE connections for that view receive,
  * allowing `ViewReferenceBlock` instances to re-apply the new config.
  *
- * Pattern mirrors `presence/PresenceService.ts` but is simpler — no TTL,
- * no heartbeat — because the subscriber list is tied to EventSource lifetime
- * and cleaned up when the TCP connection drops.
+ * The SSE mechanics — framing, keepalive, headers, finalization — live in
+ * `sse-channel.ts`; this file supplies only what is specific to view configs:
+ * how to authorize a listener and how to attach one to a view's subscriber set.
  */
 
 import * as HttpServerRequest from "@effect/platform/HttpServerRequest";
-import * as HttpServerResponse from "@effect/platform/HttpServerResponse";
 import type { Context } from "effect";
-import { Effect, Layer, Stream } from "effect";
+import { Effect, Layer } from "effect";
 import type { WorkspaceDb } from "./db.js";
 import * as Permissions from "./handlers/permissions.js";
 import { PlatformDbLive } from "./platform-db.js";
+import { refuse, sseChannel } from "./sse-channel.js";
 import { resolveWorkspaceContext } from "./workspace-context.js";
 
 type WorkspaceDbService = Context.Tag.Service<WorkspaceDb>;
@@ -67,64 +67,47 @@ export function publishViewConfigChange(event: ViewConfigEvent) {
  * here rather than through `withAuthedWorkspace`.
  */
 export function makeViewConfigStreamHandler(wdb: WorkspaceDbService) {
-	return Effect.gen(function* () {
-		const req = yield* HttpServerRequest.HttpServerRequest;
-		const url = new URL(req.url, "http://localhost");
-		const databaseId = url.searchParams.get("databaseId");
-		const viewId = url.searchParams.get("viewId");
-		const workspaceId = url.searchParams.get("workspaceId");
-		if (!databaseId || !viewId || !workspaceId) {
-			return HttpServerResponse.text(
-				JSON.stringify({
-					error: "Missing databaseId, viewId or workspaceId",
-				}),
-				{
-					status: 400,
-					headers: { "Content-Type": "application/json" },
-				},
+	return sseChannel<{ databaseId: string; viewId: string }>({
+		name: "view-config",
+		authorize: Effect.gen(function* () {
+			const req = yield* HttpServerRequest.HttpServerRequest;
+			const url = new URL(req.url, "http://localhost");
+			const databaseId = url.searchParams.get("databaseId");
+			const viewId = url.searchParams.get("viewId");
+			const workspaceId = url.searchParams.get("workspaceId");
+			if (!databaseId || !viewId || !workspaceId) {
+				return yield* refuse(400, "Missing databaseId, viewId or workspaceId");
+			}
+
+			// EventSource cannot send headers, so the workspace arrives as a query
+			// param and is proven here rather than through withAuthedWorkspace.
+			const ctx = yield* Effect.either(
+				resolveWorkspaceContext(workspaceId).pipe(
+					Effect.provide(PlatformDbLive),
+				),
 			);
-		}
+			if (ctx._tag === "Left") {
+				return yield* refuse(ctx.left.status, ctx.left.message);
+			}
 
-		const ctx = yield* Effect.either(
-			resolveWorkspaceContext(workspaceId).pipe(Effect.provide(PlatformDbLive)),
-		);
-		if (ctx._tag === "Left") {
-			return HttpServerResponse.text(
-				JSON.stringify({ error: ctx.left.message }),
-				{
-					status: ctx.left.status,
-					headers: { "Content-Type": "application/json" },
-				},
+			const allowed = yield* Effect.either(
+				Permissions.checkViewPermission(
+					ctx.right.userId,
+					workspaceId,
+					viewId,
+					"viewer",
+				).pipe(
+					Effect.provide(
+						Layer.merge(wdb.getLayer(workspaceId), PlatformDbLive),
+					),
+				),
 			);
-		}
+			if (allowed._tag === "Left") return yield* refuse(403, "Forbidden");
 
-		const permCheck = yield* Effect.either(
-			Permissions.checkViewPermission(
-				ctx.right.userId,
-				workspaceId,
-				viewId,
-				"viewer",
-			).pipe(
-				Effect.provide(Layer.merge(wdb.getLayer(workspaceId), PlatformDbLive)),
-			),
-		);
-		if (permCheck._tag === "Left") {
-			return HttpServerResponse.text(JSON.stringify({ error: "Forbidden" }), {
-				status: 403,
-				headers: { "Content-Type": "application/json" },
-			});
-		}
-
-		const encoder = new TextEncoder();
-		const encodeEvent = (e: ViewConfigEvent) =>
-			encoder.encode(`event: ${e.type}\ndata: ${JSON.stringify(e)}\n\n`);
-
-		const sseStream = Stream.async<Uint8Array>((emit) => {
-			const sub: Subscriber = {
-				push: (e: ViewConfigEvent) => {
-					emit.single(encodeEvent(e));
-				},
-			};
+			return { databaseId, viewId };
+		}),
+		subscribe: ({ databaseId, viewId }, send) => {
+			const sub: Subscriber = { push: (e) => send(e) };
 			const k = key(databaseId, viewId);
 			let set = subscribers.get(k);
 			if (!set) {
@@ -133,40 +116,10 @@ export function makeViewConfigStreamHandler(wdb: WorkspaceDbService) {
 			}
 			set.add(sub);
 
-			// Keepalive ping every 30s
-			const keepAlive = setInterval(
-				() => emit.single(encoder.encode(": ping\n\n")),
-				30_000,
-			);
-
-			return Effect.sync(() => {
-				clearInterval(keepAlive);
-				set?.delete(sub);
-				if (set?.size === 0) subscribers.delete(k);
-			});
-		});
-
-		return HttpServerResponse.stream(sseStream, {
-			headers: {
-				"Content-Type": "text/event-stream",
-				"Cache-Control": "no-cache, no-transform",
-				Connection: "keep-alive",
-				"X-Accel-Buffering": "no",
-				"Access-Control-Allow-Origin": process.env.BASE_URL ?? "*",
-				Vary: "Origin",
-			},
-		});
-	}).pipe(
-		Effect.catchAllCause((cause) =>
-			Effect.zipRight(
-				Effect.logError("view-config stream failed", cause),
-				Effect.succeed(
-					HttpServerResponse.text(JSON.stringify({ error: "Server error" }), {
-						status: 500,
-						headers: { "Content-Type": "application/json" },
-					}),
-				),
-			),
-		),
-	);
+			return () => {
+				set.delete(sub);
+				if (set.size === 0) subscribers.delete(k);
+			};
+		},
+	});
 }

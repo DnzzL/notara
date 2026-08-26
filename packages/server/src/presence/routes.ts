@@ -1,12 +1,13 @@
 import * as HttpServerRequest from "@effect/platform/HttpServerRequest";
 import * as HttpServerResponse from "@effect/platform/HttpServerResponse";
 import type { Context } from "effect";
-import { Effect, Layer, Stream } from "effect";
+import { Effect, Layer } from "effect";
 import { auth } from "../auth.js";
 import type { WorkspaceDb } from "../db.js";
 import * as Permissions from "../handlers/permissions.js";
 import { PlatformDbLive } from "../platform-db.js";
-import { type PresenceEvent, presence } from "./index.js";
+import { refuse, sseChannel } from "../sse-channel.js";
+import { presence } from "./index.js";
 
 type WorkspaceDbService = Context.Tag.Service<WorkspaceDb>;
 
@@ -132,89 +133,46 @@ export const leaveHandler = Effect.gen(function* () {
 
 /** GET /api/presence/stream?workspaceId=…&pageId=… — SSE */
 export const makeStreamHandler = (wdb: WorkspaceDbService) =>
-	Effect.gen(function* () {
-		const req = yield* HttpServerRequest.HttpServerRequest;
-		const headers = toHeaders(
-			req.headers as Record<string, string | string[] | undefined>,
-		);
-		const session = yield* Effect.promise(() =>
-			auth.api.getSession({ headers }),
-		);
-		if (!session) return jsonResponse({ error: "Unauthorized" }, 401);
-
-		const url = new URL(req.url, "http://localhost");
-		const workspaceId = url.searchParams.get("workspaceId");
-		const pageId = url.searchParams.get("pageId");
-		if (!workspaceId || !pageId)
-			return jsonResponse({ error: "Missing query params" }, 400);
-
-		const permCheck = yield* Effect.either(
-			Permissions.checkPagePermission(
-				session.user.id,
-				workspaceId,
-				pageId,
-				"viewer",
-			).pipe(
-				Effect.provide(Layer.merge(wdb.getLayer(workspaceId), PlatformDbLive)),
-			),
-		);
-		if (permCheck._tag === "Left")
-			return jsonResponse({ error: "Forbidden" }, 403);
-
-		const userId = session.user.id;
-		const encoder = new TextEncoder();
-		const encodeEvent = (e: PresenceEvent) =>
-			encoder.encode(`event: ${e.type}\ndata: ${JSON.stringify(e)}\n\n`);
-
-		const sseStream = Stream.async<Uint8Array>((emit) => {
-			// Initial event: current page presence so the new subscriber starts populated.
-			emit.single(
-				encodeEvent({
-					type: "presence.changed",
-					users: presence.presence(workspaceId, pageId),
-				}),
+	sseChannel<{ workspaceId: string; pageId: string; userId: string }>({
+		name: "presence",
+		authorize: Effect.gen(function* () {
+			const req = yield* HttpServerRequest.HttpServerRequest;
+			const headers = toHeaders(
+				req.headers as Record<string, string | string[] | undefined>,
 			);
-
-			const unsubscribe = presence.subscribe(
-				workspaceId,
-				pageId,
-				userId,
-				(event) => {
-					emit.single(encodeEvent(event));
-				},
+			const session = yield* Effect.promise(() =>
+				auth.api.getSession({ headers }),
 			);
+			if (!session) return yield* refuse(401, "Unauthorized");
 
-			// Heartbeat comment frames every 20s keep the connection alive through proxies.
-			const keepAlive = setInterval(
-				() => emit.single(encoder.encode(`: ping\n\n`)),
-				20_000,
+			const url = new URL(req.url, "http://localhost");
+			const workspaceId = url.searchParams.get("workspaceId");
+			const pageId = url.searchParams.get("pageId");
+			if (!workspaceId || !pageId)
+				return yield* refuse(400, "Missing query params");
+
+			const allowed = yield* Effect.either(
+				Permissions.checkPagePermission(
+					session.user.id,
+					workspaceId,
+					pageId,
+					"viewer",
+				).pipe(
+					Effect.provide(
+						Layer.merge(wdb.getLayer(workspaceId), PlatformDbLive),
+					),
+				),
 			);
+			if (allowed._tag === "Left") return yield* refuse(403, "Forbidden");
 
-			return Effect.sync(() => {
-				clearInterval(keepAlive);
-				unsubscribe();
-				// Note: this finalizer does not run when the client disconnects on
-				// this platform — Bun's streaming response never surfaces it, and a
-				// failed keep-alive write does not either. Departures are reported
-				// by the client via /api/presence/leave, with the TTL sweep as the
-				// backstop for clients that vanish without saying anything.
-			});
-		});
-
-		return HttpServerResponse.stream(sseStream, {
-			headers: {
-				"Content-Type": "text/event-stream",
-				"Cache-Control": "no-cache, no-transform",
-				Connection: "keep-alive",
-				"X-Accel-Buffering": "no",
-				...corsBase,
-			},
-		});
-	}).pipe(
-		Effect.catchAllCause((cause) =>
-			Effect.zipRight(
-				Effect.logError("presence route failed", cause),
-				Effect.succeed(jsonResponse({ error: "Server error" }, 500)),
-			),
-		),
-	);
+			return { workspaceId, pageId, userId: session.user.id };
+		}),
+		// A new subscriber starts populated rather than waiting for the first
+		// change to learn who else is here.
+		initial: ({ workspaceId, pageId }) => ({
+			type: "presence.changed",
+			users: presence.presence(workspaceId, pageId),
+		}),
+		subscribe: ({ workspaceId, pageId, userId }, send) =>
+			presence.subscribe(workspaceId, pageId, userId, send),
+	});
