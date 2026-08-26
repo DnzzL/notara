@@ -64,8 +64,8 @@ import {
 	BLOCK_TYPE_CONFIG,
 	type BlockType,
 	blockTypeFromHtml,
-	headingLevelFromType,
 	SLASH_COMMANDS,
+	wrapInlineHTML,
 } from "./blockTypes.js";
 import { CalloutNode } from "./CalloutExtension.js";
 import { DatabaseView } from "./DatabaseView.js";
@@ -919,18 +919,9 @@ export function BlockEditor() {
 			);
 			const mergedInner = prevInner + currentInner;
 
-			// Preserve the previous block's type, derived from content
-			let mergedHtml: string;
-			if (prevType.startsWith("heading")) {
-				const level = headingLevelFromType(prevType);
-				mergedHtml = `<h${level}>${mergedInner}</h${level}>`;
-			} else if (prevType === "blockquote") {
-				mergedHtml = `<blockquote>${mergedInner}</blockquote>`;
-			} else if (prevType === "code") {
-				mergedHtml = `<pre><code>${mergedInner}</code></pre>`;
-			} else {
-				mergedHtml = `<p>${mergedInner}</p>`;
-			}
+			// Preserve the previous block's type, derived from content. The wrapping
+			// is blockTypes' to know — this used to be a second, divergent copy.
+			const mergedHtml = wrapInlineHTML(prevType, mergedInner);
 
 			// Caret lands at the seam — the text length of prev's content.
 			const seam = stripHtml(prevInner).length;
@@ -982,7 +973,7 @@ export function BlockEditor() {
 			const newBlock = await createBlock({
 				pageId: currentPage.id,
 				type: "paragraph",
-				content: "<p></p>",
+				content: defaultContentForType("paragraph"),
 				index: current.index + 1,
 				parentId: null,
 			});
@@ -1076,7 +1067,7 @@ export function BlockEditor() {
 				await createBlock({
 					pageId: currentPage.id,
 					type: "people",
-					content: "[]",
+					content: defaultContentForType("people"),
 					index: currentBlock.index + 1,
 					parentId: null,
 				});
@@ -1492,7 +1483,7 @@ export function BlockEditor() {
 										createBlock({
 											pageId: currentPage.id,
 											type: "paragraph",
-											content: "<p></p>",
+											content: defaultContentForType("paragraph"),
 											index: lastBlock.index + 1,
 											parentId: null,
 										}).then((newBlock) => {
@@ -1789,7 +1780,7 @@ export function BlockEditor() {
 										const block = await createBlock({
 											pageId: currentPage.id,
 											type: "paragraph",
-											content: "<p></p>",
+											content: defaultContentForType("paragraph"),
 											index: lastBlock ? lastBlock.index + 1 : 0,
 											parentId: null,
 										});
@@ -1839,7 +1830,7 @@ export function BlockEditor() {
 										const block = await createBlock({
 											pageId: currentPage.id,
 											type: "paragraph",
-											content: "<p></p>",
+											content: defaultContentForType("paragraph"),
 											index: 0,
 											parentId: null,
 										});
@@ -1910,7 +1901,7 @@ export function BlockEditor() {
 									const block = await createBlock({
 										pageId: currentPage.id,
 										type: "paragraph",
-										content: "<p></p>",
+										content: defaultContentForType("paragraph"),
 										index: lastBlock ? lastBlock.index + 1 : 0,
 										parentId: null,
 									});
