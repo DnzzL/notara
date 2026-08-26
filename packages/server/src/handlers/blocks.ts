@@ -4,6 +4,38 @@ import { Effect } from "effect";
 import { ulid } from "ulidx";
 import { BLOCK_COLS, blockFromRow } from "../mappers.js";
 
+/**
+ * THE BLOCK CONTENT CONTRACT — one shape, both API surfaces.
+ *
+ * A block's content is **a string**, and how to read it depends on the block's
+ * type. Text-bearing blocks (paragraph, headings, lists, todo, quote, code,
+ * toggle, callout) hold HTML, because a TipTap editor produces and consumes
+ * HTML. Structured blocks (image, pdf, file, pageLink, database, viewReference,
+ * people) hold JSON.
+ *
+ * This used to be decided in the REST adapter rather than here, and it decided
+ * differently: it ran `JSON.parse` on the way out and fell back to the raw
+ * string when that failed. So REST returned an object for an image and a string
+ * for a paragraph, while RPC returned the string either way — one module, two
+ * contracts, chosen by which door the caller came through.
+ *
+ * The OpenAPI document then described a third thing that was true of neither:
+ * `{ "text": "…" }` for every text block. Nobody could have written a correct
+ * client against it, and the write path's object-to-JSON coercion meant anyone
+ * who tried stored `{"text":"hi"}` where the editor expects `<p>hi</p>` — a
+ * block that renders blank. That coercion is gone: a non-string content is now
+ * refused with a message saying what to send, rather than accepted and quietly
+ * corrupted.
+ */
+export const isValidContent = (raw: unknown): raw is string =>
+	typeof raw === "string";
+
+/** Why a rejected content payload was rejected, in terms a caller can act on. */
+export const CONTENT_CONTRACT =
+	'Block content must be a string. Text blocks hold HTML (e.g. "<p>Hello</p>"); ' +
+	"image, pdf, file, pageLink, database, viewReference and people blocks hold a " +
+	'JSON string (e.g. "{\\"url\\":\\"/attachments/x.png\\"}").';
+
 export const getBlockPageId = (id: string) =>
 	Effect.gen(function* () {
 		const sql = yield* SqlClient.SqlClient;

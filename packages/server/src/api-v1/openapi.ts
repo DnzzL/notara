@@ -97,9 +97,10 @@ const schemas = {
 			pageId: { type: "string" },
 			type: { type: "string", enum: [...BLOCK_TYPES], example: "paragraph" },
 			content: {
+				type: "string",
 				description:
-					"Block payload — varies by type. Paragraph: `{text:string}`. Heading: `{text:string,level:1|2|3}`. Todo: `{text:string,checked:boolean}`. Code: `{code:string,language:string}`. Stored and returned as a JSON object.",
-				example: { text: "Hello world" },
+					"Block payload, always a string. Text blocks hold HTML; image, pdf, file, pageLink, database and viewReference blocks hold a JSON string. See the Block content format section.",
+				example: "<p>Hello world</p>",
 			},
 			parentId: { type: "string", nullable: true },
 			index: { type: "integer", example: 0 },
@@ -113,8 +114,10 @@ const schemas = {
 			pageId: { type: "string" },
 			type: { type: "string", enum: [...BLOCK_TYPES], example: "paragraph" },
 			content: {
-				description: "JSON object matching the block type schema",
-				example: { text: "" },
+				type: "string",
+				description:
+					"Block payload as a string — HTML for text blocks, a JSON string for structured ones. An object is rejected with 400.",
+				example: "<p></p>",
 			},
 			index: { type: "integer", example: 0 },
 			parentId: { type: "string", nullable: true, example: null },
@@ -126,8 +129,10 @@ const schemas = {
 		required: ["content"],
 		properties: {
 			content: {
-				description: "New content payload",
-				example: { text: "Updated text" },
+				type: "string",
+				description:
+					"Replacement payload as a string, in the same format the block type stores.",
+				example: "<p>Updated text</p>",
 			},
 		},
 	},
@@ -467,21 +472,35 @@ All paths below are relative to \`/api/v1\`. For example, \`GET /workspaces\` �
 
 ## Block content format
 
-Each block stores a \`content\` JSON object whose shape depends on the block type:
+A block's \`content\` is always a **string**, sent and returned exactly as stored.
+How to read it depends on the block type.
 
-| Type | Shape |
-|------|-------|
-| paragraph | \`{ "text": "…" }\` |
-| heading1/2/3 | \`{ "text": "…" }\` |
-| todo | \`{ "text": "…", "checked": false }\` |
-| code | \`{ "code": "…", "language": "typescript" }\` |
-| bulletList / numberedList | \`{ "text": "…" }\` |
-| toggle | \`{ "text": "…", "open": false }\` |
-| callout | \`{ "text": "…", "emoji": "💡" }\` |
-| divider | \`{}\` |
-| image / pdf | \`{ "url": "…", "caption": "…" }\` |
-| pageLink | \`{ "pageId": "…" }\` |
-| database | \`{ "databaseId": "…" }\` |
+Text-bearing blocks hold **HTML**, because the editor produces and consumes HTML:
+
+| Type | Example |
+|------|---------|
+| paragraph | \`"<p>Hello</p>"\` |
+| heading1/2/3 | \`"<h1>Title</h1>"\` |
+| bulletList / numberedList | \`"<ul><li>Item</li></ul>"\` |
+| todo | \`"<ul data-type=\\"taskList\\"><li data-checked=\\"false\\">Task</li></ul>"\` |
+| blockquote | \`"<blockquote>Quoted</blockquote>"\` |
+| code | \`"<pre><code>const x = 1</code></pre>"\` |
+| toggle / callout | HTML, with block-specific attributes |
+| divider | \`""\` |
+
+Structured blocks hold a **JSON string**:
+
+| Type | Example |
+|------|---------|
+| image / pdf / file | \`"{\\"src\\":\\"/attachments/01H….png\\",\\"fileName\\":\\"diagram.png\\"}"\` |
+| pageLink | \`"{\\"pageId\\":\\"01H…\\"}"\` |
+| database | \`"{\\"databaseId\\":\\"01H…\\"}"\` |
+| viewReference | \`"{\\"databaseId\\":\\"01H…\\",\\"viewId\\":\\"01H…\\"}"\` |
+
+Sending a JSON **object** rather than a string is rejected with 400. Earlier
+versions of this document described \`{ "text": "…" }\` objects for text blocks;
+that was never what the server stored, and content written that way rendered
+blank. If you have blocks created that way, rewrite them as HTML.
 `.trim(),
 		contact: { name: "Notara", url: "https://github.com/notara" },
 		license: { name: "MIT" },

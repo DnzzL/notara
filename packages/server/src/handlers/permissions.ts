@@ -14,6 +14,7 @@ import { Effect } from "effect";
 import * as Acl from "../acl.js";
 import * as Membership from "../membership.js";
 import type { PlatformDb } from "../platform-db.js";
+import * as Blocks from "./blocks.js";
 
 export type AclRelation = Acl.Relation;
 
@@ -211,16 +212,9 @@ export const listVisibleLockedPageIds = (
 		return lockedIds.filter((id) => accessibleIds.has(id));
 	});
 
-/** Resolves the page_id that owns a given block. Returns null if not found. */
-export const getBlockPageId = (blockId: string) =>
-	Effect.gen(function* () {
-		const sql = yield* SqlClient.SqlClient;
-		const rows = yield* sql.unsafe(`SELECT page_id FROM blocks WHERE id = ?`, [
-			blockId,
-		]);
-		const list = rows as unknown as { page_id: string }[];
-		return list.length > 0 ? list[0].page_id : null;
-	});
+// A block's owning page is looked up by the blocks module, which owns blocks.
+// This file had a second, identical implementation of it.
+export { getBlockPageId } from "./blocks.js";
 
 /** Resolves the page_id that owns a given database. Returns null if not found. */
 export const getDatabasePageId = (databaseId: string) =>
@@ -291,7 +285,7 @@ const checkVia =
 			yield* checkPagePermission(userId, workspaceId, pageId, requiredRelation);
 		});
 
-export const checkBlockPermission = checkVia(getBlockPageId, "block");
+export const checkBlockPermission = checkVia(Blocks.getBlockPageId, "block");
 export const checkDatabasePermission = checkVia(getDatabasePageId, "database");
 export const checkRecordPermission = checkVia(getRecordPageId, "record");
 export const checkFieldPermission = checkVia(getFieldPageId, "field");

@@ -35,24 +35,17 @@ const withWorkspace = <A, E, R>(
 		return yield* Effect.provide(inner, wdb.getLayer(workspaceId));
 	});
 
-/** Parse block content from its stored JSON string to an object for REST consumers. */
-const parseBlockContent = (block: {
-	content: string;
-	[k: string]: unknown;
-}) => ({
-	...block,
-	content: (() => {
-		try {
-			return JSON.parse(block.content);
-		} catch {
-			return block.content;
-		}
-	})(),
-});
-
-/** Stringify content back to JSON for storage when it arrives as a JS object. */
-const stringifyContent = (raw: unknown): string =>
-	typeof raw === "string" ? raw : JSON.stringify(raw);
+/**
+ * Block content crosses this boundary exactly as it is stored: a string whose
+ * reading depends on the block type. The contract, and why this adapter no
+ * longer parses or coerces it, lives in handlers/blocks.ts.
+ */
+const requireBlockContent = (raw: unknown) =>
+	Blocks.isValidContent(raw)
+		? Effect.succeed(raw)
+		: Effect.fail(
+				new ApiError({ status: 400, message: Blocks.CONTENT_CONTRACT }),
+			);
 
 // ── Route registration ────────────────────────────────────────────────────────
 
@@ -318,7 +311,7 @@ export const registerV1Routes = Effect.gen(function* () {
 					workspaceId,
 					Blocks.listBlocks(pageId),
 				);
-				return ok(blocks.map(parseBlockContent));
+				return ok(blocks);
 			}),
 		),
 	);
@@ -346,14 +339,14 @@ export const registerV1Routes = Effect.gen(function* () {
 				const body = yield* parseBody;
 				const b = body as Record<string, unknown>;
 				const type = yield* requireField(body, "type");
-				const content = stringifyContent(b.content ?? {});
+				const content = yield* requireBlockContent(b.content);
 				const index = typeof b.index === "number" ? b.index : 0;
 				const parentId = optionalField(body, "parentId");
 				const block = yield* withWorkspace(
 					workspaceId,
 					Blocks.createBlock({ pageId, type, content, index, parentId }),
 				);
-				return created(parseBlockContent(block));
+				return created(block);
 			}),
 		),
 	);
@@ -392,7 +385,7 @@ export const registerV1Routes = Effect.gen(function* () {
 					workspaceId,
 					Blocks.updateBlock({
 						id: blockId,
-						content: stringifyContent(b.content),
+						content: yield* requireBlockContent(b.content),
 					}),
 				).pipe(
 					Effect.mapError(
@@ -403,7 +396,7 @@ export const registerV1Routes = Effect.gen(function* () {
 							}),
 					),
 				);
-				return ok(parseBlockContent(block));
+				return ok(block);
 			}),
 		),
 	);
