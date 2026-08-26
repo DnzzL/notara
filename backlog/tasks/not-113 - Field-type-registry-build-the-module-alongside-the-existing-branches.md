@@ -1,9 +1,11 @@
 ---
 id: NOT-113
 title: 'Field-type registry: build the module alongside the existing branches'
-status: ready-for-agent
-assignee: []
+status: done
+assignee:
+  - '@thomas'
 created_date: '2026-08-26 11:12'
+updated_date: '2026-08-26 14:47'
 labels:
   - enhancement
 dependencies: []
@@ -34,10 +36,47 @@ Nothing is wired up in this ticket. The registry is exercised entirely by its ow
 
 ## Acceptance Criteria
 <!-- AC:BEGIN -->
-- [ ] #1 A field-type registry exists in the shared package with one entry per field type in use today
-- [ ] #2 Each entry provides label, icon, default width, decode, encode, compare, operators and read-only status
-- [ ] #3 Dates, numbers and multi-value types each sort correctly through their own comparator
-- [ ] #4 Formula fields report themselves read-only through the registry
-- [ ] #5 Decode and encode round-trip every stored representation currently produced, including the JSON-encoded ones
-- [ ] #6 The registry is covered by unit tests and no existing call site is changed by this ticket
+- [x] #1 A field-type registry exists in the shared package with one entry per field type in use today
+- [x] #2 Each entry provides label, icon, default width, decode, encode, compare, operators and read-only status
+- [x] #3 Dates, numbers and multi-value types each sort correctly through their own comparator
+- [x] #4 Formula fields report themselves read-only through the registry
+- [x] #5 Decode and encode round-trip every stored representation currently produced, including the JSON-encoded ones
+- [x] #6 The registry is covered by unit tests and no existing call site is changed by this ticket
 <!-- AC:END -->
+
+## Implementation Notes
+
+<!-- SECTION:NOTES:BEGIN -->
+The registry lives in @notara/shared, not in the app, because NOT-116 needs it server-side for encode/decode and for the Notion importer's type inference. It therefore holds only the framework-free half — label, icon, basic, defaultWidth, readOnly, decode, encode, compare, operators. The React half (cell display, inline editor, config panel) is keyed by the same types on the app side in NOT-114, where React belongs.
+
+Two behaviours were corrected rather than carried over. A registry that faithfully preserves a bug in one place instead of ten is not much of an improvement:
+- compare only special-cased number, so dates sorted as text and checkboxes sorted 'false' before 'true' by accident of the alphabet. Dates now parse; checkboxes order unchecked-then-checked.
+- readOnly did not exist anywhere. Formula fields are computed and the rule lived in whichever view remembered to check — the inline editor's props did not even mention formula.
+
+Three decisions worth knowing before the migration tickets build on them:
+- Blanks sort last in both directions, so an empty row never leads a sorted list.
+- Unparseable values fall back to text comparison, so they group rather than scatter.
+- fieldTypeSpec falls back to text for an unknown type: a workspace written by a newer build should render badly, not crash.
+
+decodeList also reads the legacy comma-joined form, because Notion Status and Tag exports arrived that way and rows written then are still in the database.
+
+Nothing is wired up. No existing call site changed.
+<!-- SECTION:NOTES:END -->
+
+## Final Summary
+
+<!-- SECTION:FINAL_SUMMARY:BEGIN -->
+Field-type registry: the module, alongside the existing branches.
+
+Expand step of a wide refactor — the new form lands beside the old and changes no call site, so it is green on its own.
+
+The problem it prepares for: a field type is declared as a union three times independently, and behaviour is scattered as comparison chains across roughly eighteen sites in three packages, with no help from the compiler because every site treats the type as a plain string.
+
+packages/shared/src/field-types.ts holds one entry per type with label, icon, basic/advanced placement, default width, read-only status, decode, encode, compare and filter operators. In shared rather than the app because the server and the Notion importer consume it in NOT-116; the React pieces join it app-side in NOT-114.
+
+Two behaviours are corrected rather than preserved: comparison only special-cased numbers, so dates sorted as text and checkboxes by alphabet; and read-only did not exist, so the formula rule lived in the callers.
+
+18 tests define what the migration tickets must preserve, including the corrections, blanks-sort-last, the legacy comma-joined multi-value form still present in databases, and the unknown-type fallback.
+
+Tests: 18 shared pass / 0 fail, biome clean. The app type-check reports only the pre-existing toggleHeading errors tracked as NOT-100.
+<!-- SECTION:FINAL_SUMMARY:END -->
