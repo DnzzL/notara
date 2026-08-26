@@ -2,7 +2,9 @@ import { createRoute, redirect, useNavigate } from "@tanstack/react-router";
 import { createAuthClient } from "better-auth/react";
 import { useEffect, useState } from "react";
 import { Button } from "../components/ui/index.js";
+import { RestError, restCall } from "../lib/restClient.js";
 import { api } from "../rpc-client.js";
+import { toaster } from "../toaster.js";
 import { Route as rootRoute } from "./__root.js";
 
 export const Route = createRoute({
@@ -58,18 +60,25 @@ function AdminPage() {
 
 	const fetchData = async () => {
 		setLoading(true);
-		const [usersRes, wsRes] = await Promise.all([
-			fetch("/api/admin/users"),
-			fetch("/api/admin/workspaces"),
-		]);
-		if (usersRes.status === 403) {
-			setForbidden(true);
+		try {
+			const [users, workspaces] = await Promise.all([
+				restCall<AdminUser[]>("/api/admin/users"),
+				restCall<AdminWorkspace[]>("/api/admin/workspaces"),
+			]);
+			setUsers(users);
+			setWorkspaces(workspaces);
+		} catch (e) {
+			// 403 is the answer for a non-admin, not a failure to report.
+			if (e instanceof RestError && e.status === 403) setForbidden(true);
+			else
+				toaster.create({
+					type: "error",
+					title: "Failed to load admin data",
+					description: String(e),
+				});
+		} finally {
 			setLoading(false);
-			return;
 		}
-		setUsers(await usersRes.json());
-		setWorkspaces(await wsRes.json());
-		setLoading(false);
 	};
 
 	useEffect(() => {
@@ -78,8 +87,18 @@ function AdminPage() {
 
 	const deleteUser = async (userId: string, email: string) => {
 		if (!confirm(`Delete user ${email}? This cannot be undone.`)) return;
-		await fetch(`/api/admin/users/${userId}`, { method: "DELETE" });
-		setUsers((prev) => prev.filter((u) => u.id !== userId));
+		// The row was removed from the list even when the delete failed, so the
+		// user appeared gone until the next reload brought them back.
+		try {
+			await restCall(`/api/admin/users/${userId}`, { method: "DELETE" });
+			setUsers((prev) => prev.filter((u) => u.id !== userId));
+		} catch (e) {
+			toaster.create({
+				type: "error",
+				title: `Failed to delete ${email}`,
+				description: String(e),
+			});
+		}
 	};
 
 	if (forbidden) {

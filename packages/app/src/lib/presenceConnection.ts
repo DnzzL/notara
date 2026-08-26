@@ -69,6 +69,8 @@ async function sendHeartbeat(c: Connection) {
 	// just watched us leave.
 	if (c.stopped) return;
 	try {
+		// Raw fetch on purpose: a heartbeat that fails is not worth telling the
+		// user about, and the transport reports failures.
 		await fetch("/api/presence/heartbeat", {
 			method: "POST",
 			credentials: "same-origin",
@@ -105,6 +107,8 @@ function sendLeave(c: Connection) {
 		c.timer = null;
 	}
 	try {
+		// Raw fetch on purpose: this fires on page unload with keepalive, where
+		// nothing is left to catch a rejection.
 		void fetch("/api/presence/leave", {
 			method: "POST",
 			keepalive: true,
