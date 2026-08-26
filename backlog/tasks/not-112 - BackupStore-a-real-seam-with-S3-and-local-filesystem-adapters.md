@@ -2,8 +2,10 @@
 id: NOT-112
 title: 'BackupStore: a real seam with S3 and local filesystem adapters'
 status: ready-for-agent
-assignee: []
+assignee:
+  - '@thomas'
 created_date: '2026-08-26 11:11'
+updated_date: '2026-08-26 14:40'
 labels:
   - enhancement
 dependencies: []

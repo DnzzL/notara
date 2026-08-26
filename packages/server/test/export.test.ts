@@ -2,6 +2,7 @@ import { describe, expect, test } from "bun:test";
 import {
 	blockToMarkdown,
 	csvEscape,
+	makeFilenameAllocator,
 	sanitizeFilename,
 } from "../src/export/page.js";
 
@@ -129,5 +130,57 @@ describe("sanitizeFilename", () => {
 
 	test("preserves normal characters", () => {
 		expect(sanitizeFilename("Hello_World-2024")).toBe("Hello_World-2024");
+	});
+});
+
+describe("makeFilenameAllocator", () => {
+	test("leaves a unique name alone", () => {
+		const allocate = makeFilenameAllocator();
+		expect(allocate("Roadmap", ".md")).toBe("Roadmap.md");
+	});
+
+	test("suffixes a repeat instead of returning it twice", () => {
+		// Two pages titled "Notes" used to overwrite each other while the export
+		// reported success — a backup that drops pages without saying so.
+		const allocate = makeFilenameAllocator();
+		expect(allocate("Notes", ".md")).toBe("Notes.md");
+		expect(allocate("Notes", ".md")).toBe("Notes (2).md");
+		expect(allocate("Notes", ".md")).toBe("Notes (3).md");
+	});
+
+	test("treats names that sanitise alike as colliding", () => {
+		// "A/B" and "A B" both become "A_B", so uniqueness has to be judged after
+		// sanitising, not before.
+		const allocate = makeFilenameAllocator();
+		expect(allocate("A/B", ".md")).toBe("A_B.md");
+		expect(allocate("A B", ".md")).toBe("A_B (2).md");
+	});
+
+	test("collides case-insensitively, because macOS and Windows do", () => {
+		// On a case-insensitive filesystem "notes.md" and "Notes.md" are one file.
+		// Comparing case-sensitively would still lose data on the two platforms
+		// most users are on.
+		const allocate = makeFilenameAllocator();
+		expect(allocate("Notes", ".md")).toBe("Notes.md");
+		expect(allocate("notes", ".md")).toBe("notes (2).md");
+	});
+
+	test("gives an untitled page a name rather than a bare extension", () => {
+		const allocate = makeFilenameAllocator();
+		expect(allocate("", ".md")).toBe("Untitled.md");
+		expect(allocate("", ".md")).toBe("Untitled (2).md");
+	});
+
+	test("keeps the suffix out of the extension", () => {
+		const allocate = makeFilenameAllocator();
+		allocate("Tasks", ".csv");
+		expect(allocate("Tasks", ".csv")).toBe("Tasks (2).csv");
+	});
+
+	test("allocators are independent, so different folders may reuse a name", () => {
+		const pages = makeFilenameAllocator();
+		const databases = makeFilenameAllocator();
+		expect(pages("Tasks", ".md")).toBe("Tasks.md");
+		expect(databases("Tasks", ".csv")).toBe("Tasks.csv");
 	});
 });
