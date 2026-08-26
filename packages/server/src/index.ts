@@ -37,7 +37,7 @@ import {
 	getIp,
 	tooManyRequests,
 } from "./middleware.js";
-import { LoggerLive, reportError } from "./observability.js";
+import { LoggerLive, reportCause } from "./observability.js";
 import { PlatformDb, PlatformDbLive, platformDb } from "./platform-db.js";
 import * as Policies from "./policies.js";
 import { withPolicy } from "./policy.js";
@@ -167,7 +167,7 @@ const staticFilesRoute = Effect.gen(function* () {
 			if (cause._tag === "Fail") {
 				return failureResponse(cause.error);
 			}
-			reportError(new Error(cause.toString()));
+			reportCause(cause);
 			return Effect.gen(function* () {
 				yield* Effect.logError("Unhandled error", cause);
 				return HttpServerResponse.text(
@@ -274,7 +274,7 @@ const staticFilesRoute = Effect.gen(function* () {
 					if (cause._tag === "Fail") {
 						return failureResponse(cause.error);
 					}
-					reportError(new Error(cause.toString()));
+					reportCause(cause);
 					return Effect.gen(function* () {
 						yield* Effect.logError("Unhandled error", cause);
 						return HttpServerResponse.text(
@@ -305,7 +305,7 @@ const staticFilesRoute = Effect.gen(function* () {
 					if (cause._tag === "Fail") {
 						return failureResponse(cause.error);
 					}
-					reportError(new Error(cause.toString()));
+					reportCause(cause);
 					return Effect.gen(function* () {
 						yield* Effect.logError("Unhandled error", cause);
 						return HttpServerResponse.text(
@@ -336,7 +336,7 @@ const staticFilesRoute = Effect.gen(function* () {
 					if (cause._tag === "Fail") {
 						return failureResponse(cause.error);
 					}
-					reportError(new Error(cause.toString()));
+					reportCause(cause);
 					return Effect.gen(function* () {
 						yield* Effect.logError("Unhandled error", cause);
 						return HttpServerResponse.text(
@@ -394,7 +394,7 @@ const staticFilesRoute = Effect.gen(function* () {
 					if (cause._tag === "Fail") {
 						return failureResponse(cause.error);
 					}
-					reportError(new Error(cause.toString()));
+					reportCause(cause);
 					return Effect.gen(function* () {
 						yield* Effect.logError("Unhandled error", cause);
 						return HttpServerResponse.text(
@@ -551,7 +551,7 @@ const staticFilesRoute = Effect.gen(function* () {
 				if (cause._tag === "Fail") {
 					return failureResponse(cause.error);
 				}
-				reportError(new Error(cause.toString()));
+				reportCause(cause);
 				return Effect.gen(function* () {
 					yield* Effect.logError("Unhandled error", cause);
 					return HttpServerResponse.text(
@@ -624,7 +624,7 @@ const staticFilesRoute = Effect.gen(function* () {
 				// 401/403 from the chokepoint must not be flattened into a 500.
 				return failureResponse(cause.error);
 			}
-			reportError(new Error(cause.toString()));
+			reportCause(cause);
 			return Effect.gen(function* () {
 				yield* Effect.logError("Unhandled error", cause);
 				return HttpServerResponse.text(
@@ -714,7 +714,7 @@ const staticFilesRoute = Effect.gen(function* () {
 				// 401 for a missing session, 403 for an unreadable page — neither may
 				// be flattened into a 500.
 				if (cause._tag === "Fail") return failureResponse(cause.error);
-				reportError(new Error(cause.toString()));
+				reportCause(cause);
 				return HttpServerResponse.text("Not found", {
 					status: 404,
 					headers: corsHeaders,
