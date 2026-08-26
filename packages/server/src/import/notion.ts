@@ -4,6 +4,12 @@ import { fileURLToPath } from "node:url";
 import { SqlClient } from "@effect/sql";
 import { Effect } from "effect";
 import { ulid } from "ulidx";
+import {
+	fieldKey,
+	type ImportLedger,
+	openLedger,
+	recordKey,
+} from "./ledger.js";
 
 // Resolve the attachments dir the same way packages/server/src/handlers/upload.ts
 // does so imported images land in the same place uploads do.
@@ -659,6 +665,10 @@ export function importNotionExport(exportDir: string) {
 		//               their dirname here to find their parent page id. Lets us
 		//               handle both export formats without depending on whether
 		//               the folder name carries a GUID.
+		// Identity that outlives this run. The two maps below stay: they answer
+		// "where does this export path point", which is a question about the
+		// export's layout, not about what a thing is called in the database.
+		const ledger = openLedger("notion");
 		const pageMap = new Map<string, string>();
 		const folderMap = new Map<string, string>();
 		// CSV GUIDs that some imported page references inline via a <table>.
@@ -699,12 +709,32 @@ export function importNotionExport(exportDir: string) {
 			const dir = path.dirname(relPath);
 			const parentId = (dir && dir !== "." ? folderMap.get(dir) : null) ?? null;
 
-			const pageId = ulid();
+			// Identity comes from the ledger, so re-importing the same export
+			// updates the page it created last time instead of minting a clone.
+			// A page without a Notion GUID falls back to its path in the export,
+			// which is the only stable handle the format offers.
+			const { id: pageId, created } = yield* ledger.resolve(
+				"page",
+				guid ?? `path:${relPath}`,
+			);
 			const pageNow = new Date().toISOString();
-			yield* sql`
+			if (created) {
+				yield* sql`
         INSERT INTO pages (id, title, parent_id, created_at, updated_at)
         VALUES (${pageId}, ${title}, ${parentId}, ${pageNow}, ${pageNow})
       `;
+			} else {
+				yield* sql`
+        UPDATE pages SET title = ${title}, parent_id = ${parentId},
+          updated_at = ${pageNow}, is_deleted = 0, deleted_at = NULL
+        WHERE id = ${pageId}
+      `;
+				// The export is authoritative for content. Blocks carry no stable
+				// identity of their own, so they are replaced wholesale rather than
+				// diffed — re-importing overwrites edits made here since last time,
+				// which is what "import this export again" should mean.
+				yield* sql`DELETE FROM blocks WHERE page_id = ${pageId}`;
+			}
 
 			const blocks = useHtml
 				? htmlToBlocks(content)
@@ -809,6 +839,7 @@ export function importNotionExport(exportDir: string) {
 				fileContentMap,
 				useHtml,
 				recFolderMap,
+				ledger,
 			);
 			if (result) {
 				importedDbCount += 1;
@@ -845,12 +876,24 @@ export function importNotionExport(exportDir: string) {
 				cursor = path.dirname(cursor);
 			}
 
-			const pageId = ulid();
+			const { id: pageId, created } = yield* ledger.resolve(
+				"page",
+				guid ?? `path:${relPath}`,
+			);
 			const pageNow = new Date().toISOString();
-			yield* sql`
+			if (created) {
+				yield* sql`
         INSERT INTO pages (id, title, parent_id, created_at, updated_at)
         VALUES (${pageId}, ${title}, ${parentId}, ${pageNow}, ${pageNow})
       `;
+			} else {
+				yield* sql`
+        UPDATE pages SET title = ${title}, parent_id = ${parentId},
+          updated_at = ${pageNow}, is_deleted = 0, deleted_at = NULL
+        WHERE id = ${pageId}
+      `;
+				yield* sql`DELETE FROM blocks WHERE page_id = ${pageId}`;
+			}
 
 			const blocks = useHtml
 				? htmlToBlocks(content)
@@ -976,6 +1019,7 @@ function importCsvDatabase(
 	fileContentMap: Map<string, string>,
 	useHtml: boolean,
 	recordFolderMap: Map<string, string>,
+	ledger: ImportLedger,
 ) {
 	return Effect.gen(function* () {
 		const sql = yield* SqlClient.SqlClient;
@@ -1011,11 +1055,22 @@ function importCsvDatabase(
 				(path.dirname(csvPath) && path.dirname(csvPath) !== "."
 					? folderMap.get(path.dirname(csvPath))
 					: null) ?? fallbackParentId;
-			const newPageId = ulid();
-			yield* sql`
+			const { id: newPageId, created: wrapperCreated } = yield* ledger.resolve(
+				"page",
+				`wrapper:${csvPath}`,
+			);
+			if (wrapperCreated) {
+				yield* sql`
         INSERT INTO pages (id, title, parent_id, icon, created_at, updated_at)
         VALUES (${newPageId}, ${dbName}, ${folderParentId}, ${"🗃️"}, ${now}, ${now})
       `;
+			} else {
+				yield* sql`
+        UPDATE pages SET title = ${dbName}, parent_id = ${folderParentId},
+          updated_at = ${now}, is_deleted = 0, deleted_at = NULL
+        WHERE id = ${newPageId}
+      `;
+			}
 			parentId = newPageId;
 			// Register the wrapper under the database folder path so descendants of
 			// records whose backing page wasn't created (missing record file or
@@ -1025,15 +1080,28 @@ function importCsvDatabase(
 			}
 		}
 
-		const dbId = ulid();
+		// The CSV's path in the export is the database's identity: stable across
+		// re-exports, and the only handle Notion gives that is not the content.
+		const { id: dbId, created: dbCreated } = yield* ledger.resolve(
+			"database",
+			csvPath,
+		);
 
 		// Imported DBs keep the title column visible and rename it to whatever
 		// Notion used (e.g. "Project", "Task"). Without this the user's column
 		// names from Notion would be lost on every import.
-		yield* sql`
+		if (dbCreated) {
+			yield* sql`
       INSERT INTO databases (id, page_id, name, title_label, title_hidden)
       VALUES (${dbId}, ${parentId}, ${dbName}, ${titleHeader}, 0)
     `;
+		} else {
+			yield* sql`
+      UPDATE databases SET page_id = ${parentId}, name = ${dbName},
+        title_label = ${titleHeader}, is_deleted = 0, deleted_at = NULL
+      WHERE id = ${dbId}
+    `;
+		}
 
 		// Scan each column to decide whether to promote it to a select/
 		// multiSelect (small set of repeated values) or keep it as the inferred
@@ -1047,22 +1115,48 @@ function importCsvDatabase(
 				.filter(Boolean);
 			const { type, options } = inferFieldFromValues(header, values);
 
-			const fieldId = ulid();
+			// Keyed by header within the database: a CSV export carries no
+			// per-column id. A renamed column therefore reads as a new one.
+			const { id: fieldId, created: fieldCreated } = yield* ledger.resolve(
+				"field",
+				fieldKey(dbId, header),
+			);
 			const optionsJson = options ? JSON.stringify(options) : null;
-			yield* sql`
+			if (fieldCreated) {
+				yield* sql`
         INSERT INTO database_fields (id, database_id, name, type, options)
         VALUES (${fieldId}, ${dbId}, ${header}, ${type}, ${optionsJson})
       `;
+			} else {
+				yield* sql`
+        UPDATE database_fields SET type = ${type}, options = ${optionsJson}
+        WHERE id = ${fieldId}
+      `;
+			}
 			fieldMap.set(header, fieldId);
 		}
 
 		for (const row of dataRows) {
 			const recordTitle = row[0] || "Untitled";
-			const recordId = ulid();
-			yield* sql`
+			// Keyed by title within the database, for the same reason as fields.
+			const { id: recordId, created: recordCreated } = yield* ledger.resolve(
+				"record",
+				recordKey(dbId, recordTitle),
+			);
+			if (recordCreated) {
+				yield* sql`
         INSERT INTO database_records (id, database_id, title, created_at)
         VALUES (${recordId}, ${dbId}, ${recordTitle}, ${now})
       `;
+			} else {
+				yield* sql`
+        UPDATE database_records SET is_deleted = 0, deleted_at = NULL
+        WHERE id = ${recordId}
+      `;
+				// Cell values are replaced rather than merged: the export is
+				// authoritative for what a re-import means.
+				yield* sql`DELETE FROM record_field_values WHERE record_id = ${recordId}`;
+			}
 
 			// If the export included a per-record sub-page, create a backing page
 			// for this record now (mirroring what openRecordAsPage does lazily) so
@@ -1098,11 +1192,21 @@ function importCsvDatabase(
 				const recBlocks = useHtml
 					? htmlToBlocks(recPageContent)
 					: markdownToBlocks(recPageContent);
-				const recPageId = ulid();
-				yield* sql`
+				const { id: recPageId, created: recPageCreated } =
+					yield* ledger.resolve("page", `record:${recPageRelPath}`);
+				if (recPageCreated) {
+					yield* sql`
           INSERT INTO pages (id, title, parent_id, created_at, updated_at)
           VALUES (${recPageId}, ${recordTitle}, ${parentId}, ${now}, ${now})
         `;
+				} else {
+					yield* sql`
+          UPDATE pages SET title = ${recordTitle}, parent_id = ${parentId},
+            updated_at = ${now}, is_deleted = 0, deleted_at = NULL
+          WHERE id = ${recPageId}
+        `;
+					yield* sql`DELETE FROM blocks WHERE page_id = ${recPageId}`;
+				}
 				yield* sql`UPDATE database_records SET page_id = ${recPageId} WHERE id = ${recordId}`;
 				// Register in pageMap so pageLink blocks in other pages that reference
 				// this record page by GUID resolve correctly in the placeholder pass.
@@ -1158,11 +1262,20 @@ function importCsvDatabase(
 					if (recFolderPath) break;
 				}
 				if (recFolderPath) {
-					const recPageId = ulid();
-					yield* sql`
+					const { id: recPageId, created: folderPageCreated } =
+						yield* ledger.resolve("page", `recordFolder:${recFolderPath}`);
+					if (folderPageCreated) {
+						yield* sql`
             INSERT INTO pages (id, title, parent_id, created_at, updated_at)
             VALUES (${recPageId}, ${recordTitle}, ${parentId}, ${now}, ${now})
           `;
+					} else {
+						yield* sql`
+            UPDATE pages SET title = ${recordTitle}, parent_id = ${parentId},
+              updated_at = ${now}, is_deleted = 0, deleted_at = NULL
+            WHERE id = ${recPageId}
+          `;
+					}
 					yield* sql`UPDATE database_records SET page_id = ${recPageId} WHERE id = ${recordId}`;
 					folderMap.set(recFolderPath, recPageId);
 					const stripped = recFolderPath

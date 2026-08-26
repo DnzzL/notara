@@ -262,6 +262,62 @@ test("an authenticated member can import a Notion export", async ({
 	expect(pages.map((p) => p.title)).toContain("Imported Note");
 });
 
+test("importing the same export twice updates instead of cloning", async ({
+	alice,
+	soloWs,
+}) => {
+	// The known debt behind NOT-109: every re-run minted fresh ids for everything
+	// it wrote, so one workspace ended up with thirteen copies of every database.
+	const zip = new AdmZip();
+	zip.addFile("Roadmap.md", Buffer.from("# Roadmap\n\nQ3 plan.\n"));
+	zip.addFile(
+		"Tasks.csv",
+		Buffer.from("Name,Status\nShip launch,In progress\nWrite docs,Todo\n"),
+	);
+	const payload = zip.toBuffer();
+
+	const runImport = async () => {
+		const res = await alice.api.post("/import-notion", {
+			headers: {
+				"X-Workspace-Id": soloWs.workspaceId,
+				"Content-Type": "application/zip",
+				"Content-Disposition": 'attachment; filename="export.zip"',
+			},
+			data: payload,
+		});
+		if (!res.ok())
+			throw new Error(`import failed ${res.status()}: ${await res.text()}`);
+	};
+
+	const countTitled = async (title: string) =>
+		(
+			await alice.rpc<Array<{ title: string }>>(
+				"listPages",
+				{},
+				soloWs.workspaceId,
+			)
+		).filter((p) => p.title === title).length;
+
+	// listDatabases is scoped to a page; the REST route lists the workspace.
+	const countDatabases = async () => {
+		const res = await alice.api.get(
+			`/api/v1/workspaces/${soloWs.workspaceId}/databases`,
+		);
+		return ((await res.json()) as Array<unknown>).length;
+	};
+
+	await runImport();
+	const pagesAfterFirst = await countTitled("Roadmap");
+	const databasesAfterFirst = await countDatabases();
+	expect(pagesAfterFirst).toBe(1);
+	expect(databasesAfterFirst).toBeGreaterThan(0);
+
+	await runImport();
+
+	expect(await countTitled("Roadmap")).toBe(pagesAfterFirst);
+	expect(await countDatabases()).toBe(databasesAfterFirst);
+});
+
 test("workspace membership cannot be read by an unauthenticated caller", async ({
 	alice,
 	soloWs,
