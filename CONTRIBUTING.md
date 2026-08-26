@@ -52,6 +52,40 @@ bun --bun tsc --noEmit -p packages/app
 Keep changes surgical: touch only what the fix/feature needs, and match the surrounding
 style rather than reformatting adjacent code.
 
+### Installing does not run code
+
+`bun install` in this repo executes nothing. There is no `postinstall`, and
+`trustedDependencies` in `bunfig.toml` is empty, so Bun declines to run dependency
+lifecycle scripts too.
+
+That is deliberate. A postinstall script is arbitrary code running with your credentials
+and your network, triggered by a transitive version bump nobody read — the shape most
+recent npm supply-chain compromises have taken.
+
+The two things installing used to do are now one deliberate command:
+
+```bash
+bun run setup
+```
+
+It patches `@effect/platform`'s MsgPack export (an upstream bug that breaks `@effect/rpc`)
+and registers the git hooks. Run it once after cloning, and again after a dependency
+bump if the patch is undone.
+
+**Do not add an entry to `trustedDependencies` without writing down why beside it**, and
+do not reintroduce a root `postinstall` — the convenience is not worth the surface.
+
+If a type-check fails in a way that makes no sense — a command TipTap clearly defines
+reporting as missing, say — try a clean install before believing it:
+
+```bash
+rm -rf node_modules packages/*/node_modules && bun install && bun run setup
+```
+
+A stale `node_modules` can hold two copies of a package whose types augment each other,
+so the augmentation lands on one copy and your code is typed against the other. That was
+NOT-100.
+
 ## Security
 
 **Never** report a security vulnerability in a public issue. Email
