@@ -12,7 +12,13 @@ export type BackupSchedule =
 	| "daily"
 	| "weekly";
 
+/** Where backups are written. Explicit, so nothing silently starts using a disk. */
+export type BackupTarget = "off" | "s3" | "local";
+
 export interface AppSettings {
+	backupTarget: BackupTarget;
+	/** Directory for `backupTarget: "local"`. Empty means DATA_DIR/backups. */
+	localBackupDir: string;
 	s3Enabled: boolean;
 	s3Endpoint: string;
 	s3Region: string;
@@ -28,6 +34,8 @@ export interface AppSettings {
 }
 
 const defaults: AppSettings = {
+	backupTarget: "off",
+	localBackupDir: "",
 	s3Enabled: false,
 	s3Endpoint: "",
 	s3Region: "us-east-1",
@@ -46,6 +54,13 @@ function envOverrides(): Partial<AppSettings> {
 	if (process.env.S3_BUCKET) {
 		o.s3Bucket = process.env.S3_BUCKET;
 		o.s3Enabled = true;
+		o.backupTarget = "s3";
+	}
+	if (process.env.BACKUP_TARGET)
+		o.backupTarget = process.env.BACKUP_TARGET as BackupTarget;
+	if (process.env.BACKUP_DIR) {
+		o.localBackupDir = process.env.BACKUP_DIR;
+		o.backupTarget = "local";
 	}
 	if (process.env.S3_REGION) o.s3Region = process.env.S3_REGION;
 	if (process.env.S3_ENDPOINT) o.s3Endpoint = process.env.S3_ENDPOINT;
@@ -66,12 +81,27 @@ function envOverrides(): Partial<AppSettings> {
 	return o;
 }
 
+/**
+ * Settings written before `backupTarget` existed carry only `s3Enabled`.
+ * Without this they would default to "off" and an instance that had been
+ * backing up nightly would silently stop — the worst possible way to learn that
+ * a setting was added.
+ */
+function withDerivedBackupTarget(
+	stored: Partial<AppSettings> & Record<string, unknown>,
+): Partial<AppSettings> {
+	if (stored.backupTarget !== undefined) return stored;
+	return { ...stored, backupTarget: stored.s3Enabled ? "s3" : "off" };
+}
+
 export function loadSettings(): AppSettings {
 	try {
 		if (fs.existsSync(settingsPath)) {
 			return {
 				...defaults,
-				...JSON.parse(fs.readFileSync(settingsPath, "utf-8")),
+				...withDerivedBackupTarget(
+					JSON.parse(fs.readFileSync(settingsPath, "utf-8")),
+				),
 				...envOverrides(),
 			};
 		}

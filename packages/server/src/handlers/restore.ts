@@ -1,9 +1,9 @@
 import fs from "node:fs";
 import path from "node:path";
-import { GetObjectCommand } from "@aws-sdk/client-s3";
 import AdmZip from "adm-zip";
+import { type BackupStore, resolveBackupStore } from "../backup/store.js";
 import { platformDb } from "../platform-db.js";
-import { getS3, triggerBackup } from "./backup.js";
+import { triggerBackup } from "./backup.js";
 
 export interface RestoreResult {
 	ok: true;
@@ -24,15 +24,23 @@ function rmDbFiles(dbPath: string): void {
 }
 
 /**
- * Restore the whole instance from a backup zip in S3.
+ * Restore the whole instance from a backup archive.
  *
- * IMPORTANT: this overwrites platform.db, all workspace DBs, and attachments on
- * disk. The caller MUST exit the process afterwards so the server reopens fresh
- * SQLite handles (Docker's restart policy relaunches it). Open handles are not
- * hot-swappable.
+ * THE CALLER MUST EXIT THE PROCESS AFTERWARDS. This overwrites platform.db,
+ * every workspace database and the attachments directory on disk, while the
+ * server still holds open SQLite handles to files that no longer exist. Those
+ * handles are not hot-swappable; the process has to be replaced (Docker's
+ * restart policy does it).
+ *
+ * That requirement is stated in the return type as well as here — `RestoreResult`
+ * is documented as "restart required" rather than "ok" — because a comment is
+ * not a contract and this one has real consequences if missed.
  */
-export async function restoreBackup(key: string): Promise<RestoreResult> {
-	const { client, bucket, prefix } = getS3();
+export async function restoreBackup(
+	key: string,
+	store: BackupStore = resolveBackupStore(),
+): Promise<RestoreResult> {
+	const prefix = store.prefix;
 
 	// Validate the key: must live under our prefix and be a backup zip. Reject
 	// anything that could traverse outside the backup namespace.
@@ -43,15 +51,11 @@ export async function restoreBackup(key: string): Promise<RestoreResult> {
 	if (!/backup-.*\.zip$/.test(key))
 		throw new Error("Key does not look like a backup zip");
 
-	// Safety: snapshot the current state to S3 before we overwrite anything.
-	const snapshot = await triggerBackup({ prune: false });
+	// Safety: snapshot the current state before we overwrite anything. Pruning is
+	// off so retention can never delete the backup being restored.
+	const snapshot = await triggerBackup({ prune: false, store });
 
-	// Download the chosen backup into memory.
-	const resp = await client.send(
-		new GetObjectCommand({ Bucket: bucket, Key: key }),
-	);
-	if (!resp.Body) throw new Error("Backup object had no body");
-	const bytes = await resp.Body.transformToByteArray();
+	const bytes = await store.get(key);
 	const zip = new AdmZip(Buffer.from(bytes));
 
 	// Sanity check: a real backup always contains platform.db.

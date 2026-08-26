@@ -2,6 +2,7 @@ import { createHash, randomBytes } from "node:crypto";
 import * as HttpServerRequest from "@effect/platform/HttpServerRequest";
 import { Data, Effect } from "effect";
 import { auth } from "../auth.js";
+import * as Membership from "../membership.js";
 import { PlatformDb } from "../platform-db.js";
 
 // ── Error type ────────────────────────────────────────────────────────────────
@@ -91,14 +92,8 @@ export const resolveApiUser: Effect.Effect<
  */
 export const requireWorkspaceMember = (workspaceId: string, userId: string) =>
 	Effect.gen(function* () {
-		const db = yield* PlatformDb;
-		const member = db
-			.prepare(
-				"SELECT role FROM workspace_members WHERE workspace_id = ? AND user_id = ?",
-			)
-			.get(workspaceId, userId) as { role: "owner" | "member" } | null;
-
-		if (!member) {
+		const role = yield* Membership.roleOf(userId, workspaceId);
+		if (role === null) {
 			return yield* Effect.fail(
 				new ApiError({
 					status: 403,
@@ -106,5 +101,5 @@ export const requireWorkspaceMember = (workspaceId: string, userId: string) =>
 				}),
 			);
 		}
-		return member.role;
+		return role;
 	});

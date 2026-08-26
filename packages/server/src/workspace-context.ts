@@ -1,19 +1,13 @@
 import { HttpServerRequest } from "@effect/platform";
 import { AuthError } from "@notara/shared";
-import { Context, Effect } from "effect";
+import { Effect } from "effect";
 import { auth } from "./auth.js";
 import { WorkspaceDb } from "./db.js";
-import { PlatformDb } from "./platform-db.js";
-
-export class WorkspaceContext extends Context.Tag("WorkspaceContext")<
-	WorkspaceContext,
-	{ userId: string; workspaceId: string; role: "owner" | "member" }
->() {}
+import * as Membership from "./membership.js";
 
 export const resolveWorkspaceContext = (workspaceId: string) =>
 	Effect.gen(function* () {
 		const request = yield* HttpServerRequest.HttpServerRequest;
-		const db = yield* PlatformDb;
 
 		const headers = new Headers();
 		for (const [k, v] of Object.entries(request.headers)) {
@@ -31,19 +25,14 @@ export const resolveWorkspaceContext = (workspaceId: string) =>
 
 		const userId = session.user.id;
 
-		const memberRow = db
-			.prepare(
-				"SELECT role FROM workspace_members WHERE workspace_id = ? AND user_id = ?",
-			)
-			.get(workspaceId, userId) as { role: string } | null;
-
-		if (!memberRow) {
+		const role = yield* Membership.roleOf(userId, workspaceId);
+		if (role === null) {
 			return yield* Effect.fail(
 				new AuthError({ status: 403, message: "Forbidden" }),
 			);
 		}
 
-		return { userId, workspaceId, role: memberRow.role as "owner" | "member" };
+		return { userId, workspaceId, role };
 	});
 
 export const getSessionUser = Effect.gen(function* () {
@@ -71,18 +60,13 @@ export const getSessionUser = Effect.gen(function* () {
 export const requireWorkspaceRole = (workspaceId: string) =>
 	Effect.gen(function* () {
 		const user = yield* getSessionUser;
-		const db = yield* PlatformDb;
-		const memberRow = db
-			.prepare(
-				"SELECT role FROM workspace_members WHERE workspace_id = ? AND user_id = ?",
-			)
-			.get(workspaceId, user.id) as { role: "owner" | "member" } | null;
-		if (!memberRow) {
+		const role = yield* Membership.roleOf(user.id, workspaceId);
+		if (role === null) {
 			return yield* Effect.fail(
 				new AuthError({ status: 403, message: "Not a workspace member" }),
 			);
 		}
-		return memberRow.role;
+		return role;
 	});
 
 /** Same, but rejects anyone who is not the workspace owner. */
@@ -97,19 +81,6 @@ export const requireWorkspaceOwner = (workspaceId: string) =>
 				}),
 			);
 		}
-	});
-
-/** Resolve workspace DB from X-Workspace-Id header and provide the SqlClient layer. */
-export const withWorkspaceDb = <A, E, R>(inner: Effect.Effect<A, E, R>) =>
-	Effect.gen(function* () {
-		const request = yield* HttpServerRequest.HttpServerRequest;
-		const workspaceId = request.headers["x-workspace-id"] as string | undefined;
-		if (!workspaceId)
-			return yield* Effect.die(new Error("Missing X-Workspace-Id header"));
-
-		const wdb = yield* WorkspaceDb;
-		const dbLayer = wdb.getLayer(workspaceId);
-		return yield* inner.pipe(Effect.provide(dbLayer));
 	});
 
 /**
@@ -129,13 +100,8 @@ export const withAuthedWorkspace = <A, E, R>(
 		const workspaceId = request.headers["x-workspace-id"] as string | undefined;
 		if (!workspaceId)
 			return yield* Effect.die(new Error("Missing X-Workspace-Id header"));
-		const db = yield* PlatformDb;
-		const memberRow = db
-			.prepare(
-				"SELECT role FROM workspace_members WHERE workspace_id = ? AND user_id = ?",
-			)
-			.get(workspaceId, user.id) as { role: "owner" | "member" } | null;
-		if (!memberRow) {
+		const role = yield* Membership.roleOf(user.id, workspaceId);
+		if (role === null) {
 			return yield* Effect.fail(
 				new AuthError({ status: 403, message: "Not a workspace member" }),
 			);
@@ -144,6 +110,6 @@ export const withAuthedWorkspace = <A, E, R>(
 		return yield* build({
 			userId: user.id,
 			workspaceId,
-			role: memberRow.role,
+			role,
 		}).pipe(Effect.provide(wdb.getLayer(workspaceId)));
 	});

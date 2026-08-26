@@ -12,7 +12,7 @@ import * as HttpServerResponse from "@effect/platform/HttpServerResponse";
 import { NodeHttpServer, NodeRuntime } from "@effect/platform-node";
 import * as RpcSerialization from "@effect/rpc/RpcSerialization";
 import * as RpcServer from "@effect/rpc/RpcServer";
-import { AppRpc, ValidationError } from "@notara/shared";
+import { AppRpc, AuthError, ValidationError } from "@notara/shared";
 import { Effect, Layer } from "effect";
 import { registerV1Routes } from "./api-v1/routes.js";
 import { auth } from "./auth.js";
@@ -24,6 +24,7 @@ import {
 	WorkspaceDbLive,
 } from "./db.js";
 import { demoMode, startDemoPurge } from "./demo.js";
+import * as Attachments from "./handlers/attachments.js";
 import { listBackups, triggerBackup } from "./handlers/backup.js";
 import * as ImportExport from "./handlers/importExport.js";
 import { restoreBackup } from "./handlers/restore.js";
@@ -37,16 +38,19 @@ import {
 	tooManyRequests,
 } from "./middleware.js";
 import { LoggerLive, reportError } from "./observability.js";
-import { PlatformDbLive, platformDb } from "./platform-db.js";
+import { PlatformDb, PlatformDbLive, platformDb } from "./platform-db.js";
+import * as Policies from "./policies.js";
+import { withPolicy } from "./policy.js";
 import {
 	leaveHandler,
 	makeHeartbeatHandler,
 	makeStreamHandler,
 } from "./presence/routes.js";
+import * as Principal from "./principal.js";
 import { rpcHandlersLayer } from "./rpc-handlers.js";
 import { startTrashSweep } from "./trash-sweeper.js";
 import { makeViewConfigStreamHandler } from "./view-config-stream.js";
-import { withAuthedWorkspace } from "./workspace-context.js";
+import { getSessionUser, withAuthedWorkspace } from "./workspace-context.js";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
@@ -121,6 +125,21 @@ const staticFilesRoute = Effect.gen(function* () {
 	const router = yield* HttpLayerRouter.HttpRouter;
 	const wdb = yield* WorkspaceDb;
 
+	/**
+	 * Handlers registered here run with the request's context, not this layer's,
+	 * so anything they reach for at request time has to be handed to them
+	 * explicitly. That matters for every route going through
+	 * `withAuthedWorkspace`, which reads PlatformDb to check membership:
+	 * without this, an authenticated caller dies on "Service not found:
+	 * PlatformDb" while an anonymous one still gets its 401 from the session
+	 * check that runs first — which is exactly how NOT-123 shipped unnoticed.
+	 */
+	const withPlatformServices = <A, E, R>(self: Effect.Effect<A, E, R>) =>
+		self.pipe(
+			Effect.provideService(PlatformDb, platformDb),
+			Effect.provideService(WorkspaceDb, wdb),
+		);
+
 	// Better Auth handler — mount before RPC (handles GET and POST)
 	const authHandlerInner = Effect.gen(function* () {
 		const request = yield* HttpServerRequest.HttpServerRequest;
@@ -183,35 +202,25 @@ const staticFilesRoute = Effect.gen(function* () {
 	// ── Admin gate ────────────────────────────────────────────────────────────
 	// Declared before its first use: everything below runs top-to-bottom in this
 	// generator, so a later `const` would still be in its temporal dead zone.
-	const adminEmails = (process.env.ADMIN_EMAILS ?? "")
-		.split(",")
-		.map((e) => e.trim())
-		.filter(Boolean);
-
+	//
+	// The decision itself lives in policies.ts and is unit-tested there; this only
+	// resolves the caller and turns a refusal into a response. An unconfigured
+	// ADMIN_EMAILS closes rather than opens — see ADR-008.
 	const requireAdmin = <A>(inner: Effect.Effect<A, unknown, any>) =>
-		Effect.gen(function* () {
-			if (adminEmails.length === 0) {
-				return HttpServerResponse.text(
-					JSON.stringify({ error: "Admin not configured" }),
-					{
-						status: 403,
-						headers: { "Content-Type": "application/json", ...corsHeaders },
-					},
-				) as unknown as A;
-			}
-			const req = yield* HttpServerRequest.HttpServerRequest;
-			const headers = new Headers(req.headers as Record<string, string>);
-			const session = yield* Effect.promise(() =>
-				auth.api.getSession({ headers }),
-			);
-			if (!session || !adminEmails.includes(session.user.email)) {
-				return HttpServerResponse.text(JSON.stringify({ error: "Forbidden" }), {
-					status: 403,
-					headers: { "Content-Type": "application/json", ...corsHeaders },
-				}) as unknown as A;
-			}
-			return yield* inner;
-		});
+		inner.pipe(
+			withPolicy(Policies.instanceAdmin),
+			Effect.provide(Principal.layer),
+			Effect.catchIf(
+				(error): error is AuthError => error instanceof AuthError,
+				(error) =>
+					Effect.succeed(
+						HttpServerResponse.text(JSON.stringify({ error: error.message }), {
+							status: error.status,
+							headers: { "Content-Type": "application/json", ...corsHeaders },
+						}) as unknown as A,
+					),
+			),
+		);
 
 	// Public instance config. Deliberately minimal: the landing page needs to know
 	// whether demo mode is on, and one published image has to serve both modes, so
@@ -537,6 +546,7 @@ const staticFilesRoute = Effect.gen(function* () {
 				);
 			}),
 		).pipe(
+			withPlatformServices,
 			Effect.catchAllCause((cause) => {
 				if (cause._tag === "Fail") {
 					return failureResponse(cause.error);
@@ -608,6 +618,7 @@ const staticFilesRoute = Effect.gen(function* () {
 			});
 		}),
 	).pipe(
+		withPlatformServices,
 		Effect.catchAllCause((cause) => {
 			if (cause._tag === "Fail") {
 				// 401/403 from the chokepoint must not be flattened into a 500.
@@ -637,11 +648,16 @@ const staticFilesRoute = Effect.gen(function* () {
 		}),
 	);
 
-	// Attachment serving route
+	// Attachment serving route.
+	// Guarded: an attachment is readable exactly when the page embedding it is
+	// readable (ADR-006). `<img src>` cannot set X-Workspace-Id, so the workspace
+	// is recovered from the caller's memberships — see handlers/attachments.ts.
 	yield* router.add(
 		"GET",
 		"/attachments/:fileName",
 		Effect.gen(function* () {
+			const user = yield* getSessionUser;
+
 			const params = yield* HttpRouter.params;
 			const fileName = params.fileName as string | undefined;
 
@@ -654,6 +670,19 @@ const staticFilesRoute = Effect.gen(function* () {
 
 			// Validate filename to prevent path traversal
 			if (!/^[a-zA-Z0-9._-]+$/.test(fileName)) {
+				return HttpServerResponse.text("Not found", {
+					status: 404,
+					headers: corsHeaders,
+				});
+			}
+
+			// Authorize before touching the disk: an unreadable attachment must be
+			// indistinguishable from a missing one.
+			const attachment = yield* Attachments.resolveReadableAttachment(
+				user.id,
+				fileName,
+			);
+			if (!attachment) {
 				return HttpServerResponse.text("Not found", {
 					status: 404,
 					headers: corsHeaders,
@@ -679,7 +708,19 @@ const staticFilesRoute = Effect.gen(function* () {
 			return HttpServerResponse.uint8Array(new Uint8Array(content), {
 				headers: { "Content-Type": contentType, ...corsHeaders },
 			});
-		}),
+		}).pipe(
+			withPlatformServices,
+			Effect.catchAllCause((cause) => {
+				// 401 for a missing session, 403 for an unreadable page — neither may
+				// be flattened into a 500.
+				if (cause._tag === "Fail") return failureResponse(cause.error);
+				reportError(new Error(cause.toString()));
+				return HttpServerResponse.text("Not found", {
+					status: 404,
+					headers: corsHeaders,
+				});
+			}),
+		),
 	);
 
 	if (!appDist) return;

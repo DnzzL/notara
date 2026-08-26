@@ -1,3 +1,4 @@
+import { BackupNotConfigured } from "./backup/store.js";
 import { pruneBackups, triggerBackup } from "./handlers/backup.js";
 import { loadSettings } from "./handlers/settings.js";
 
@@ -49,9 +50,11 @@ export function startBackupScheduler() {
 				);
 		})
 		.catch((e) => {
-			// Not configured, or S3 unreachable — never block startup on this.
-			if (e instanceof Error && /not enabled|not configured/.test(e.message))
-				return;
+			// Not configured is an answer, not a failure. This used to be decided by
+			// matching the TEXT of an error message, which made the wording of a
+			// string into control flow — rename it and the scheduler starts logging
+			// an error on every boot of every instance without backups.
+			if (e instanceof BackupNotConfigured) return;
 			console.error("[backup] startup retention purge failed:", e);
 		});
 }

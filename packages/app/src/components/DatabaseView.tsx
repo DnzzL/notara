@@ -14,9 +14,14 @@ import {
 	verticalListSortingStrategy,
 } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
+import { fieldTypeSpec } from "@notara/shared";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import {
+	type AggType,
+	aggregate,
+	supportsNumericAggregation,
+} from "../lib/aggregate.js";
 import { applyFiltersAndSorts } from "../lib/filterEngine.js";
-import { tryEvaluate } from "../lib/formula.js";
 import { api } from "../rpc-client.js";
 import {
 	selectActiveViewId,
@@ -51,16 +56,6 @@ const TITLE_COL = "__title__";
 
 // ── Column Footer (summary aggregations, à la Notion) ───────────────────────
 
-type AggType =
-	| "none"
-	| "count"
-	| "filled"
-	| "empty"
-	| "sum"
-	| "avg"
-	| "min"
-	| "max";
-
 const AGG_LABEL: Record<AggType, string> = {
 	none: "Calculate",
 	count: "Count",
@@ -73,10 +68,6 @@ const AGG_LABEL: Record<AggType, string> = {
 };
 
 /** Number-capable field types get the numeric aggregations (sum/avg/min/max). */
-function isNumericFieldType(type: string) {
-	return type === "number" || type === "formula";
-}
-
 function ColumnFooter({
 	field,
 	rows,
@@ -90,37 +81,12 @@ function ColumnFooter({
 	onChange: (a: AggType) => void;
 	isTitle?: boolean;
 }) {
-	const numeric = !isTitle && isNumericFieldType(field.type);
+	const numeric = !isTitle && supportsNumericAggregation(field.type);
 
-	const valueOf = (row: {
-		record: any;
-		values: Record<string, unknown>;
-	}): unknown => {
-		if (isTitle) return row.record.title;
-		if (field.type === "formula") {
-			const r = tryEvaluate(field.formula ?? null, row.values);
-			return r.ok ? r.value : null;
-		}
-		return row.values[field.name];
-	};
-
-	const result = useMemo(() => {
-		if (agg === "none") return null;
-		if (agg === "count") return rows.length;
-		const filled = rows
-			.map(valueOf)
-			.filter((v) => v !== null && v !== undefined && v !== "");
-		if (agg === "filled") return filled.length;
-		if (agg === "empty") return rows.length - filled.length;
-		const nums = filled.map((v) => Number(v)).filter((n) => !Number.isNaN(n));
-		if (nums.length === 0) return 0;
-		const sum = nums.reduce((a, b) => a + b, 0);
-		if (agg === "sum") return sum;
-		if (agg === "avg") return sum / nums.length;
-		if (agg === "min") return Math.min(...nums);
-		return Math.max(...nums); // "max"
-		// eslint-disable-next-line react-hooks/exhaustive-deps
-	}, [agg, rows, field.id, field.type, field.name, field.formula, isTitle]);
+	const result = useMemo(
+		() => aggregate(rows, field, agg, isTitle),
+		[agg, rows, field, isTitle],
+	);
 
 	const formatted =
 		typeof result === "number"
@@ -785,8 +751,8 @@ export function DatabaseView({
 				return;
 			}
 			const targetField = dbFields[nextCol] as any;
-			// Skip formula cells — they're read-only.
-			if (targetField.type === "formula") {
+			// Skip read-only cells. Which types those are is the registry's to say.
+			if (fieldTypeSpec(targetField.type).readOnly) {
 				// Try one step further in the same direction; if not found, just clear.
 				handleCellNavigate(
 					{ recordId: rows[nextRow].record.id, fieldId: targetField.id },
@@ -836,9 +802,9 @@ export function DatabaseView({
 		(char: string | null) => {
 			setFocusedCell((cell) => {
 				if (!cell) return cell;
-				// Formula cells are read-only — keep the focus ring but don't open an editor.
+				// A read-only cell keeps the focus ring but opens no editor.
 				const field = dbFields.find((f: any) => f.id === cell.fieldId);
-				if (field?.type === "formula") return cell;
+				if (field && fieldTypeSpec(field.type).readOnly) return cell;
 				setSeedChar(char);
 				setEditingCell({ recordId: cell.recordId, fieldId: cell.fieldId });
 				return cell;
@@ -1524,7 +1490,7 @@ export function DatabaseView({
 											const isFocused =
 												focusedCell?.recordId === record.id &&
 												focusedCell?.fieldId === field.id;
-											const isFormula = field.type === "formula";
+											const isReadOnly = fieldTypeSpec(field.type).readOnly;
 											const colW = columnWidths[field.id];
 											const baseStyle = colW
 												? { minWidth: colW, width: colW }
@@ -1543,7 +1509,7 @@ export function DatabaseView({
 															: baseStyle
 													}
 												>
-													{isEditing && !isFormula ? (
+													{isEditing && !isReadOnly ? (
 														<InlineCellEditor
 															field={field}
 															value={val}
@@ -1572,7 +1538,7 @@ export function DatabaseView({
 															// Select-then-edit: first click focuses, a click on the
 															// already-focused cell (or double-click) opens the editor.
 															onClick={() => {
-																if (isFocused && !isFormula)
+																if (isFocused && !isReadOnly)
 																	setEditingCell({
 																		recordId: record.id,
 																		fieldId: field.id,
@@ -1584,7 +1550,7 @@ export function DatabaseView({
 																	});
 															}}
 															onDoubleClick={() => {
-																if (!isFormula)
+																if (!isReadOnly)
 																	setEditingCell({
 																		recordId: record.id,
 																		fieldId: field.id,
@@ -1592,7 +1558,7 @@ export function DatabaseView({
 															}}
 															className="px-1.5 py-1 rounded-[5px] cursor-pointer min-h-[24px] transition-[background] duration-[var(--t)] ease-[var(--ease)] text-text-2 hover:bg-surface-3 hover:text-text"
 															style={
-																isFormula ? { cursor: "default" } : undefined
+																isReadOnly ? { cursor: "default" } : undefined
 															}
 														>
 															<CellDisplay

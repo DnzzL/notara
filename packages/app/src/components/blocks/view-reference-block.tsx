@@ -1,5 +1,7 @@
 import type { Database, DatabaseField, DatabaseView } from "@notara/shared";
 import { useCallback, useEffect, useMemo, useState } from "react";
+import { applyFiltersAndSorts } from "../../lib/filterEngine.js";
+import { parseViewConfig, type ViewConfig } from "../../lib/viewConfig.js";
 import { api, getCurrentWorkspaceId } from "../../rpc-client.js";
 import { useDatabaseStore } from "../../stores/databaseStore.js";
 import type { BlockRendererProps } from "./renderer-registry.js";
@@ -8,12 +10,6 @@ import { tryParseBlockContent } from "./renderer-registry.js";
 interface ViewReferenceData {
 	databaseId: string;
 	viewId: string;
-}
-
-interface ViewConfig {
-	filters: Array<{ fieldId: string; operator: string; value: string }>;
-	sorts: Array<{ fieldId: string; order: "asc" | "desc" }>;
-	boardHidden: string[];
 }
 
 type ViewType = "table" | "board" | "calendar";
@@ -78,19 +74,9 @@ export function ViewReferenceBlock({
 			groupByFieldId: string | null;
 			config: string;
 		}) => {
-			let config: ViewConfig = { filters: [], sorts: [], boardHidden: [] };
-			try {
-				const parsed = JSON.parse(view.config);
-				config = {
-					filters: Array.isArray(parsed.filters) ? parsed.filters : [],
-					sorts: Array.isArray(parsed.sorts) ? parsed.sorts : [],
-					boardHidden: Array.isArray(parsed.boardHidden)
-						? parsed.boardHidden
-						: [],
-				};
-			} catch {
-				/* no config */
-			}
+			// One parser, which also normalises the two spellings this block used
+			// to read differently from the table.
+			const config = parseViewConfig(view.config);
 			setViewType(view.type as ViewType);
 			setGroupByFieldId(view.groupByFieldId);
 			setViewCfg(config);
@@ -170,25 +156,9 @@ export function ViewReferenceBlock({
 					return;
 				}
 
-				// Parse the view config centrally, apply filters + sorts
+				// applyViewConfig already parses and applies it; this second copy
+				// existed only because the parsing was inline in both.
 				applyViewConfig(view);
-				let config: ViewConfig = { filters: [], sorts: [], boardHidden: [] };
-				try {
-					const parsed = JSON.parse(view.config);
-					config = {
-						filters: Array.isArray(parsed.filters) ? parsed.filters : [],
-						sorts: Array.isArray(parsed.sorts) ? parsed.sorts : [],
-						boardHidden: Array.isArray(parsed.boardHidden)
-							? parsed.boardHidden
-							: [],
-					};
-				} catch {
-					/* no config */
-				}
-
-				setViewType(view.type as ViewType);
-				setGroupByFieldId(view.groupByFieldId);
-				setViewCfg(config);
 
 				// Load fields and records
 				const [loadedFields, loadedRecords] = await Promise.all([
@@ -219,60 +189,19 @@ export function ViewReferenceBlock({
 	}, [selectedDbId, selectedViewId, block.id, onUpdateBlock]);
 
 	// ── Apply filters and sorts from the view config ───────────────────────
+	// The same engine the table uses. This block used to carry its own, which
+	// understood five operators the filter UI never emits — and ignored the ones
+	// it does, along with every sort, because it read `order` where the table
+	// writes `direction`. A saved view therefore rendered differently here than
+	// it did as a table.
 	const processedRecords = useMemo(() => {
 		if (!viewCfg || records.length === 0) return records;
-
-		let result = [...records];
-
-		// Apply filters — look up field name from fieldId to check against values
-		if (viewCfg.filters.length > 0) {
-			result = result.filter(({ values }) => {
-				return viewCfg.filters.every((f) => {
-					const filterField = fields.find((ff) => ff.id === f.fieldId);
-					const val =
-						values?.[filterField?.name ?? ""] ?? values?.[f.fieldId] ?? "";
-					switch (f.operator) {
-						case "equals":
-						case "is":
-							return String(val).toLowerCase() === f.value.toLowerCase();
-						case "contains":
-							return String(val).toLowerCase().includes(f.value.toLowerCase());
-						case "startsWith":
-							return String(val)
-								.toLowerCase()
-								.startsWith(f.value.toLowerCase());
-						case "notEmpty":
-							return val !== "" && val != null;
-						case "isEmpty":
-							return val === "" || val == null;
-						default:
-							return true;
-					}
-				});
-			});
-		}
-
-		// Apply sorts
-		if (viewCfg.sorts.length > 0) {
-			result.sort((a, b) => {
-				for (const s of viewCfg.sorts) {
-					const field = fields.find(
-						(f) => f.id === s.fieldId || f.name === s.fieldId,
-					);
-					if (!field) continue;
-					const aVal = a.values?.[field.name] ?? a.record?.title ?? "";
-					const bVal = b.values?.[field.name] ?? b.record?.title ?? "";
-					const cmp =
-						typeof aVal === "number" && typeof bVal === "number"
-							? aVal - bVal
-							: String(aVal).localeCompare(String(bVal));
-					if (cmp !== 0) return s.order === "desc" ? -cmp : cmp;
-				}
-				return 0;
-			});
-		}
-
-		return result;
+		return applyFiltersAndSorts(
+			records,
+			fields,
+			viewCfg.filters,
+			viewCfg.sorts,
+		);
 	}, [records, viewCfg, fields]);
 
 	// ── Picker ─────────────────────────────────────────────────────────────

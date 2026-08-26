@@ -92,6 +92,37 @@ export function csvEscape(value: string): string {
 /**
  * Sanitize a string to be used as a filename.
  */
+/**
+ * Hand out file names that cannot collide.
+ *
+ * Sanitising a title is not enough to make it unique, and two pages sharing one
+ * — "Notes", "README", "Meeting", or any two records of a database exported as
+ * pages — used to overwrite each other silently while the export reported
+ * success. A backup that drops pages without saying so is worse than one that
+ * fails.
+ *
+ * Collisions get a numeric suffix before the extension, so "Notes.md" is
+ * followed by "Notes (2).md". Comparison is case-insensitive because macOS and
+ * Windows filesystems are: on those, "notes.md" and "Notes.md" are the same
+ * file, and an exporter that assumed otherwise would still lose data on the two
+ * platforms most users are on.
+ */
+export function makeFilenameAllocator() {
+	const taken = new Set<string>();
+	return (title: string, extension: string): string => {
+		const base = sanitizeFilename(title) || "Untitled";
+		for (let n = 1; ; n++) {
+			const candidate =
+				n === 1 ? `${base}${extension}` : `${base} (${n})${extension}`;
+			const key = candidate.toLowerCase();
+			if (!taken.has(key)) {
+				taken.add(key);
+				return candidate;
+			}
+		}
+	};
+}
+
 export function sanitizeFilename(name: string): string {
 	return name
 		.replace(/[<>:"/\\|?*]/g, "_")
@@ -275,6 +306,11 @@ export function exportAllToDirectory(outputDir: string) {
 	return Effect.gen(function* () {
 		const sql = yield* SqlClient.SqlClient;
 
+		// One allocator per directory: pages and databases are written to
+		// different folders, so a page and a database may share a name.
+		const allocatePageName = makeFilenameAllocator();
+		const allocateDatabaseName = makeFilenameAllocator();
+
 		// Create output directories
 		const dbDir = path.join(outputDir, "databases");
 		yield* Effect.promise(() => mkdir(outputDir, { recursive: true }));
@@ -298,7 +334,7 @@ export function exportAllToDirectory(outputDir: string) {
 		// Export each page
 		for (const page of pages) {
 			const pageExport = yield* exportPageFull(page.id);
-			const filename = `${sanitizeFilename(page.title)}.md`;
+			const filename = allocatePageName(page.title, ".md");
 			const filePath = path.join(outputDir, filename);
 			yield* Effect.promise(() =>
 				writeFile(filePath, pageExport.markdown, "utf-8"),
@@ -317,7 +353,7 @@ export function exportAllToDirectory(outputDir: string) {
 
 		for (const db of allDatabases) {
 			const csvResult = yield* exportDatabaseAsCsv(db.id);
-			const filename = `${sanitizeFilename(db.name)}.csv`;
+			const filename = allocateDatabaseName(db.name, ".csv");
 			const filePath = path.join(dbDir, filename);
 			yield* Effect.promise(() => writeFile(filePath, csvResult.csv, "utf-8"));
 			databasesExported++;

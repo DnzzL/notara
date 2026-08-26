@@ -1,4 +1,8 @@
-import type { DatabaseField, DatabaseRecord } from "@notara/shared";
+import {
+	type DatabaseField,
+	type DatabaseRecord,
+	fieldTypeSpec,
+} from "@notara/shared";
 
 export type FilterOperator =
 	| "contains"
@@ -35,38 +39,15 @@ export const OPERATOR_LABELS: Record<FilterOperator, string> = {
 	after: "After",
 };
 
-/** Operators offered for a given field type — drives the smart filter UI. */
+/**
+ * Operators offered for a field type — drives the smart filter UI.
+ *
+ * The list lives in the field-type registry, beside the decode and compare that
+ * have to agree with it. This used to be its own switch, which is how the
+ * reference block's private engine came to understand a different set entirely.
+ */
 export function operatorsForFieldType(type: string): FilterOperator[] {
-	switch (type) {
-		case "number":
-			return [
-				"is",
-				"is_not",
-				"gt",
-				"lt",
-				"gte",
-				"lte",
-				"is_empty",
-				"is_not_empty",
-			];
-		case "select":
-			return ["is", "is_not", "is_empty", "is_not_empty"];
-		case "multiSelect":
-			return ["contains", "does_not_contain", "is_empty", "is_not_empty"];
-		case "checkbox":
-			return ["is"];
-		case "date":
-			return ["is", "before", "after", "is_empty", "is_not_empty"];
-		default:
-			return [
-				"contains",
-				"does_not_contain",
-				"is",
-				"is_not",
-				"is_empty",
-				"is_not_empty",
-			];
-	}
+	return [...fieldTypeSpec(type).operators] as FilterOperator[];
 }
 
 export interface Sort {
@@ -147,13 +128,14 @@ export function applySorts(
 		const sort = sorts[i];
 		const field = fields.find((f) => f.id === sort.fieldId);
 		if (!field) continue;
+		// Comparison is the field type's business: only `number` used to be
+		// special-cased here, so dates sorted as text and checkboxes by alphabet.
+		const compare = fieldTypeSpec(field.type).compare;
 		result.sort((a, b) => {
-			const aV = a.values[field.name] ?? "";
-			const bV = b.values[field.name] ?? "";
-			const cmp =
-				field.type === "number"
-					? Number(aV) - Number(bV)
-					: String(aV).localeCompare(String(bV));
+			const cmp = compare(
+				String(a.values[field.name] ?? ""),
+				String(b.values[field.name] ?? ""),
+			);
 			return sort.direction === "desc" ? -cmp : cmp;
 		});
 	}

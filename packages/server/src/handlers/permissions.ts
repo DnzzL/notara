@@ -11,19 +11,17 @@ import {
 	type Subject,
 } from "@notara/shared";
 import { Effect } from "effect";
-import { PlatformDb } from "../platform-db.js";
+import * as Acl from "../acl.js";
+import * as Membership from "../membership.js";
+import type { PlatformDb } from "../platform-db.js";
+import * as Blocks from "./blocks.js";
 
-export type AclRelation = "owner" | "editor" | "viewer";
+export type AclRelation = Acl.Relation;
 
 export type PermissionsDeps = SqlClient.SqlClient | PlatformDb;
 
-const RANK: Record<AclRelation, number> = { owner: 3, editor: 2, viewer: 1 };
-
-const satisfies = (effective: AclRelation, required: AclRelation) =>
-	RANK[effective] >= RANK[required];
-
-const workspaceRoleToRelation = (role: "owner" | "member"): AclRelation =>
-	role === "owner" ? "owner" : "editor";
+/** Relation inclusion, declared in acl.ts rather than as a rank comparison. */
+const satisfies = Acl.implies;
 
 /** Subjects (encoded) that should match `userId` within `workspaceId`. */
 const userSubjectStrings = (userId: string, workspaceId: string): string[] => [
@@ -33,16 +31,11 @@ const userSubjectStrings = (userId: string, workspaceId: string): string[] => [
 ];
 
 /**
- * Returns the effective relation a user has on a page, or null if denied
- * (non-member, or locked ancestor with no matching grant). Workspace owners
- * always resolve to "owner" without consulting ACLs.
+ * The relation a user effectively holds on a page, or null if they hold none.
  *
- * Resolution order:
- *   1. Non-members → null
- *   2. Workspace owners → "owner"
- *   3. Walk up the page tree; first page with acl_tuples entries is the
- *      "effective ACL owner" — match user subjects there
- *   4. No locked ancestor → workspace member role (editor)
+ * Membership comes from `membership.ts`, resolution from `acl.ts` — the rule
+ * order, and the fact that a lock refuses authoritatively rather than falling
+ * through, are declared there. See ADR-007.
  */
 export const resolveEffectiveRelation = (
 	userId: string,
@@ -50,55 +43,14 @@ export const resolveEffectiveRelation = (
 	pageId: string,
 ): Effect.Effect<AclRelation | null, never, PermissionsDeps> =>
 	Effect.gen(function* () {
-		const db = yield* PlatformDb;
-		const sql = yield* SqlClient.SqlClient;
+		const workspaceRole = yield* Membership.roleOf(userId, workspaceId);
 
-		const member = db
-			.prepare(
-				"SELECT role FROM workspace_members WHERE workspace_id = ? AND user_id = ?",
-			)
-			.get(workspaceId, userId) as { role: "owner" | "member" } | null;
-
-		if (!member) return null;
-		if (member.role === "owner") return "owner";
-
-		const subjects = userSubjectStrings(userId, workspaceId);
-
-		let currentId: string | null = pageId;
-		while (currentId !== null) {
-			const rows: ReadonlyArray<{ relation: string; subject: string }> =
-				yield* sql
-					.unsafe(
-						`SELECT relation, subject FROM acl_tuples WHERE resource_type = 'page' AND resource_id = ?`,
-						[currentId],
-					)
-					.pipe(Effect.orDie) as Effect.Effect<
-					ReadonlyArray<{ relation: string; subject: string }>,
-					never,
-					never
-				>;
-
-			if (rows.length > 0) {
-				const userRows = rows.filter((r) => subjects.includes(r.subject));
-				const best = userRows.reduce<AclRelation | null>((acc, r) => {
-					const rel = r.relation as AclRelation;
-					return !acc || RANK[rel] > RANK[acc] ? rel : acc;
-				}, null);
-				return best;
-			}
-
-			const parentRows: ReadonlyArray<{ parent_id: string | null }> = yield* sql
-				.unsafe(`SELECT parent_id FROM pages WHERE id = ?`, [currentId])
-				.pipe(Effect.orDie) as Effect.Effect<
-				ReadonlyArray<{ parent_id: string | null }>,
-				never,
-				never
-			>;
-			currentId =
-				parentRows.length > 0 ? (parentRows[0].parent_id ?? null) : null;
-		}
-
-		return workspaceRoleToRelation(member.role);
+		// Resolution itself lives in acl.ts, where the rule order and the
+		// authoritative-deny case are stated rather than implied by control flow.
+		return yield* Acl.effectiveRelation(
+			{ userId, workspaceId, workspaceRole },
+			pageId,
+		);
 	});
 
 /**
@@ -118,7 +70,7 @@ export const checkPagePermission = (
 			pageId,
 		);
 		if (effective === null) {
-			const isMember = yield* checkIsMember(userId, workspaceId);
+			const isMember = yield* Membership.isMember(userId, workspaceId);
 			return yield* new AuthError({
 				status: 403,
 				message: isMember
@@ -132,17 +84,6 @@ export const checkPagePermission = (
 				message: "Insufficient permission",
 			});
 		}
-	});
-
-const checkIsMember = (userId: string, workspaceId: string) =>
-	Effect.gen(function* () {
-		const db = yield* PlatformDb;
-		const row = db
-			.prepare(
-				"SELECT 1 FROM workspace_members WHERE workspace_id = ? AND user_id = ?",
-			)
-			.get(workspaceId, userId);
-		return row !== null;
 	});
 
 /** Non-throwing variant for UI gating. */
@@ -216,19 +157,14 @@ export const filterPagesByPermission = <
 /** Fails with AuthError(403) if the caller is not a workspace owner. */
 export const requireWorkspaceOwner = (userId: string, workspaceId: string) =>
 	Effect.gen(function* () {
-		const db = yield* PlatformDb;
-		const member = db
-			.prepare(
-				"SELECT role FROM workspace_members WHERE workspace_id = ? AND user_id = ?",
-			)
-			.get(workspaceId, userId) as { role: "owner" | "member" } | null;
-		if (!member) {
+		const role = yield* Membership.roleOf(userId, workspaceId);
+		if (role === null) {
 			return yield* new AuthError({
 				status: 403,
 				message: "Not a member of this workspace",
 			});
 		}
-		if (member.role !== "owner") {
+		if (role !== "owner") {
 			return yield* new AuthError({
 				status: 403,
 				message: "Workspace owner role required",
@@ -276,16 +212,9 @@ export const listVisibleLockedPageIds = (
 		return lockedIds.filter((id) => accessibleIds.has(id));
 	});
 
-/** Resolves the page_id that owns a given block. Returns null if not found. */
-export const getBlockPageId = (blockId: string) =>
-	Effect.gen(function* () {
-		const sql = yield* SqlClient.SqlClient;
-		const rows = yield* sql.unsafe(`SELECT page_id FROM blocks WHERE id = ?`, [
-			blockId,
-		]);
-		const list = rows as unknown as { page_id: string }[];
-		return list.length > 0 ? list[0].page_id : null;
-	});
+// A block's owning page is looked up by the blocks module, which owns blocks.
+// This file had a second, identical implementation of it.
+export { getBlockPageId } from "./blocks.js";
 
 /** Resolves the page_id that owns a given database. Returns null if not found. */
 export const getDatabasePageId = (databaseId: string) =>
@@ -356,7 +285,7 @@ const checkVia =
 			yield* checkPagePermission(userId, workspaceId, pageId, requiredRelation);
 		});
 
-export const checkBlockPermission = checkVia(getBlockPageId, "block");
+export const checkBlockPermission = checkVia(Blocks.getBlockPageId, "block");
 export const checkDatabasePermission = checkVia(getDatabasePageId, "database");
 export const checkRecordPermission = checkVia(getRecordPageId, "record");
 export const checkFieldPermission = checkVia(getFieldPageId, "field");

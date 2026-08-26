@@ -2,7 +2,14 @@ import * as HttpServerResponse from "@effect/platform/HttpServerResponse";
 
 // ── CORS / Security ───────────────────────────────────────────────────────────
 
-const _allowedOrigin = (() => {
+/**
+ * The origin allowed to call this instance.
+ *
+ * BASE_URL first, then the first entry of TRUSTED_ORIGINS, then everything.
+ * Used by the SSE channel; the CORS header block below builds on the same
+ * resolution rather than repeating a narrower one.
+ */
+export const allowedOrigin = (() => {
 	const base = process.env.BASE_URL?.trim();
 	if (base) return base;
 	const trusted = (process.env.TRUSTED_ORIGINS ?? "")
@@ -23,7 +30,7 @@ export const securityHeaders: Record<string, string> = {
 };
 
 export const corsHeaders: Record<string, string> = {
-	"Access-Control-Allow-Origin": _allowedOrigin,
+	"Access-Control-Allow-Origin": allowedOrigin,
 	"Access-Control-Allow-Methods": "GET, POST, PUT, DELETE, OPTIONS",
 	"Access-Control-Allow-Headers": "Content-Type, Authorization",
 	Vary: "Origin",

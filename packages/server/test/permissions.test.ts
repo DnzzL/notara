@@ -577,6 +577,123 @@ describe("Permissions", () => {
 		expect(rel).toBeNull();
 	});
 
+	// ── The rule that separates this model from classic Zanzibar ──────────────
+
+	test("a grant on a child overrides an inherited grant from its parent", async () => {
+		// This is the case where nearest-ancestor-override and union inheritance
+		// disagree, and it was untested until NOT-104 — so a refactor toward union
+		// rewrite rules would have widened access here and stayed green.
+		//
+		// Under this model the child bears tuples, so the child answers alone and
+		// the parent is never consulted. Under union the member would inherit
+		// `owner` from the parent and keep it.
+		const parent = await Pages.createPage({
+			title: "Open To Member",
+			parentId: null,
+		}).pipe(
+			Effect.provide(SqliteClient.layer({ filename: sqliteFilename })),
+			Effect.runPromise,
+		);
+		const child = await Pages.createPage({
+			title: "Restricted Below",
+			parentId: parent.id,
+		}).pipe(
+			Effect.provide(SqliteClient.layer({ filename: sqliteFilename })),
+			Effect.runPromise,
+		);
+
+		await Permissions.writePagePermissions({
+			pageId: parent.id,
+			set: [
+				{ subject: { type: "user", id: member.userId }, relation: "owner" },
+			],
+			remove: [],
+		}).pipe(
+			Effect.provide(makeLayers(platformDb, sqliteFilename)),
+			Effect.runPromise,
+		);
+
+		// The child names someone else, and only someone else. (An owner grant is
+		// required: writePagePermissions refuses to leave a page ownerless.)
+		await Permissions.writePagePermissions({
+			pageId: child.id,
+			set: [{ subject: { type: "user", id: owner.userId }, relation: "owner" }],
+			remove: [],
+		}).pipe(
+			Effect.provide(makeLayers(platformDb, sqliteFilename)),
+			Effect.runPromise,
+		);
+
+		const rel = await Permissions.resolveEffectiveRelation(
+			member.userId,
+			member.workspaceId,
+			child.id,
+		).pipe(
+			Effect.provide(makeLayers(platformDb, sqliteFilename)),
+			Effect.runPromise,
+		);
+
+		// Denied, not "owner". Placing one grant privatises a page without having
+		// to name everyone excluded — that is the lock feature.
+		expect(rel).toBeNull();
+	});
+
+	test("a locked child does not leak access to its own children", async () => {
+		// The override is authoritative for the whole subtree beneath it, so the
+		// exclusion cannot be escaped by nesting one level deeper.
+		const parent = await Pages.createPage({
+			title: "Open Root",
+			parentId: null,
+		}).pipe(
+			Effect.provide(SqliteClient.layer({ filename: sqliteFilename })),
+			Effect.runPromise,
+		);
+		const locked = await Pages.createPage({
+			title: "Locked Middle",
+			parentId: parent.id,
+		}).pipe(
+			Effect.provide(SqliteClient.layer({ filename: sqliteFilename })),
+			Effect.runPromise,
+		);
+		const grandchild = await Pages.createPage({
+			title: "Below The Lock",
+			parentId: locked.id,
+		}).pipe(
+			Effect.provide(SqliteClient.layer({ filename: sqliteFilename })),
+			Effect.runPromise,
+		);
+
+		await Permissions.writePagePermissions({
+			pageId: parent.id,
+			set: [
+				{ subject: { type: "user", id: member.userId }, relation: "owner" },
+			],
+			remove: [],
+		}).pipe(
+			Effect.provide(makeLayers(platformDb, sqliteFilename)),
+			Effect.runPromise,
+		);
+		await Permissions.writePagePermissions({
+			pageId: locked.id,
+			set: [{ subject: { type: "user", id: owner.userId }, relation: "owner" }],
+			remove: [],
+		}).pipe(
+			Effect.provide(makeLayers(platformDb, sqliteFilename)),
+			Effect.runPromise,
+		);
+
+		const rel = await Permissions.resolveEffectiveRelation(
+			member.userId,
+			member.workspaceId,
+			grandchild.id,
+		).pipe(
+			Effect.provide(makeLayers(platformDb, sqliteFilename)),
+			Effect.runPromise,
+		);
+
+		expect(rel).toBeNull();
+	});
+
 	// ── Write + readback roundtrip ─────────────────────────────────────────────
 
 	test("write then read ACL roundtrip", async () => {

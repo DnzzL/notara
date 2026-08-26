@@ -7,6 +7,7 @@ import path from "node:path";
 import { SqliteClient } from "@effect/sql-sqlite-bun";
 import { Effect } from "effect";
 import {
+	exportAllToDirectory,
 	exportDatabaseAsCsv,
 	exportPageAsMarkdown,
 } from "../src/export/page.js";
@@ -239,5 +240,51 @@ describe("importNotion", () => {
 		} finally {
 			cleanup(tmpDir);
 		}
+	});
+});
+
+describe("exportAllToDirectory", () => {
+	test("pages that share a title all survive the export", async () => {
+		// Before the filename allocator these overwrote each other and the export
+		// still reported success — the worst shape a backup bug can take.
+		const { filename, tmpDir } = makeTestDb();
+		runAllMigrations(filename);
+		const outputDir = path.join(tmpDir, "out");
+
+		const db = new Database(filename);
+		const now = new Date().toISOString();
+		for (const id of ["p1", "p2", "p3"]) {
+			db.prepare(
+				"INSERT INTO pages (id, title, parent_id, created_at, updated_at) VALUES (?, 'Notes', NULL, ?, ?)",
+			).run(id, now, now);
+			db.prepare(
+				'INSERT INTO blocks (id, page_id, type, content, "index") VALUES (?, ?, ?, ?, 0)',
+			).run(`b-${id}`, id, "paragraph", `<p>content of ${id}</p>`);
+		}
+		db.close();
+
+		const result = await exportAllToDirectory(outputDir).pipe(
+			Effect.provide(TestDbLayer(filename)),
+			Effect.runPromise,
+		);
+
+		const written = fs.readdirSync(outputDir).filter((f) => f.endsWith(".md"));
+		expect(written.sort()).toEqual([
+			"Notes (2).md",
+			"Notes (3).md",
+			"Notes.md",
+		]);
+
+		// The reported count must match what is on disk, or a partial export
+		// reads as a complete one.
+		expect(result.pagesExported).toBe(written.length);
+
+		// And each file holds a different page, rather than three copies of one.
+		const bodies = written.map((f) =>
+			fs.readFileSync(path.join(outputDir, f), "utf-8"),
+		);
+		expect(new Set(bodies).size).toBe(3);
+
+		cleanup(tmpDir);
 	});
 });

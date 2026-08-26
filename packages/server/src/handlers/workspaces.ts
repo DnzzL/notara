@@ -9,6 +9,7 @@ import { Effect } from "effect";
 import { ulid } from "ulidx";
 import { demoMode } from "../demo.js";
 import { BASE_URL, sendEmail } from "../email.js";
+import * as Membership from "../membership.js";
 import { PlatformDb } from "../platform-db.js";
 
 type WorkspaceRow = {
@@ -150,13 +151,9 @@ export const joinWorkspaceByToken = (req: {
 			return yield* new ValidationError({ message: "Invalid invite token" });
 		}
 
-		const existing = db
-			.prepare(
-				"SELECT 1 FROM workspace_members WHERE workspace_id = ? AND user_id = ?",
-			)
-			.get(ws.id, req.userId);
+		const alreadyIn = yield* Membership.isMember(req.userId, ws.id);
 
-		if (!existing) {
+		if (!alreadyIn) {
 			db.prepare(
 				"INSERT INTO workspace_members (workspace_id, user_id, role, joined_at) VALUES (?, ?, 'member', ?)",
 			).run(ws.id, req.userId, new Date().toISOString());

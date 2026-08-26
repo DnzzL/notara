@@ -30,7 +30,6 @@ import {
 	requireWorkspaceOwner,
 	requireWorkspaceRole,
 	withAuthedWorkspace,
-	withWorkspaceDb,
 } from "./workspace-context.js";
 
 /**
@@ -784,7 +783,11 @@ export const rpcHandlersLayer = AppRpc.toLayer({
 		}).pipe(dieUnlessApiError),
 	inviteMemberByEmail: ({ workspaceId, email }) =>
 		Effect.gen(function* () {
-			yield* getSessionUser;
+			// Owner, not just any session: the mail carries the workspace invite
+			// token, so sending it is the same capability as regenerateInviteLink
+			// above. Matches the settings panel, which only renders this form to
+			// the owner.
+			yield* requireWorkspaceOwner(workspaceId);
 			return yield* Workspaces.inviteMemberByEmail({ workspaceId, email });
 		}).pipe(dieUnlessApiError),
 
@@ -887,10 +890,14 @@ export const rpcHandlersLayer = AppRpc.toLayer({
 			}),
 		).pipe(dieUnlessApiError),
 
+	// Built-in templates are a static catalogue, not workspace data. This used to
+	// run through withWorkspaceDb, which opened a workspace layer named by an
+	// unauthenticated client header — for a value that never touched a database.
 	listTemplates: () =>
-		withWorkspaceDb(Effect.sync(() => Templates.getTemplates())).pipe(
-			dieUnlessApiError,
-		),
+		Effect.gen(function* () {
+			yield* getSessionUser;
+			return Templates.getTemplates();
+		}).pipe(dieUnlessApiError),
 
 	createPageFromTemplate: (req: {
 		templateId: string;

@@ -100,6 +100,9 @@ const guarded: Array<[string, string, Record<string, string>?]> = [
 		},
 	],
 	["POST", "/import-notion", { "X-Workspace-Id": WORKSPACE }],
+	// ADR-006: an attachment is readable only when its page is. Anonymous is
+	// never that, so this must refuse before it ever looks at the disk.
+	["GET", "/attachments/01HQ5X2Y3Z4A5B6C7D8E9F0G.png"],
 ];
 
 describe("anonymous callers are refused", () => {

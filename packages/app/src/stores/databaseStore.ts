@@ -6,6 +6,10 @@ import type {
 } from "@notara/shared";
 import { create } from "zustand";
 import type { Filter, Sort } from "../lib/filterEngine.js";
+import {
+	parseViewConfig,
+	serializeViewConfig as serializeConfig,
+} from "../lib/viewConfig.js";
 import { api } from "../rpc-client.js";
 
 type RecordWithValues = {
@@ -573,23 +577,10 @@ export function resetViewToSaved(
 	};
 }
 
-/** Parse view config JSON safely. */
-export function parseViewConfig(config: string): {
-	filters: Filter[];
-	sorts: Sort[];
-	boardHidden: string[];
-} {
-	try {
-		const parsed = JSON.parse(config);
-		return {
-			filters: Array.isArray(parsed.filters) ? parsed.filters : [],
-			sorts: Array.isArray(parsed.sorts) ? parsed.sorts : [],
-			boardHidden: Array.isArray(parsed.boardHidden) ? parsed.boardHidden : [],
-		};
-	} catch {
-		return { filters: [], sorts: [], boardHidden: [] };
-	}
-}
+// Parsing and serialising a view config lives in lib/viewConfig.ts, which also
+// normalises the two spellings that used to make a saved view behave
+// differently in a reference block. Re-exported so existing callers keep working.
+export { parseViewConfig };
 
 /** Serialize current view state to JSON string. */
 export function serializeViewConfig(
@@ -597,5 +588,5 @@ export function serializeViewConfig(
 	sorts: Sort[],
 	boardHidden: string[],
 ): string {
-	return JSON.stringify({ filters, sorts, boardHidden });
+	return serializeConfig({ filters, sorts, boardHidden });
 }

@@ -58,8 +58,6 @@ export interface BlockTypeConfig {
 	defaultContent: string;
 	/** Which Enter-key split strategy applies in BlockNavigationExtension. */
 	splitBehavior: SplitBehavior;
-	/** True for blocks that render outside TipTap (divider, image, pdf, database, pageLink). */
-	rendersCustom: boolean;
 }
 
 export interface SlashCommandDef {
@@ -96,6 +94,20 @@ export function blockTagForType(type: BlockType): string {
 	}
 }
 
+/**
+ * Wrap inline HTML in the tags a block type stores it in.
+ *
+ * The merge path used to do this with its own if-chain, which was the only one
+ * that knew `code` nests `<pre><code>` — `blockTagForType` returns "p" for it.
+ * So the two disagreed, and which one you got depended on whether you were
+ * splitting or merging.
+ */
+export function wrapInlineHTML(type: BlockType, inner: string): string {
+	if (type === "code") return `<pre><code>${inner}</code></pre>`;
+	const tag = blockTagForType(type);
+	return `<${tag}>${inner}</${tag}>`;
+}
+
 /** Per-block-type config for rendering and keyboard behavior. */
 export const BLOCK_TYPE_CONFIG: Record<BlockType, BlockTypeConfig> = {
 	paragraph: {
@@ -103,116 +115,97 @@ export const BLOCK_TYPE_CONFIG: Record<BlockType, BlockTypeConfig> = {
 		defaultContent: "<p></p>",
 		// Enter splits into a new paragraph block; Shift+Enter is the line break.
 		splitBehavior: "split-paragraph",
-		rendersCustom: false,
 	},
 	heading1: {
 		placeholder: "Heading 1",
 		defaultContent: "<h1></h1>",
 		splitBehavior: "split-paragraph",
-		rendersCustom: false,
 	},
 	heading2: {
 		placeholder: "Heading 2",
 		defaultContent: "<h2></h2>",
 		splitBehavior: "split-paragraph",
-		rendersCustom: false,
 	},
 	heading3: {
 		placeholder: "Heading 3",
 		defaultContent: "<h3></h3>",
 		splitBehavior: "split-paragraph",
-		rendersCustom: false,
 	},
 	blockquote: {
 		placeholder: "Quote",
 		defaultContent: "<blockquote></blockquote>",
 		splitBehavior: "split-paragraph",
-		rendersCustom: false,
 	},
 	code: {
 		placeholder: "Code",
 		defaultContent: "<pre><code></code></pre>",
 		splitBehavior: "normal",
-		rendersCustom: false,
 	},
 	bulletList: {
 		placeholder: "List",
 		defaultContent: "<ul><li></li></ul>",
 		splitBehavior: "list",
-		rendersCustom: false,
 	},
 	numberedList: {
 		placeholder: "List",
 		defaultContent: "<ol><li></li></ol>",
 		splitBehavior: "list",
-		rendersCustom: false,
 	},
 	todo: {
 		placeholder: "To-do",
 		defaultContent:
 			'<ul data-type="taskList"><li data-type="taskItem" data-checked="false"><p></p></li></ul>',
 		splitBehavior: "todo",
-		rendersCustom: false,
 	},
 	divider: {
 		placeholder: "",
 		defaultContent: "",
 		splitBehavior: "normal",
-		rendersCustom: true,
 	},
 	image: {
 		placeholder: "",
 		defaultContent: "",
 		splitBehavior: "normal",
-		rendersCustom: true,
 	},
 	pdf: {
 		placeholder: "",
 		defaultContent: "",
 		splitBehavior: "normal",
-		rendersCustom: true,
 	},
 	file: {
 		placeholder: "",
 		defaultContent: "",
 		splitBehavior: "normal",
-		rendersCustom: true,
 	},
 	database: {
 		placeholder: "",
 		defaultContent: "",
 		splitBehavior: "normal",
-		rendersCustom: true,
 	},
 	pageLink: {
 		placeholder: "",
 		defaultContent: "",
 		splitBehavior: "normal",
-		rendersCustom: true,
 	},
 	viewReference: {
 		placeholder: "",
 		defaultContent: "",
 		splitBehavior: "normal",
-		rendersCustom: true,
 	},
 	toggle: {
 		placeholder: "",
 		defaultContent: "",
 		splitBehavior: "normal",
-		rendersCustom: false,
 	},
 	callout: {
 		placeholder: "",
 		defaultContent: '<div data-callout><div class="callout-text"></div></div>',
 		splitBehavior: "normal",
-		rendersCustom: false,
 	},
 	people: {
 		placeholder: "",
 		defaultContent: "",
 		splitBehavior: "normal",
-		rendersCustom: true,
 	},
 };
 
