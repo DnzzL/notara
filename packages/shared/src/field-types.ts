@@ -231,10 +231,20 @@ const SPECS: Record<FieldType, FieldTypeSpec> = {
 		basic: false,
 		defaultWidth: 120,
 		readOnly: false,
-		decode: asString,
-		encode: encodeString,
-		compare: (a, b) => compareWithBlanksLast(a, b, compareText),
-		operators: ["is", "is_not", "is_empty", "is_not_empty"],
+		// Multi-valued, but rows written before it became so hold a bare page id
+		// rather than a one-element array. Both are still in databases.
+		decode: (raw) => {
+			if (!raw) return [];
+			return raw.startsWith("[") ? decodeList(raw) : [raw];
+		},
+		encode: encodeList,
+		compare: (a, b) =>
+			compareWithBlanksLast(
+				(a.startsWith("[") ? decodeList(a)[0] : a) ?? "",
+				(b.startsWith("[") ? decodeList(b)[0] : b) ?? "",
+				compareText,
+			),
+		operators: ["contains", "does_not_contain", "is_empty", "is_not_empty"],
 	},
 	relation: {
 		type: "relation",

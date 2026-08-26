@@ -14,66 +14,37 @@ import {
 	verticalListSortingStrategy,
 } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
+import {
+	FIELD_TYPE_SPECS,
+	fieldTypeSpec,
+	type FieldType as SharedFieldType,
+} from "@notara/shared";
 import { useEffect, useRef, useState } from "react";
 import { api } from "../../rpc-client.js";
 import { usePageStore } from "../../stores/pageStore.js";
 import { Button } from "../ui/index.js";
 import { optionColor, Popover } from "./CellComponents.js";
 
-export type FieldType =
-	| "text"
-	| "number"
-	| "select"
-	| "multiSelect"
-	| "date"
-	| "checkbox"
-	| "relation"
-	| "page"
-	| "formula"
-	| "people";
+/**
+ * Field-type metadata now comes from the registry in @notara/shared, which the
+ * server and the Notion importer read too. Re-exported here so the components
+ * that already import from this file keep working; the names go away with the
+ * contract step (NOT-117).
+ */
+export type FieldType = SharedFieldType;
 
-interface FieldTypeInfo {
+export const FIELD_TYPES: ReadonlyArray<{
 	type: FieldType;
 	label: string;
 	icon: string;
-}
+}> = FIELD_TYPE_SPECS.map(({ type, label, icon }) => ({ type, label, icon }));
 
-export const FIELD_TYPES: FieldTypeInfo[] = [
-	{ type: "text", label: "Text", icon: "Aa" },
-	{ type: "number", label: "Number", icon: "#" },
-	{ type: "select", label: "Select", icon: "◆" },
-	{ type: "multiSelect", label: "Multi-select", icon: "◆◆" },
-	{ type: "date", label: "Date", icon: "📅" },
-	{ type: "checkbox", label: "Checkbox", icon: "☑" },
-	{ type: "page", label: "Page link", icon: "📄" },
-	{ type: "relation", label: "Relation", icon: "🔗" },
-	{ type: "formula", label: "Formula", icon: "ƒ" },
-	{ type: "people", label: "People", icon: "👤" },
-];
+const BASIC_TYPES = new Set<FieldType>(
+	FIELD_TYPE_SPECS.filter((s) => s.basic).map((s) => s.type),
+);
 
-const BASIC_TYPES = new Set<FieldType>([
-	"text",
-	"number",
-	"select",
-	"date",
-	"checkbox",
-]);
-
-// ── Default column widths by field type ──────────────────────────────
-const DEFAULT_WIDTH_BY_TYPE: Record<string, number> = {
-	text: 120,
-	number: 90,
-	select: 120,
-	multiSelect: 140,
-	date: 130,
-	checkbox: 80,
-	page: 120,
-	relation: 140,
-	formula: 120,
-	people: 140,
-};
 export function getDefaultWidthForType(type: string): number {
-	return DEFAULT_WIDTH_BY_TYPE[type] ?? 120;
+	return fieldTypeSpec(type).defaultWidth;
 }
 
 // ── Column Header with Menu ───────────────────────────────────────────────

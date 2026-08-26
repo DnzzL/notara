@@ -1,3 +1,4 @@
+import { fieldTypeSpec } from "@notara/shared";
 import {
 	useCallback,
 	useEffect,
@@ -337,6 +338,23 @@ export function SelectPill({
 	);
 }
 
+/**
+ * Decode a stored cell into the list its display expects.
+ *
+ * Four near-identical `JSON.parse` blocks used to do this, each with slightly
+ * different fallbacks — which is how a page cell written as a bare id and one
+ * written as an array ended up handled in only one of them. The registry owns
+ * the stored representations now; this only bridges the case where a caller
+ * already handed us a decoded array.
+ */
+function decodeCell(type: string, value: unknown): string[] {
+	if (Array.isArray(value)) return value.map(String);
+	const decoded = fieldTypeSpec(type).decode(
+		typeof value === "string" ? value : "",
+	);
+	return Array.isArray(decoded) ? decoded.map(String) : [];
+}
+
 export function CellDisplay({
 	field,
 	value,
@@ -444,16 +462,7 @@ export function CellDisplay({
 	}
 
 	if (field.type === "multiSelect") {
-		let vals: string[] = [];
-		try {
-			vals = Array.isArray(value)
-				? value
-				: typeof value === "string"
-					? JSON.parse(value)
-					: [];
-		} catch {
-			/* ignore */
-		}
+		const vals = decodeCell(field.type, value);
 		if (!vals.length) return <span style={{ color: "#d3d1cb" }}>&nbsp;</span>;
 		const opts = field.options || [];
 		return (
@@ -482,18 +491,7 @@ export function CellDisplay({
 	}
 
 	if (field.type === "page") {
-		let vals: string[] = [];
-		try {
-			vals = Array.isArray(value)
-				? value
-				: typeof value === "string"
-					? value.startsWith("[")
-						? JSON.parse(value)
-						: [value]
-					: [];
-		} catch {
-			/* ignore */
-		}
+		const vals = decodeCell(field.type, value);
 		if (!vals.length) return <span style={{ color: "#d3d1cb" }}>&nbsp;</span>;
 		return (
 			<div
@@ -507,16 +505,7 @@ export function CellDisplay({
 	}
 
 	if (field.type === "people") {
-		let userIds: string[] = [];
-		try {
-			userIds = Array.isArray(value)
-				? value
-				: typeof value === "string"
-					? JSON.parse(value)
-					: [];
-		} catch {
-			/* ignore */
-		}
+		const userIds = decodeCell(field.type, value);
 		if (!userIds.length)
 			return <span style={{ color: "#d3d1cb" }}>&nbsp;</span>;
 		return (
@@ -537,16 +526,7 @@ export function CellDisplay({
 	}
 
 	if (field.type === "relation") {
-		let vals: string[] = [];
-		try {
-			vals = Array.isArray(value)
-				? value
-				: typeof value === "string"
-					? JSON.parse(value)
-					: [];
-		} catch {
-			/* ignore */
-		}
+		const vals = decodeCell(field.type, value);
 		if (!vals.length) return <span style={{ color: "#d3d1cb" }}>&nbsp;</span>;
 		const targetDbId = field.relationTargetDbId;
 		return (

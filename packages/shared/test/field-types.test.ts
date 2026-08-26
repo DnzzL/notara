@@ -48,7 +48,7 @@ describe("the registry covers what exists", () => {
 
 describe("decode and encode round-trip every stored representation", () => {
 	it("keeps scalar values through a round trip", () => {
-		for (const type of ["text", "select", "date", "page", "formula"]) {
+		for (const type of ["text", "select", "date", "formula"]) {
 			const spec = fieldTypeSpec(type);
 			expect(spec.encode(spec.decode("hello")), type).toBe("hello");
 		}
@@ -90,6 +90,16 @@ describe("decode and encode round-trip every stored representation", () => {
 		expect(spec.decode("")).toBe(false);
 		expect(spec.encode(true)).toBe("true");
 		expect(spec.encode(false)).toBe("false");
+	});
+
+	it("reads a page cell written before it was multi-valued", () => {
+		// A bare page id, not a one-element array. Rows written that way are
+		// still in databases, and the display already handled both — migrating
+		// to a scalar decode would have emptied every one of them.
+		const spec = fieldTypeSpec("page");
+		expect(spec.decode("01HPAGE")).toEqual(["01HPAGE"]);
+		expect(spec.decode('["01HA","01HB"]')).toEqual(["01HA", "01HB"]);
+		expect(spec.encode(["01HA"])).toBe('["01HA"]');
 	});
 
 	it("decodes a number to a number, and an empty cell to null", () => {

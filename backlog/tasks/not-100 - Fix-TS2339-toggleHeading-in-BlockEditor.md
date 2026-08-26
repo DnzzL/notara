@@ -4,7 +4,7 @@ title: Fix TS2339 toggleHeading in BlockEditor
 status: ready-for-agent
 assignee: []
 created_date: '2026-08-22 11:06'
-updated_date: '2026-08-22 12:28'
+updated_date: '2026-08-26 14:52'
 labels:
   - bug
 dependencies: []
@@ -24,6 +24,20 @@ packages/app/src/components/BlockEditor.tsx lines 514, 525, 536 fail typecheck: 
 - [ ] #2 bun run quickcheck passes, so pushing no longer needs --no-verify
 - [ ] #3 Heading blocks still toggle correctly in the editor, including for a remote viewer in live collab
 <!-- AC:END -->
+
+## Implementation Notes
+
+<!-- SECTION:NOTES:BEGIN -->
+ROOT CAUSE, diagnosed while it blocked a push (not fixed here).
+
+There are three copies of @tiptap/core in node_modules: 2.11.0 twice and 2.27.2 once. TipTap registers commands like toggleHeading by augmenting the ChainedCommands interface with 'declare module "@tiptap/core"'. With several copies resolved, the augmentation lands on one ChainedCommands and the app's editor.chain() is typed by another — so the command exists at runtime and is invisible to the compiler. That is why the editor works and only the type-check complains.
+
+The root package.json overrides pin every @tiptap/* to 2.11.0, which was presumably an earlier attempt at this, but 2.27.2 still slipped in — most likely pulled by @tiptap/suggestion, which is declared as ^3.23.4 in packages/app while everything around it is pinned to 2.11.0. Two copies of suggestion are installed too (3.23.4 and 3.25.0).
+
+So the fix is probably a dependency-resolution one — bring @tiptap/suggestion into the overrides, or move it to a 2.x line — rather than adding the Heading extension. Worth checking whether the neighbouring 'as any' casts (StarterKit at BlockEditor.tsx:100, toggleCode at :505) are workarounds for the same split, in which case they can go with it.
+
+Note this blocks pre-push for everyone, not just for one branch: bun run quickcheck fails on a clean checkout of main, so every push needs --no-verify until it is fixed. That makes it worth more than its Medium priority suggests.
+<!-- SECTION:NOTES:END -->
 
 ## Comments
 
