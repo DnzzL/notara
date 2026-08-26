@@ -7,15 +7,104 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.1.4] - 2026-08-26
+
+A hardening release. Most of it is defects that were already in your instance —
+including one that has been breaking every file upload since 5 August.
+
+### Fixed
+
+- **File upload and Notion import returned 500 for everyone** (NOT-123). Since
+  `cb4f3ed`, every authenticated `POST /api/upload` and `POST /import-notion` failed with a
+  generic error. Routing them through the workspace authorization chokepoint made them read
+  a service at request time that the route did not carry. The only test on those routes
+  checked that anonymous callers are refused — and that check is answered *before* the
+  missing service is read, so it stayed green while nothing worked. **If uploads have been
+  failing on your instance, this is why.**
+
+- **Exporting a workspace silently overwrote pages that share a title** (NOT-111). One file
+  per page, named from the title, flat: two pages called "Notes" became one file and the
+  export reported success. Databases had the same problem. Names are now made unique, and
+  the reported count matches what is on disk.
+
+- **Backup retention could delete an arbitrary backup** (NOT-112). Backups were sorted by
+  file modification time, so two written in the same second sorted arbitrarily — and
+  retention deletes everything past the newest N. They are now ordered by the timestamp in
+  their own name.
+
+- **Re-importing a Notion export cloned everything instead of updating it** (NOT-109,
+  NOT-110). Each run minted fresh identifiers for every page, database, field and record,
+  with nothing persisted to recognise them next time; one workspace ended up with thirteen
+  copies of every database. A second import could also delete pages the first had created,
+  or a page you had made and not yet typed into, because the empty-page prune scanned the
+  whole workspace. An import now updates what it created before, acts only on its own
+  artifacts, and runs in a single transaction.
+
+- **A saved view embedded as a reference block filtered and sorted differently from the same
+  view opened as a table** (NOT-115). The block carried its own query implementation that
+  understood operators the filter UI never emits, ignored the ones it does, and read the
+  sort direction under a different name — so filters silently did nothing and sorts were
+  no-ops. There is one engine now, and configurations saved either way are normalised on
+  read.
+
+- **Dates sorted alphabetically and checkboxes by the spelling of "true"** (NOT-113). Only
+  numeric columns had a real comparison; everything else fell back to text. Sorting a date
+  column now orders chronologically, unchecked sorts before checked, and empty cells sort
+  last instead of leading the list.
+
+- **Settings backup panel hammered `/api/backup/list`** (NOT-101). The effect that loads the
+
+  backup list depended on a function recreated on every render, so it refired continuously —
+  roughly ten requests a second for as long as the Backups panel stayed open. The loader is
+  now memoized.
+
+- **Database actions failed silently** (NOT-125). Every action in the database store called
+  the server with no failure path, so a rename, delete or cell edit that failed changed
+  nothing on screen and told you nothing — indistinguishable from one that was never
+  attempted. The same was true of undoing a block deletion.
+
+### Security
+
+- **Any signed-in user could invite themselves into any workspace** (NOT-102).
+  `inviteMemberByEmail` checked only that a session existed, then emailed a
+  caller-supplied address a join link carrying the target workspace's invite token.
+  It now requires workspace ownership, matching the member-management actions beside it.
+
+- **Uploaded files were readable by anyone holding the URL** (NOT-103, ADR-006). Serving an
+  attachment required no session at all — so an image or PDF stayed readable by a user
+  removed from the workspace, by a member with no access to the page it sits on, and by
+  anyone the link was ever forwarded to. An attachment is now readable exactly when its
+  page is. **Attachment URLs no longer work outside a logged-in session.**
+
+- **Installing this repository no longer runs any code.** The root `postinstall` is gone and
+  dependency lifecycle scripts stay disabled, in response to the recent npm supply-chain
+  compromises. Contributors run `bun run setup` deliberately after cloning; see
+  `CONTRIBUTING.md`.
+
+### Added
+
+- **Backups to a local directory** (NOT-112). Backup was S3 or nothing, which is an odd
+  answer for self-hosted software. A new `backupTarget` setting takes `off`, `s3` or
+  `local`, with `localBackupDir` (or `BACKUP_DIR`) choosing where. Existing configurations
+  keep working: an instance with S3 enabled is treated as `s3` without touching its
+  settings.
+
+- **S3 backup retention** (NOT-99). Backups were never pruned: every run uploads a full
+  zip, so an hourly schedule left 24 complete copies of the instance in the bucket per
+  day, forever. A new `s3KeepLast` setting (default 10, `S3_KEEP_LAST` env override) keeps
+  only the N most recent backups and deletes the rest after each successful run; set it to
+  `0` to keep everything. The purge also runs once at server startup, so a bucket that is
+  already over the limit is brought back down without waiting for the next scheduled
+  backup. The pre-restore safety snapshot never triggers a purge, and a failed purge is
+  logged rather than failing the backup that just succeeded.
+
 ### Changed
 
-- **An empty number cell reads as `null` rather than `0`** (NOT-116). The server
-  decoded number cells with `Number(value)`, and `Number("")` is `0` — so a cell
-  nobody had filled in was indistinguishable from one deliberately set to zero,
-  in the API and in column aggregations alike. Both now go through the shared
-  field-type registry, which distinguishes them. If you sum a column over
-  `/api/v1`, empty cells no longer contribute a zero; totals are unchanged, but
-  "filled" and "empty" counts now mean what they say.
+- **An empty number cell reads as `null` rather than `0`** (NOT-116). The server decoded
+  number cells with `Number(value)`, and `Number("")` is `0` — so a cell nobody had filled
+  in was indistinguishable from one deliberately set to zero, in the API and in column
+  totals alike. Column totals are unchanged; "filled" and "empty" counts now mean what they
+  say.
 
 - **BREAKING (`/api/v1`): block `content` is a string on the way out, and must be a string
   on the way in** (NOT-107). The REST adapter used to run `JSON.parse` on stored content
@@ -38,24 +127,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   **If you have blocks created through `/api/v1` with object content, they are already
   broken and render blank — rewrite them as HTML.** The `notara` CLI is unaffected: its
   help text already documented HTML for text blocks.
-
-### Added
-
-- **S3 backup retention** (NOT-99). Backups were never pruned: every run uploads a full
-  zip, so an hourly schedule left 24 complete copies of the instance in the bucket per
-  day, forever. A new `s3KeepLast` setting (default 10, `S3_KEEP_LAST` env override) keeps
-  only the N most recent backups and deletes the rest after each successful run; set it to
-  `0` to keep everything. The purge also runs once at server startup, so a bucket that is
-  already over the limit is brought back down without waiting for the next scheduled
-  backup. The pre-restore safety snapshot never triggers a purge, and a failed purge is
-  logged rather than failing the backup that just succeeded.
-
-### Fixed
-
-- **Settings backup panel hammered `/api/backup/list`** (NOT-101). The effect that loads the
-  backup list depended on a function recreated on every render, so it refired continuously —
-  roughly ten requests a second for as long as the Backups panel stayed open. The loader is
-  now memoized.
 
 ## [0.1.3] - 2026-08-19
 
