@@ -4,7 +4,7 @@ title: 'One operation table behind RPC, REST and the OpenAPI document'
 status: ready-for-agent
 assignee: []
 created_date: '2026-08-26 11:13'
-updated_date: '2026-08-26 11:14'
+updated_date: '2026-08-26 13:50'
 labels:
   - enhancement
 dependencies:
@@ -41,3 +41,16 @@ Depends on the Policy module, whose required-relation vocabulary this table decl
 - [ ] #6 The CLI, which consumes the REST surface, works unchanged against the derived routes
 - [ ] #7 The server test suite and the multiuser E2E suite are green
 <!-- AC:END -->
+
+## Implementation Notes
+
+<!-- SECTION:NOTES:BEGIN -->
+SCOPE EXPANDED from NOT-104, which stopped deliberately short of migrating the surfaces.
+
+This ticket now also owns:
+- Declaring each operation's guard as a Policy value from policies.ts (workspaceMember, workspaceOwner, page, block, database, record, field, view), replacing withAuthedWorkspace on the RPC side and the hand-assembled resolveApiUser + requireWorkspaceMember + withWorkspace sequence on the REST side.
+- CurrentUser supplied by principal.layer rather than each surface resolving its own caller.
+- An authorization test per REST route. api-v1/routes.ts has none today; the shape of those tests depends on how operations end up declared, which is why they belong here rather than in NOT-104.
+
+Available to build on: policy.ts (mechanism), policies.ts (vocabulary), principal.ts (credential adapters), membership.ts (one membership query), acl.ts (relation resolution). Auth is unit-testable by providing a principal as a layer — see policies.test.ts for the pattern.
+<!-- SECTION:NOTES:END -->

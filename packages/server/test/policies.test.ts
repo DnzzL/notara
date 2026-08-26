@@ -94,8 +94,13 @@ const layers = () =>
 		SqliteClient.layer({ filename: sqliteFilename }),
 	);
 
-/** Run a guarded effect as `userId`, and report the outcome. */
-const as = <A, E>(userId: string, effect: Effect.Effect<A, E, never>) =>
+/**
+ * Run a guarded effect as `userId`, and report the outcome.
+ *
+ * The whole point of the Policy module in one line: the caller is a layer, so a
+ * test picks who is asking without a server, a cookie or a session store.
+ */
+const as = <A, E>(userId: string, effect: Effect.Effect<A, E, CurrentUser>) =>
 	Effect.runPromise(
 		Effect.exit(
 			effect.pipe(
