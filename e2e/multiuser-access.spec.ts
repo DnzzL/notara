@@ -318,6 +318,58 @@ test("importing the same export twice updates instead of cloning", async ({
 	expect(await countDatabases()).toBe(databasesAfterFirst);
 });
 
+test("a second import leaves the first one's pages and hand-written pages alone", async ({
+	alice,
+	soloWs,
+}) => {
+	// NOT-110. Two passes of the importer used to query the whole workspace: the
+	// empty-page prune deleted any empty page it found, and placeholder
+	// resolution rewrote blocks anywhere. So a second import could delete a page
+	// the user had just created and not yet typed into.
+	const importZip = async (name: string, body: string) => {
+		const zip = new AdmZip();
+		zip.addFile(`${name}.md`, Buffer.from(body));
+		const res = await alice.api.post("/import-notion", {
+			headers: {
+				"X-Workspace-Id": soloWs.workspaceId,
+				"Content-Type": "application/zip",
+				"Content-Disposition": 'attachment; filename="export.zip"',
+			},
+			data: zip.toBuffer(),
+		});
+		if (!res.ok())
+			throw new Error(`import failed ${res.status()}: ${await res.text()}`);
+	};
+
+	await importZip("First Export", "# First Export\n\nOriginal content.\n");
+
+	// An empty page, created by hand between the two imports. This is the one
+	// the unscoped prune used to delete.
+	const handWritten = await alice.rpc<{ id: string }>(
+		"createPage",
+		{ title: "My Empty Draft", parentId: null },
+		soloWs.workspaceId,
+	);
+
+	await importZip("Second Export", "# Second Export\n\nDifferent content.\n");
+
+	const titles = (
+		await alice.rpc<Array<{ id: string; title: string }>>(
+			"listPages",
+			{},
+			soloWs.workspaceId,
+		)
+	).map((p) => p.title);
+
+	expect(titles).toContain("First Export");
+	expect(titles).toContain("Second Export");
+	// The page the user made, still there and still empty.
+	expect(titles).toContain("My Empty Draft");
+	await expect(
+		alice.rpc("getPage", { id: handWritten.id }, soloWs.workspaceId),
+	).resolves.toBeTruthy();
+});
+
 test("workspace membership cannot be read by an unauthenticated caller", async ({
 	alice,
 	soloWs,

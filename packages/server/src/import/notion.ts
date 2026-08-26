@@ -479,7 +479,28 @@ export function determineParent(
 	return guidMap.get(guid) ?? null;
 }
 
+/**
+ * Read a Notion export into the current workspace.
+ *
+ * The whole run is one transaction: a failure part-way through used to leave
+ * pages written, databases half-populated and — since NOT-109 — ledger rows
+ * claiming ids for content that was never committed, which would have made the
+ * *next* import update rows that do not exist. Either the import lands or the
+ * workspace is untouched.
+ *
+ * Not covered by the rollback: attachment files copied to disk. A failed run can
+ * leave orphaned files there. They are unreferenced and harmless, and making
+ * file copies transactional is a different problem from making the database
+ * consistent.
+ */
 export function importNotionExport(exportDir: string) {
+	return Effect.gen(function* () {
+		const sql = yield* SqlClient.SqlClient;
+		return yield* sql.withTransaction(importRun(exportDir));
+	});
+}
+
+function importRun(exportDir: string) {
 	return Effect.gen(function* () {
 		const sql = yield* SqlClient.SqlClient;
 
@@ -941,8 +962,17 @@ export function importNotionExport(exportDir: string) {
 		// `{ __dbRef: csvGuid }` content for the actual database id.
 		// Anything we couldn't resolve (missing CSV) gets deleted so the
 		// user doesn't see a broken empty block.
+		// Scoped to this run's pages. Unscoped, a second import rewrote or deleted
+		// placeholder blocks belonging to the first — or to a page the user wrote
+		// by hand in between. A re-imported page counts as this run's: resolving
+		// an existing key claims it for the current run.
 		const placeholders = yield* sql<{ id: string; content: string }>`
-      SELECT id, content FROM blocks WHERE type = 'database' AND content LIKE '%__dbRef%'
+      SELECT id, content FROM blocks
+      WHERE type = 'database' AND content LIKE '%__dbRef%'
+        AND page_id IN (
+          SELECT local_id FROM import_ledger
+          WHERE kind = 'page' AND last_run_id = ${ledger.runId}
+        )
     `;
 		for (const ph of placeholders) {
 			try {
@@ -962,7 +992,12 @@ export function importNotionExport(exportDir: string) {
 		// the actual pageId looked up in pageMap (populated as we created
 		// each imported page). Unresolvable refs are removed.
 		const pagePlaceholders = yield* sql<{ id: string; content: string }>`
-      SELECT id, content FROM blocks WHERE type = 'pageLink' AND content LIKE '%__pageRef%'
+      SELECT id, content FROM blocks
+      WHERE type = 'pageLink' AND content LIKE '%__pageRef%'
+        AND page_id IN (
+          SELECT local_id FROM import_ledger
+          WHERE kind = 'page' AND last_run_id = ${ledger.runId}
+        )
     `;
 		for (const ph of pagePlaceholders) {
 			try {
@@ -984,9 +1019,16 @@ export function importNotionExport(exportDir: string) {
 		// of empty parents collapses too.
 		let keepPruning = true;
 		while (keepPruning) {
+			// Only this run's pages are candidates. Unscoped, this deleted any
+			// empty page in the workspace — including one the user had just created
+			// and not yet typed into, and including stubs left by an earlier import.
 			const emptyLeaves = yield* sql<{ id: string }>`
         SELECT p.id FROM pages p
-        WHERE NOT EXISTS (SELECT 1 FROM blocks b WHERE b.page_id = p.id)
+        WHERE p.id IN (
+          SELECT local_id FROM import_ledger
+          WHERE kind = 'page' AND last_run_id = ${ledger.runId}
+        )
+        AND NOT EXISTS (SELECT 1 FROM blocks b WHERE b.page_id = p.id)
         AND NOT EXISTS (SELECT 1 FROM pages c WHERE c.parent_id = p.id)
         AND NOT EXISTS (SELECT 1 FROM databases d WHERE d.page_id = p.id)
         AND NOT EXISTS (SELECT 1 FROM database_records dr WHERE dr.page_id = p.id)
@@ -997,6 +1039,9 @@ export function importNotionExport(exportDir: string) {
 			}
 			for (const { id } of emptyLeaves) {
 				yield* sql`DELETE FROM pages WHERE id = ${id}`;
+				// Forget it, or the next run resolves this key to a page that is gone
+				// and then UPDATEs nothing.
+				yield* sql`DELETE FROM import_ledger WHERE kind = 'page' AND local_id = ${id}`;
 			}
 		}
 
