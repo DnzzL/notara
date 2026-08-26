@@ -2,8 +2,10 @@
 id: NOT-104
 title: Composable Policy module with classic Zanzibar rewrite rules
 status: ready-for-agent
-assignee: []
+assignee:
+  - '@thomas'
 created_date: '2026-08-26 11:10'
+updated_date: '2026-08-26 13:20'
 labels:
   - enhancement
 dependencies: []
@@ -72,3 +74,21 @@ Scope note: this is deliberately one large ticket rather than a sequence, by exp
 - [ ] #11 Every REST route has an authorization test, closing the gap where that surface had none
 - [ ] #12 The existing multiuser E2E suite passes unchanged
 <!-- AC:END -->
+
+## Implementation Notes
+
+<!-- SECTION:NOTES:BEGIN -->
+DECISION (inheritance semantics) — taken before implementation, after the ticket's original framing was found to contradict the shipped code.
+
+The ticket proposed classic union rewrite rules (viewer = this | editor | parent->viewer). resolveEffectiveRelation does something else, deliberately: it walks up from the page, stops at the FIRST ancestor bearing any tuples, and answers from there exclusively — returning denied even when no tuple matches the caller, without ever consulting higher. Union inheritance would have silently widened access: with a parent locked to alice and a child locked to bob, alice is denied on the child today and would be allowed under union. Nothing in permissions.test.ts covers that case, so it would have shipped green.
+
+Chosen: keep the current semantics, express them declaratively. The engine gains a nearestOverride rule kind alongside this and union, instead of the resolution order living in control flow. We depart from the Zanzibar paper on this one rule and record why.
+
+Rejected — union plus an explicit blocked relation. This is the canonical option (exclusion IS in the Zanzibar paper, so it, not plain union, is 'the spec to the letter'). It keeps the ability to restrict a subtree, but makes exclusion nominative: privatising a page in a twenty-person workspace would mean listing everyone to exclude, where today placing a single grant excludes everyone else implicitly. That implicit lock is the feature. Cost also included migrating existing tuples and reworking the sharing UI.
+
+Rejected — plain union. Removes the ability to restrict a subtree entirely and widens access on existing instances at deploy time.
+
+Notion was checked and does not settle it: the official help centre documents 'broadest level of access' about sharing SCOPES (a workspace-wide grant beating a weaker individual one), not about the page tree, and says only that a subpage inherits and that this can be changed. Third-party guides claim downward restriction works. Weak, contradictory signal either way.
+
+Everything else in this ticket stands unchanged: Policy module, CurrentUser tag, credential adapters, membership as tuples, deletion of withWorkspaceDb and the dead context resolver, migration of all four surfaces, unit-testable auth.
+<!-- SECTION:NOTES:END -->

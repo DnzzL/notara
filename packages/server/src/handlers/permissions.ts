@@ -11,19 +11,15 @@ import {
 	type Subject,
 } from "@notara/shared";
 import { Effect } from "effect";
+import * as Acl from "../acl.js";
 import { PlatformDb } from "../platform-db.js";
 
-export type AclRelation = "owner" | "editor" | "viewer";
+export type AclRelation = Acl.Relation;
 
 export type PermissionsDeps = SqlClient.SqlClient | PlatformDb;
 
-const RANK: Record<AclRelation, number> = { owner: 3, editor: 2, viewer: 1 };
-
-const satisfies = (effective: AclRelation, required: AclRelation) =>
-	RANK[effective] >= RANK[required];
-
-const workspaceRoleToRelation = (role: "owner" | "member"): AclRelation =>
-	role === "owner" ? "owner" : "editor";
+/** Relation inclusion, declared in acl.ts rather than as a rank comparison. */
+const satisfies = Acl.implies;
 
 /** Subjects (encoded) that should match `userId` within `workspaceId`. */
 const userSubjectStrings = (userId: string, workspaceId: string): string[] => [
@@ -51,7 +47,6 @@ export const resolveEffectiveRelation = (
 ): Effect.Effect<AclRelation | null, never, PermissionsDeps> =>
 	Effect.gen(function* () {
 		const db = yield* PlatformDb;
-		const sql = yield* SqlClient.SqlClient;
 
 		const member = db
 			.prepare(
@@ -59,46 +54,12 @@ export const resolveEffectiveRelation = (
 			)
 			.get(workspaceId, userId) as { role: "owner" | "member" } | null;
 
-		if (!member) return null;
-		if (member.role === "owner") return "owner";
-
-		const subjects = userSubjectStrings(userId, workspaceId);
-
-		let currentId: string | null = pageId;
-		while (currentId !== null) {
-			const rows: ReadonlyArray<{ relation: string; subject: string }> =
-				yield* sql
-					.unsafe(
-						`SELECT relation, subject FROM acl_tuples WHERE resource_type = 'page' AND resource_id = ?`,
-						[currentId],
-					)
-					.pipe(Effect.orDie) as Effect.Effect<
-					ReadonlyArray<{ relation: string; subject: string }>,
-					never,
-					never
-				>;
-
-			if (rows.length > 0) {
-				const userRows = rows.filter((r) => subjects.includes(r.subject));
-				const best = userRows.reduce<AclRelation | null>((acc, r) => {
-					const rel = r.relation as AclRelation;
-					return !acc || RANK[rel] > RANK[acc] ? rel : acc;
-				}, null);
-				return best;
-			}
-
-			const parentRows: ReadonlyArray<{ parent_id: string | null }> = yield* sql
-				.unsafe(`SELECT parent_id FROM pages WHERE id = ?`, [currentId])
-				.pipe(Effect.orDie) as Effect.Effect<
-				ReadonlyArray<{ parent_id: string | null }>,
-				never,
-				never
-			>;
-			currentId =
-				parentRows.length > 0 ? (parentRows[0].parent_id ?? null) : null;
-		}
-
-		return workspaceRoleToRelation(member.role);
+		// Resolution itself lives in acl.ts, where the rule order and the
+		// authoritative-deny case are stated rather than implied by control flow.
+		return yield* Acl.effectiveRelation(
+			{ userId, workspaceId, workspaceRole: member?.role ?? null },
+			pageId,
+		);
 	});
 
 /**
