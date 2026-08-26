@@ -79,9 +79,8 @@ describe("restCall", () => {
 		});
 		expect(calls[0].url).toBe("/api/settings");
 		expect(calls[0].init?.method).toBe("POST");
-		expect(
-			(calls[0].init?.headers as Record<string, string>)["Content-Type"],
-		).toBe("application/json");
+		const sentHeaders = calls[0].init?.headers as Record<string, string>;
+		expect(sentHeaders["Content-Type"]).toBe("application/json");
 	});
 
 	test("does not force a content type on a body that is not JSON", async () => {
@@ -92,8 +91,7 @@ describe("restCall", () => {
 			body: new Uint8Array([1, 2, 3]),
 			headers: { "Content-Type": "image/png" },
 		});
-		expect(
-			(calls[0].init?.headers as Record<string, string>)["Content-Type"],
-		).toBe("image/png");
+		const sentHeaders = calls[0].init?.headers as Record<string, string>;
+		expect(sentHeaders["Content-Type"]).toBe("image/png");
 	});
 });

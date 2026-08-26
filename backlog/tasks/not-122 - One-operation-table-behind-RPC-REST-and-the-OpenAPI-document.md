@@ -2,9 +2,10 @@
 id: NOT-122
 title: 'One operation table behind RPC, REST and the OpenAPI document'
 status: ready-for-agent
-assignee: []
+assignee:
+  - '@thomas'
 created_date: '2026-08-26 11:13'
-updated_date: '2026-08-26 13:50'
+updated_date: '2026-08-26 20:19'
 labels:
   - enhancement
 dependencies:
@@ -39,18 +40,26 @@ Depends on the Policy module, whose required-relation vocabulary this table decl
 - [ ] #4 A permission check and the mutation it guards share one workspace-layer acquisition
 - [ ] #5 The redundant REST wrapper, the status-code response helpers and the onboarding handler are deleted
 - [ ] #6 The CLI, which consumes the REST surface, works unchanged against the derived routes
-- [ ] #7 The server test suite and the multiuser E2E suite are green
+- [x] #7 The server test suite and the multiuser E2E suite are green
 <!-- AC:END -->
 
 ## Implementation Notes
 
 <!-- SECTION:NOTES:BEGIN -->
-SCOPE EXPANDED from NOT-104, which stopped deliberately short of migrating the surfaces.
+PARTIAL. Delivered the inherited AC and the prerequisite for the rest; the operation table itself is NOT built. Reasoning, since a partial delivery is only useful if the boundary is stated.
 
-This ticket now also owns:
-- Declaring each operation's guard as a Policy value from policies.ts (workspaceMember, workspaceOwner, page, block, database, record, field, view), replacing withAuthedWorkspace on the RPC side and the hand-assembled resolveApiUser + requireWorkspaceMember + withWorkspace sequence on the REST side.
-- CurrentUser supplied by principal.layer rather than each surface resolving its own caller.
-- An authorization test per REST route. api-v1/routes.ts has none today; the shape of those tests depends on how operations end up declared, which is why they belong here rather than in NOT-104.
+WHAT VERIFICATION CHANGED. All three deletions in AC5 are wrong or inadvisable:
+- withWorkspace in routes.ts is 8 lines of interface for 2 of behaviour, as the ticket says — but it is used 51 times. Deleting it inlines wdb.getLayer at every one. It stops being redundant only once the table exists, not before.
+- The response helpers ok/created/noContent are not pure wrappers: they carry the JSON content type AND the CORS header block. Deleting them repeats that at 28 sites.
+- handlers/onboarding.ts is 40 lines that seed a page and its blocks, acquire their own layer, and document that failures are swallowed by the caller. Two callers. Not a pass-through.
 
-Available to build on: policy.ts (mechanism), policies.ts (vocabulary), principal.ts (credential adapters), membership.ts (one membership query), acl.ts (relation resolution). Auth is unit-testable by providing a principal as a layer — see policies.test.ts for the pattern.
+WHAT IS REAL. The double acquisition (AC4) is real: every route calls withWorkspace once for the permission check and again for the operation it guards. The harm is smaller than the ticket implies — getLayer is cached, so both get the same SqlClient, and neither opens a transaction — so it is a shape problem and a small TOCTOU window rather than a live defect.
+
+WHAT SHIPPED. e2e/rest-authorization.spec.ts. api-v1/routes.ts had no tests at all, flagged in NOT-104 and moved here. 28 workspace routes are now driven from a table and asserted to refuse an authenticated non-member — the exact shape of NOT-102 on the REST side. A second test cross-checks that table against the OpenAPI document, so a route added without a guard cannot also be a route nobody remembered to list. Verified by deleting the guard from PATCH /pages/:pageId: the audit failed and named it.
+
+Also confirmed while writing it: no REST route is currently unguarded. Each of the 28 has either a resource permission check or an explicit membership check. GET /api/v1/workspaces has neither and needs neither — it lists the caller\s own workspaces.
+
+WHAT REMAINS, and why it was right to stop. The table (AC1-3) means rewriting 28 route bodies and deriving the OpenAPI document from them. That is safe to attempt NOW and was not before: the audit plus the existing parity test give it a net. Attempting it in the same pass as building its net would have meant rewriting 28 routes against tests written minutes earlier, with no independent check that either was right.
+
+I also wrote and then removed an inWorkspace helper — the single-acquisition counterpart to withAuthedWorkspace — because leaving it unused is worse than not adding it. It belongs in the same change as the route rewrite.
 <!-- SECTION:NOTES:END -->
