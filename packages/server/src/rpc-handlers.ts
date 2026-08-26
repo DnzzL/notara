@@ -30,7 +30,6 @@ import {
 	requireWorkspaceOwner,
 	requireWorkspaceRole,
 	withAuthedWorkspace,
-	withWorkspaceDb,
 } from "./workspace-context.js";
 
 /**
@@ -891,10 +890,14 @@ export const rpcHandlersLayer = AppRpc.toLayer({
 			}),
 		).pipe(dieUnlessApiError),
 
+	// Built-in templates are a static catalogue, not workspace data. This used to
+	// run through withWorkspaceDb, which opened a workspace layer named by an
+	// unauthenticated client header — for a value that never touched a database.
 	listTemplates: () =>
-		withWorkspaceDb(Effect.sync(() => Templates.getTemplates())).pipe(
-			dieUnlessApiError,
-		),
+		Effect.gen(function* () {
+			yield* getSessionUser;
+			return Templates.getTemplates();
+		}).pipe(dieUnlessApiError),
 
 	createPageFromTemplate: (req: {
 		templateId: string;

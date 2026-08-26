@@ -12,7 +12,7 @@ import * as HttpServerResponse from "@effect/platform/HttpServerResponse";
 import { NodeHttpServer, NodeRuntime } from "@effect/platform-node";
 import * as RpcSerialization from "@effect/rpc/RpcSerialization";
 import * as RpcServer from "@effect/rpc/RpcServer";
-import { AppRpc, ValidationError } from "@notara/shared";
+import { AppRpc, AuthError, ValidationError } from "@notara/shared";
 import { Effect, Layer } from "effect";
 import { registerV1Routes } from "./api-v1/routes.js";
 import { auth } from "./auth.js";
@@ -39,11 +39,14 @@ import {
 } from "./middleware.js";
 import { LoggerLive, reportError } from "./observability.js";
 import { PlatformDb, PlatformDbLive, platformDb } from "./platform-db.js";
+import * as Policies from "./policies.js";
+import { withPolicy } from "./policy.js";
 import {
 	leaveHandler,
 	makeHeartbeatHandler,
 	makeStreamHandler,
 } from "./presence/routes.js";
+import * as Principal from "./principal.js";
 import { rpcHandlersLayer } from "./rpc-handlers.js";
 import { startTrashSweep } from "./trash-sweeper.js";
 import { makeViewConfigStreamHandler } from "./view-config-stream.js";
@@ -199,35 +202,25 @@ const staticFilesRoute = Effect.gen(function* () {
 	// ── Admin gate ────────────────────────────────────────────────────────────
 	// Declared before its first use: everything below runs top-to-bottom in this
 	// generator, so a later `const` would still be in its temporal dead zone.
-	const adminEmails = (process.env.ADMIN_EMAILS ?? "")
-		.split(",")
-		.map((e) => e.trim())
-		.filter(Boolean);
-
+	//
+	// The decision itself lives in policies.ts and is unit-tested there; this only
+	// resolves the caller and turns a refusal into a response. An unconfigured
+	// ADMIN_EMAILS closes rather than opens — see ADR-008.
 	const requireAdmin = <A>(inner: Effect.Effect<A, unknown, any>) =>
-		Effect.gen(function* () {
-			if (adminEmails.length === 0) {
-				return HttpServerResponse.text(
-					JSON.stringify({ error: "Admin not configured" }),
-					{
-						status: 403,
-						headers: { "Content-Type": "application/json", ...corsHeaders },
-					},
-				) as unknown as A;
-			}
-			const req = yield* HttpServerRequest.HttpServerRequest;
-			const headers = new Headers(req.headers as Record<string, string>);
-			const session = yield* Effect.promise(() =>
-				auth.api.getSession({ headers }),
-			);
-			if (!session || !adminEmails.includes(session.user.email)) {
-				return HttpServerResponse.text(JSON.stringify({ error: "Forbidden" }), {
-					status: 403,
-					headers: { "Content-Type": "application/json", ...corsHeaders },
-				}) as unknown as A;
-			}
-			return yield* inner;
-		});
+		inner.pipe(
+			withPolicy(Policies.instanceAdmin),
+			Effect.provide(Principal.layer),
+			Effect.catchIf(
+				(error): error is AuthError => error instanceof AuthError,
+				(error) =>
+					Effect.succeed(
+						HttpServerResponse.text(JSON.stringify({ error: error.message }), {
+							status: error.status,
+							headers: { "Content-Type": "application/json", ...corsHeaders },
+						}) as unknown as A,
+					),
+			),
+		);
 
 	// Public instance config. Deliberately minimal: the landing page needs to know
 	// whether demo mode is on, and one published image has to serve both modes, so

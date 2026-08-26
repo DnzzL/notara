@@ -83,19 +83,6 @@ export const requireWorkspaceOwner = (workspaceId: string) =>
 		}
 	});
 
-/** Resolve workspace DB from X-Workspace-Id header and provide the SqlClient layer. */
-export const withWorkspaceDb = <A, E, R>(inner: Effect.Effect<A, E, R>) =>
-	Effect.gen(function* () {
-		const request = yield* HttpServerRequest.HttpServerRequest;
-		const workspaceId = request.headers["x-workspace-id"] as string | undefined;
-		if (!workspaceId)
-			return yield* Effect.die(new Error("Missing X-Workspace-Id header"));
-
-		const wdb = yield* WorkspaceDb;
-		const dbLayer = wdb.getLayer(workspaceId);
-		return yield* inner.pipe(Effect.provide(dbLayer));
-	});
-
 /**
  * Authenticated user + workspace context. Yields { userId, workspaceId, role }
  * to the inner builder, runs it with the per-workspace SqlClient layer applied.
