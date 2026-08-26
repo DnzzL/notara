@@ -1,7 +1,7 @@
 ---
 id: NOT-100
 title: Fix TS2339 toggleHeading in BlockEditor
-status: ready-for-agent
+status: done
 assignee: []
 created_date: '2026-08-22 11:06'
 updated_date: '2026-08-26 18:08'
