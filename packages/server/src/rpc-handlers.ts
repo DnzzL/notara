@@ -784,7 +784,11 @@ export const rpcHandlersLayer = AppRpc.toLayer({
 		}).pipe(dieUnlessApiError),
 	inviteMemberByEmail: ({ workspaceId, email }) =>
 		Effect.gen(function* () {
-			yield* getSessionUser;
+			// Owner, not just any session: the mail carries the workspace invite
+			// token, so sending it is the same capability as regenerateInviteLink
+			// above. Matches the settings panel, which only renders this form to
+			// the owner.
+			yield* requireWorkspaceOwner(workspaceId);
 			return yield* Workspaces.inviteMemberByEmail({ workspaceId, email });
 		}).pipe(dieUnlessApiError),
 
