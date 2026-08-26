@@ -2,6 +2,7 @@ import { copyFile, mkdir, readdir, readFile } from "node:fs/promises";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { SqlClient } from "@effect/sql";
+import type { FieldType } from "@notara/shared";
 import { Effect } from "effect";
 import { ulid } from "ulidx";
 import {
@@ -1417,10 +1418,19 @@ function parseCsvDocument(text: string): string[][] {
  * - date-shaped → date
  * - fallback → text
  */
+/**
+ * Guess a field type from a CSV column.
+ *
+ * This stays here rather than moving into the field-type registry: it is
+ * knowledge about how Notion exports look, not about what a field type means.
+ * The registry describes types; this produces one. What it does share is the
+ * vocabulary — the return type is the union, so a guess this file cannot
+ * actually store stops compiling.
+ */
 function inferFieldFromValues(
 	header: string,
 	values: string[],
-): { type: string; options: string[] | null } {
+): { type: FieldType; options: string[] | null } {
 	if (values.length === 0)
 		return { type: inferFieldType(header), options: null };
 
@@ -1491,7 +1501,7 @@ function _parseCsvLine(line: string): string[] {
 	return result;
 }
 
-function inferFieldType(header: string): string {
+function inferFieldType(header: string): FieldType {
 	const lower = header.toLowerCase();
 	if (
 		lower.includes("select") ||

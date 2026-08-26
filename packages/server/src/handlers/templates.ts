@@ -1,5 +1,5 @@
 import { SqlClient, type SqlError } from "@effect/sql";
-import { NotFoundError } from "@notara/shared";
+import { fieldTypeSpec, NotFoundError } from "@notara/shared";
 import { Effect } from "effect";
 import { ulid } from "ulidx";
 import { PAGE_COLS, pageFromRow } from "../mappers.js";
@@ -687,10 +687,15 @@ const buildPage = (
 						const fieldId = fieldIdMap[fieldName];
 						if (!fieldId) continue;
 						const field = blockDef.fields.find((f) => f.name === fieldName);
-						const value =
-							field?.type === "multiSelect"
-								? JSON.stringify([rawValue])
-								: rawValue;
+						// How a value is stored for a field type is the registry's to
+						// say; this used to special-case multiSelect on its own.
+						const value = field
+							? fieldTypeSpec(field.type).encode(
+									fieldTypeSpec(field.type).encode([]) === "[]"
+										? [rawValue]
+										: rawValue,
+								)
+							: rawValue;
 						yield* sql`
               INSERT INTO record_field_values (id, record_id, field_id, value)
               VALUES (${ulid()}, ${recordId}, ${fieldId}, ${value})

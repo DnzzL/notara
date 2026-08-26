@@ -1,5 +1,5 @@
 import { SqlClient } from "@effect/sql";
-import { NotFoundError } from "@notara/shared";
+import { fieldTypeSpec, NotFoundError } from "@notara/shared";
 import { Effect } from "effect";
 import { ulid } from "ulidx";
 import {
@@ -14,47 +14,45 @@ import {
 } from "../mappers.js";
 import { publishViewConfigChange } from "../view-config-stream.js";
 
-/** Decode a stored cell value into the shape the client expects for its type.
- *  Total by construction: a malformed value (e.g. a bare string in a
- *  multiSelect column) degrades to a best-effort value instead of throwing,
- *  so one bad cell can never crash a whole record-list load. */
-const decodeFieldValue = (type: string, value: string): unknown => {
-	if (type === "number") return Number(value);
-	if (type === "checkbox") return value === "true";
-	if (type === "select") return value;
-	if (type === "multiSelect") {
-		if (!value) return [];
-		try {
-			const parsed = JSON.parse(value);
-			return Array.isArray(parsed) ? parsed : [String(parsed)]; // tolerate legacy bare value
-		} catch {
-			return value ? [value] : []; // never throw — degrade a bad cell to a 1-element array
-		}
-	}
-	return value;
-};
+/**
+ * Decode a stored cell for the API.
+ *
+ * The stored representations live in the field-type registry in
+ * @notara/shared, which the front end and the Notion importer read too — this
+ * used to be a fourth, slightly different copy of the same knowledge. It
+ * tolerated a malformed multiSelect by degrading to a one-element array rather
+ * than throwing, which the registry does as well; one bad cell must never crash
+ * a record-list load.
+ */
+const decodeFieldValue = (type: string, value: string): unknown =>
+	fieldTypeSpec(type).decode(value);
 
-/** Convert a stored cell value from one column type's storage format to
- *  another when a column's type changes. Lossless conversions only; anything
- *  else is left as-is (the read path tolerates it). Never throws. */
+/**
+ * Convert a stored cell when its column's type changes.
+ *
+ * Lossless conversions only; anything else is left as-is, since the read path
+ * tolerates it. Expressed as decode-then-encode through the registry, so a new
+ * field type gets migration for free instead of needing a case added here.
+ */
 const migrateFieldValue = (
 	oldType: string,
 	newType: string,
 	value: string,
 ): string => {
 	if (oldType === newType || !value) return value;
-	// select stores a bare string; multiSelect stores a JSON array.
-	if (oldType === "select" && newType === "multiSelect") {
-		return JSON.stringify([value]);
+
+	const from = fieldTypeSpec(oldType);
+	const to = fieldTypeSpec(newType);
+	const decoded = from.decode(value);
+
+	// Widening a single value into a list, or narrowing a list to its first
+	// entry, are the two conversions worth doing automatically. Anything else
+	// risks turning data into a plausible-looking wrong value.
+	if (!Array.isArray(decoded) && to.encode([]) === "[]") {
+		return to.encode([String(decoded ?? "")].filter(Boolean));
 	}
-	if (oldType === "multiSelect" && newType === "select") {
-		try {
-			const parsed = JSON.parse(value);
-			if (Array.isArray(parsed)) return parsed.length ? String(parsed[0]) : "";
-			return String(parsed);
-		} catch {
-			return value; // already a bare string
-		}
+	if (Array.isArray(decoded) && to.encode([]) !== "[]") {
+		return to.encode(decoded.length ? String(decoded[0]) : "");
 	}
 	return value;
 };

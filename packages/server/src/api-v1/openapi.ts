@@ -1,5 +1,6 @@
 // ── Inline OpenAPI 3.0.3 spec ─────────────────────────────────────────────────
 // This is a plain TypeScript object — no code generation, full type clarity.
+import { FIELD_TYPE_SPECS } from "@notara/shared";
 
 const BLOCK_TYPES = [
 	"paragraph",
@@ -20,17 +21,9 @@ const BLOCK_TYPES = [
 	"callout",
 ] as const;
 
-const FIELD_TYPES = [
-	"text",
-	"number",
-	"select",
-	"multiSelect",
-	"date",
-	"checkbox",
-	"relation",
-	"page",
-	"formula",
-] as const;
+// Derived, not restated. This list was a third independent declaration of the
+// field-type union and had already fallen behind — it was missing "people".
+const FIELD_TYPES = FIELD_TYPE_SPECS.map((s) => s.type);
 
 const schemas = {
 	Error: {

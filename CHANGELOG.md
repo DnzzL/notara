@@ -9,6 +9,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- **An empty number cell reads as `null` rather than `0`** (NOT-116). The server
+  decoded number cells with `Number(value)`, and `Number("")` is `0` — so a cell
+  nobody had filled in was indistinguishable from one deliberately set to zero,
+  in the API and in column aggregations alike. Both now go through the shared
+  field-type registry, which distinguishes them. If you sum a column over
+  `/api/v1`, empty cells no longer contribute a zero; totals are unchanged, but
+  "filled" and "empty" counts now mean what they say.
+
 - **BREAKING (`/api/v1`): block `content` is a string on the way out, and must be a string
   on the way in** (NOT-107). The REST adapter used to run `JSON.parse` on stored content
   and fall back to the raw string when that failed, so it returned an object for an image
