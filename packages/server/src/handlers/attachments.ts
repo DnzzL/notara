@@ -24,7 +24,8 @@ import { SqlClient } from "@effect/sql";
 import type { ApiError } from "@notara/shared";
 import { Effect } from "effect";
 import { WorkspaceDb } from "../db.js";
-import { PlatformDb } from "../platform-db.js";
+import * as Membership from "../membership.js";
+import type { PlatformDb } from "../platform-db.js";
 import { checkPagePermission } from "./permissions.js";
 
 /**
@@ -60,14 +61,10 @@ export const resolveReadableAttachment = (
 		const attachmentId = attachmentIdFromFileName(fileName);
 		if (!attachmentId) return null;
 
-		const db = yield* PlatformDb;
 		const wdb = yield* WorkspaceDb;
+		const memberships = yield* Membership.workspacesOf(userId);
 
-		const memberships = db
-			.prepare("SELECT workspace_id FROM workspace_members WHERE user_id = ?")
-			.all(userId) as Array<{ workspace_id: string }>;
-
-		for (const { workspace_id: workspaceId } of memberships) {
+		for (const workspaceId of memberships) {
 			const layer = wdb.getLayer(workspaceId);
 
 			const pageId = yield* Effect.gen(function* () {

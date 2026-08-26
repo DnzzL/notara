@@ -12,7 +12,8 @@ import {
 } from "@notara/shared";
 import { Effect } from "effect";
 import * as Acl from "../acl.js";
-import { PlatformDb } from "../platform-db.js";
+import * as Membership from "../membership.js";
+import type { PlatformDb } from "../platform-db.js";
 
 export type AclRelation = Acl.Relation;
 
@@ -29,16 +30,11 @@ const userSubjectStrings = (userId: string, workspaceId: string): string[] => [
 ];
 
 /**
- * Returns the effective relation a user has on a page, or null if denied
- * (non-member, or locked ancestor with no matching grant). Workspace owners
- * always resolve to "owner" without consulting ACLs.
+ * The relation a user effectively holds on a page, or null if they hold none.
  *
- * Resolution order:
- *   1. Non-members → null
- *   2. Workspace owners → "owner"
- *   3. Walk up the page tree; first page with acl_tuples entries is the
- *      "effective ACL owner" — match user subjects there
- *   4. No locked ancestor → workspace member role (editor)
+ * Membership comes from `membership.ts`, resolution from `acl.ts` — the rule
+ * order, and the fact that a lock refuses authoritatively rather than falling
+ * through, are declared there. See ADR-007.
  */
 export const resolveEffectiveRelation = (
 	userId: string,
@@ -46,18 +42,12 @@ export const resolveEffectiveRelation = (
 	pageId: string,
 ): Effect.Effect<AclRelation | null, never, PermissionsDeps> =>
 	Effect.gen(function* () {
-		const db = yield* PlatformDb;
-
-		const member = db
-			.prepare(
-				"SELECT role FROM workspace_members WHERE workspace_id = ? AND user_id = ?",
-			)
-			.get(workspaceId, userId) as { role: "owner" | "member" } | null;
+		const workspaceRole = yield* Membership.roleOf(userId, workspaceId);
 
 		// Resolution itself lives in acl.ts, where the rule order and the
 		// authoritative-deny case are stated rather than implied by control flow.
 		return yield* Acl.effectiveRelation(
-			{ userId, workspaceId, workspaceRole: member?.role ?? null },
+			{ userId, workspaceId, workspaceRole },
 			pageId,
 		);
 	});
@@ -79,7 +69,7 @@ export const checkPagePermission = (
 			pageId,
 		);
 		if (effective === null) {
-			const isMember = yield* checkIsMember(userId, workspaceId);
+			const isMember = yield* Membership.isMember(userId, workspaceId);
 			return yield* new AuthError({
 				status: 403,
 				message: isMember
@@ -93,17 +83,6 @@ export const checkPagePermission = (
 				message: "Insufficient permission",
 			});
 		}
-	});
-
-const checkIsMember = (userId: string, workspaceId: string) =>
-	Effect.gen(function* () {
-		const db = yield* PlatformDb;
-		const row = db
-			.prepare(
-				"SELECT 1 FROM workspace_members WHERE workspace_id = ? AND user_id = ?",
-			)
-			.get(workspaceId, userId);
-		return row !== null;
 	});
 
 /** Non-throwing variant for UI gating. */
@@ -177,19 +156,14 @@ export const filterPagesByPermission = <
 /** Fails with AuthError(403) if the caller is not a workspace owner. */
 export const requireWorkspaceOwner = (userId: string, workspaceId: string) =>
 	Effect.gen(function* () {
-		const db = yield* PlatformDb;
-		const member = db
-			.prepare(
-				"SELECT role FROM workspace_members WHERE workspace_id = ? AND user_id = ?",
-			)
-			.get(workspaceId, userId) as { role: "owner" | "member" } | null;
-		if (!member) {
+		const role = yield* Membership.roleOf(userId, workspaceId);
+		if (role === null) {
 			return yield* new AuthError({
 				status: 403,
 				message: "Not a member of this workspace",
 			});
 		}
-		if (member.role !== "owner") {
+		if (role !== "owner") {
 			return yield* new AuthError({
 				status: 403,
 				message: "Workspace owner role required",

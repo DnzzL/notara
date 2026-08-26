@@ -5,7 +5,7 @@ status: ready-for-agent
 assignee:
   - '@thomas'
 created_date: '2026-08-26 11:10'
-updated_date: '2026-08-26 13:20'
+updated_date: '2026-08-26 13:38'
 labels:
   - enhancement
 dependencies: []
@@ -91,4 +91,20 @@ Rejected — plain union. Removes the ability to restrict a subtree entirely and
 Notion was checked and does not settle it: the official help centre documents 'broadest level of access' about sharing SCOPES (a workspace-wide grant beating a weaker individual one), not about the page tree, and says only that a subpage inherits and that this can be changed. Third-party guides claim downward restriction works. Weak, contradictory signal either way.
 
 Everything else in this ticket stands unchanged: Policy module, CurrentUser tag, credential adapters, membership as tuples, deletion of withWorkspaceDb and the dead context resolver, migration of all four surfaces, unit-testable auth.
+
+DECISION (membership storage) — revised mid-implementation, on evidence not available when the ticket was written.
+
+The ticket called for workspace membership to become relation tuples. Counting the actual blast radius first: workspace_members is touched at 28 sites, including 4 JOINs (admin user list, admin workspace list, listMyWorkspaces, getWorkspaceMembers) and 5 test setups. It also sits in the PLATFORM database while acl_tuples is per-workspace, so workspace tuples would need a second platform-side tuple table.
+
+Decisive point: deduplicating the five identical membership queries is achieved either way. A Membership module with a single query removes them just as structurally as tuples do. What tuples add beyond that is narrower than the ticket implied — uniform resolution of the workspace:<id>#member subject (today matched as a string in subjectsOf rather than looked up), and future nested teamspaces or guest relations becoming data instead of schema.
+
+Chosen: a Membership module, storage unchanged. One membership query in the whole server, exposed as a relation at the interface. No data migration on the auth path in the week of a public launch.
+
+Accepted debt, recorded rather than hidden: the workspace:<id>#member subject is still string-matched in subjectsOf instead of resolving through the same path as every other subject. Worth revisiting if nested teamspaces are ever built — that is the trigger, not a date.
+
+CORRECTION to this ticket's own description: resolveWorkspaceContext is NOT dead. The exploration that produced this ticket reported zero callers; view-config-stream.ts:89 calls it, and it is the authorization path for the view-config SSE stream. Verified by grep before deleting anything.
+
+What IS unused is the WorkspaceContext Tag beside it — declared, never provided, never consumed, because the function returns a plain object instead. The Tag goes; the function stays and gets migrated like every other surface.
+
+Worth noting for the remaining tickets: this claim came from a subagent survey and was carried into the ticket text unchecked. Treat the file:line inventories in NOT-105 through NOT-122 as leads, not facts.
 <!-- SECTION:NOTES:END -->
