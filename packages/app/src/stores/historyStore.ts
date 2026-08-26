@@ -1,5 +1,6 @@
 import type { Block } from "@notara/shared";
 import { create } from "zustand";
+import { guarded } from "../lib/storeErrors.js";
 import { api } from "../rpc-client.js";
 import { useBlockStore } from "./blockStore.js";
 
@@ -31,15 +32,22 @@ async function apply(op: HistoryOp): Promise<HistoryOp | null> {
 	}
 	if (op.kind === "delete") {
 		// Re-create the block. Server assigns a fresh ULID, so the redo "create" carries the new block.
-		const recreated = await api.createBlock({
-			pageId: op.block.pageId,
-			type: op.block.type,
-			content: op.block.content,
-			index: op.block.index,
-			parentId: op.block.parentId,
-		});
+		// Both calls rethrow on failure: applyInverse's caller pops the undo stack
+		// only when the inverse succeeded. Swallowing here would lose the entry
+		// and leave the block deleted with no way back.
+		const recreated = await guarded("Failed to undo delete", () =>
+			api.createBlock({
+				pageId: op.block.pageId,
+				type: op.block.type,
+				content: op.block.content,
+				index: op.block.index,
+				parentId: op.block.parentId,
+			}),
+		);
 		// Refresh blocks since server shifted indices.
-		const fresh = await api.listBlocks({ pageId: op.block.pageId });
+		const fresh = await guarded("Failed to refresh blocks", () =>
+			api.listBlocks({ pageId: op.block.pageId }),
+		);
 		useBlockStore.setState({ blocks: fresh });
 		return { kind: "create", block: recreated };
 	}

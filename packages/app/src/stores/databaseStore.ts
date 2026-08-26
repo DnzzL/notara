@@ -6,6 +6,7 @@ import type {
 } from "@notara/shared";
 import { create } from "zustand";
 import type { Filter, Sort } from "../lib/filterEngine.js";
+import { guarded, reported } from "../lib/storeErrors.js";
 import {
 	parseViewConfig,
 	serializeViewConfig as serializeConfig,
@@ -165,18 +166,24 @@ export const useDatabaseStore = create<DatabaseState>((set, get) => ({
 	savedViewConfigByDb: {},
 
 	loadDatabases: async (pageId) => {
-		const databases = await api.listDatabases({ pageId });
-		set({ databases });
+		await reported("Failed to load databases", async () => {
+			const databases = await api.listDatabases({ pageId });
+			set({ databases });
+		});
 	},
 
 	createDatabase: async (pageId, name) => {
-		const db = await api.createDatabase({ pageId, name });
+		const db = await guarded("Failed to create database", () =>
+			api.createDatabase({ pageId, name }),
+		);
 		set((s) => ({ databases: [...s.databases, db] }));
 		return db;
 	},
 
 	renameDatabase: async (id, name) => {
-		await api.renameDatabase({ id, name });
+		await guarded("Failed to rename database", () =>
+			api.renameDatabase({ id, name }),
+		);
 		set((s) => ({
 			databases: s.databases.map((d) => (d.id === id ? { ...d, name } : d)),
 			currentDb:
@@ -185,7 +192,9 @@ export const useDatabaseStore = create<DatabaseState>((set, get) => ({
 	},
 
 	deleteDatabase: async (id) => {
-		await api.deleteDatabase({ id });
+		await guarded("Failed to delete database", () =>
+			api.deleteDatabase({ id }),
+		);
 		set((s) => ({
 			databases: s.databases.filter((d) => d.id !== id),
 			currentDb: s.currentDb?.id === id ? null : s.currentDb,
@@ -193,7 +202,9 @@ export const useDatabaseStore = create<DatabaseState>((set, get) => ({
 	},
 
 	reorderDatabases: async (pageId, databaseIds) => {
-		await api.reorderDatabases({ pageId, databaseIds });
+		await guarded("Failed to reorder databases", () =>
+			api.reorderDatabases({ pageId, databaseIds }),
+		);
 		if (get().currentDb) {
 			// Reload databases to get updated sort order — we need pageId from somewhere.
 			// For now, rely on the caller to ensure currentDb is valid.
@@ -201,12 +212,16 @@ export const useDatabaseStore = create<DatabaseState>((set, get) => ({
 	},
 
 	loadDbFields: async (databaseId) => {
-		const fields = await api.listFields({ databaseId });
-		set((s) => ({ fieldsByDb: { ...s.fieldsByDb, [databaseId]: fields } }));
+		await reported("Failed to load fields", async () => {
+			const fields = await api.listFields({ databaseId });
+			set((s) => ({ fieldsByDb: { ...s.fieldsByDb, [databaseId]: fields } }));
+		});
 	},
 
 	createField: async (req) => {
-		const field = await api.createField(req);
+		const field = await guarded("Failed to create field", () =>
+			api.createField(req),
+		);
 		set((s) => ({
 			fieldsByDb: {
 				...s.fieldsByDb,
@@ -216,12 +231,14 @@ export const useDatabaseStore = create<DatabaseState>((set, get) => ({
 	},
 
 	updateField: async (id, updates) => {
-		await api.updateField({ id, ...updates });
+		await guarded("Failed to update field", () =>
+			api.updateField({ id, ...updates }),
+		);
 		// Callers refetch fields for the affected database explicitly.
 	},
 
 	deleteField: async (databaseId, id) => {
-		await api.deleteField({ id });
+		await guarded("Failed to delete field", () => api.deleteField({ id }));
 		set((s) => ({
 			fieldsByDb: {
 				...s.fieldsByDb,
@@ -233,14 +250,18 @@ export const useDatabaseStore = create<DatabaseState>((set, get) => ({
 	},
 
 	loadDbRecords: async (databaseId) => {
-		const recordsWithValues = await api.listRecordsWithValues({ databaseId });
+		const recordsWithValues = await guarded("Failed to load records", () =>
+			api.listRecordsWithValues({ databaseId }),
+		);
 		set((s) => ({
 			recordsByDb: { ...s.recordsByDb, [databaseId]: recordsWithValues },
 		}));
 	},
 
 	createDbRecord: async (databaseId, title) => {
-		const record = await api.createRecord({ databaseId, title });
+		const record = await guarded("Failed to create record", () =>
+			api.createRecord({ databaseId, title }),
+		);
 		set((s) => ({
 			recordsByDb: {
 				...s.recordsByDb,
@@ -254,12 +275,14 @@ export const useDatabaseStore = create<DatabaseState>((set, get) => ({
 	},
 
 	updateFieldValue: async (recordId, fieldId, value) => {
-		await api.updateFieldValue({ recordId, fieldId, value });
+		await guarded("Failed to save cell", () =>
+			api.updateFieldValue({ recordId, fieldId, value }),
+		);
 		// Callers refetch records for the affected database explicitly.
 	},
 
 	deleteRecord: async (databaseId, id) => {
-		await api.deleteRecord({ id });
+		await guarded("Failed to delete record", () => api.deleteRecord({ id }));
 		set((s) => ({
 			recordsByDb: {
 				...s.recordsByDb,
@@ -271,12 +294,16 @@ export const useDatabaseStore = create<DatabaseState>((set, get) => ({
 	},
 
 	reorderRecords: async (databaseId, recordIds) => {
-		await api.reorderRecords({ databaseId, recordIds });
+		await guarded("Failed to reorder records", () =>
+			api.reorderRecords({ databaseId, recordIds }),
+		);
 		await get().loadDbRecords(databaseId);
 	},
 
 	loadDbViews: async (databaseId) => {
-		const views = await api.listViews({ databaseId });
+		const views = await guarded("Failed to load views", () =>
+			api.listViews({ databaseId }),
+		);
 		set((s) => ({
 			dbViewsByDb: { ...s.dbViewsByDb, [databaseId]: views },
 			dbViews: views,
@@ -309,14 +336,16 @@ export const useDatabaseStore = create<DatabaseState>((set, get) => ({
 		config,
 		isDefault,
 	) => {
-		const view = await api.createView({
-			databaseId,
-			name,
-			type,
-			groupByFieldId,
-			config: config ?? undefined,
-			isDefault,
-		});
+		const view = await guarded("Failed to create view", () =>
+			api.createView({
+				databaseId,
+				name,
+				type,
+				groupByFieldId,
+				config: config ?? undefined,
+				isDefault,
+			}),
+		);
 		set((s) => ({
 			dbViewsByDb: {
 				...s.dbViewsByDb,
@@ -328,7 +357,9 @@ export const useDatabaseStore = create<DatabaseState>((set, get) => ({
 	},
 
 	updateView: async (id, updates) => {
-		const view = await api.updateView({ id, ...updates });
+		const view = await guarded("Failed to update view", () =>
+			api.updateView({ id, ...updates }),
+		);
 		set((s) => {
 			// Find which database this view belongs to
 			let dbId = "";
@@ -368,7 +399,9 @@ export const useDatabaseStore = create<DatabaseState>((set, get) => ({
 	},
 
 	deleteView: async (databaseId, viewId) => {
-		await api.deleteView({ id: viewId });
+		await guarded("Failed to delete view", () =>
+			api.deleteView({ id: viewId }),
+		);
 		set((s) => ({
 			dbViewsByDb: {
 				...s.dbViewsByDb,
