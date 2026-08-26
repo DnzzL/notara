@@ -1,3 +1,19 @@
 [install]
 registry = "https://registry.npmjs.org"
 shamefully-hoist = true
+
+# No dependency runs code at install time.
+#
+# A postinstall script is arbitrary code executing with your credentials and
+# your network, triggered by a transitive version bump you never read. That is
+# the shape most recent npm supply-chain compromises have taken, and the blast
+# radius is a developer machine and whatever tokens it holds.
+#
+# Bun already declines to run dependency lifecycle scripts unless the package is
+# listed in `trustedDependencies` in package.json. Nothing is listed there, and
+# nothing should be added without a reason written down beside it.
+#
+# This repo also has no `postinstall` of its own. The two things installing used
+# to do — patching @effect/platform's MsgPack export, and registering git hooks —
+# are `bun run setup`, run deliberately after cloning. See CONTRIBUTING.md.
+trustedDependencies = []

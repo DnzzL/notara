@@ -335,6 +335,7 @@ Back up the entire `.data/` directory to keep everything.
 git clone https://github.com/dnzzl/notara
 cd notara
 bun install
+bun run setup   # patches a dependency, registers git hooks — see CONTRIBUTING.md
 
 # Terminal 1 — backend
 bun run dev:server

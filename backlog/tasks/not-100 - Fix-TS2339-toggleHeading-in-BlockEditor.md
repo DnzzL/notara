@@ -1,10 +1,10 @@
 ---
 id: NOT-100
 title: Fix TS2339 toggleHeading in BlockEditor
-status: ready-for-agent
+status: done
 assignee: []
 created_date: '2026-08-22 11:06'
-updated_date: '2026-08-26 14:52'
+updated_date: '2026-08-26 18:08'
 labels:
   - bug
 dependencies: []
@@ -20,9 +20,9 @@ packages/app/src/components/BlockEditor.tsx lines 514, 525, 536 fail typecheck: 
 
 ## Acceptance Criteria
 <!-- AC:BEGIN -->
-- [ ] #1 bun --bun tsc --noEmit -p packages/app reports zero errors
-- [ ] #2 bun run quickcheck passes, so pushing no longer needs --no-verify
-- [ ] #3 Heading blocks still toggle correctly in the editor, including for a remote viewer in live collab
+- [x] #1 bun --bun tsc --noEmit -p packages/app reports zero errors
+- [x] #2 bun run quickcheck passes, so pushing no longer needs --no-verify
+- [x] #3 Heading blocks still toggle correctly in the editor, including for a remote viewer in live collab
 <!-- AC:END -->
 
 ## Implementation Notes
@@ -37,6 +37,18 @@ The root package.json overrides pin every @tiptap/* to 2.11.0, which was presuma
 So the fix is probably a dependency-resolution one — bring @tiptap/suggestion into the overrides, or move it to a 2.x line — rather than adding the Heading extension. Worth checking whether the neighbouring 'as any' casts (StarterKit at BlockEditor.tsx:100, toggleCode at :505) are workarounds for the same split, in which case they can go with it.
 
 Note this blocks pre-push for everyone, not just for one branch: bun run quickcheck fails on a clean checkout of main, so every push needs --no-verify until it is fixed. That makes it worth more than its Medium priority suggests.
+
+RESOLVED, and my earlier root-cause note was WRONG. Correcting it rather than leaving it.
+
+I claimed the three @tiptap/core copies came from @tiptap/suggestion@3.x pulling core 3.x. Two things were false: suggestion declares core as a PEER dependency, not a dependency, and the divergent copy was 2.27.2 rather than 3.x. Neither is in bun.lock, which resolves @tiptap/core, @tiptap/starter-kit and @tiptap/extension-heading all to 2.11.0.
+
+The actual cause: a stale node_modules. The tree had @tiptap/starter-kit@2.11.0 whose own subtree linked @tiptap/core@2.27.2 and @tiptap/extension-heading@2.27.2 — resolutions predating the overrides block in package.json, never re-resolved. extension-heading@2.27.2 augments ChainedCommands on core@2.27.2, while packages/app is typed against core@2.11.0. Same interface name, two declarations, so toggleHeading existed at runtime and was invisible to the compiler.
+
+Fix: rm -rf node_modules packages/*/node_modules && bun install. One core copy afterwards, and both tsc -p packages/app and bun run quickcheck exit 0.
+
+Corroborating evidence I should have looked at first: CI passed on the PR branch throughout, because CI always installs clean. The failure was only ever local. Checking whether CI agreed with my machine would have found this in one command instead of a dependency-graph investigation.
+
+No dependency change was needed. What ships with this is documentation, so the next person recognises the shape: CONTRIBUTING now says to try a clean install before believing a type error that makes no sense, and explains why two copies of a package whose types augment each other produce exactly this.
 <!-- SECTION:NOTES:END -->
 
 ## Comments

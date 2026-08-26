@@ -17,8 +17,9 @@ jobs:
       - uses: actions/checkout@v6
       - uses: oven-sh/setup-bun@v2
 
-      # --ignore-scripts skips postinstall (simple-git-hooks is a local-dev concern);
-      # the msgpackr patch still has to be applied explicitly.
+      # --ignore-scripts is belt and braces: the repo has no postinstall and no
+      # trustedDependencies, so no dependency runs code at install time. The
+      # msgpackr patch is applied explicitly — see CONTRIBUTING.md.
       - run: bun install --frozen-lockfile --ignore-scripts
       - run: bun run apply-patches
 

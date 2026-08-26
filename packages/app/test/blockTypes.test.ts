@@ -13,6 +13,7 @@
 import { describe, expect, test } from "bun:test";
 import {
 	BLOCK_TYPE_CONFIG,
+	type BlockType,
 	blockTagForType,
 	blockTypeFromHtml,
 	wrapInlineHTML,
@@ -34,8 +35,14 @@ describe("the config covers every block type", () => {
 	test("default content is valid for the type that will parse it back", () => {
 		// A block created with its default content must read back as its own type,
 		// or the first keystroke silently changes what the block is.
-		for (const type of ["paragraph", "heading1", "heading2", "heading3"]) {
-			const config = BLOCK_TYPE_CONFIG[type as keyof typeof BLOCK_TYPE_CONFIG];
+		const parseable: BlockType[] = [
+			"paragraph",
+			"heading1",
+			"heading2",
+			"heading3",
+		];
+		for (const type of parseable) {
+			const config = BLOCK_TYPE_CONFIG[type];
 			expect(blockTypeFromHtml(config.defaultContent), type).toBe(type);
 		}
 	});
@@ -66,11 +73,14 @@ describe("wrapInlineHTML", () => {
 	});
 
 	test("round-trips through the type derived from the HTML", () => {
-		for (const type of ["heading1", "heading2", "blockquote", "paragraph"]) {
-			const html = wrapInlineHTML(
-				type as keyof typeof BLOCK_TYPE_CONFIG,
-				"x",
-			);
+		const roundTrippable: BlockType[] = [
+			"heading1",
+			"heading2",
+			"blockquote",
+			"paragraph",
+		];
+		for (const type of roundTrippable) {
+			const html = wrapInlineHTML(type, "x");
 			expect(blockTypeFromHtml(html), type).toBe(type);
 		}
 	});

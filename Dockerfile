@@ -26,8 +26,9 @@ COPY packages/electron/package.json ./packages/electron/
 
 COPY scripts/ ./scripts/
 
-# --ignore-scripts skips the root postinstall (`npx simple-git-hooks` needs a .git
-# dir that doesn't exist here); the msgpackr patch still has to be applied.
+# --ignore-scripts is belt and braces: this repo has no postinstall and no
+# trustedDependencies, so nothing should run anyway. The msgpackr patch is
+# applied explicitly rather than by a lifecycle hook — see CONTRIBUTING.md.
 RUN bun install --frozen-lockfile --no-cache --ignore-scripts
 RUN bun run apply-patches
 
