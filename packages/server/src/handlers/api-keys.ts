@@ -10,6 +10,7 @@ type ApiKeyRow = {
 	name: string;
 	key_hash: string;
 	key_prefix: string;
+	scope: "read" | "write";
 	created_at: string;
 	last_used_at: string | null;
 };
@@ -19,6 +20,7 @@ const toApiKey = (row: ApiKeyRow): ApiKey =>
 		id: row.id,
 		name: row.name,
 		keyPrefix: row.key_prefix,
+		scope: row.scope,
 		createdAt: row.created_at,
 		lastUsedAt: row.last_used_at,
 	});
@@ -34,7 +36,11 @@ export const listApiKeys = (userId: string) =>
 		return rows.map(toApiKey);
 	});
 
-export const createApiKey = (req: { userId: string; name: string }) =>
+export const createApiKey = (req: {
+	userId: string;
+	name: string;
+	scope: "read" | "write";
+}) =>
 	Effect.gen(function* () {
 		const db = yield* PlatformDb;
 		const id = ulid();
@@ -42,13 +48,14 @@ export const createApiKey = (req: { userId: string; name: string }) =>
 		const now = new Date().toISOString();
 
 		db.prepare(
-			"INSERT INTO api_keys (id, user_id, name, key_hash, key_prefix, created_at) VALUES (?, ?, ?, ?, ?, ?)",
-		).run(id, req.userId, req.name, hash, prefix, now);
+			"INSERT INTO api_keys (id, user_id, name, key_hash, key_prefix, scope, created_at) VALUES (?, ?, ?, ?, ?, ?, ?)",
+		).run(id, req.userId, req.name, hash, prefix, req.scope, now);
 
 		return new ApiKeyCreated({
 			id,
 			name: req.name,
 			keyPrefix: prefix,
+			scope: req.scope,
 			rawKey: raw,
 			createdAt: now,
 		});

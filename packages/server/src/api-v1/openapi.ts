@@ -455,7 +455,10 @@ Every request must be authenticated with one of:
    \`\`\`
    Authorization: Bearer ntr_<your-key>
    \`\`\`
-   Generate keys in your workspace settings → API keys.
+   Generate keys in your workspace settings → API keys. A key carries a scope:
+   a **read** key may only issue GET requests and gets \`403\` on anything that
+   changes state; a **write** key can do anything you can. The scope is fixed
+   when the key is created.
 
 2. **Session cookie**: if you're calling from a browser that is already signed in, the session cookie is sent automatically.
 
@@ -524,7 +527,7 @@ blank. If you have blocks created that way, rewrite them as HTML.
 				type: "http",
 				scheme: "bearer",
 				description:
-					"API key with `ntr_` prefix. Generate one in workspace settings.",
+					"API key with `ntr_` prefix. Generate one in workspace settings. A read-scoped key is refused with `403` on any request that changes state.",
 			},
 		},
 		schemas,

@@ -797,10 +797,10 @@ export const rpcHandlersLayer = AppRpc.toLayer({
 			const user = yield* getSessionUser;
 			return yield* ApiKeys.listApiKeys(user.id);
 		}).pipe(dieUnlessApiError),
-	createApiKey: ({ name }) =>
+	createApiKey: ({ name, scope }) =>
 		Effect.gen(function* () {
 			const user = yield* getSessionUser;
-			return yield* ApiKeys.createApiKey({ userId: user.id, name });
+			return yield* ApiKeys.createApiKey({ userId: user.id, name, scope });
 		}).pipe(dieUnlessApiError),
 	revokeApiKey: ({ id }) =>
 		Effect.gen(function* () {
