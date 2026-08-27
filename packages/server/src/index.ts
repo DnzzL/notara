@@ -30,7 +30,7 @@ import * as ImportExport from "./handlers/importExport.js";
 import { restoreBackup } from "./handlers/restore.js";
 import { loadSettings, saveSettings } from "./handlers/settings.js";
 import * as Upload from "./handlers/upload.js";
-import { failureResponse } from "./http-error.js";
+import { causeResponse, failureResponse } from "./http-error.js";
 import {
 	checkRateLimit,
 	corsHeaders,
@@ -162,24 +162,7 @@ const staticFilesRoute = Effect.gen(function* () {
 				...corsHeaders,
 			},
 		});
-	}).pipe(
-		Effect.catchAllCause((cause) => {
-			if (cause._tag === "Fail") {
-				return failureResponse(cause.error);
-			}
-			reportCause(cause);
-			return Effect.gen(function* () {
-				yield* Effect.logError("Unhandled error", cause);
-				return HttpServerResponse.text(
-					JSON.stringify({ error: "Something went wrong" }),
-					{
-						status: 500,
-						headers: { "Content-Type": "application/json", ...corsHeaders },
-					},
-				);
-			});
-		}),
-	);
+	}).pipe(Effect.catchAllCause(causeResponse));
 	// Auth mutation endpoints get a stricter rate limit (10 req/min per IP)
 	const authHandlerStrict = Effect.gen(function* () {
 		const req = yield* HttpServerRequest.HttpServerRequest;
@@ -269,24 +252,7 @@ const staticFilesRoute = Effect.gen(function* () {
 				return HttpServerResponse.text(JSON.stringify({ ok: true }), {
 					headers: { "Content-Type": "application/json", ...corsHeaders },
 				});
-			}).pipe(
-				Effect.catchAllCause((cause) => {
-					if (cause._tag === "Fail") {
-						return failureResponse(cause.error);
-					}
-					reportCause(cause);
-					return Effect.gen(function* () {
-						yield* Effect.logError("Unhandled error", cause);
-						return HttpServerResponse.text(
-							JSON.stringify({ error: "Something went wrong" }),
-							{
-								status: 500,
-								headers: { "Content-Type": "application/json", ...corsHeaders },
-							},
-						);
-					});
-				}),
-			),
+			}).pipe(Effect.catchAllCause(causeResponse)),
 		),
 	);
 
@@ -300,24 +266,7 @@ const staticFilesRoute = Effect.gen(function* () {
 				return HttpServerResponse.text(JSON.stringify(result), {
 					headers: { "Content-Type": "application/json", ...corsHeaders },
 				});
-			}).pipe(
-				Effect.catchAllCause((cause) => {
-					if (cause._tag === "Fail") {
-						return failureResponse(cause.error);
-					}
-					reportCause(cause);
-					return Effect.gen(function* () {
-						yield* Effect.logError("Unhandled error", cause);
-						return HttpServerResponse.text(
-							JSON.stringify({ error: "Something went wrong" }),
-							{
-								status: 500,
-								headers: { "Content-Type": "application/json", ...corsHeaders },
-							},
-						);
-					});
-				}),
-			),
+			}).pipe(Effect.catchAllCause(causeResponse)),
 		),
 	);
 
@@ -331,24 +280,7 @@ const staticFilesRoute = Effect.gen(function* () {
 				return HttpServerResponse.text(JSON.stringify(items), {
 					headers: { "Content-Type": "application/json", ...corsHeaders },
 				});
-			}).pipe(
-				Effect.catchAllCause((cause) => {
-					if (cause._tag === "Fail") {
-						return failureResponse(cause.error);
-					}
-					reportCause(cause);
-					return Effect.gen(function* () {
-						yield* Effect.logError("Unhandled error", cause);
-						return HttpServerResponse.text(
-							JSON.stringify({ error: "Something went wrong" }),
-							{
-								status: 500,
-								headers: { "Content-Type": "application/json", ...corsHeaders },
-							},
-						);
-					});
-				}),
-			),
+			}).pipe(Effect.catchAllCause(causeResponse)),
 		),
 	);
 
@@ -389,24 +321,7 @@ const staticFilesRoute = Effect.gen(function* () {
 				return HttpServerResponse.text(JSON.stringify(result), {
 					headers: { "Content-Type": "application/json", ...corsHeaders },
 				});
-			}).pipe(
-				Effect.catchAllCause((cause) => {
-					if (cause._tag === "Fail") {
-						return failureResponse(cause.error);
-					}
-					reportCause(cause);
-					return Effect.gen(function* () {
-						yield* Effect.logError("Unhandled error", cause);
-						return HttpServerResponse.text(
-							JSON.stringify({ error: "Something went wrong" }),
-							{
-								status: 500,
-								headers: { "Content-Type": "application/json", ...corsHeaders },
-							},
-						);
-					});
-				}),
-			),
+			}).pipe(Effect.catchAllCause(causeResponse)),
 		),
 	);
 
@@ -545,25 +460,7 @@ const staticFilesRoute = Effect.gen(function* () {
 					{ headers: { "Content-Type": "application/json", ...corsHeaders } },
 				);
 			}),
-		).pipe(
-			withPlatformServices,
-			Effect.catchAllCause((cause) => {
-				if (cause._tag === "Fail") {
-					return failureResponse(cause.error);
-				}
-				reportCause(cause);
-				return Effect.gen(function* () {
-					yield* Effect.logError("Unhandled error", cause);
-					return HttpServerResponse.text(
-						JSON.stringify({ error: "Something went wrong" }),
-						{
-							status: 500,
-							headers: { "Content-Type": "application/json", ...corsHeaders },
-						},
-					);
-				});
-			}),
-		),
+		).pipe(withPlatformServices, Effect.catchAllCause(causeResponse)),
 	);
 
 	// File upload route. Client sends raw bytes; metadata travels in headers.
@@ -617,26 +514,7 @@ const staticFilesRoute = Effect.gen(function* () {
 				headers: { "Content-Type": "application/json", ...corsHeaders },
 			});
 		}),
-	).pipe(
-		withPlatformServices,
-		Effect.catchAllCause((cause) => {
-			if (cause._tag === "Fail") {
-				// 401/403 from the chokepoint must not be flattened into a 500.
-				return failureResponse(cause.error);
-			}
-			reportCause(cause);
-			return Effect.gen(function* () {
-				yield* Effect.logError("Unhandled error", cause);
-				return HttpServerResponse.text(
-					JSON.stringify({ error: "Something went wrong" }),
-					{
-						status: 500,
-						headers: { "Content-Type": "application/json", ...corsHeaders },
-					},
-				);
-			});
-		}),
-	);
+	).pipe(withPlatformServices, Effect.catchAllCause(causeResponse));
 	yield* router.add(
 		"POST",
 		"/api/upload",

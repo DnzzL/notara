@@ -5,7 +5,7 @@ status: done
 assignee:
   - '@thomas'
 created_date: '2026-08-26 11:13'
-updated_date: '2026-08-26 20:14'
+updated_date: '2026-08-27 07:29'
 labels:
   - enhancement
 dependencies: []
@@ -23,7 +23,7 @@ Extend the transport to cover the REST-only endpoints — upload, import, backup
 
 ## Acceptance Criteria
 <!-- AC:BEGIN -->
-- [x] #1 Every network call in the app goes through the transport module
+- [ ] #1 Every network call in the app goes through the transport module
 - [x] #2 Error extraction is defined once, not per call site
 - [x] #3 Upload, import, backup and admin endpoints are reachable through the transport with typed failures
 - [ ] #4 Uploading a file, running an import and triggering a backup all still work from the UI
@@ -53,6 +53,17 @@ Two defects fixed on the way, neither in the ticket:
 - admin fetchData checked only the users response for 403, so a workspaces call failing another way surfaced as a crash rather than a message
 
 COVERAGE GAP, stated rather than glossed: the uploader and import-modal changes are covered by the transport's unit tests, not by an end-to-end run through the UI. The chromium E2E project cannot run on this machine — auth.setup.ts fails on local .data state, confirmed identical before these changes — and wiping that data is not mine to do. The server-side upload and import paths are covered by 18 passing E2E.
+
+CORRECTED after code review, which was right on both counts.
+
+AC 1 ("Every network call in the app goes through the transport module") was checked and should not have been. Four raw fetches remain: rpc-client (the RPC transport itself), the restore liveness poll, and the two presence calls. Three are justified in-code and one is a different transport — but the AC as worded is not met, and ticking it made the ticket claim more than the commit message did. Unchecked.
+
+AC 4 ("Uploading a file, running an import and triggering a backup all still work from the UI") stays unchecked and the ticket stays done, deliberately: the server-side paths are covered by 18 E2E, the transport by 9 unit tests, and the UI path cannot be exercised on this machine. That gap is stated rather than closed. If it should block the ticket instead, reopen it.
+
+Three review findings on the code were real and are fixed in a follow-up commit:
+- failureMessage contradicted its own comment: a JSON body without error or message returned raw untruncated JSON with no status. Now every unrecognised body keeps the status and is truncated.
+- uploader relied on contextual inference for restCall\s type parameter where every other site passes it explicitly. Now restCall<UploadResult>.
+- The eight identical catchAllCause blocks in index.ts — flagged as Shotgun Surgery, and fair, since the reporting seam was NOT-121\s whole subject. Extracted as causeResponse in http-error.ts. The attachments route keeps its own, which answers 404 rather than 500 so as not to admit the file exists.
 <!-- SECTION:NOTES:END -->
 
 ## Final Summary

@@ -147,7 +147,12 @@ test("no REST route serves a caller who is not a workspace member", async ({
 		recordId: record.id,
 	};
 
-	const served: string[] = [];
+	// Only a refusal counts as a refusal. Accepting "anything >= 400" would let a
+	// 500 from a crash — or a 400 from body validation ordered BEFORE the guard —
+	// stand in for authorization that never ran, and this test would keep passing
+	// after the guard was deleted.
+	const REFUSALS = [401, 403, 404];
+	const wrong: string[] = [];
 
 	for (const route of ROUTES) {
 		const url = fill(route.path, fixture);
@@ -155,18 +160,16 @@ test("no REST route serves a caller who is not a workspace member", async ({
 			data: fillBody(route.body, fixture),
 		});
 
-		// 403 is the honest answer; 404 is acceptable where the route refuses by
-		// declining to admit the resource exists. Anything 2xx is a leak.
-		if (res.status() < 400) {
-			served.push(
+		if (!REFUSALS.includes(res.status())) {
+			wrong.push(
 				`${route.method.toUpperCase()} ${route.path} → ${res.status()}`,
 			);
 		}
 	}
 
 	expect(
-		served,
-		`REST routes served a non-member:\n  ${served.join("\n  ")}`,
+		wrong,
+		`these did not refuse a non-member with 401/403/404:\n  ${wrong.join("\n  ")}`,
 	).toEqual([]);
 });
 

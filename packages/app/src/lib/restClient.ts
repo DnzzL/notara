@@ -50,13 +50,18 @@ async function failureMessage(response: Response): Promise<string> {
 	try {
 		const text = await response.text();
 		if (!text) return fallback;
+		// Anything that is not a recognised message keeps the status, and is
+		// truncated: neither an HTML error page nor an unrecognised JSON body is
+		// a useful toast at full length.
+		const shorten = (body: string) =>
+			`${fallback}: ${body.length > 300 ? `${body.slice(0, 300)}…` : body}`;
 		try {
 			const parsed = JSON.parse(text);
-			return parsed?.error || parsed?.message || text;
+			const stated = parsed?.error || parsed?.message;
+			return typeof stated === "string" && stated ? stated : shorten(text);
 		} catch {
-			// Not JSON: a proxy error page, or a bare string. Keep it short — the
-			// whole of an HTML error page is not a useful toast.
-			return text.length > 300 ? `${text.slice(0, 300)}…` : text;
+			// Not JSON: a proxy error page, or a bare string.
+			return shorten(text);
 		}
 	} catch {
 		return fallback;

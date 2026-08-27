@@ -5,7 +5,7 @@ status: ready-for-agent
 assignee:
   - '@thomas'
 created_date: '2026-08-26 11:13'
-updated_date: '2026-08-26 20:19'
+updated_date: '2026-08-27 07:29'
 labels:
   - enhancement
 dependencies:
@@ -62,4 +62,8 @@ Also confirmed while writing it: no REST route is currently unguarded. Each of t
 WHAT REMAINS, and why it was right to stop. The table (AC1-3) means rewriting 28 route bodies and deriving the OpenAPI document from them. That is safe to attempt NOW and was not before: the audit plus the existing parity test give it a net. Attempting it in the same pass as building its net would have meant rewriting 28 routes against tests written minutes earlier, with no independent check that either was right.
 
 I also wrote and then removed an inWorkspace helper — the single-acquisition counterpart to withAuthedWorkspace — because leaving it unused is worse than not adding it. It belongs in the same change as the route rewrite.
+
+CORRECTED after code review. The audit was too lenient: it treated any status >= 400 as a refusal, so a 500 from a crash, or a 400 from body validation ordered before the guard, would have stood in for authorization that never ran — and the test would have kept passing after a guard was deleted. It now requires 401, 403 or 404 specifically. All 28 routes still pass, so the leniency was not hiding anything, but the test is worth something now.
+
+Also raised, and worth recording rather than fixing: the coverage cross-check reads openapi.json rather than the router, so a route registered but undocumented escapes both tests. The parity test in NOT-106 closes that transitively by asserting the document and the router agree — but it is a chain of two tests rather than one direct check. Worth collapsing when the operation table lands and the document becomes derived.
 <!-- SECTION:NOTES:END -->

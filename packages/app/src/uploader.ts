@@ -22,7 +22,7 @@ export async function uploadFile(
 		"X-File-Name": encodeURIComponent(file.name),
 	};
 	// X-Workspace-Id is added by the transport.
-	return await restCall("/api/upload", {
+	return await restCall<UploadResult>("/api/upload", {
 		method: "POST",
 		headers,
 		body: buffer,

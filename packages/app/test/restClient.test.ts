@@ -63,6 +63,20 @@ describe("restCall", () => {
 		await expect(restCall("/api/settings")).rejects.toThrow(/503/);
 	});
 
+	test("keeps the status when a JSON body states no message", async () => {
+		// The comment on the fallback claimed the status is always there. It was
+		// not, for a JSON body without error or message — the shape a handler
+		// returning a bare object produces.
+		stub(json({ detail: "something else" }, 422));
+		await expect(restCall("/api/settings")).rejects.toThrow(/422/);
+	});
+
+	test("truncates a long failure body rather than toasting a whole page", async () => {
+		stub(new Response("x".repeat(5000), { status: 500 }));
+		const failure: unknown = await restCall("/api/settings").catch((e) => e);
+		expect((failure as Error).message.length).toBeLessThan(400);
+	});
+
 	test("survives a success body that is not JSON", async () => {
 		// DELETE endpoints answer 204 with no body; parsing it must not throw.
 		stub(new Response("", { status: 204 }));
