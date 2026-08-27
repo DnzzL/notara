@@ -8,6 +8,7 @@ import {
 import { createAuthClient } from "better-auth/react";
 import { useEffect, useState } from "react";
 import { useSession } from "../auth-client.js";
+import { AboutPanel } from "../components/AboutPanel.js";
 import { ApiKeysPanel } from "../components/ApiKeysPanel.js";
 import { BackupsPanel } from "../components/BackupsPanel.js";
 import { Button } from "../components/ui/index.js";
@@ -39,7 +40,9 @@ function WorkspaceSettingsPage() {
 	const [inviteSent, setInviteSent] = useState(false);
 	const [loading, setLoading] = useState(true);
 	const [notFound, setNotFound] = useState(false);
-	const [tab, setTab] = useState<"members" | "apiKeys" | "backups">("members");
+	const [tab, setTab] = useState<"members" | "apiKeys" | "backups" | "about">(
+		"members",
+	);
 
 	useEffect(() => {
 		api.getMyWorkspaces().then((ws) => {
@@ -191,6 +194,7 @@ function WorkspaceSettingsPage() {
 									["members", "Members"],
 									["apiKeys", "API keys"],
 									["backups", "Backups"],
+									["about", "About"],
 								] as const
 							).map(([key, label]) => (
 								<button
@@ -207,6 +211,7 @@ function WorkspaceSettingsPage() {
 
 						{tab === "apiKeys" && <ApiKeysPanel />}
 						{tab === "backups" && <BackupsPanel />}
+						{tab === "about" && <AboutPanel />}
 
 						{tab === "members" && (
 							<>

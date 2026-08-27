@@ -184,6 +184,11 @@ export const BlockNavigationExtension = Extension.create<{
 						return true;
 					}
 					const splitResult = splitListAtCursor(editor, pos, liveType);
+					// Truncate this editor to the "before" half first — same race as
+					// the paragraph branch below. Its own debounced save still holds
+					// the whole pre-split line and would land after splitBlock,
+					// restoring it and leaving the text in both items (NOT-96).
+					editor.commands.setContent(splitResult.before, false);
 					splitBlock?.(splitResult.before, splitResult.after, liveType);
 					return true;
 				}
@@ -201,6 +206,8 @@ export const BlockNavigationExtension = Extension.create<{
 						return true;
 					}
 					const splitResult = splitTodoAtCursor(editor, pos);
+					// Same truncation, same reason (NOT-96).
+					editor.commands.setContent(splitResult.before, false);
 					splitBlock?.(splitResult.before, splitResult.after, "todo");
 					return true;
 				}
@@ -214,7 +221,6 @@ export const BlockNavigationExtension = Extension.create<{
 					// save still holds the whole pre-split line, and would otherwise land
 					// after splitBlock and restore it — leaving the text in both blocks.
 					// emitUpdate=false so this doesn't schedule yet another save.
-					// The list and todo branches above carry the same race (NOT-96).
 					editor.commands.setContent(splitResult.before, false);
 					splitBlock?.(splitResult.before, splitResult.after, "paragraph");
 					return true;

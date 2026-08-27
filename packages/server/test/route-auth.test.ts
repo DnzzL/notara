@@ -119,10 +119,27 @@ describe("public routes stay reachable", () => {
 		expect((await call("GET", "/health")).status).toBe(200);
 	});
 
-	test("GET /api/public-config exposes only demoMode", async () => {
+	test("GET /api/public-config exposes only what an anonymous caller may see", async () => {
+		// This endpoint is unauthenticated by design, so the assertion is on the
+		// exact key set: anything added here is added for the whole internet.
+		// demoMode drives the landing CTA; the other three are the AGPL section 13
+		// disclosure (NOT-98), which is meant to be public.
 		const res = await call("GET", "/api/public-config");
 		expect(res.status).toBe(200);
-		expect(Object.keys(await res.json())).toEqual(["demoMode"]);
+		expect(Object.keys(await res.json()).sort()).toEqual([
+			"demoMode",
+			"licence",
+			"sourceUrl",
+			"version",
+		]);
+	});
+
+	test("the source URL an operator publishes is the one they configured", async () => {
+		// An operator running a modified build owes users THEIR source, not ours.
+		const res = await call("GET", "/api/public-config");
+		const config = (await res.json()) as { sourceUrl: string; licence: string };
+		expect(config.sourceUrl).toMatch(/^https?:\/\//);
+		expect(config.licence).toBe("AGPL-3.0-or-later");
 	});
 });
 
