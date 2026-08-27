@@ -18,7 +18,16 @@ export default defineConfig(({ mode }) => {
 			VitePWA({
 				registerType: "autoUpdate",
 				devOptions: {
-					enabled: true,
+					// Off in dev. The plugin's own dependency chain (workbox → tempy →
+					// unique-string) fails to resolve under the dev server, and Vite
+					// answers with an error overlay that sits over the whole page and
+					// swallows every click. That is what made the entire chromium E2E
+					// project untestable locally (NOT-126) — the suite was fine, the
+					// page underneath it was unreachable.
+					//
+					// Production builds are unaffected and keep the service worker;
+					// `vite build` resolves the same chain without complaint.
+					enabled: false,
 				},
 				includeAssets: [
 					"favicon.svg",
