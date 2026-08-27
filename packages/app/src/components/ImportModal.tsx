@@ -10,7 +10,7 @@ import {
 import { Portal } from "@ark-ui/react/portal";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { capture, captureException } from "../analytics.js";
-import { getCurrentWorkspaceId } from "../rpc-client.js";
+import { restCall } from "../lib/restClient.js";
 import { toaster } from "../toaster.js";
 import { Button } from "./ui/index.js";
 
@@ -57,21 +57,18 @@ export function ImportModal({ open, onClose }: ImportModalProps) {
 		capture("import_started");
 
 		try {
-			const workspaceId = getCurrentWorkspaceId();
-			const importHeaders: Record<string, string> = {
-				"Content-Type": "application/zip",
-				"Content-Disposition": `attachment; filename="${file.name}"`,
-			};
-			if (workspaceId) importHeaders["X-Workspace-Id"] = workspaceId;
-			const resp = await fetch("/import-notion", {
+			// X-Workspace-Id is added by the transport.
+			const data = await restCall<{
+				pagesImported: number;
+				databasesImported: number;
+			}>("/import-notion", {
 				method: "POST",
-				headers: importHeaders,
+				headers: {
+					"Content-Type": "application/zip",
+					"Content-Disposition": `attachment; filename="${file.name}"`,
+				},
 				body: file,
 			});
-			const data = await resp.json();
-			if (!resp.ok) {
-				throw new Error(data.error || "Import failed");
-			}
 			if (data.pagesImported === 0 && data.databasesImported === 0) {
 				throw new Error(
 					"Nothing was imported. Make sure the export contains .md, .html, or .csv files.",

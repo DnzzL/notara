@@ -7,8 +7,9 @@
  */
 import * as HttpServerResponse from "@effect/platform/HttpServerResponse";
 import { type ApiError, isApiError } from "@notara/shared";
+import { type Cause, Effect } from "effect";
 import { corsHeaders } from "./middleware.js";
-import { reportError } from "./observability.js";
+import { reportCause, reportError } from "./observability.js";
 
 const JSON_HEADERS = { "Content-Type": "application/json", ...corsHeaders };
 
@@ -37,4 +38,28 @@ export const failureResponse = (error: unknown) => {
 	if (isApiError(error)) return jsonError(statusOf(error), error.message);
 	reportError(error);
 	return jsonError(500, String(error));
+};
+
+/**
+ * One place that turns a failed *effect* into a response.
+ *
+ * A declared API failure keeps its own status; anything else is an incident —
+ * reported with the Cause intact, logged, and answered with a generic 500 that
+ * says nothing about the internals.
+ *
+ * This existed eight times, character-identical, in index.ts. Eight one-line
+ * edits to make one change is the definition of the smell, and it is the seam
+ * NOT-121 was about.
+ */
+export const causeResponse = (
+	cause: Cause.Cause<unknown>,
+): Effect.Effect<HttpServerResponse.HttpServerResponse> => {
+	if (cause._tag === "Fail") {
+		return Effect.succeed(failureResponse((cause as { error: unknown }).error));
+	}
+	reportCause(cause);
+	return Effect.gen(function* () {
+		yield* Effect.logError("Unhandled error", cause);
+		return jsonError(500, "Something went wrong");
+	});
 };

@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useState } from "react";
+import { restCall } from "../lib/restClient.js";
 import { toaster } from "../toaster.js";
 import { Button } from "./ui/index.js";
 
@@ -63,8 +64,7 @@ export function BackupsPanel() {
 
 	useEffect(() => {
 		setLastBackup(localStorage.getItem(LAST_BACKUP_KEY));
-		fetch("/api/settings")
-			.then((r) => r.json())
+		restCall<Partial<S3Settings>>("/api/settings")
 			.then((data) => setSettings({ ...DEFAULTS, ...data }))
 			.catch(() => {});
 	}, []);
@@ -74,8 +74,7 @@ export function BackupsPanel() {
 	// setBackups triggered another render, and the panel hammered
 	// /api/backup/list about ten times a second for as long as it stayed open.
 	const loadBackups = useCallback(() => {
-		fetch("/api/backup/list")
-			.then((r) => (r.ok ? r.json() : []))
+		restCall<unknown>("/api/backup/list")
 			.then((data) => Array.isArray(data) && setBackups(data))
 			.catch(() => {});
 	}, []);
@@ -90,12 +89,10 @@ export function BackupsPanel() {
 	const handleSave = async () => {
 		setSaveStatus("saving");
 		try {
-			const resp = await fetch("/api/settings", {
+			await restCall("/api/settings", {
 				method: "POST",
-				headers: { "Content-Type": "application/json" },
 				body: JSON.stringify(settings),
 			});
-			if (!resp.ok) throw new Error(await resp.text());
 			setSaveStatus("saved");
 			setTimeout(() => setSaveStatus("idle"), 2000);
 		} catch (err) {
@@ -113,9 +110,11 @@ export function BackupsPanel() {
 		setBackupStatus("running");
 		setBackupMessage("Uploading backup…");
 		try {
-			const resp = await fetch("/api/backup/trigger", { method: "POST" });
-			const data = await resp.json();
-			if (!resp.ok) throw new Error(data.error || "Backup failed");
+			const data = await restCall<{
+				key: string;
+				size: number;
+				timestamp: string;
+			}>("/api/backup/trigger", { method: "POST" });
 			const ts = new Date(data.timestamp).toLocaleString();
 			localStorage.setItem(LAST_BACKUP_KEY, ts);
 			setLastBackup(ts);
@@ -154,13 +153,10 @@ export function BackupsPanel() {
 		setRestoreStatus("running");
 		setRestoreMessage("Snapshotting current state, then restoring…");
 		try {
-			const resp = await fetch("/api/backup/restore", {
+			const data = await restCall<{ snapshot: string }>("/api/backup/restore", {
 				method: "POST",
-				headers: { "Content-Type": "application/json" },
 				body: JSON.stringify({ key: selectedKey }),
 			});
-			const data = await resp.json();
-			if (!resp.ok) throw new Error(data.error || "Restore failed");
 			setRestoreStatus("done");
 			setRestoreMessage(
 				"Restored. The server is restarting — reloading shortly…",
@@ -174,6 +170,8 @@ export function BackupsPanel() {
 			const start = Date.now();
 			const poll = setInterval(async () => {
 				try {
+					// Raw fetch on purpose: this polls a server that is expected to be
+					// down, so a transport that throws on failure is the wrong tool.
 					const h = await fetch("/health", { cache: "no-store" });
 					if (h.ok) {
 						clearInterval(poll);

@@ -1,6 +1,7 @@
 import { createRoute, redirect } from "@tanstack/react-router";
 import { createAuthClient } from "better-auth/react";
 import { LandingPage } from "../components/LandingPage.js";
+import { restCall } from "../lib/restClient.js";
 import { api } from "../rpc-client.js";
 import { Route as rootRoute } from "./__root.js";
 
@@ -10,9 +11,11 @@ export const Route = createRoute({
 	loader: async () => {
 		// Runtime, not build-time: one published image serves demo and non-demo
 		// instances, so the CTA cannot be compiled in or out.
-		const demoMode = await fetch("/api/public-config")
-			.then((r) => r.json())
+		const demoMode = await restCall<{ demoMode?: boolean }>(
+			"/api/public-config",
+		)
 			.then((c) => c.demoMode === true)
+			// A landing page that cannot reach the server still has to render.
 			.catch(() => false);
 		const client = createAuthClient({ baseURL: window.location.origin });
 		const session = await client.getSession();

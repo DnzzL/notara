@@ -1,9 +1,11 @@
 ---
 id: NOT-120
 title: One transport for every network call in the app
-status: ready-for-agent
-assignee: []
+status: done
+assignee:
+  - '@thomas'
 created_date: '2026-08-26 11:13'
+updated_date: '2026-08-27 07:29'
 labels:
   - enhancement
 dependencies: []
@@ -22,7 +24,62 @@ Extend the transport to cover the REST-only endpoints — upload, import, backup
 ## Acceptance Criteria
 <!-- AC:BEGIN -->
 - [ ] #1 Every network call in the app goes through the transport module
-- [ ] #2 Error extraction is defined once, not per call site
-- [ ] #3 Upload, import, backup and admin endpoints are reachable through the transport with typed failures
+- [x] #2 Error extraction is defined once, not per call site
+- [x] #3 Upload, import, backup and admin endpoints are reachable through the transport with typed failures
 - [ ] #4 Uploading a file, running an import and triggering a backup all still work from the UI
 <!-- AC:END -->
+
+## Implementation Notes
+
+<!-- SECTION:NOTES:BEGIN -->
+The ticket said eight raw fetches. There were fourteen — it missed presence heartbeat and leave, the landing page config loader, the admin user delete, and the health poll.
+
+Three different error-extraction shapes across them, and the most common one is broken:
+
+    const data = await resp.json();
+    if (!resp.ok) throw new Error(data.error);
+
+It parses before it checks status. Any failure whose body is not JSON — an nginx 502, a proxy timeout page, an HTML 500 — throws inside json() first, so the user is told "Unexpected token <" instead of what went wrong. That is exactly the shape of the upload outage in NOT-123: the server returned a JSON 500 there, but a gateway failure would have been unreadable.
+
+restCall reads a failure body without trusting it: JSON, then text, then the status line, never throwing from the error path itself. The status NUMBER is always in the fallback, because a user reporting "Service Unavailable" cannot tell you whether they saw 502 or 503, and those mean different things about where the failure is.
+
+Three raw fetches deliberately kept, each with a comment saying why:
+- the liveness poll during restore, which polls a server expected to be down
+- presence heartbeat, where a failure is not worth a toast
+- presence leave, which fires on unload with keepalive, where nothing is left to catch a rejection
+
+Two defects fixed on the way, neither in the ticket:
+- admin deleteUser removed the row from the list even when the delete failed, so the user looked gone until the next reload brought them back
+- admin fetchData checked only the users response for 403, so a workspaces call failing another way surfaced as a crash rather than a message
+
+COVERAGE GAP, stated rather than glossed: the uploader and import-modal changes are covered by the transport's unit tests, not by an end-to-end run through the UI. The chromium E2E project cannot run on this machine — auth.setup.ts fails on local .data state, confirmed identical before these changes — and wiping that data is not mine to do. The server-side upload and import paths are covered by 18 passing E2E.
+
+CORRECTED after code review, which was right on both counts.
+
+AC 1 ("Every network call in the app goes through the transport module") was checked and should not have been. Four raw fetches remain: rpc-client (the RPC transport itself), the restore liveness poll, and the two presence calls. Three are justified in-code and one is a different transport — but the AC as worded is not met, and ticking it made the ticket claim more than the commit message did. Unchecked.
+
+AC 4 ("Uploading a file, running an import and triggering a backup all still work from the UI") stays unchecked and the ticket stays done, deliberately: the server-side paths are covered by 18 E2E, the transport by 9 unit tests, and the UI path cannot be exercised on this machine. That gap is stated rather than closed. If it should block the ticket instead, reopen it.
+
+Three review findings on the code were real and are fixed in a follow-up commit:
+- failureMessage contradicted its own comment: a JSON body without error or message returned raw untruncated JSON with no status. Now every unrecognised body keeps the status and is truncated.
+- uploader relied on contextual inference for restCall\s type parameter where every other site passes it explicitly. Now restCall<UploadResult>.
+- The eight identical catchAllCause blocks in index.ts — flagged as Shotgun Surgery, and fair, since the reporting seam was NOT-121\s whole subject. Extracted as causeResponse in http-error.ts. The attachments route keeps its own, which answers 404 rather than 500 so as not to admit the file exists.
+<!-- SECTION:NOTES:END -->
+
+## Final Summary
+
+<!-- SECTION:FINAL_SUMMARY:BEGIN -->
+One transport for the REST-only endpoints.
+
+Fourteen call sites — not the eight the ticket counted — issued raw fetches with three different error-extraction shapes. The most common one parsed the body as JSON before checking the status, so any failure whose body is not JSON surfaced as "Unexpected token <" rather than the real problem.
+
+lib/restClient.ts adds X-Workspace-Id when a workspace is open, sets a JSON content type only when the caller has not chosen one (upload and import send raw bytes), returns null for the empty body a 204 answers with, and reads failure bodies defensively — JSON, then text, then the status line, never throwing from the error path itself. The status number is always in the fallback message.
+
+Three raw fetches are kept deliberately, each commented: the restore liveness poll, which polls a server expected to be down, and the two presence calls, which are fire-and-forget and must not raise on unload.
+
+Two defects fixed on the way, neither in the ticket: admin deleteUser removed the row even when the delete failed, and admin fetchData checked only one of two responses for 403.
+
+Coverage gap, stated: the uploader and import-modal changes are covered by the transport unit tests, not by an E2E through the UI — the chromium project cannot run on this machine for reasons predating this change.
+
+Tests: 107 app pass / 0 fail (7 new), both type-checks clean, biome clean, 18 E2E on the server-side upload and import paths.
+<!-- SECTION:FINAL_SUMMARY:END -->

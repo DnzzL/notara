@@ -1,4 +1,4 @@
-import { HashMap, Layer, List, Logger, LogLevel } from "effect";
+import { Cause, HashMap, Layer, List, Logger, LogLevel } from "effect";
 import { PostHog } from "posthog-node";
 
 const posthogKey = process.env.POSTHOG_KEY?.trim();
@@ -29,6 +29,42 @@ if (enabled) {
 	process.on("SIGTERM", shutdown);
 	process.on("SIGINT", shutdown);
 	process.on("beforeExit", shutdown);
+}
+
+/**
+ * Turn an Effect `Cause` into something worth reporting.
+ *
+ * Call sites used to do `reportError(new Error(cause.toString()))`, which threw
+ * away everything: the original error's type and stack, and the Cause's
+ * structure — defect or failure, one branch or two. What reached PostHog was a
+ * synthetic Error whose stack pointed at the line that built it.
+ *
+ * `squash` recovers the thing actually thrown, so its stack survives. The
+ * pretty-printed cause rides along as context, because squashing loses the
+ * shape: a parallel failure keeps only one of its branches.
+ */
+export function causeToReport(cause: Cause.Cause<unknown>): {
+	error: unknown;
+	context: { cause: string; interrupted: boolean };
+} {
+	// Interruption first: squashing an interrupt-only cause throws, so reporting
+	// a cancelled request would crash the error reporter itself.
+	const interrupted = Cause.isInterruptedOnly(cause);
+	return {
+		error: interrupted ? new Error("Interrupted") : Cause.squash(cause),
+		context: {
+			cause: Cause.pretty(cause),
+			// A cancelled request is not an incident. Labelled rather than
+			// suppressed, so the noise is filterable instead of invisible.
+			interrupted,
+		},
+	};
+}
+
+/** Report a Cause with its structure intact. Prefer this over reportError. */
+export function reportCause(cause: Cause.Cause<unknown>): void {
+	const { error, context } = causeToReport(cause);
+	reportError(error, context);
 }
 
 /** Report an error to PostHog if configured; always logs to stderr. */

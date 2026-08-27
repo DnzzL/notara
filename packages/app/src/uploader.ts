@@ -1,4 +1,4 @@
-import { getCurrentWorkspaceId } from "./rpc-client.js";
+import { restCall } from "./lib/restClient.js";
 
 /**
  * Upload a file to the server. Returns the created block's metadata.
@@ -21,22 +21,12 @@ export async function uploadFile(
 		"X-Page-Id": pageId,
 		"X-File-Name": encodeURIComponent(file.name),
 	};
-	const workspaceId = getCurrentWorkspaceId();
-	if (workspaceId) {
-		headers["X-Workspace-Id"] = workspaceId;
-	}
-	const res = await fetch("/api/upload", {
+	// X-Workspace-Id is added by the transport.
+	return await restCall<UploadResult>("/api/upload", {
 		method: "POST",
 		headers,
 		body: buffer,
 	});
-
-	if (!res.ok) {
-		const err = await res.json().catch(() => ({ error: res.statusText }));
-		throw new Error(err.error || `Upload failed: ${res.status}`);
-	}
-
-	return await res.json();
 }
 
 export function isUploadable(_file: File): boolean {
