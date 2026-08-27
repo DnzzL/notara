@@ -212,9 +212,21 @@ const staticFilesRoute = Effect.gen(function* () {
 		"GET",
 		"/api/public-config",
 		Effect.sync(() =>
-			HttpServerResponse.text(JSON.stringify({ demoMode: demoMode() }), {
-				headers: { "Content-Type": "application/json", ...corsHeaders },
-			}),
+			HttpServerResponse.text(
+				JSON.stringify({
+					demoMode: demoMode(),
+					// AGPL section 13: someone interacting with this instance over a
+					// network must be able to get its source. An operator running a
+					// MODIFIED build owes them THEIR source, not ours — hence the
+					// override. Defaults to upstream, which is correct for an
+					// unmodified deployment.
+					sourceUrl:
+						process.env.SOURCE_URL?.trim() || "https://github.com/DnzzL/notara",
+					version: process.env.APP_VERSION?.trim() || "dev",
+					licence: "AGPL-3.0-or-later",
+				}),
+				{ headers: { "Content-Type": "application/json", ...corsHeaders } },
+			),
 		),
 	);
 

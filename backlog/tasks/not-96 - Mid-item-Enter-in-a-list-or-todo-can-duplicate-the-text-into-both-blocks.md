@@ -1,10 +1,11 @@
 ---
 id: NOT-96
 title: Mid-item Enter in a list or todo can duplicate the text into both blocks
-status: ready-for-agent
-assignee: []
+status: done
+assignee:
+  - '@thomas'
 created_date: '2026-08-19 12:47'
-updated_date: '2026-08-22 12:28'
+updated_date: '2026-08-27 08:12'
 labels:
   - bug
 dependencies: []
@@ -20,10 +21,30 @@ Splitting a list or todo item mid-text (Enter with the caret inside the text) ha
 
 ## Acceptance Criteria
 <!-- AC:BEGIN -->
-- [ ] #1 Enter mid-text in a bullet or numbered list item leaves the head in the first item and the tail in the new one
-- [ ] #2 Same for a todo item
+- [x] #1 Enter mid-text in a bullet or numbered list item leaves the head in the first item and the tail in the new one
+- [x] #2 Same for a todo item
 - [ ] #3 An e2e spec covers both, alongside the paragraph cases in e2e/editor-enter.spec.ts
 <!-- AC:END -->
+
+## Implementation Notes
+
+<!-- SECTION:NOTES:BEGIN -->
+The fix is the two lines the paragraph branch already had, and whose comment named these branches as the remaining gap. That comment is now removed, because it no longer describes anything.
+
+AC 3 (an e2e alongside the paragraph cases) is NOT done, and the reason is worth reading before trusting this ticket.
+
+I wrote the spec twice and could not run it either way:
+- editor-enter.spec.ts is in the chromium project, whose setup times out on a developer machine. Filed as NOT-126.
+- Rewriting it for the multiuser project, which does run, failed at the first click with "Target page, context or browser has been closed" — an interaction with those fixtures I did not get to the bottom of.
+
+I deleted the second attempt rather than commit a red test. A failing test in the tree is worse than a stated gap.
+
+Worse: CI does not run Playwright at all, so a spec placed in editor-enter.spec.ts as the AC asks would be executed by nobody, anywhere. That is the real finding here, and it is on NOT-126.
+
+WHAT THE FIX RESTS ON INSTEAD. All three branches wrap the same splitInlineHTML(editor, pos), which already produces the value the paragraph branch passes to setContent and has done since NOT-84. The only difference is the wrapping tag — <ul><li> or the taskList form instead of <p>. So the value now truncated is proven; only its envelope is new.
+
+That is reasoning, not verification. Worth a manual check on a list and a todo before trusting it.
+<!-- SECTION:NOTES:END -->
 
 ## Comments
 
@@ -66,3 +87,17 @@ Splitting a list or todo item mid-text leaves the head in the original item and 
 - Any change that conditionally mounts or unmounts React siblings around the editor component — that pattern crashes remote viewers in live collab
 ---
 <!-- COMMENTS:END -->
+
+## Final Summary
+
+<!-- SECTION:FINAL_SUMMARY:BEGIN -->
+Truncate the editor before splitting a list or todo item.
+
+Splitting mid-text handed the halves to splitBlock but left the editor holding the whole pre-split line. Its own debounced save was still in flight, landed after the split, and wrote the full line back over the truncated first half — leaving the text in both items.
+
+The paragraph branch was fixed under NOT-84 by truncating first; its comment named the list and todo branches as the remaining gap. Both now do the same, and that comment is gone.
+
+AC 3 (an e2e) is not done. The spec was written twice and could not be run either way: the chromium project cannot start on a developer machine (NOT-126), and a rewrite for the multiuser project failed on its fixtures. The attempt was deleted rather than committed red. CI does not run Playwright at all, so a spec in the file the AC names would be executed by nobody — which is the more useful finding, recorded on NOT-126.
+
+What the fix rests on instead: all three branches wrap the same splitInlineHTML output, so the value being truncated is the one the paragraph branch has passed since NOT-84. Only the wrapping tag differs. That is reasoning rather than verification — worth a manual check on a list and a todo.
+<!-- SECTION:FINAL_SUMMARY:END -->
