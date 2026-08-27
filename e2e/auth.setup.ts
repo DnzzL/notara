@@ -15,30 +15,37 @@ setup("authenticate as test user", async ({ page }) => {
 	const password = "TestPassword123!";
 	const name = "E2E Tester";
 
-	// Navigate directly to /login — the landing page is public
+	// Decide consent and dismiss the tour BEFORE anything renders.
+	//
+	// This used to click the banner away after navigating, inside a try that
+	// swallowed its own failure. The banner renders once the consent state has
+	// loaded — after that click had already given up — and then sits over the
+	// bottom of the login form, where the "Create an account" toggle is. The
+	// element resolved and never became stable, so the setup timed out and took
+	// the whole chromium project with it (NOT-126).
+	//
+	// Seeding localStorage on the origin means the banner never renders at all,
+	// which is deterministic rather than a race we keep winning.
 	await page.goto("/login");
+	await page.evaluate(() => {
+		localStorage.setItem("notara_consent", "rejected");
+		localStorage.setItem("notara:tourCompleted", "true");
+	});
+	await page.reload();
 
-	// Dismiss the cookie consent banner so it doesn't block clicks
-	try {
-		const consent = page.getByRole("dialog", { name: "Cookie consent" });
-		await consent
-			.getByLabel("Accept analytics cookies")
-			.click({ timeout: 3000 });
-	} catch {
-		// Banner already dismissed or not shown
+	// If the banner is somehow still up, say so rather than timing out on a
+	// mystery: a swallowed failure here is what made this hard to diagnose.
+	const consent = page.getByRole("dialog", { name: "Cookie consent" });
+	if (await consent.isVisible().catch(() => false)) {
+		throw new Error(
+			"Cookie consent banner still visible after seeding notara_consent — " +
+				"the storage key or its values have changed; see packages/app/src/consent.ts",
+		);
 	}
 
-	// Mark the onboarding tour as completed so it doesn't auto-start
-	// and block interactions in the workspace page.
-	await page.evaluate(() =>
-		localStorage.setItem("notara:tourCompleted", "true"),
-	);
-
-	// Switch to registration mode
-	const createAccountBtn = page.getByText("Create an account");
-	if (await createAccountBtn.isVisible()) {
-		await createAccountBtn.click();
-	}
+	// Switch to registration mode. The heading also reads "Create an account"
+	// once switched, so target the button specifically.
+	await page.getByRole("button", { name: "Create an account" }).click();
 
 	// Fill registration form — inputs identified by type= attribute
 	const nameInput = page.locator('input[type="text"]');
