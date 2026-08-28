@@ -15,9 +15,29 @@ everything else follows from:
 - A frame tight enough to read shows a fragment of a table and nothing that
   says "workspace".
 
-So the video does both, in time: it opens on the whole product, pushes into the
-database, holds through a switch to the board, then pulls back out so the last
-frame matches the first and the loop has no seam.
+So the video does both, in time.
+
+## What it has to prove
+
+A hero for a Notion alternative is answering one objection: *is this actually as
+good?* The copy handles ownership and price; the video's only job is to make
+the product look real. It does that in the order a sceptic asks:
+
+| Beat | Question it answers |
+|---|---|
+| the workspace — sidebar, nested pages | Is this a real app? |
+| the page — headings, prose, a sub-page link, `Type '/' for commands` | Is the editor any good? |
+| the database — typed fields, relations, a status line | Are the databases real? |
+| the same records as a board | Is it more than one view? |
+
+Two reading windows, not one. The content column is **1035 CSS px** wide
+(measured from the DOM, not guessed): anything narrower clips headings, which
+reads as broken rather than cropped. `PAGE` holds the whole column for the
+editor beat; `DB` drops its right edge to buy back size on 13px table rows. The
+camera slides between them while the page scrolls, so the move and the content
+arrive together.
+
+The last frame matches the first, so the loop has no seam.
 
 ffmpeg cannot do this well. Its `crop` filter evaluates width and height once at
 init, so an animated window needs `zoompan`, which resamples every frame and

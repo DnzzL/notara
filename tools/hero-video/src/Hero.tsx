@@ -34,20 +34,34 @@ const SRC_H = 1640;
 const WIDE = { x: 0, y: 0, w: SRC_W, h: SRC_H };
 
 /**
- * The database, cropped to what stays legible at 693px: task names, status,
- * priority, assignee. Derived from the live DOM, in CSS px x2 — the toolbar
- * sits at x=361 y=300 and the status line ends at x=1392 y=753.
+ * Two reading windows, because the two things worth reading want different
+ * framings. The content column is 1035 CSS px wide (measured, not guessed):
+ * anything narrower than that clips headings, which looks broken rather than
+ * cropped.
+ *
+ * PAGE holds the whole column — headings, prose, the sub-page link — at 0.65x.
+ * DB drops the column's right edge to buy back size on the table rows, which
+ * are set in 13px and need it.
  */
-const TIGHT = { x: 740, y: 600, w: 1600, h: 912 };
+const PAGE = { x: 680, y: 60, w: 2140, h: 1219 };
+const DB = { x: 700, y: 560, w: 1720, h: 980 };
 
 /**
- * Beats in the trimmed capture, in seconds. The push lands just before the
- * board appears, so the switch happens close up where you can read it, and the
- * pull-back starts after the table returns so the loop closes on itself.
+ * Beats in the trimmed capture, in seconds. The page scrolls from the top of
+ * the document down to the databases, the view switches to a board and back,
+ * then the page scrolls home.
  */
-const BEATS = { toBoard: 2.4, toTable: 5.9, end: 8.4 };
+const BEATS = {
+	scrollDown: 2.5,
+	toBoard: 4.4,
+	toTable: 7.7,
+	scrollUp: 9.9,
+	end: 12.9,
+};
 
 type Window = { x: number; y: number; w: number; h: number };
+
+const EASE = Easing.bezier(0.32, 0, 0.16, 1);
 
 function lerpWindow(a: Window, b: Window, t: number): Window {
 	return {
@@ -63,27 +77,31 @@ export function Hero() {
 	const { fps, width } = useVideoConfig();
 	const t = frame / fps;
 
-	// Push in while the table is on screen, hold through the board, pull back
-	// out in time to land on the opening frame.
-	const push = interpolate(t, [0.9, 2.2], [0, 1], {
+	// Three moves, timed to the capture:
+	//   in    — from the whole product to the page, before anything scrolls
+	//   slide — from the page to the table, riding the scroll that reveals it
+	//   out   — back to the whole product, after the page comes home, so the
+	//           last frame matches the first and the loop has no seam
+	const zoomIn = interpolate(t, [0.9, 2.1], [0, 1], {
 		extrapolateLeft: "clamp",
 		extrapolateRight: "clamp",
-		easing: Easing.bezier(0.32, 0, 0.16, 1),
+		easing: EASE,
 	});
-	const pull = interpolate(t, [BEATS.toTable + 0.9, BEATS.end - 0.3], [0, 1], {
-		extrapolateLeft: "clamp",
-		extrapolateRight: "clamp",
-		easing: Easing.bezier(0.32, 0, 0.16, 1),
-	});
-
-	const win = lerpWindow(
-		lerpWindow(WIDE, TIGHT, push),
-		WIDE,
-		pull,
+	const slide = interpolate(
+		t,
+		[BEATS.scrollDown + 0.4, BEATS.toBoard - 0.3],
+		[0, 1],
+		{ extrapolateLeft: "clamp", extrapolateRight: "clamp", easing: EASE },
+	);
+	const zoomOut = interpolate(
+		t,
+		[BEATS.scrollUp + 0.8, BEATS.end - 0.4],
+		[0, 1],
+		{ extrapolateLeft: "clamp", extrapolateRight: "clamp", easing: EASE },
 	);
 
-	// Render the window by scaling the source up and offsetting it, so the
-	// browser resamples once, at the end, instead of per-layer.
+	const reading = lerpWindow(PAGE, DB, slide);
+	const win = lerpWindow(lerpWindow(WIDE, reading, zoomIn), WIDE, zoomOut);
 	const scale = width / win.w;
 
 	return (
