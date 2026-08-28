@@ -79,7 +79,7 @@ export function MobileRuler({
 	// Keep the active tab visible when the field changed by swipe, not by tap.
 	useEffect(() => {
 		stripRef.current
-			?.querySelectorAll<HTMLElement>(".db-ruler-tab")
+			?.querySelectorAll<HTMLElement>(".db-strip-tab")
 			[idx]?.scrollIntoView({ inline: "center", block: "nearest" });
 	}, [idx]);
 
@@ -108,14 +108,14 @@ export function MobileRuler({
 
 	return (
 		<div className="db-ruler">
-			<div className="db-ruler-strip" ref={stripRef} role="tablist">
+			<div className="db-strip" ref={stripRef} role="tablist">
 				{fields.map((f, i) => (
 					<button
 						type="button"
 						key={f.id}
 						role="tab"
 						aria-selected={i === idx}
-						className={`db-ruler-tab${i === idx ? " is-active" : ""}`}
+						className={`db-strip-tab${i === idx ? " is-active" : ""}`}
 						onClick={() => setIdx(i)}
 					>
 						<span className="g">{TYPE_GLYPH[f.type] ?? "•"}</span>
@@ -124,7 +124,7 @@ export function MobileRuler({
 				))}
 			</div>
 
-			<div className="db-ruler-caption">
+			<div className="db-strip-caption">
 				<span>
 					field {idx + 1}/{fields.length}
 				</span>
@@ -135,7 +135,7 @@ export function MobileRuler({
 				</span>
 				{/* No floating button: the page editor already owns the bottom-right
 				    corner with its own add-block FAB, and two would overlap. */}
-				<button type="button" className="db-ruler-new" onClick={onNewRecord}>
+				<button type="button" className="db-strip-new" onClick={onNewRecord}>
 					+ New
 				</button>
 			</div>

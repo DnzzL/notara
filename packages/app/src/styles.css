@@ -1385,14 +1385,19 @@ select, input, textarea, button { font-family: var(--font-ui); }
   font-variant-numeric: tabular-nums;
 }
 
-/* ── Database on a narrow screen: the field ruler ──────────────────────────
-   You navigate the field, not the row. The list stays put; a swipe or a tap
-   on the strip changes which column it shows. Rows are --row-touch tall:
-   density is a pointer-device affordance and does not apply to thumbs. */
+/* ── Database on a narrow screen ───────────────────────────────────────────
+   One navigation language, shared by the table's field ruler and the board's
+   group strip: a horizontally scrollable strip of tabs, a mono caption stating
+   where you are, then a list of --row-touch rows. Density is a pointer-device
+   affordance and does not apply to thumbs.
+
+   Table  → you navigate the *field*; the record list stays put.
+   Board  → you navigate the *group*; one column at a time, full width.
+   Calendar → an agenda, which needs no strip. See lib/agenda.ts. */
 
 .db-ruler { position: relative; }
 
-.db-ruler-strip {
+.db-strip {
   display: flex;
   overflow-x: auto;
   scrollbar-width: none;
@@ -1400,9 +1405,9 @@ select, input, textarea, button { font-family: var(--font-ui); }
   border-bottom: 2px solid var(--text);
   scroll-snap-type: x proximity;
 }
-.db-ruler-strip::-webkit-scrollbar { display: none; }
+.db-strip::-webkit-scrollbar { display: none; }
 
-.db-ruler-tab {
+.db-strip-tab {
   display: flex;
   align-items: center;
   gap: 7px;
@@ -1419,15 +1424,15 @@ select, input, textarea, button { font-family: var(--font-ui); }
   flex-shrink: 0;
   scroll-snap-align: center;
 }
-.db-ruler-tab .g { font-family: var(--font-mono); font-size: 11px; opacity: 0.6; }
-.db-ruler-tab.is-active {
+.db-strip-tab .g { font-family: var(--font-mono); font-size: 11px; opacity: 0.6; }
+.db-strip-tab.is-active {
   color: var(--accent);
   font-weight: 600;
   background: var(--bg-editor);
   box-shadow: inset 0 -2px 0 var(--accent);
 }
 
-.db-ruler-caption {
+.db-strip-caption {
   display: flex;
   gap: 8px;
   align-items: center;
@@ -1443,7 +1448,7 @@ select, input, textarea, button { font-family: var(--font-ui); }
   text-transform: uppercase;
   color: var(--text-3);
 }
-.db-ruler-caption .right { margin-left: auto; }
+.db-strip-caption .right { margin-left: auto; }
 
 .db-ruler-row {
   display: flex;
@@ -1494,7 +1499,7 @@ select, input, textarea, button { font-family: var(--font-ui); }
   font-style: italic;
 }
 
-.db-ruler-new {
+.db-strip-new {
   margin-left: 10px;
   font: inherit;
   font-family: var(--font-mono);
@@ -1510,7 +1515,7 @@ select, input, textarea, button { font-family: var(--font-ui); }
   white-space: nowrap;
   flex-shrink: 0;
 }
-.db-ruler-new:active { background: var(--accent-dim); }
+.db-strip-new:active { background: var(--accent-dim); }
 
 /* ── The per-type edit sheet ───────────────────────────────────────────────
    Wraps the same InlineCellEditor the desktop table uses, so option lists,
@@ -1634,3 +1639,159 @@ select, input, textarea, button { font-family: var(--font-ui); }
   min-height: 0;
 }
 .db-popover-sheet input { min-height: 44px; font-size: 16px; }
+
+
+/* ── Database toolbar ─────────────────────────────────────────────────────
+   Desktop: one row, the database name pushed to the right end.
+   Narrow: the name is a heading on its own line — it is the answer to "which
+   database is this?", which is worth more than any control next to it — and
+   the controls become a single scrollable row underneath instead of wrapping
+   into a ragged two-line block with the name truncated against the edge. */
+
+.db-toolbar-name { margin-left: auto; }
+
+@media (max-width: 880px) {
+  .db-toolbar { flex-wrap: wrap; gap: 8px; }
+
+  .db-toolbar-name {
+    order: -1;
+    flex: 0 0 100%;
+    margin-left: 0;
+    font-family: var(--font-mono);
+    font-size: 10px;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    color: var(--text-3);
+    min-width: 0;
+  }
+  .db-toolbar-name > span { overflow: hidden; text-overflow: ellipsis; }
+
+  .db-toolbar-controls {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    flex: 1 1 100%;
+    min-width: 0;
+    flex-wrap: nowrap;
+    overflow-x: auto;
+    scrollbar-width: none;
+    padding-bottom: 2px;
+  }
+  .db-toolbar-controls::-webkit-scrollbar { display: none; }
+  .db-toolbar-controls > * { flex-shrink: 0; }
+}
+
+/* ── Board on a narrow screen: one group at a time ────────────────────────── */
+
+.db-strip-count {
+  font-family: var(--font-mono);
+  font-size: 10px;
+  color: var(--text-3);
+  background: var(--surface-3);
+  border-radius: var(--radius-sm);
+  padding: 1px 5px;
+  margin-left: 2px;
+}
+.db-strip-tab.is-active .db-strip-count {
+  background: var(--accent-dim);
+  color: var(--accent-2);
+}
+
+.db-board-card {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  width: 100%;
+  min-height: var(--row-touch);
+  padding: 12px 16px;
+  font: inherit;
+  color: inherit;
+  text-align: left;
+  background: none;
+  border: none;
+  border-bottom: 1px solid var(--border);
+  cursor: pointer;
+}
+.db-board-card:active { background: var(--accent-dim); }
+.db-board-card .t { font-size: 15px; color: var(--text); }
+.db-board-card .f { display: flex; flex-wrap: wrap; gap: 6px 16px; }
+.db-board-card .p {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+  white-space: nowrap;
+}
+.db-board-card .p i {
+  font-style: normal;
+  font-family: var(--font-mono);
+  font-size: 9px;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--text-3);
+}
+
+/* ── Calendar on a narrow screen: an agenda ───────────────────────────────── */
+
+.db-agenda-day h3 {
+  position: sticky;
+  top: 0;
+  z-index: 1;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 0;
+  padding: 7px 16px;
+  background: var(--sb);
+  border-bottom: 1px solid var(--border);
+  font-family: var(--font-mono);
+  font-size: 10px;
+  font-weight: 400;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--text-3);
+}
+/* Today is the one day worth marking, so it gets the accent and nothing else does. */
+.db-agenda-day h3.is-today {
+  color: var(--accent-2);
+  box-shadow: inset 2px 0 0 var(--accent);
+}
+.db-agenda-day h3 span {
+  margin-left: auto;
+  font-variant-numeric: tabular-nums;
+}
+
+.db-agenda-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  width: 100%;
+  min-height: var(--row-touch);
+  padding: 0 16px;
+  font: inherit;
+  color: inherit;
+  text-align: left;
+  background: none;
+  border: none;
+  border-bottom: 1px solid var(--border);
+  cursor: pointer;
+}
+.db-agenda-row:active { background: var(--accent-dim); }
+.db-agenda-row .t {
+  flex: 1;
+  min-width: 0;
+  font-size: 15px;
+  color: var(--text);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.db-agenda-row .f {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-shrink: 0;
+  max-width: 45%;
+  overflow: hidden;
+  white-space: nowrap;
+}

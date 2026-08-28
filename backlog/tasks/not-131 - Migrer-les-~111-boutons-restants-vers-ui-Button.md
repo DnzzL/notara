@@ -2,8 +2,10 @@
 id: NOT-131
 title: Migrer les ~111 boutons restants vers ui/Button
 status: ready-for-agent
-assignee: []
+assignee:
+  - '@claude'
 created_date: '2026-08-28 09:03'
+updated_date: '2026-08-28 09:22'
 labels:
   - enhancement
 dependencies: []

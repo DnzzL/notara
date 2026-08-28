@@ -50,18 +50,11 @@ import { MobileRuler } from "./db/MobileRuler.js";
 import { FilterBar, makeDefaultFilter, SortBar } from "./db/QueryBar.js";
 import { RecordPanel } from "./db/RecordPanel.js";
 import { ViewSwitcher } from "./db/ViewSwitcher.js";
-import { type TabItem, Tabs } from "./ui/Tabs.js";
+import { VIEW_TYPES, type ViewType } from "./db/viewTypes.js";
+import { Button, IconButton, MenuItem } from "./ui/index.js";
+import { Tabs } from "./ui/Tabs.js";
 
 const COL_WIDTHS_STORAGE_KEY_PREFIX = "db-col-widths:";
-type ViewType = "table" | "board" | "calendar";
-
-/** The three ways to render the same records. A toggle, not navigation. */
-const VIEW_TYPES: readonly TabItem<ViewType>[] = [
-	{ value: "table", label: "Table" },
-	{ value: "board", label: "Board" },
-	{ value: "calendar", label: "Calendar" },
-];
-
 /** Sentinel field id for the record-title column in focus navigation. */
 const TITLE_COL = "__title__";
 
@@ -223,23 +216,25 @@ function SortableRow({
 					>
 						⋮⋮
 					</div>
-					<button
-						className="bg-transparent border-none cursor-pointer text-text-3 px-0.5 text-[13px] transition-[color] duration-[var(--t)] ease-[var(--ease)] hover:text-accent"
+					<IconButton
+						variant="ghost"
+						className="text-[13px] hover:text-accent"
 						style={{ opacity: hovered || hasPage ? 1 : 0 }}
 						onClick={onOpen}
 						title={hasPage ? "Open page" : "Open record"}
 					>
 						{hasPage ? "📄" : "↗"}
-					</button>
+					</IconButton>
 				</div>
-				<button
-					className="absolute top-1 right-1 bg-transparent border-none cursor-pointer text-text-3 text-[15px] px-1.5 py-0.5 rounded transition-[all] duration-[var(--t)] ease-[var(--ease)] leading-none hover:text-danger hover:bg-danger-dim"
+				<IconButton
+					variant="ghost"
+					className="absolute top-1 right-1 text-[15px] hover:text-danger hover:bg-danger-dim"
 					style={{ opacity: hovered ? 1 : 0 }}
 					onClick={onDelete}
 					title="Delete record"
 				>
 					×
-				</button>
+				</IconButton>
 			</td>
 			{children}
 		</tr>
@@ -1157,61 +1152,65 @@ export function DatabaseView({
 			onDragEnd={handleAllDragEnd}
 		>
 			<div ref={tableWrapRef} data-database-view>
-				{/* Toolbar */}
-				<div className="flex gap-1.5 mb-2.5 items-center flex-wrap py-1">
-					<ViewSwitcher
-						databaseId={database.id}
-						currentViewType={viewType as "table" | "board" | "calendar"}
-					/>
-					<Tabs
-						variant="toggle"
-						aria-label="View type"
-						value={viewType as ViewType}
-						onChange={changeViewType}
-						items={VIEW_TYPES}
-					/>
+				{/* Toolbar. `db-toolbar-controls` is display:contents on desktop, so
+				    the flex layout below is exactly what it was; on a narrow screen
+				    it becomes the scrollable second row. See styles.css. */}
+				<div className="db-toolbar flex gap-1.5 mb-2.5 items-center flex-wrap py-1">
+					<div className="db-toolbar-controls contents">
+						<ViewSwitcher
+							databaseId={database.id}
+							currentViewType={viewType as "table" | "board" | "calendar"}
+						/>
+						<Tabs
+							variant="toggle"
+							aria-label="View type"
+							value={viewType as ViewType}
+							onChange={changeViewType}
+							items={VIEW_TYPES}
+						/>
 
-					<div
-						style={{
-							marginLeft: 16,
-							display: "flex",
-							alignItems: "center",
-							gap: 12,
-							flexWrap: "wrap",
-						}}
-					>
-						<FilterBar
-							fields={dbFields}
-							filters={activeFilters}
-							onAdd={() =>
-								addFilter(database.id, makeDefaultFilter(dbFields[0]))
-							}
-							onRemove={(idx) => removeFilter(database.id, idx)}
-							onChange={(idx, updates) => {
-								const ex = activeFilters[idx];
-								setFilter(database.id, idx, { ...ex, ...updates });
+						<div
+							style={{
+								marginLeft: 16,
+								display: "flex",
+								alignItems: "center",
+								gap: 12,
+								flexWrap: "wrap",
 							}}
-						/>
-						<SortBar
-							fields={dbFields}
-							sorts={activeSorts}
-							onAdd={() =>
-								addSort(database.id, {
-									fieldId: dbFields[0]?.id || "",
-									direction: "asc",
-								})
-							}
-							onRemove={(idx) => removeSort(database.id, idx)}
-							onChange={(idx, updates) => {
-								const ex = activeSorts[idx];
-								setSort(database.id, idx, { ...ex, ...updates });
-							}}
-						/>
+						>
+							<FilterBar
+								fields={dbFields}
+								filters={activeFilters}
+								onAdd={() =>
+									addFilter(database.id, makeDefaultFilter(dbFields[0]))
+								}
+								onRemove={(idx) => removeFilter(database.id, idx)}
+								onChange={(idx, updates) => {
+									const ex = activeFilters[idx];
+									setFilter(database.id, idx, { ...ex, ...updates });
+								}}
+							/>
+							<SortBar
+								fields={dbFields}
+								sorts={activeSorts}
+								onAdd={() =>
+									addSort(database.id, {
+										fieldId: dbFields[0]?.id || "",
+										direction: "asc",
+									})
+								}
+								onRemove={(idx) => removeSort(database.id, idx)}
+								onChange={(idx, updates) => {
+									const ex = activeSorts[idx];
+									setSort(database.id, idx, { ...ex, ...updates });
+								}}
+							/>
+						</div>
 					</div>
 
 					<span
+						className="db-toolbar-name"
 						style={{
-							marginLeft: "auto",
 							fontSize: 13,
 							color: "var(--text-2)",
 							display: "flex",
@@ -1220,8 +1219,9 @@ export function DatabaseView({
 						}}
 					>
 						{database.titleHidden && (
-							<button
-								className="bg-transparent border-none cursor-pointer text-[12.5px] text-text-3 px-2 py-1 inline-flex items-center gap-1 rounded transition-[background,color] duration-[var(--t)] ease-[var(--ease)] hover:bg-surface-3 hover:text-text-2"
+							<Button
+								variant="ghost"
+								size="sm"
 								title="Show the title column"
 								onClick={async () => {
 									await api.updateDatabase({
@@ -1232,7 +1232,7 @@ export function DatabaseView({
 								}}
 							>
 								Show {database.titleLabel || "Name"} column
-							</button>
+							</Button>
 						)}
 						{isEditingName ? (
 							<input
@@ -1381,14 +1381,15 @@ export function DatabaseView({
 											zIndex: 2,
 										}}
 									>
-										<button
+										<IconButton
 											ref={addFieldBtnRef}
 											onClick={() => setShowAddField(true)}
-											className="bg-transparent border-none cursor-pointer text-[16px] text-text-3 px-2 py-0.5 rounded transition-[all] duration-[var(--t)] ease-[var(--ease)] hover:text-text-2 hover:bg-surface-3"
+											variant="ghost"
+											className="text-[16px]"
 											title="Add property"
 										>
 											+
-										</button>
+										</IconButton>
 									</th>
 								</tr>
 							</thead>
@@ -1602,13 +1603,13 @@ export function DatabaseView({
 										<td
 											colSpan={dbFields.length + (database.titleHidden ? 2 : 3)}
 										>
-											<button
+											<MenuItem
 												type="button"
-												className="w-full text-left bg-transparent border-none cursor-pointer px-3.5 py-2.5 text-[13px] text-text-3 border-t border-border [font-family:var(--font-ui)] transition-[background,color] duration-[var(--t)] ease-[var(--ease)] hover:bg-surface-2 hover:text-text-2"
+												className="rounded-none border-t border-border px-3.5 py-2.5"
 												onClick={handleNewRecord}
 											>
 												+ New record
-											</button>
+											</MenuItem>
 										</td>
 									</tr>
 								</tbody>
@@ -1800,36 +1801,19 @@ export function DatabaseView({
 						}}
 					>
 						<span>{selectedRowIds.size} selected</span>
-						<button
-							onClick={handleBulkDelete}
-							style={{
-								background: "transparent",
-								color: "var(--danger)",
-								border: "1px solid var(--danger-mid)",
-								borderRadius: 4,
-								padding: "3px 10px",
-								fontSize: 12,
-								cursor: "pointer",
-							}}
-						>
+						<Button variant="danger" size="sm" onClick={handleBulkDelete}>
 							Delete
-						</button>
-						<button
+						</Button>
+						<Button
+							variant="ghost"
+							size="sm"
 							onClick={() => {
 								setSelectedRowIds(new Set());
 								lastSelectedRowRef.current = null;
 							}}
-							style={{
-								background: "transparent",
-								color: "var(--border-mid)",
-								border: "none",
-								padding: "3px 6px",
-								fontSize: 12,
-								cursor: "pointer",
-							}}
 						>
 							Clear
-						</button>
+						</Button>
 					</div>
 				)}
 

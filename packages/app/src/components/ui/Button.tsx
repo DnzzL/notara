@@ -1,5 +1,5 @@
 import { cva, type VariantProps } from "class-variance-authority";
-import type { ButtonHTMLAttributes, ReactNode } from "react";
+import type { ButtonHTMLAttributes, ReactNode, Ref } from "react";
 import { cn } from "./cn.js";
 
 export type ButtonVariant = "ghost" | "secondary" | "primary" | "danger";
@@ -42,6 +42,8 @@ export interface ButtonProps
 	extends ButtonHTMLAttributes<HTMLButtonElement>,
 		VariantProps<typeof button> {
 	children: ReactNode;
+	/** Popovers anchor to their trigger, so a shared button has to forward this. */
+	ref?: Ref<HTMLButtonElement>;
 }
 
 export function Button({
@@ -49,10 +51,12 @@ export function Button({
 	size = "md",
 	className,
 	children,
+	ref,
 	...props
 }: ButtonProps) {
 	return (
 		<button
+			ref={ref}
 			className={cn(button({ variant, size, icon: false }), className)}
 			{...props}
 		>
@@ -67,10 +71,12 @@ export function IconButton({
 	size = "sm",
 	className,
 	children,
+	ref,
 	...props
 }: ButtonProps) {
 	return (
 		<button
+			ref={ref}
 			className={cn(button({ variant, size, icon: true }), className)}
 			{...props}
 		>

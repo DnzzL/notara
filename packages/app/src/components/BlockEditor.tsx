@@ -70,7 +70,7 @@ import { PageReferenceExtension } from "./PageReferenceExtension.js";
 import { createPageReferenceRender } from "./PageReferenceMenu.js";
 import { PresenceAvatars } from "./PresenceAvatars.js";
 import { SlashMenu } from "./SlashMenu.js";
-import { Button } from "./ui/index.js";
+import { Button, IconButton } from "./ui/index.js";
 
 // The TipTap schema lives in editorSchema.ts so the public read-only renderer
 // can mount it without this file's store, RPC and presence imports. Re-exported
@@ -389,6 +389,10 @@ function SingleBlockEditor({
 				>
 					<div className="bubble-menu">
 						<span className="bubble-menu-separator" />
+						{/* The format toggles stay raw <button>s on purpose: they are styled as
+						    a set by `.bubble-menu button` in styles.css and carry an `.active`
+						    pressed state. That is a toolbar, not any of ui/Button's variants —
+						    wrapping them would mean inventing a sixth variant for one toolbar. */}
 						<button
 							onClick={() => (editor.chain().focus() as any).toggleBold().run()}
 							className={editor.isActive("bold") ? "active" : ""}
@@ -605,9 +609,10 @@ function SortableBlock({
 					/>
 				)}
 				<div className="flex items-center gap-0 w-12 shrink-0 mt-0.5 opacity-0 transition-opacity duration-[var(--t)] ease-[var(--ease)] group-hover:opacity-100 pointer-events-none group-hover:pointer-events-auto relative z-20">
-					<button
+					<IconButton
 						type="button"
-						className="w-[22px] h-[22px] border-none bg-transparent text-text-3 cursor-pointer rounded text-[18px] leading-none flex items-center justify-center p-0 transition-[background,color] duration-[var(--t)] ease-[var(--ease)] hover:bg-surface-3"
+						variant="ghost"
+						className="w-[22px] h-[22px] text-[18px]"
 						title="Add block below"
 						onClick={(e) => {
 							e.stopPropagation();
@@ -615,7 +620,7 @@ function SortableBlock({
 						}}
 					>
 						+
-					</button>
+					</IconButton>
 					<div
 						className="flex items-center justify-center w-6 h-6 cursor-grab shrink-0 mt-0.5 rounded transition-[background] duration-[var(--t)] ease-[var(--ease)] hover:bg-surface-3 active:cursor-grabbing"
 						onMouseDown={(e) => {
@@ -1469,8 +1474,9 @@ export function BlockEditor() {
 					{uploading && <div className="upload-toast">Uploading…</div>}
 
 					<div className="flex items-center gap-2.5 mb-7">
-						<button
-							className="text-[2.4em] leading-none bg-transparent border-none cursor-pointer px-2 py-1 rounded transition-[background] duration-[var(--t)] ease-[var(--ease)] hover:bg-surface-3"
+						<IconButton
+							variant="ghost"
+							className="text-[2.4em] w-auto h-auto aspect-auto px-2 py-1"
 							title="Change icon"
 							onClick={(e) => {
 								const rect = (
@@ -1480,7 +1486,7 @@ export function BlockEditor() {
 							}}
 						>
 							{currentPage.icon || "📄"}
-						</button>
+						</IconButton>
 						{isEditingTitle ? (
 							<input
 								type="text"
@@ -1504,13 +1510,14 @@ export function BlockEditor() {
 								{currentPage.title || "Untitled"}
 							</h1>
 						)}
-						<button
-							className="text-[20px] bg-transparent border-none cursor-pointer text-text-3 px-2 py-1 rounded transition-[color,background] duration-[var(--t)] ease-[var(--ease)] hover:text-star hover:bg-surface-3"
+						<IconButton
+							variant="ghost"
+							className="text-[20px] hover:text-star"
 							title={currentPage.isFavorite ? "Unfavorite" : "Add to favorites"}
 							onClick={() => toggleFavorite(currentPage.id)}
 						>
 							{currentPage.isFavorite ? "★" : "☆"}
-						</button>
+						</IconButton>
 						<PresenceAvatars />
 						<PageMenu
 							pageId={currentPage.id}

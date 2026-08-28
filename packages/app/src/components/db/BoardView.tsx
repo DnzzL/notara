@@ -21,6 +21,7 @@ import {
 import { CSS } from "@dnd-kit/utilities";
 import { fieldTypeSpec } from "@notara/shared";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useIsCompact } from "../../lib/useIsCompact.js";
 import { api } from "../../rpc-client.js";
 import {
 	selectBoardGroupBy,
@@ -30,9 +31,13 @@ import {
 	useDatabaseStore,
 } from "../../stores/databaseStore.js";
 import { cn } from "../ui/cn.js";
+import { Button, IconButton } from "../ui/index.js";
+import { Tabs } from "../ui/Tabs.js";
 import { CellDisplay, SelectPill } from "./CellComponents.js";
+import { MobileBoard } from "./MobileBoard.js";
 import { FilterBar, makeDefaultFilter, SortBar } from "./QueryBar.js";
 import { ViewSwitcher } from "./ViewSwitcher.js";
+import { VIEW_TYPES } from "./viewTypes.js";
 
 export function BoardView({
 	database,
@@ -53,6 +58,7 @@ export function BoardView({
 	allRecords?: Record<string, any[]>;
 	onOpenRecord?: (record: any) => void;
 }) {
+	const isCompact = useIsCompact();
 	const setBoardGroupBy = useDatabaseStore((s) => s.setBoardGroupBy);
 	const toggleBoardField = useDatabaseStore((s) => s.toggleBoardField);
 	const updateFieldValue = useDatabaseStore((s) => s.updateFieldValue);
@@ -420,16 +426,17 @@ export function BoardView({
 							<circle cx="11" cy="13" r="1.5" />
 						</svg>
 					</div>
-					<button
+					<IconButton
+						variant="ghost"
 						className={cn(
-							"absolute top-1.5 right-1.5 bg-transparent border-none cursor-pointer text-text-3 px-1 py-0.5 text-[13px] leading-none rounded transition-[opacity,background] duration-[var(--t)] ease-[var(--ease)] z-[1] hover:bg-surface-3 hover:text-accent",
+							"absolute top-1.5 right-1.5 text-[13px] z-[1] hover:text-accent",
 							hasPage ? "opacity-100" : "opacity-0 group-hover:opacity-100",
 						)}
 						onClick={() => onOpenRecord?.(record.record)}
 						title={hasPage ? "Open page" : "Open record"}
 					>
 						{hasPage ? "📄" : "↗"}
-					</button>
+					</IconButton>
 					<span
 						className={cn(
 							"text-[13.5px] font-medium text-text block leading-[1.45]",
@@ -492,44 +499,13 @@ export function BoardView({
 						databaseId={database.id}
 						currentViewType={currentView}
 					/>
-					<div
-						className="inline-flex bg-surface-3 border border-border rounded p-0.5"
-						role="tablist"
-					>
-						<button
-							className={cn(
-								"bg-transparent border-none py-1 px-3 text-[12px] font-medium cursor-pointer rounded-lg",
-								currentView === "table" ? "bg-text text-bg" : "text-text-3",
-							)}
-							onClick={() => onChangeView("table")}
-							role="tab"
-							aria-selected={currentView === "table"}
-						>
-							Table
-						</button>
-						<button
-							className={cn(
-								"bg-transparent border-none py-1 px-3 text-[12px] font-medium cursor-pointer rounded-lg",
-								currentView === "board" ? "bg-text text-bg" : "text-text-3",
-							)}
-							onClick={() => onChangeView("board")}
-							role="tab"
-							aria-selected={currentView === "board"}
-						>
-							Board
-						</button>
-						<button
-							className={cn(
-								"bg-transparent border-none py-1 px-3 text-[12px] font-medium cursor-pointer rounded-lg",
-								currentView === "calendar" ? "bg-text text-bg" : "text-text-3",
-							)}
-							onClick={() => onChangeView("calendar")}
-							role="tab"
-							aria-selected={currentView === "calendar"}
-						>
-							Calendar
-						</button>
-					</div>
+					<Tabs
+						variant="toggle"
+						aria-label="View type"
+						value={currentView}
+						onChange={onChangeView}
+						items={VIEW_TYPES}
+					/>
 
 					<div
 						style={{
@@ -563,15 +539,16 @@ export function BoardView({
 						style={{ marginLeft: 8, position: "relative" }}
 						ref={fieldsPickerRef}
 					>
-						<button
-							className="bg-transparent border-none cursor-pointer text-[12.5px] text-text-3 px-2 py-1 inline-flex items-center gap-1 rounded transition-[background,color] duration-[var(--t)] ease-[var(--ease)] hover:bg-surface-3 hover:text-text-2"
+						<Button
+							variant="ghost"
+							size="sm"
 							onClick={() => setShowFieldsPicker((v) => !v)}
 						>
 							Fields
 							{boardHiddenFieldIds.length > 0
 								? ` (${fields.filter((f: any) => boardHiddenFieldIds.includes(f.id)).length} hidden)`
 								: ""}
-						</button>
+						</Button>
 						{showFieldsPicker && (
 							<div className="absolute top-[calc(100%+6px)] left-0 z-[200] bg-surface border border-border-mid rounded p-2.5 min-w-[200px] shadow-[var(--shadow-lg)]">
 								<div className="text-[11px] font-bold text-text-3 uppercase tracking-[0.07em] mb-2">
@@ -658,72 +635,99 @@ export function BoardView({
 					</span>
 				</div>
 
-				<SortableContext
-					items={displayOrder.map((c) => `column-${c}`)}
-					strategy={horizontalListSortingStrategy}
-				>
-					<div className="flex gap-3.5 pt-3 pb-5 overflow-x-auto min-h-[300px] [&::-webkit-scrollbar]:h-[5px] [&::-webkit-scrollbar-track]:bg-transparent [&::-webkit-scrollbar-thumb]:bg-surface-4 [&::-webkit-scrollbar-thumb]:rounded-sm">
-						{displayOrder.map((colName) => (
-							<SortableColumn key={colName} colName={colName}>
-								<h3 className="text-[11px] text-text-3 mb-2.5 ml-0.5 font-bold tracking-[0.07em] uppercase flex items-center gap-1.5">
-									{groupField?.type === "select" &&
-									groupField.options?.includes(colName) ? (
-										<SelectPill
-											value={colName}
-											colorIdx={groupField.options.indexOf(colName)}
-										/>
-									) : (
-										<span style={{ fontSize: 13 }}>{colName}</span>
-									)}
-									<span style={{ color: "var(--text-3)", fontWeight: 400 }}>
-										{" "}
-										({(groups[colName] || []).length})
-									</span>
-								</h3>
-								<SortableContext
-									items={(groups[colName] || []).map((r) => r.record.id)}
-									strategy={verticalListSortingStrategy}
-								>
-									<ColumnBody
-										colName={colName}
-										isOver={overColumnId === colName}
-									>
-										{(groups[colName] || []).map((item) => (
-											<SortableCard
-												key={item.record.id}
-												record={item}
-												isDragging={activeRecordId === item.record.id}
+				{/* Below the compact breakpoint the columns are a different
+				    interaction model, not a reflowed one: a horizontal row of
+				    columns has no honest thumb equivalent. The toolbar above stays
+				    — losing it would strand you in a view you cannot leave.
+				    See components/db/MobileBoard.tsx. */}
+				{isCompact ? (
+					<MobileBoard
+						groupOrder={displayOrder}
+						groups={groups}
+						groupFieldName={groupField?.name ?? null}
+						visibleFields={fields.filter(
+							(f: any) =>
+								f.id !== groupField?.id && !boardHiddenFieldIds.includes(f.id),
+						)}
+						databases={databases}
+						allRecords={allRecords}
+						onOpenRecord={(r) => onOpenRecord?.(r)}
+						onNewRecord={async (groupName) => {
+							const record = await createDbRecord(database.id, "");
+							if (groupField && groupName !== "All")
+								await updateFieldValue(record.id, groupField.id, groupName);
+							await loadDbRecords(database.id);
+							onOpenRecord?.(record);
+						}}
+					/>
+				) : (
+					<SortableContext
+						items={displayOrder.map((c) => `column-${c}`)}
+						strategy={horizontalListSortingStrategy}
+					>
+						<div className="flex gap-3.5 pt-3 pb-5 overflow-x-auto min-h-[300px] [&::-webkit-scrollbar]:h-[5px] [&::-webkit-scrollbar-track]:bg-transparent [&::-webkit-scrollbar-thumb]:bg-surface-4 [&::-webkit-scrollbar-thumb]:rounded-sm">
+							{displayOrder.map((colName) => (
+								<SortableColumn key={colName} colName={colName}>
+									<h3 className="text-[11px] text-text-3 mb-2.5 ml-0.5 font-bold tracking-[0.07em] uppercase flex items-center gap-1.5">
+										{groupField?.type === "select" &&
+										groupField.options?.includes(colName) ? (
+											<SelectPill
+												value={colName}
+												colorIdx={groupField.options.indexOf(colName)}
 											/>
-										))}
-									</ColumnBody>
-								</SortableContext>
-								<div style={{ padding: "8px 4px" }}>
-									<button
-										className="w-full bg-transparent border-[1.5px] border-dashed border-border-mid rounded py-[7px] px-3 text-[13px] text-text-3 cursor-pointer transition-[border-color,color] duration-[var(--t)] ease-[var(--ease)] hover:border-accent hover:text-accent"
-										onClick={async () => {
-											const title = prompt("New record title:");
-											if (title?.trim()) {
-												await createDbRecord(database.id, title.trim());
-												await loadDbRecords(database.id);
-											}
-										}}
+										) : (
+											<span style={{ fontSize: 13 }}>{colName}</span>
+										)}
+										<span style={{ color: "var(--text-3)", fontWeight: 400 }}>
+											{" "}
+											({(groups[colName] || []).length})
+										</span>
+									</h3>
+									<SortableContext
+										items={(groups[colName] || []).map((r) => r.record.id)}
+										strategy={verticalListSortingStrategy}
 									>
-										+ New
-									</button>
-								</div>
-							</SortableColumn>
-						))}
-						{groupField &&
-							(groupField.type === "select" ||
-								groupField.type === "multiSelect") && (
-								<AddBoardColumn
-									groupField={groupField}
-									existingOptions={groupField.options || []}
-									onAdded={() => loadDbFields(database.id)}
-								/>
-							)}
-					</div>
-				</SortableContext>
+										<ColumnBody
+											colName={colName}
+											isOver={overColumnId === colName}
+										>
+											{(groups[colName] || []).map((item) => (
+												<SortableCard
+													key={item.record.id}
+													record={item}
+													isDragging={activeRecordId === item.record.id}
+												/>
+											))}
+										</ColumnBody>
+									</SortableContext>
+									<div style={{ padding: "8px 4px" }}>
+										<button
+											className="w-full bg-transparent border-[1.5px] border-dashed border-border-mid rounded py-[7px] px-3 text-[13px] text-text-3 cursor-pointer transition-[border-color,color] duration-[var(--t)] ease-[var(--ease)] hover:border-accent hover:text-accent"
+											onClick={async () => {
+												const title = prompt("New record title:");
+												if (title?.trim()) {
+													await createDbRecord(database.id, title.trim());
+													await loadDbRecords(database.id);
+												}
+											}}
+										>
+											+ New
+										</button>
+									</div>
+								</SortableColumn>
+							))}
+							{groupField &&
+								(groupField.type === "select" ||
+									groupField.type === "multiSelect") && (
+									<AddBoardColumn
+										groupField={groupField}
+										existingOptions={groupField.options || []}
+										onAdded={() => loadDbFields(database.id)}
+									/>
+								)}
+						</div>
+					</SortableContext>
+				)}
 
 				<DragOverlay>
 					{activeRecord ? (
