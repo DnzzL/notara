@@ -19,7 +19,7 @@ It's built and maintained by one person ([me](https://thomas.legrand.sh)), on pu
 guiding rule is *fewer features, done well* — so the list below is deliberately short.
 
 <div align="center">
-<img src="packages/app/public/notara-hero-poster.jpg" width="720" alt="Notara" />
+<img src="docs/screenshots/notara-hero.gif" width="720" alt="A Notara database, the same records shown as a table and as a board" />
 
 **[Try the live demo →](https://demo.notara.legrand.sh)** — no signup, throwaway
 workspace, deleted automatically.
