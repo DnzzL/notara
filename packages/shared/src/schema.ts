@@ -1,5 +1,9 @@
 import { Schema } from "effect";
 
+/** What an API key may do. See ADR-008 and NOT-124 for why there are two. */
+export const ApiKeyScope = Schema.Literal("read", "write");
+export type ApiKeyScope = typeof ApiKeyScope.Type;
+
 // Use String for datetime fields since SQLite returns ISO strings
 export class Page extends Schema.Class<Page>("Page")({
 	id: Schema.String,
@@ -188,6 +192,7 @@ export class ApiKey extends Schema.Class<ApiKey>("ApiKey")({
 	id: Schema.String,
 	name: Schema.String,
 	keyPrefix: Schema.String,
+	scope: ApiKeyScope,
 	createdAt: Schema.String,
 	lastUsedAt: Schema.NullOr(Schema.String),
 }) {}
@@ -198,6 +203,7 @@ export class ApiKeyCreated extends Schema.Class<ApiKeyCreated>("ApiKeyCreated")(
 		id: Schema.String,
 		name: Schema.String,
 		keyPrefix: Schema.String,
+		scope: ApiKeyScope,
 		rawKey: Schema.String,
 		createdAt: Schema.String,
 	},

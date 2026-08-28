@@ -1,4 +1,4 @@
-import type { ApiKeyCreated } from "@notara/shared";
+import type { ApiKeyCreated, ApiKeyScope } from "@notara/shared";
 import { useEffect, useState } from "react";
 import { useApiKeyStore } from "../store.js";
 import { toaster } from "../toaster.js";
@@ -8,6 +8,8 @@ export function ApiKeysPanel() {
 	const { apiKeys, apiKeysLoading, loadApiKeys, createApiKey, revokeApiKey } =
 		useApiKeyStore();
 	const [newKeyName, setNewKeyName] = useState("");
+	// Read is the safer of the two, so it is what you get without choosing.
+	const [newKeyScope, setNewKeyScope] = useState<ApiKeyScope>("read");
 	const [creating, setCreating] = useState(false);
 	const [created, setCreated] = useState<ApiKeyCreated | null>(null);
 	const [copied, setCopied] = useState(false);
@@ -21,9 +23,10 @@ export function ApiKeysPanel() {
 		if (!newKeyName.trim()) return;
 		setCreating(true);
 		try {
-			const key = await createApiKey(newKeyName.trim());
+			const key = await createApiKey(newKeyName.trim(), newKeyScope);
 			setCreated(key);
 			setNewKeyName("");
+			setNewKeyScope("read");
 		} catch (err: any) {
 			toaster.create({
 				title: "Failed to create key",
@@ -53,7 +56,8 @@ export function ApiKeysPanel() {
 		<>
 			<p className="text-[13.5px] text-text-2 leading-relaxed mb-4">
 				Use API keys to automate Notara from scripts, CI pipelines, or any HTTP
-				client. Keys authenticate as you and have access to all your workspaces.{" "}
+				client. Keys authenticate as you and reach every workspace you belong to
+				— a read key can only read, a write key can do anything you can.{" "}
 				<a
 					href="/docs"
 					target="_blank"
@@ -102,6 +106,16 @@ export function ApiKeysPanel() {
 						className="flex-1 px-2.5 py-[7px] border border-border rounded-lg text-[12px] [font-family:var(--font-mono)] bg-surface-2 text-text outline-none"
 						maxLength={64}
 					/>
+					<select
+						name="api-key-scope"
+						aria-label="Key scope"
+						value={newKeyScope}
+						onChange={(e) => setNewKeyScope(e.target.value as ApiKeyScope)}
+						className="px-2.5 py-[7px] border border-border rounded-lg text-[12px] bg-surface-2 text-text outline-none"
+					>
+						<option value="read">Read only</option>
+						<option value="write">Read and write</option>
+					</select>
 					<Button
 						type="submit"
 						variant="primary"
@@ -180,6 +194,9 @@ export function ApiKeysPanel() {
 									<code className="[font-family:var(--font-mono)] text-[12px] bg-surface-3 rounded px-1.5 py-0.5 text-text-3">
 										{k.keyPrefix}…
 									</code>
+									<span className="text-[11px] uppercase tracking-[0.06em] font-semibold rounded px-1.5 py-0.5 bg-surface-3 text-text-3">
+										{k.scope === "read" ? "Read only" : "Read + write"}
+									</span>
 								</div>
 								<div className="flex items-center justify-between gap-2">
 									<span className="text-[12px] text-text-3">

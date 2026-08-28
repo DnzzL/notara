@@ -1,4 +1,4 @@
-import type { ApiKey, ApiKeyCreated } from "@notara/shared";
+import type { ApiKey, ApiKeyCreated, ApiKeyScope } from "@notara/shared";
 import { create } from "zustand";
 import { AccessDeniedError, api } from "../rpc-client.js";
 import { toaster } from "../toaster.js";
@@ -12,7 +12,7 @@ export interface ApiKeyState {
 	apiKeys: ApiKey[];
 	apiKeysLoading: boolean;
 	loadApiKeys: () => Promise<void>;
-	createApiKey: (name: string) => Promise<ApiKeyCreated>;
+	createApiKey: (name: string, scope: ApiKeyScope) => Promise<ApiKeyCreated>;
 	revokeApiKey: (id: string) => Promise<void>;
 }
 
@@ -30,15 +30,16 @@ export const useApiKeyStore = create<ApiKeyState>((set) => ({
 		}
 	},
 
-	createApiKey: async (name) => {
+	createApiKey: async (name, scope) => {
 		try {
-			const created = await api.createApiKey({ name });
+			const created = await api.createApiKey({ name, scope });
 			set((s) => ({
 				apiKeys: [
 					{
 						id: created.id,
 						name: created.name,
 						keyPrefix: created.keyPrefix,
+						scope: created.scope,
 						createdAt: created.createdAt,
 						lastUsedAt: null,
 					},

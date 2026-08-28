@@ -27,6 +27,7 @@ import {
 	AclRevision,
 	ApiKey,
 	ApiKeyCreated,
+	ApiKeyScope,
 	Backlink,
 	Block,
 	Database,
@@ -419,7 +420,7 @@ export const AppRpc = RpcGroup.make(
 	}),
 	Rpc.make("createApiKey", {
 		error: ApiError,
-		payload: { name: ShortName },
+		payload: { name: ShortName, scope: ApiKeyScope },
 		success: ApiKeyCreated,
 	}),
 	Rpc.make("revokeApiKey", {
