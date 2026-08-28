@@ -31,8 +31,12 @@ export function useStripNavigation(count: number) {
 		if (index > count - 1) setIndex(Math.max(0, count - 1));
 	}, [count, index]);
 
-	// Keep the active tab in view when the change came from a swipe, not a tap.
+	// Re-centre the strip only when the change came from a swipe. Doing it on a
+	// tap makes the tab jump out from under the finger that just hit it.
+	const recentre = useRef(false);
 	useEffect(() => {
+		if (!recentre.current) return;
+		recentre.current = false;
 		stripRef.current
 			?.querySelectorAll<HTMLElement>(".db-strip-tab")
 			[index]?.scrollIntoView({ inline: "center", block: "nearest" });
@@ -55,6 +59,7 @@ export function useStripNavigation(count: number) {
 			const dx = e.clientX - from;
 			if (Math.abs(dx) <= SWIPE_THRESHOLD) return;
 			swiped.current = true;
+			recentre.current = true;
 			setIndex((c) => Math.min(count - 1, Math.max(0, c + (dx < 0 ? 1 : -1))));
 		},
 	};

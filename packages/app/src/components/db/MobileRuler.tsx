@@ -1,7 +1,8 @@
 import { fieldTypeSpec } from "@notara/shared";
-import { useEffect, useState } from "react";
+import { useEffect, useId, useState } from "react";
 import { useStripNavigation } from "../../lib/useStripNavigation.js";
 import { CellDisplay, InlineCellEditor } from "./CellComponents.js";
+import { Strip } from "./Strip.js";
 
 /**
  * The database table, held in one hand.
@@ -57,6 +58,7 @@ export function MobileRuler({
 		listProps,
 		onRowActivate,
 	} = useStripNavigation(fields.length);
+	const panelId = useId();
 	const [editing, setEditing] = useState<{
 		recordId: string;
 		fieldId: string;
@@ -92,21 +94,22 @@ export function MobileRuler({
 
 	return (
 		<div className="db-ruler">
-			<div className="db-strip" ref={stripRef} role="tablist">
-				{fields.map((f, i) => (
-					<button
-						type="button"
-						key={f.id}
-						role="tab"
-						aria-selected={i === idx}
-						className={`db-strip-tab${i === idx ? " is-active" : ""}`}
-						onClick={() => select(i)}
-					>
-						<span className="g">{TYPE_GLYPH[f.type] ?? "•"}</span>
-						{f.name}
-					</button>
-				))}
-			</div>
+			<Strip
+				stripRef={stripRef}
+				ariaLabel="Field"
+				panelId={panelId}
+				value={field?.id ?? ""}
+				onChange={(id) => select(fields.findIndex((f) => f.id === id))}
+				items={fields.map((f) => ({
+					value: f.id,
+					label: (
+						<>
+							<span className="g">{TYPE_GLYPH[f.type] ?? "•"}</span>
+							{f.name}
+						</>
+					),
+				}))}
+			/>
 
 			<div className="db-strip-caption">
 				<span>
@@ -126,7 +129,7 @@ export function MobileRuler({
 
 			{/* Swipe is an enhancement, not the only route: every field is also
 			    reachable by tapping the strip above, which is a real tablist. */}
-			<div {...listProps}>
+			<div {...listProps} id={panelId}>
 				{rows.length === 0 && (
 					<div className="db-ruler-empty">
 						No records yet. Press New below to create one.

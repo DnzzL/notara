@@ -13,6 +13,7 @@ import { useDatabaseStore } from "../../stores/databaseStore.js";
 import { cn } from "../ui/cn.js";
 import { Button, IconButton } from "../ui/index.js";
 import { Tabs } from "../ui/Tabs.js";
+import { DatabaseToolbar } from "./DatabaseToolbar.js";
 import { MobileAgenda } from "./MobileAgenda.js";
 import { ViewSwitcher } from "./ViewSwitcher.js";
 import { VIEW_TYPES, type ViewType } from "./viewTypes.js";
@@ -133,7 +134,7 @@ export function CalendarView({
 	return (
 		<div className="w-full">
 			{/* Toolbar */}
-			<div className="flex gap-1.5 mb-2.5 items-center flex-wrap py-1">
+			<DatabaseToolbar name={database.name}>
 				<ViewSwitcher databaseId={database.id} currentViewType="calendar" />
 				<Tabs
 					variant="toggle"
@@ -169,7 +170,7 @@ export function CalendarView({
 						</select>
 					</div>
 				)}
-			</div>
+			</DatabaseToolbar>
 
 			{!dateField ? (
 				<div className="bg-surface-2 rounded p-8 text-center text-text-3 text-[14px]">

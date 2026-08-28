@@ -114,7 +114,7 @@ Anything else that "would look nice in blue" is a bug in the design, not a decis
 | `--border-mid` | `rgba(10,10,10,0.16)` | Inputs, secondary buttons |
 | `--border-sb` | `rgba(10,10,10,0.10)` | Sidebar borders |
 
-**Structural rule:** the `2px solid var(--text)` ink rule is the defining Swiss move and is therefore rationed. Inside the app it appears **at most twice per screen**, and only to frame a data surface — the database table's header baseline and the status line above the viewport edge. Everything else (rows, panels, section splits, sidebar edges) uses hairline `--border`.
+**Structural rule:** the `2px solid var(--text)` ink rule is the defining Swiss move and is therefore rationed, and only ever frames a data surface. On desktop that is two per database — the table's header baseline and the status line. On a narrow screen the tab strip's baseline is a third, which is the ceiling: it brackets the strip, the rows and the status line into one object. Everything else (rows, panels, section splits, sidebar edges) uses hairline `--border`.
 
 On marketing surfaces (`.lp-*`, auth) the 2px rule stays a free structural device; those pages are read once, not worked in.
 
@@ -217,7 +217,7 @@ Reach for these before writing a class string. They exist because the same strin
 | `Input` / `Select` | Every text/number/date/select field | **The one focus treatment.** The app had five |
 | `Tabs` | Mode toggles and pane navigation | Encodes the two active languages below. The view-type control lives in `db/viewTypes.ts` and is used by all three views |
 | `MenuItem` | Any dropdown or popover row | Was copy-pasted 8× in `WorkspaceSwitcher` alone |
-| `Badge` | A value that carries state or metadata | Defaults to a dot, not a pill |
+| `Badge` | A value that carries state or metadata | Defaults to a dot, not a pill. Multi-select cells collapse past two values into a `+N` badge rather than wrapping the row |
 | `Field`, `Modal` | Form rows, modal shells | |
 
 `packages/app/test/design-tokens.test.ts` enforces the colour and radius rules. It does **not** enforce primitive usage — that is a review question, not a machine one.
@@ -281,13 +281,13 @@ The second ink rule, directly under the table. It carries two jobs at once — *
 
 ### Database on a narrow screen
 
-Below 880px each view is **replaced**, not reflowed. All three share one navigation language — a horizontally scrollable strip of tabs (`.db-strip-*`), a mono caption stating where you are, then a list of `--row-touch` rows.
+Below 880px each view is **replaced**, not reflowed. All three share one navigation language — a horizontally scrollable strip of tabs (`db/Strip.tsx`), a mono caption stating where you are, then a list of `--row-touch` rows. `Strip` is a real tablist: roving tabindex, arrow keys, `aria-controls`. The bar above them is one shared shell, `db/DatabaseToolbar.tsx` — it used to exist three times, which is how a responsive fix landed on one view and left the other two with the database name floating below the view selector.
 
 | View | What you navigate | Component |
 |---|---|---|
 | Table | the **field**, not the row — the record list stays put while the column changes | `db/MobileRuler.tsx` |
 | Board | the **group**, not the column — one group's cards, full width | `db/MobileBoard.tsx` |
-| Calendar | nothing; it becomes an **agenda** — days in order, undated last | `db/MobileAgenda.tsx` |
+| Calendar | the **date field**, when there is more than one — otherwise nothing; it becomes an **agenda**, days in order, undated last | `db/MobileAgenda.tsx` |
 
 Tapping a value raises a bottom sheet around the same `InlineCellEditor` the desktop table uses, and every picker (`Popover`, `CellAnchoredPopover`, the relation autocomplete) becomes a `.db-popover-sheet`, so per-type behaviour has one implementation.
 

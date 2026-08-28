@@ -652,8 +652,8 @@ body {
   display: flex;
   align-items: center;
   gap: 8px;
-  background: #FEF2F2;
-  border: 1px solid #FECACA;
+  background: var(--danger-dim);
+  border: 1px solid var(--danger-mid);
   border-radius: var(--radius-sm);
   padding: 10px 13px;
   font-size: 13px;
@@ -1289,7 +1289,7 @@ select, input, textarea, button { font-family: var(--font-ui); }
 .block-lock-badge {
   position: absolute; top: 2px; right: 2px;
   width: 18px; height: 18px; border-radius: 50%;
-  background: var(--accent, #4a6cf7); color: #fff;
+  background: var(--accent); color: #fff;
   font-size: 10px; font-weight: 600;
   display: inline-flex; align-items: center; justify-content: center;
   z-index: 2;
@@ -1306,7 +1306,7 @@ select, input, textarea, button { font-family: var(--font-ui); }
    column-header voice. See docs/design-system.md § Établi.
 ══════════════════════════════════════════════════════════════════════ */
 
-/* Ink rule #1 of 2 — the header baseline. It is what makes a table read as a
+/* Ink rule 1 — the header baseline. It is what makes a table read as a
    printed data sheet instead of a grid of boxes. */
 .db-table thead th {
   border-bottom: 2px solid var(--text);
@@ -1347,7 +1347,9 @@ select, input, textarea, button { font-family: var(--font-ui); }
   box-shadow: inset 2px 0 0 var(--accent);
 }
 
-/* Ink rule #2 of 2 — the status line under the table. */
+/* Ink rule 2 — the status line under the table. On a narrow screen the tab
+   strip's baseline is a third; together they bracket strip, rows and status
+   line into one object. That is the ceiling. */
 .db-statusline {
   display: flex;
   align-items: center;
@@ -1525,7 +1527,7 @@ select, input, textarea, button { font-family: var(--font-ui); }
   position: fixed;
   inset: 0;
   z-index: 1000;
-  background: rgba(10, 10, 10, 0.32);
+  background: var(--scrim);
   border: none;
   padding: 0;
   cursor: pointer;
@@ -1642,13 +1644,51 @@ select, input, textarea, button { font-family: var(--font-ui); }
 
 
 /* ── Database toolbar ─────────────────────────────────────────────────────
-   Desktop: one row, the database name pushed to the right end.
-   Narrow: the name is a heading on its own line — it is the answer to "which
-   database is this?", which is worth more than any control next to it — and
-   the controls become a single scrollable row underneath instead of wrapping
-   into a ragged two-line block with the name truncated against the edge. */
+   One shell for all three views (components/db/DatabaseToolbar.tsx).
 
-.db-toolbar-name { margin-left: auto; }
+   Desktop: one row, the database name a mono kicker at the right end.
+   Narrow:  the name is that kicker on its own line — it answers "which
+            database is this?", the one thing on the bar you cannot infer from
+            anything else — and the controls become a single scrollable row.
+
+   `db-toolbar-controls` is display:contents on desktop, so the flex layout is
+   exactly what it was before the shell existed. */
+
+.db-toolbar-name {
+  margin-left: auto;
+  min-width: 0;
+  font-family: var(--font-mono);
+  font-size: 10px;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--text-3);
+}
+
+.db-toolbar-name-button {
+  font: inherit;
+  color: inherit;
+  background: none;
+  border: none;
+  padding: 2px 4px;
+  margin: -2px -4px;
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+  letter-spacing: inherit;
+  text-transform: inherit;
+}
+.db-toolbar-name-button:hover { color: var(--text-2); background: var(--hover-ink); }
+
+.db-toolbar-name-input {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  width: 140px;
+  padding: 2px 6px;
+  background: var(--surface);
+  border: 1px solid var(--accent);
+  border-radius: var(--radius-sm);
+  outline: none;
+  box-shadow: 0 0 0 3px var(--accent-dim);
+}
 
 @media (max-width: 880px) {
   .db-toolbar { flex-wrap: wrap; gap: 8px; }
@@ -1657,15 +1697,9 @@ select, input, textarea, button { font-family: var(--font-ui); }
     order: -1;
     flex: 0 0 100%;
     margin-left: 0;
-    font-family: var(--font-mono);
-    font-size: 10px;
-    letter-spacing: 0.12em;
-    text-transform: uppercase;
-    color: var(--text-3);
-    min-width: 0;
   }
-  /* On its own full-width row there is no reason to clip: a long name wraps. */
-  .db-toolbar-name > span { overflow: visible; text-overflow: clip; white-space: normal; }
+  /* On its own full-width row there is nothing to clip against. */
+  .db-toolbar-name-button { white-space: normal; text-align: left; }
 
   .db-toolbar-controls {
     display: flex;
@@ -1795,4 +1829,14 @@ select, input, textarea, button { font-family: var(--font-ui); }
   max-width: 45%;
   overflow: hidden;
   white-space: nowrap;
+}
+
+/* Several select values in one cell. They collapse past two rather than wrap,
+   so a tag-heavy record stays one --row tall. See db/CellComponents.tsx. */
+.db-multiselect {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  min-width: 0;
+  overflow: hidden;
 }

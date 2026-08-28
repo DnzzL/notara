@@ -171,13 +171,6 @@ export function FilterBar({
 									value: defaultValueForField(next),
 								});
 							}}
-							style={{
-								border: "1px solid var(--border)",
-								borderRadius: 4,
-								padding: "2px 4px",
-								fontSize: 12,
-								background: "var(--surface)",
-							}}
 						>
 							<option value="">Field</option>
 							{fields.map((f) => (
@@ -192,13 +185,6 @@ export function FilterBar({
 							onChange={(e) =>
 								onChange(idx, { operator: e.target.value as FilterOperator })
 							}
-							style={{
-								border: "1px solid var(--border)",
-								borderRadius: 4,
-								padding: "2px 4px",
-								fontSize: 12,
-								background: "var(--surface)",
-							}}
 						>
 							{operators.map((op) => (
 								<option key={op} value={op}>
@@ -279,13 +265,6 @@ export function SortBar({
 						name="sort-field"
 						value={sort.fieldId}
 						onChange={(e) => onChange(idx, { fieldId: e.target.value })}
-						style={{
-							border: "1px solid var(--border)",
-							borderRadius: 4,
-							padding: "2px 4px",
-							fontSize: 12,
-							background: "var(--surface)",
-						}}
 					>
 						<option value="">Field</option>
 						{fields.map((f) => (
@@ -300,13 +279,6 @@ export function SortBar({
 						onChange={(e) =>
 							onChange(idx, { direction: e.target.value as "asc" | "desc" })
 						}
-						style={{
-							border: "1px solid var(--border)",
-							borderRadius: 4,
-							padding: "2px 4px",
-							fontSize: 12,
-							background: "var(--surface)",
-						}}
 					>
 						<option value="asc">Ascending</option>
 						<option value="desc">Descending</option>

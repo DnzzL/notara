@@ -22,7 +22,7 @@ const badge = cva(
 					"border border-border text-text-2 px-[7px] rounded-sm bg-transparent",
 			},
 		},
-		defaultVariants: { variant: "neutral" },
+		defaultVariants: { variant: "dot" },
 	},
 );
 

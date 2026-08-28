@@ -1,5 +1,7 @@
+import { useId } from "react";
 import { useStripNavigation } from "../../lib/useStripNavigation.js";
 import { CellDisplay } from "./CellComponents.js";
+import { Strip } from "./Strip.js";
 
 /**
  * The board, held in one hand.
@@ -44,6 +46,7 @@ export function MobileBoard({
 		listProps,
 		onRowActivate,
 	} = useStripNavigation(groupOrder.length);
+	const panelId = useId();
 
 	const group = groupOrder[idx];
 	const rows = group ? (groups[group] ?? []) : [];
@@ -57,21 +60,18 @@ export function MobileBoard({
 			    styled set (`.db-strip-tab`, with counts and an active rule) and the
 			    cards are full-width list rows. Neither is one of ui/Button's
 			    variants, and ui/Tabs cannot scroll horizontally or carry counts. */}
-			<div className="db-strip" ref={stripRef} role="tablist">
-				{groupOrder.map((name, i) => (
-					<button
-						type="button"
-						key={name}
-						role="tab"
-						aria-selected={i === idx}
-						className={`db-strip-tab${i === idx ? " is-active" : ""}`}
-						onClick={() => select(i)}
-					>
-						{name}
-						<span className="db-strip-count">{groups[name]?.length ?? 0}</span>
-					</button>
-				))}
-			</div>
+			<Strip
+				stripRef={stripRef}
+				ariaLabel={groupFieldName ?? "Group"}
+				panelId={panelId}
+				value={group ?? ""}
+				onChange={(name) => select(groupOrder.indexOf(name))}
+				items={groupOrder.map((name) => ({
+					value: name,
+					label: name,
+					count: groups[name]?.length ?? 0,
+				}))}
+			/>
 
 			<div className="db-strip-caption">
 				<span>
@@ -92,7 +92,7 @@ export function MobileBoard({
 
 			{/* Swipe is an enhancement: every group is also reachable from the
 			    strip above, which is a real tablist. */}
-			<div {...listProps}>
+			<div {...listProps} id={panelId}>
 				{rows.length === 0 && (
 					<div className="db-ruler-empty">Nothing in this group.</div>
 				)}

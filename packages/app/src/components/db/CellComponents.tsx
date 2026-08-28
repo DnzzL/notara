@@ -8,25 +8,28 @@ import {
 } from "react";
 import { createPortal } from "react-dom";
 import { tryEvaluate } from "../../lib/formula.js";
+import { splitMultiSelect } from "../../lib/multiSelect.js";
 import { useIsCompact } from "../../lib/useIsCompact.js";
 import { api, getCurrentWorkspaceId } from "../../rpc-client.js";
 import { usePageStore } from "../../stores/pageStore.js";
+import { Badge } from "../ui/Badge.js";
 
 // ── Shared constants ──────────────────────────────────────────────────────
 
-// Option colours. `bg`/`fg` still dress multiSelect chips (several values need
-// a visible boundary each); `dot` is the saturated counterpart used wherever a
-// single value is shown, so the colour survives without a pill around the word.
+// Option colours — user data, deliberately theme-independent: a green option
+// stays green whatever the chrome does. The pastel fills these used to carry
+// are gone; the colour now lives in a dot, which is the design system's rule
+// for a value that already reads from its colour.
 const SELECT_COLORS = [
-	{ bg: "#e3e2e0", fg: "#1e1e1e", dot: "var(--text-3)" },
-	{ bg: "#e9d5ca", fg: "#1e1e1e", dot: "#A1663B" },
-	{ bg: "#fad4c0", fg: "#1e1e1e", dot: "var(--warning)" },
-	{ bg: "#fdecc8", fg: "#1e1e1e", dot: "#C9A227" },
-	{ bg: "#dcf4d4", fg: "#1e1e1e", dot: "var(--success)" },
-	{ bg: "#d3e5ef", fg: "#1e1e1e", dot: "#2B7FB8" },
-	{ bg: "#dadfee", fg: "#1e1e1e", dot: "#5B5BD6" },
-	{ bg: "#f5d6e8", fg: "#1e1e1e", dot: "#C2408A" },
-	{ bg: "#ffe2dd", fg: "#1e1e1e", dot: "var(--danger)" },
+	{ dot: "var(--text-3)" },
+	{ dot: "#A1663B" },
+	{ dot: "var(--warning)" },
+	{ dot: "#C9A227" },
+	{ dot: "var(--success)" },
+	{ dot: "#2B7FB8" },
+	{ dot: "#5B5BD6" },
+	{ dot: "#C2408A" },
+	{ dot: "var(--danger)" },
 ];
 
 export function optionColor(idx: number) {
@@ -354,44 +357,38 @@ export function SelectPill({
 	bare?: boolean;
 }) {
 	const c = optionColor(colorIdx);
-	if (bare)
-		return (
-			<span
-				style={{
-					display: "inline-flex",
-					alignItems: "center",
-					gap: 6,
-					fontSize: 13,
-					color: "var(--text-2)",
-					lineHeight: "20px",
-				}}
-			>
-				<i
-					style={{
-						width: 6,
-						height: 6,
-						borderRadius: "50%",
-						background: c.dot,
-						flexShrink: 0,
-					}}
-				/>
-				{value}
-			</span>
-		);
 	return (
-		<span
-			style={{
-				display: "inline-block",
-				background: c.bg,
-				color: c.fg,
-				borderRadius: "var(--radius-sm)",
-				padding: "1px 7px",
-				fontSize: 12.5,
-				fontWeight: 500,
-				lineHeight: "20px",
-			}}
-		>
+		<Badge variant={bare ? "dot" : "outline"} dotColor={c.dot}>
 			{value}
+		</Badge>
+	);
+}
+
+/**
+ * Several values side by side, each needing a boundary — the one case the
+ * design system reserves a chip for. Past two they collapse into a count, so a
+ * cell with eight tags is still one --row tall instead of wrapping the table
+ * out of its rhythm.
+ */
+export function SelectPills({
+	values,
+	options,
+}: {
+	values: string[];
+	options: string[];
+}) {
+	const { shown, hidden } = splitMultiSelect(values);
+	return (
+		<span className="db-multiselect">
+			{shown.map((v) => {
+				const i = options.indexOf(v);
+				return <SelectPill key={v} value={v} colorIdx={i >= 0 ? i : 0} />;
+			})}
+			{hidden.length > 0 && (
+				<Badge variant="neutral" title={hidden.join(", ")}>
+					+{hidden.length}
+				</Badge>
+			)}
 		</span>
 	);
 }
@@ -529,17 +526,7 @@ export function CellDisplay({
 		const vals = decodeCell(field.type, value);
 		if (!vals.length)
 			return <span style={{ color: "var(--text-3)" }}>&nbsp;</span>;
-		const opts = field.options || [];
-		return (
-			<div
-				style={{ display: "flex", gap: 4, flexWrap: "wrap", padding: "2px 0" }}
-			>
-				{vals.map((v) => {
-					const i = opts.indexOf(v);
-					return <SelectPill key={v} value={v} colorIdx={i >= 0 ? i : 0} />;
-				})}
-			</div>
-		);
+		return <SelectPills values={vals} options={field.options || []} />;
 	}
 
 	if (field.type === "date")
@@ -911,10 +898,11 @@ function SelectPopover({
 								<span
 									style={{
 										display: "inline-block",
-										background: c.bg,
-										borderRadius: 3,
-										width: 12,
-										height: 12,
+										background: c.dot,
+										borderRadius: "50%",
+										width: 8,
+										height: 8,
+										flexShrink: 0,
 									}}
 								/>
 								<span style={{ fontSize: 13, flex: 1 }}>{opt}</span>

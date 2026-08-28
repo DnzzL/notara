@@ -34,6 +34,7 @@ import { cn } from "../ui/cn.js";
 import { Button, IconButton } from "../ui/index.js";
 import { Tabs } from "../ui/Tabs.js";
 import { CellDisplay, SelectPill } from "./CellComponents.js";
+import { DatabaseToolbar } from "./DatabaseToolbar.js";
 import { MobileBoard } from "./MobileBoard.js";
 import { FilterBar, makeDefaultFilter, SortBar } from "./QueryBar.js";
 import { ViewSwitcher } from "./ViewSwitcher.js";
@@ -497,7 +498,7 @@ export function BoardView({
 			onDragEnd={handleDragEnd}
 		>
 			<div className="w-full" data-database-view>
-				<div className="flex gap-1.5 mb-2.5 items-center flex-wrap py-1">
+				<DatabaseToolbar name={database.name}>
 					<ViewSwitcher
 						databaseId={database.id}
 						currentViewType={currentView}
@@ -630,13 +631,7 @@ export function BoardView({
 							}}
 						/>
 					</div>
-
-					<span
-						style={{ marginLeft: "auto", fontSize: 13, color: "var(--text-2)" }}
-					>
-						{database.name}
-					</span>
-				</div>
+				</DatabaseToolbar>
 
 				{/* Below the compact breakpoint the columns are a different
 				    interaction model, not a reflowed one: a horizontal row of

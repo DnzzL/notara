@@ -12,7 +12,14 @@ import { useEffect, useState } from "react";
  *
  * Reach for CSS first; reach for this only when the markup differs.
  */
-const QUERY = "(max-width: 880px)";
+/**
+ * The compact breakpoint, in px. CSS has the same number in its `@media` blocks;
+ * a custom property cannot be used inside a media query, so this is the one
+ * place to change it and `styles.css` has to follow.
+ */
+export const COMPACT_MAX_WIDTH = 880;
+
+const QUERY = `(max-width: ${COMPACT_MAX_WIDTH}px)`;
 
 export function useIsCompact(): boolean {
 	const [compact, setCompact] = useState(

@@ -38,6 +38,7 @@ import { toaster } from "../toaster.js";
 import { BoardView } from "./db/BoardView.js";
 import { CalendarView } from "./db/CalendarView.js";
 import { CellDisplay, InlineCellEditor, Popover } from "./db/CellComponents.js";
+import { DatabaseToolbar } from "./db/DatabaseToolbar.js";
 import {
 	AddFieldPopover,
 	ColumnHeader,
@@ -1152,89 +1153,9 @@ export function DatabaseView({
 			onDragEnd={handleAllDragEnd}
 		>
 			<div ref={tableWrapRef} data-database-view>
-				{/* Toolbar. `db-toolbar-controls` is display:contents on desktop, so
-				    the flex layout below is exactly what it was; on a narrow screen
-				    it becomes the scrollable second row. See styles.css. */}
-				<div className="db-toolbar flex gap-1.5 mb-2.5 items-center flex-wrap py-1">
-					<div className="db-toolbar-controls contents">
-						<ViewSwitcher
-							databaseId={database.id}
-							currentViewType={viewType as "table" | "board" | "calendar"}
-						/>
-						<Tabs
-							variant="toggle"
-							aria-label="View type"
-							value={viewType as ViewType}
-							onChange={changeViewType}
-							items={VIEW_TYPES}
-						/>
-
-						<div
-							style={{
-								marginLeft: 16,
-								display: "flex",
-								alignItems: "center",
-								gap: 12,
-								flexWrap: "wrap",
-							}}
-						>
-							<FilterBar
-								fields={dbFields}
-								filters={activeFilters}
-								onAdd={() =>
-									addFilter(database.id, makeDefaultFilter(dbFields[0]))
-								}
-								onRemove={(idx) => removeFilter(database.id, idx)}
-								onChange={(idx, updates) => {
-									const ex = activeFilters[idx];
-									setFilter(database.id, idx, { ...ex, ...updates });
-								}}
-							/>
-							<SortBar
-								fields={dbFields}
-								sorts={activeSorts}
-								onAdd={() =>
-									addSort(database.id, {
-										fieldId: dbFields[0]?.id || "",
-										direction: "asc",
-									})
-								}
-								onRemove={(idx) => removeSort(database.id, idx)}
-								onChange={(idx, updates) => {
-									const ex = activeSorts[idx];
-									setSort(database.id, idx, { ...ex, ...updates });
-								}}
-							/>
-						</div>
-					</div>
-
-					<span
-						className="db-toolbar-name"
-						style={{
-							fontSize: 13,
-							color: "var(--text-2)",
-							display: "flex",
-							alignItems: "center",
-							gap: 8,
-						}}
-					>
-						{database.titleHidden && (
-							<Button
-								variant="ghost"
-								size="sm"
-								title="Show the title column"
-								onClick={async () => {
-									await api.updateDatabase({
-										id: database.id,
-										titleHidden: false,
-									});
-									await loadDatabases(database.pageId);
-								}}
-							>
-								Show {database.titleLabel || "Name"} column
-							</Button>
-						)}
-						{isEditingName ? (
+				<DatabaseToolbar
+					name={
+						isEditingName ? (
 							<input
 								type="text"
 								name="database-name"
@@ -1242,25 +1163,86 @@ export function DatabaseView({
 								onChange={(e) => setDbName(e.target.value)}
 								onBlur={handleNameSave}
 								onKeyDown={handleNameKeyDown}
-								style={{
-									fontSize: 13,
-									padding: "2px 6px",
-									border: "1px solid var(--accent)",
-									borderRadius: 4,
-									width: 140,
-									outline: "none",
-								}}
+								className="db-toolbar-name-input"
 							/>
 						) : (
-							<span
+							<button
+								type="button"
+								className="db-toolbar-name-button"
 								onClick={() => setIsEditingName(true)}
-								style={{ cursor: "pointer", fontWeight: 500 }}
+								title="Rename database"
 							>
 								{database.name || "Untitled"}
-							</span>
-						)}
-					</span>
-				</div>
+							</button>
+						)
+					}
+				>
+					<ViewSwitcher
+						databaseId={database.id}
+						currentViewType={viewType as "table" | "board" | "calendar"}
+					/>
+					<Tabs
+						variant="toggle"
+						aria-label="View type"
+						value={viewType as ViewType}
+						onChange={changeViewType}
+						items={VIEW_TYPES}
+					/>
+
+					<div
+						style={{
+							marginLeft: 16,
+							display: "flex",
+							alignItems: "center",
+							gap: 12,
+							flexWrap: "wrap",
+						}}
+					>
+						<FilterBar
+							fields={dbFields}
+							filters={activeFilters}
+							onAdd={() =>
+								addFilter(database.id, makeDefaultFilter(dbFields[0]))
+							}
+							onRemove={(idx) => removeFilter(database.id, idx)}
+							onChange={(idx, updates) => {
+								const ex = activeFilters[idx];
+								setFilter(database.id, idx, { ...ex, ...updates });
+							}}
+						/>
+						<SortBar
+							fields={dbFields}
+							sorts={activeSorts}
+							onAdd={() =>
+								addSort(database.id, {
+									fieldId: dbFields[0]?.id || "",
+									direction: "asc",
+								})
+							}
+							onRemove={(idx) => removeSort(database.id, idx)}
+							onChange={(idx, updates) => {
+								const ex = activeSorts[idx];
+								setSort(database.id, idx, { ...ex, ...updates });
+							}}
+						/>
+					</div>
+					{database.titleHidden && (
+						<Button
+							variant="ghost"
+							size="sm"
+							title="Show the title column"
+							onClick={async () => {
+								await api.updateDatabase({
+									id: database.id,
+									titleHidden: false,
+								});
+								await loadDatabases(database.pageId);
+							}}
+						>
+							Show {database.titleLabel || "Name"} column
+						</Button>
+					)}
+				</DatabaseToolbar>
 
 				{/* Table — on a narrow screen this becomes the field ruler, a
 				    different interaction model rather than a reflowed table.

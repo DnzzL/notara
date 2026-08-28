@@ -10,7 +10,20 @@
  * This test looks. Every off-system colour or radius in the app sources has to
  * be listed in ALLOWED below with a reason someone can argue with; anything
  * else fails the build. The allowlist is the point — it turns "we have a design
- * system" into "here are the 30 places we knowingly step outside it".
+ * system" into "here are the places we knowingly step outside it".
+ *
+ * It scans styles.css too. It did not at first, and the doc still claimed it
+ * "enforces the colour and radius rules" — so an indigo `var(--accent, #4a6cf7)`
+ * fallback and two hardcoded reds sat in the largest colour surface in the app,
+ * certified by a guard that never read the file.
+ *
+ * What it checks in CSS is narrower than in components, on purpose. Opaque
+ * colours are policed, because that is the failure mode that actually happened:
+ * a brand colour from somewhere else, hardcoded. Alpha ramps are not — a
+ * `rgba(255,255,255,0.12)` hover on the dark bubble menu is a shade of a
+ * surface, not a colour decision, and a token per step would be ceremony.
+ * If an alpha of a colour that HAS a token shows up, that is a review catch,
+ * not a test one.
  */
 import { describe, expect, test } from "bun:test";
 import { readdirSync, readFileSync, statSync } from "node:fs";
@@ -52,9 +65,21 @@ const ALLOWED: Exemption[] = [
 		literal: "SVG",
 		why: "Marketing artwork on the landing page, not an interface surface",
 	},
+	{
+		file: "styles.css",
+		literal: "#8FA2FF",
+		why: "The accent lightened to stay legible on the landing's ink price panel",
+	},
+	{
+		file: "styles.css",
+		literal: "#888",
+		why: "Mid grey on the dark bubble menu, where the ink ramp is unreadable",
+	},
 ];
 
 const HEX = /#[0-9a-fA-F]{3,8}\b/g;
+/** Pure black and pure white are surfaces, not brand colours. */
+const NEUTRAL = /^#(?:fff(?:fff)?|000(?:000)?)$/i;
 const RGB = /rgba?\([^)]*\)/g;
 const ARBITRARY_RADIUS = /rounded-\[(?!var\()([^\]]+)\]/g;
 const TAILWIND_PALETTE =
@@ -69,7 +94,7 @@ function sources(): { path: string; rel: string; text: string }[] {
 				walk(path);
 				continue;
 			}
-			if (!/\.tsx?$/.test(entry)) continue;
+			if (!/\.(tsx?|css)$/.test(entry)) continue;
 			out.push({
 				path,
 				rel: relative(SRC, path),
@@ -79,6 +104,13 @@ function sources(): { path: string; rel: string; text: string }[] {
 	};
 	walk(SRC);
 	return out;
+}
+
+/** `:root` and `@theme` are where the tokens are *defined*; they may hold hex. */
+function withoutTokenDefinitions(text: string): string {
+	return text
+		.replace(/@theme[^{]*\{[\s\S]*?\n\}/g, "")
+		.replace(/:root\s*\{[\s\S]*?\n\}/g, "");
 }
 
 const FILES = sources();
@@ -95,9 +127,15 @@ function isAllowed(rel: string, literal: string): boolean {
 function offenders(pattern: RegExp, normalise = (s: string) => s) {
 	const found: string[] = [];
 	for (const { rel, text } of FILES) {
-		for (const match of text.match(pattern) ?? []) {
+		const body = rel.endsWith(".css") ? withoutTokenDefinitions(text) : text;
+		for (const match of body.match(pattern) ?? []) {
 			const literal = normalise(match);
 			if (isAllowed(rel, literal)) continue;
+			// CSS: opaque colours only. See the note at the top of this file.
+			if (rel.endsWith(".css")) {
+				if (literal.startsWith("rgba")) continue;
+				if (NEUTRAL.test(literal)) continue;
+			}
 			found.push(`${rel}: ${literal}`);
 		}
 	}
@@ -125,6 +163,25 @@ describe("colour", () => {
 describe("radius", () => {
 	test("no arbitrary rounded-[Npx]; use rounded-sm | rounded | rounded-lg", () => {
 		expect(offenders(ARBITRARY_RADIUS)).toEqual([]);
+	});
+});
+
+describe("stylesheet structure", () => {
+	// biome does not lint CSS (files.includes is .ts/.tsx only), so an unbalanced
+	// brace is silent: it nests every following rule inside the previous block or
+	// closes a media query early, and the styles simply stop applying. That is
+	// how a toolbar rule ended up inside a `@media (max-width: 880px)` and did
+	// nothing on desktop, with no error anywhere.
+	test("braces balance in every stylesheet", () => {
+		const unbalanced = FILES.filter((f) => f.rel.endsWith(".css")).map((f) => {
+			let depth = 0;
+			for (const ch of f.text) {
+				if (ch === "{") depth++;
+				else if (ch === "}") depth--;
+			}
+			return { file: f.rel, depth };
+		});
+		expect(unbalanced.filter((u) => u.depth !== 0)).toEqual([]);
 	});
 });
 

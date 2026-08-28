@@ -1,9 +1,11 @@
+import { useId } from "react";
 import {
 	type AgendaRow,
 	buildAgenda,
 	formatAgendaDay,
 } from "../../lib/agenda.js";
 import { CellDisplay } from "./CellComponents.js";
+import { Strip } from "./Strip.js";
 
 /**
  * The calendar, held in one hand.
@@ -38,31 +40,29 @@ export function MobileAgenda({
 	onOpenRecord: (record: any) => void;
 	onNewRecord: () => void;
 }) {
+	const panelId = useId();
 	const groups = buildAgenda(rows, dateField?.name ?? null);
 	const today = new Date();
 	const todayKey = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, "0")}-${String(today.getDate()).padStart(2, "0")}`;
 
 	return (
 		<div className="db-ruler">
-			{/* Raw buttons on purpose, here and in the rows below: the strip is a
-			    styled set (`.db-strip-tab`) and the rows are full-width list rows.
-			    Neither is one of ui/Button's variants. */}
 			{dateFields.length > 1 && (
-				<div className="db-strip" role="tablist">
-					{dateFields.map((f: any) => (
-						<button
-							type="button"
-							key={f.id}
-							role="tab"
-							aria-selected={f.id === dateField?.id}
-							className={`db-strip-tab${f.id === dateField?.id ? " is-active" : ""}`}
-							onClick={() => onPickDateField(f.id)}
-						>
-							<span className="g">▤</span>
-							{f.name}
-						</button>
-					))}
-				</div>
+				<Strip
+					ariaLabel="Date field"
+					panelId={panelId}
+					value={dateField?.id ?? ""}
+					onChange={onPickDateField}
+					items={dateFields.map((f: any) => ({
+						value: f.id,
+						label: (
+							<>
+								<span className="g">▤</span>
+								{f.name}
+							</>
+						),
+					}))}
+				/>
 			)}
 
 			<div className="db-strip-caption">
@@ -77,44 +77,46 @@ export function MobileAgenda({
 				</button>
 			</div>
 
-			{groups.length === 0 && (
-				<div className="db-ruler-empty">No records yet.</div>
-			)}
+			<div id={panelId}>
+				{groups.length === 0 && (
+					<div className="db-ruler-empty">No records yet.</div>
+				)}
 
-			{groups.map((g) => (
-				<section className="db-agenda-day" key={g.day ?? "__undated__"}>
-					<h3 className={g.day === todayKey ? "is-today" : undefined}>
-						{g.day ? formatAgendaDay(g.day) : "No date"}
-						<span>{g.rows.length}</span>
-					</h3>
-					{g.rows.map(({ record, values }) => (
-						<button
-							type="button"
-							key={record.id}
-							className="db-agenda-row"
-							onClick={() => onOpenRecord(record)}
-						>
-							<span className="t">{record.title || "Untitled"}</span>
-							<span className="f">
-								{visibleFields.map((f: any) => {
-									const val = values[f.name];
-									if (!val && f.type !== "checkbox") return null;
-									return (
-										<CellDisplay
-											key={f.id}
-											field={f}
-											value={val ?? ""}
-											databases={databases}
-											allRecords={allRecords}
-											recordValues={values}
-										/>
-									);
-								})}
-							</span>
-						</button>
-					))}
-				</section>
-			))}
+				{groups.map((g) => (
+					<section className="db-agenda-day" key={g.day ?? "__undated__"}>
+						<h3 className={g.day === todayKey ? "is-today" : undefined}>
+							{g.day ? formatAgendaDay(g.day) : "No date"}
+							<span>{g.rows.length}</span>
+						</h3>
+						{g.rows.map(({ record, values }) => (
+							<button
+								type="button"
+								key={record.id}
+								className="db-agenda-row"
+								onClick={() => onOpenRecord(record)}
+							>
+								<span className="t">{record.title || "Untitled"}</span>
+								<span className="f">
+									{visibleFields.map((f: any) => {
+										const val = values[f.name];
+										if (!val && f.type !== "checkbox") return null;
+										return (
+											<CellDisplay
+												key={f.id}
+												field={f}
+												value={val ?? ""}
+												databases={databases}
+												allRecords={allRecords}
+												recordValues={values}
+											/>
+										);
+									})}
+								</span>
+							</button>
+						))}
+					</section>
+				))}
+			</div>
 		</div>
 	);
 }

@@ -607,10 +607,11 @@ function SortableOptionRow({
 			<span
 				style={{
 					display: "inline-block",
-					background: c.bg,
-					borderRadius: 3,
-					width: 14,
-					height: 14,
+					background: c.dot,
+					borderRadius: "50%",
+					width: 8,
+					height: 8,
+					flexShrink: 0,
 				}}
 			/>
 			<span style={{ fontSize: 13, flex: 1 }}>{opt}</span>
@@ -1112,10 +1113,11 @@ export function AddFieldPopover({
 											<span
 												style={{
 													display: "inline-block",
-													background: c.bg,
-													borderRadius: 3,
-													width: 14,
-													height: 14,
+													background: c.dot,
+													borderRadius: "50%",
+													width: 8,
+													height: 8,
+													flexShrink: 0,
 												}}
 											/>
 											<span style={{ fontSize: 13, flex: 1 }}>{opt}</span>
