@@ -538,7 +538,7 @@ export function BoardView({
 							alignItems: "center",
 							gap: 6,
 							fontSize: 13,
-							color: "#666",
+							color: "var(--text-2)",
 						}}
 					>
 						<span style={{ fontWeight: 500 }}>Group by:</span>
@@ -602,7 +602,11 @@ export function BoardView({
 								{fields.filter((f: any) => f.id !== groupField?.id).length ===
 									0 && (
 									<div
-										style={{ fontSize: 12, color: "#999", padding: "4px 0" }}
+										style={{
+											fontSize: 12,
+											color: "var(--text-3)",
+											padding: "4px 0",
+										}}
 									>
 										No fields to configure
 									</div>
@@ -647,7 +651,9 @@ export function BoardView({
 						/>
 					</div>
 
-					<span style={{ marginLeft: "auto", fontSize: 13, color: "#666" }}>
+					<span
+						style={{ marginLeft: "auto", fontSize: 13, color: "var(--text-2)" }}
+					>
 						{database.name}
 					</span>
 				</div>
@@ -669,7 +675,7 @@ export function BoardView({
 									) : (
 										<span style={{ fontSize: 13 }}>{colName}</span>
 									)}
-									<span style={{ color: "#999", fontWeight: 400 }}>
+									<span style={{ color: "var(--text-3)", fontWeight: 400 }}>
 										{" "}
 										({(groups[colName] || []).length})
 									</span>
@@ -827,7 +833,9 @@ function AddBoardColumn({
 				onClick={() => setEditing(true)}
 				title="Add a new column"
 			>
-				<span style={{ fontSize: 13, color: "#666" }}>+ Add column</span>
+				<span style={{ fontSize: 13, color: "var(--text-2)" }}>
+					+ Add column
+				</span>
 			</div>
 		);
 	}
@@ -855,7 +863,7 @@ function AddBoardColumn({
 				placeholder="Column name"
 				style={{
 					width: "100%",
-					border: "1px solid #2eaadc",
+					border: "1px solid var(--accent)",
 					borderRadius: 4,
 					padding: "4px 6px",
 					fontSize: 13,

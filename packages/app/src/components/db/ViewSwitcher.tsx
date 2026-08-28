@@ -215,7 +215,7 @@ export function ViewSwitcher({
 					{isDirtyEffective && activeView && (
 						<span
 							style={{
-								color: "var(--accent, #2eaadc)",
+								color: "var(--accent)",
 								fontSize: 11,
 								marginLeft: 4,
 							}}
@@ -272,9 +272,7 @@ export function ViewSwitcher({
 						</svg>
 						<span>All</span>
 						{!activeView && (
-							<span
-								style={{ marginLeft: "auto", color: "var(--accent, #2eaadc)" }}
-							>
+							<span style={{ marginLeft: "auto", color: "var(--accent)" }}>
 								✓
 							</span>
 						)}
@@ -284,7 +282,7 @@ export function ViewSwitcher({
 						<div
 							style={{
 								height: 1,
-								background: "var(--border, #e9e9e7)",
+								background: "var(--border)",
 								margin: "3px 8px",
 							}}
 						/>
@@ -320,7 +318,7 @@ export function ViewSwitcher({
 										margin: "2px 3px",
 										padding: "2px 6px",
 										fontSize: 13,
-										border: "1px solid #2eaadc",
+										border: "1px solid var(--accent)",
 										borderRadius: 4,
 										outline: "none",
 									}}
@@ -357,7 +355,7 @@ export function ViewSwitcher({
 									{view.isDefault && (
 										<span
 											style={{
-												color: "var(--accent, #2eaadc)",
+												color: "var(--accent)",
 												fontSize: 13,
 												lineHeight: 1,
 											}}
@@ -370,7 +368,7 @@ export function ViewSwitcher({
 										<span
 											style={{
 												marginLeft: "auto",
-												color: "var(--accent, #2eaadc)",
+												color: "var(--accent)",
 											}}
 										>
 											✓
@@ -425,7 +423,7 @@ export function ViewSwitcher({
 					<div
 						style={{
 							height: 1,
-							background: "var(--border, #e9e9e7)",
+							background: "var(--border)",
 							margin: "3px 8px",
 						}}
 					/>
@@ -485,7 +483,7 @@ export function ViewSwitcher({
 							<div
 								style={{
 									height: 1,
-									background: "var(--border, #e9e9e7)",
+									background: "var(--border)",
 									margin: "3px 8px",
 								}}
 							/>
@@ -517,7 +515,7 @@ export function ViewSwitcher({
 									width: "100%",
 									padding: "4px 6px",
 									fontSize: 13,
-									border: "1px solid #2eaadc",
+									border: "1px solid var(--accent)",
 									borderRadius: 4,
 									outline: "none",
 								}}

@@ -13,16 +13,19 @@ import { usePageStore } from "../../stores/pageStore.js";
 
 // ── Shared constants ──────────────────────────────────────────────────────
 
+// Option colours. `bg`/`fg` still dress multiSelect chips (several values need
+// a visible boundary each); `dot` is the saturated counterpart used wherever a
+// single value is shown, so the colour survives without a pill around the word.
 const SELECT_COLORS = [
-	{ bg: "#e3e2e0", fg: "#1e1e1e" },
-	{ bg: "#e9d5ca", fg: "#1e1e1e" },
-	{ bg: "#fad4c0", fg: "#1e1e1e" },
-	{ bg: "#fdecc8", fg: "#1e1e1e" },
-	{ bg: "#dcf4d4", fg: "#1e1e1e" },
-	{ bg: "#d3e5ef", fg: "#1e1e1e" },
-	{ bg: "#dadfee", fg: "#1e1e1e" },
-	{ bg: "#f5d6e8", fg: "#1e1e1e" },
-	{ bg: "#ffe2dd", fg: "#1e1e1e" },
+	{ bg: "#e3e2e0", fg: "#1e1e1e", dot: "var(--text-3)" },
+	{ bg: "#e9d5ca", fg: "#1e1e1e", dot: "#A1663B" },
+	{ bg: "#fad4c0", fg: "#1e1e1e", dot: "var(--warning)" },
+	{ bg: "#fdecc8", fg: "#1e1e1e", dot: "#C9A227" },
+	{ bg: "#dcf4d4", fg: "#1e1e1e", dot: "var(--success)" },
+	{ bg: "#d3e5ef", fg: "#1e1e1e", dot: "#2B7FB8" },
+	{ bg: "#dadfee", fg: "#1e1e1e", dot: "#5B5BD6" },
+	{ bg: "#f5d6e8", fg: "#1e1e1e", dot: "#C2408A" },
+	{ bg: "#ffe2dd", fg: "#1e1e1e", dot: "var(--danger)" },
 ];
 
 export function optionColor(idx: number) {
@@ -187,8 +190,8 @@ export function Popover({
 				left: pos.left,
 				zIndex: 10000,
 				minWidth,
-				background: "#fff",
-				border: "1px solid #e9e9e7",
+				background: "var(--surface)",
+				border: "1px solid var(--border)",
 				borderRadius: 8,
 				boxShadow: "0 4px 20px rgba(0,0,0,0.15)",
 				padding: 8,
@@ -315,20 +318,47 @@ export function CellAnchoredPopover({
 export function SelectPill({
 	value,
 	colorIdx,
+	bare = false,
 }: {
 	value: string;
 	colorIdx: number;
+	/** A single value reads from its dot — it does not also need a pill. */
+	bare?: boolean;
 }) {
 	const c = optionColor(colorIdx);
+	if (bare)
+		return (
+			<span
+				style={{
+					display: "inline-flex",
+					alignItems: "center",
+					gap: 6,
+					fontSize: 13,
+					color: "var(--text-2)",
+					lineHeight: "20px",
+				}}
+			>
+				<i
+					style={{
+						width: 6,
+						height: 6,
+						borderRadius: "50%",
+						background: c.dot,
+						flexShrink: 0,
+					}}
+				/>
+				{value}
+			</span>
+		);
 	return (
 		<span
 			style={{
 				display: "inline-block",
 				background: c.bg,
 				color: c.fg,
-				borderRadius: 4,
+				borderRadius: "var(--radius-sm)",
 				padding: "1px 7px",
-				fontSize: 13,
+				fontSize: 12.5,
 				fontWeight: 500,
 				lineHeight: "20px",
 			}}
@@ -384,7 +414,7 @@ export function CellDisplay({
 					title={res.error}
 					style={{
 						fontSize: 12,
-						color: "#c44",
+						color: "var(--danger)",
 						fontFamily: "ui-monospace, SFMono-Regular, Menlo, monospace",
 					}}
 				>
@@ -394,22 +424,28 @@ export function CellDisplay({
 		}
 		const v = res.value;
 		if (v === null || v === undefined || v === "")
-			return <span style={{ color: "#d3d1cb" }}>&nbsp;</span>;
+			return <span style={{ color: "var(--text-3)" }}>&nbsp;</span>;
 		if (typeof v === "number") {
 			const display = Number.isFinite(v)
 				? v.toLocaleString(undefined, { maximumFractionDigits: 6 })
 				: String(v);
-			return <span style={{ fontSize: 13, color: "#37352f" }}>{display}</span>;
+			return (
+				<span style={{ fontSize: 13, color: "var(--text)" }}>{display}</span>
+			);
 		}
 		if (typeof v === "boolean")
 			return (
-				<span style={{ fontSize: 13, color: "#37352f" }}>{v ? "✓" : ""}</span>
+				<span style={{ fontSize: 13, color: "var(--text)" }}>
+					{v ? "✓" : ""}
+				</span>
 			);
-		return <span style={{ fontSize: 13, color: "#37352f" }}>{String(v)}</span>;
+		return (
+			<span style={{ fontSize: 13, color: "var(--text)" }}>{String(v)}</span>
+		);
 	}
 
 	if (value === null || value === undefined || value === "") {
-		return <span style={{ color: "#d3d1cb" }}>&nbsp;</span>;
+		return <span style={{ color: "var(--text-3)" }}>&nbsp;</span>;
 	}
 
 	if (field.type === "checkbox") {
@@ -428,8 +464,8 @@ export function CellDisplay({
 						width: 18,
 						height: 18,
 						borderRadius: 3,
-						border: checked ? "none" : "1.5px solid #c0c0bd",
-						background: checked ? "#2eaadc" : "transparent",
+						border: checked ? "none" : "1.5px solid var(--border-mid)",
+						background: checked ? "var(--accent)" : "transparent",
 						display: "flex",
 						alignItems: "center",
 						justifyContent: "center",
@@ -455,15 +491,16 @@ export function CellDisplay({
 		const opts = field.options || [];
 		const idx = opts.indexOf(String(value));
 		return value ? (
-			<SelectPill value={String(value)} colorIdx={idx >= 0 ? idx : 0} />
+			<SelectPill value={String(value)} colorIdx={idx >= 0 ? idx : 0} bare />
 		) : (
-			<span style={{ color: "#d3d1cb" }}>&nbsp;</span>
+			<span style={{ color: "var(--text-3)" }}>&nbsp;</span>
 		);
 	}
 
 	if (field.type === "multiSelect") {
 		const vals = decodeCell(field.type, value);
-		if (!vals.length) return <span style={{ color: "#d3d1cb" }}>&nbsp;</span>;
+		if (!vals.length)
+			return <span style={{ color: "var(--text-3)" }}>&nbsp;</span>;
 		const opts = field.options || [];
 		return (
 			<div
@@ -479,12 +516,14 @@ export function CellDisplay({
 
 	if (field.type === "date")
 		return (
-			<span style={{ fontSize: 13, color: "#37352f" }}>{String(value)}</span>
+			<span style={{ fontSize: 13, color: "var(--text)" }}>
+				{String(value)}
+			</span>
 		);
 	if (field.type === "number") {
-		if (!value) return <span style={{ color: "#d3d1cb" }}>&nbsp;</span>;
+		if (!value) return <span style={{ color: "var(--text-3)" }}>&nbsp;</span>;
 		return (
-			<span style={{ fontSize: 13, color: "#37352f" }}>
+			<span style={{ fontSize: 13, color: "var(--text)" }}>
 				{Number(value).toLocaleString()}
 			</span>
 		);
@@ -492,7 +531,8 @@ export function CellDisplay({
 
 	if (field.type === "page") {
 		const vals = decodeCell(field.type, value);
-		if (!vals.length) return <span style={{ color: "#d3d1cb" }}>&nbsp;</span>;
+		if (!vals.length)
+			return <span style={{ color: "var(--text-3)" }}>&nbsp;</span>;
 		return (
 			<div
 				style={{ display: "flex", gap: 4, flexWrap: "wrap", padding: "2px 0" }}
@@ -507,7 +547,7 @@ export function CellDisplay({
 	if (field.type === "people") {
 		const userIds = decodeCell(field.type, value);
 		if (!userIds.length)
-			return <span style={{ color: "#d3d1cb" }}>&nbsp;</span>;
+			return <span style={{ color: "var(--text-3)" }}>&nbsp;</span>;
 		return (
 			<div
 				style={{
@@ -527,7 +567,8 @@ export function CellDisplay({
 
 	if (field.type === "relation") {
 		const vals = decodeCell(field.type, value);
-		if (!vals.length) return <span style={{ color: "#d3d1cb" }}>&nbsp;</span>;
+		if (!vals.length)
+			return <span style={{ color: "var(--text-3)" }}>&nbsp;</span>;
 		const targetDbId = field.relationTargetDbId;
 		return (
 			<div
@@ -547,7 +588,7 @@ export function CellDisplay({
 	}
 
 	return (
-		<span style={{ fontSize: 13, color: "#37352f" }}>{String(value)}</span>
+		<span style={{ fontSize: 13, color: "var(--text)" }}>{String(value)}</span>
 	);
 }
 
@@ -812,7 +853,9 @@ function SelectPopover({
 								}}
 							>
 								<span style={{ fontSize: 14, opacity: 0.5 }}>✕</span>
-								<span style={{ fontSize: 13, color: "#888" }}>Clear</span>
+								<span style={{ fontSize: 13, color: "var(--text-3)" }}>
+									Clear
+								</span>
 							</div>
 						);
 					}
@@ -848,7 +891,9 @@ function SelectPopover({
 								/>
 								<span style={{ fontSize: 13, flex: 1 }}>{opt}</span>
 								{isSelected && (
-									<span style={{ color: "#2eaadc", fontSize: 14 }}>✓</span>
+									<span style={{ color: "var(--accent)", fontSize: 14 }}>
+										✓
+									</span>
 								)}
 							</div>
 						);
@@ -873,7 +918,13 @@ function SelectPopover({
 					return null;
 				})}
 				{filtered.length === 0 && !canCreate && !hasValue && (
-					<div style={{ padding: "8px 12px", color: "#888", fontSize: 13 }}>
+					<div
+						style={{
+							padding: "8px 12px",
+							color: "var(--text-3)",
+							fontSize: 13,
+						}}
+					>
 						No options
 					</div>
 				)}
@@ -946,7 +997,9 @@ export function RelationPicker({
 	return (
 		<CellAnchoredPopover onClose={onClose} minWidth={260}>
 			{!targetDb ? (
-				<div style={{ padding: "8px 12px", color: "#888", fontSize: 13 }}>
+				<div
+					style={{ padding: "8px 12px", color: "var(--text-3)", fontSize: 13 }}
+				>
 					{targetDbId
 						? "Loading related records..."
 						: "No relation target set. Edit this property to choose a target database."}
@@ -957,7 +1010,7 @@ export function RelationPicker({
 						style={{
 							padding: "4px 8px",
 							fontSize: 11,
-							color: "#999",
+							color: "var(--text-3)",
 							fontWeight: 500,
 						}}
 					>
@@ -974,7 +1027,13 @@ export function RelationPicker({
 						/>
 					)}
 					{filteredRecords.length === 0 ? (
-						<div style={{ padding: "8px 12px", color: "#888", fontSize: 13 }}>
+						<div
+							style={{
+								padding: "8px 12px",
+								color: "var(--text-3)",
+								fontSize: 13,
+							}}
+						>
 							{records.length === 0
 								? `No records in ${targetDb.name}`
 								: "No matching records found"}
@@ -1006,8 +1065,10 @@ export function RelationPicker({
 											width: 18,
 											height: 18,
 											borderRadius: 3,
-											border: selected ? "none" : "1.5px solid #c0c0bd",
-											background: selected ? "#2eaadc" : "transparent",
+											border: selected
+												? "none"
+												: "1.5px solid var(--border-mid)",
+											background: selected ? "var(--accent)" : "transparent",
 											display: "flex",
 											alignItems: "center",
 											justifyContent: "center",
@@ -1047,7 +1108,7 @@ export function RelationPicker({
 					<div
 						style={{
 							padding: "4px 8px",
-							color: "#888",
+							color: "var(--text-3)",
 							fontSize: 12,
 							cursor: "pointer",
 							borderTop: "1px solid #f0f0f0",
@@ -1132,7 +1193,7 @@ function PeopleInlineAutocomplete({
 							height: 24,
 							borderRadius: "50%",
 							background: "rgba(46,170,220,0.15)",
-							color: "#2eaadc",
+							color: "var(--accent)",
 							fontSize: 11,
 							fontWeight: 600,
 							flexShrink: 0,
@@ -1155,7 +1216,7 @@ function PeopleInlineAutocomplete({
 						<span
 							style={{
 								fontSize: 11,
-								color: "#888",
+								color: "var(--text-3)",
 								overflow: "hidden",
 								textOverflow: "ellipsis",
 							}}
@@ -1312,7 +1373,7 @@ function CellInlineMultiAutocomplete<T extends { id: string; title?: string }>({
 				ref={anchorRef}
 				className="flex flex-wrap gap-1 items-center"
 				style={{
-					border: "1px solid #2eaadc",
+					border: "1px solid var(--accent)",
 					borderRadius: 4,
 					padding: "2px 4px",
 					minHeight: 28,
@@ -1343,8 +1404,8 @@ function CellInlineMultiAutocomplete<T extends { id: string; title?: string }>({
 							left: dropdownPos.left,
 							width: dropdownPos.width,
 							zIndex: 10000,
-							background: "#fff",
-							border: "1px solid #e9e9e7",
+							background: "var(--surface)",
+							border: "1px solid var(--border)",
 							borderRadius: 8,
 							boxShadow: "0 4px 20px rgba(0,0,0,0.15)",
 							padding: 8,
@@ -1356,7 +1417,7 @@ function CellInlineMultiAutocomplete<T extends { id: string; title?: string }>({
 							<div
 								style={{
 									padding: "8px 12px",
-									color: "#888",
+									color: "var(--text-3)",
 									fontSize: 13,
 								}}
 							>
@@ -1473,8 +1534,8 @@ export function InlineCellEditor({
 						width: 18,
 						height: 18,
 						borderRadius: 3,
-						border: checked ? "none" : "1.5px solid #c0c0bd",
-						background: checked ? "#2eaadc" : "transparent",
+						border: checked ? "none" : "1.5px solid var(--border-mid)",
+						background: checked ? "var(--accent)" : "transparent",
 						display: "flex",
 						alignItems: "center",
 						justifyContent: "center",
@@ -1518,7 +1579,7 @@ export function InlineCellEditor({
 				onKeyDown={handleKeyDown}
 				style={{
 					width: "100%",
-					border: "1px solid #2eaadc",
+					border: "1px solid var(--accent)",
 					borderRadius: 4,
 					padding: "2px 4px",
 					fontSize: 13,
@@ -1539,7 +1600,7 @@ export function InlineCellEditor({
 				onKeyDown={handleKeyDown}
 				style={{
 					width: "100%",
-					border: "1px solid #2eaadc",
+					border: "1px solid var(--accent)",
 					borderRadius: 4,
 					padding: "2px 4px",
 					fontSize: 13,
@@ -1596,8 +1657,8 @@ export function InlineCellEditor({
 								width: 18,
 								height: 18,
 								borderRadius: 3,
-								border: selected ? "none" : "1.5px solid #c0c0bd",
-								background: selected ? "#2eaadc" : "transparent",
+								border: selected ? "none" : "1.5px solid var(--border-mid)",
+								background: selected ? "var(--accent)" : "transparent",
 								display: "flex",
 								alignItems: "center",
 								justifyContent: "center",
@@ -1674,8 +1735,8 @@ export function InlineCellEditor({
 								width: 18,
 								height: 18,
 								borderRadius: 3,
-								border: selected ? "none" : "1.5px solid #c0c0bd",
-								background: selected ? "#2eaadc" : "transparent",
+								border: selected ? "none" : "1.5px solid var(--border-mid)",
+								background: selected ? "var(--accent)" : "transparent",
 								display: "flex",
 								alignItems: "center",
 								justifyContent: "center",
@@ -1741,7 +1802,7 @@ export function InlineCellEditor({
 			onKeyDown={handleKeyDown}
 			style={{
 				width: "100%",
-				border: "1px solid #2eaadc",
+				border: "1px solid var(--accent)",
 				borderRadius: 4,
 				padding: "2px 4px",
 				fontSize: 13,

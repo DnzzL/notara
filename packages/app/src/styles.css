@@ -88,6 +88,11 @@
   --shadow-lg:    0 10px 28px rgba(10,10,10,0.12);
   --shadow-xl:    0 20px 48px rgba(10,10,10,0.16);
 
+  /* Density — the working surface is compact on purpose. Tap targets stay at
+     --row-touch on coarse pointers; density is a pointer-device affordance. */
+  --row:          32px;
+  --row-touch:    48px;
+
   /* Radius — Swiss small / squared */
   --radius-sm:    3px;
   --radius:       4px;
@@ -139,6 +144,12 @@ body {
 
 /* ── App shell ─────────────────────────────────────────────────────── */
 .app { display: flex; height: 100vh; overflow: hidden; }
+
+/* Mobile-only chrome. Declared here, above the max-width query that turns it
+   on — a plain `display:none` further down the file would outrank the query
+   on source order and silently kill the hamburger on phones. */
+.mobile-topbar { display: none; }
+.mobile-menu-btn { display: none; }
 
 
 /* ── Ark UI TreeView base resets ── */
@@ -1019,8 +1030,11 @@ select, input, textarea, button { font-family: var(--font-ui); }
     left: 0;
     bottom: 0;
     z-index: 200;
-    width: 80vw;
+    /* The desktop resizer writes an inline width; on a phone the drawer
+       width wins, so this has to outrank it. */
+    width: 80vw !important;
     max-width: 320px;
+    min-width: 0 !important;
     transform: translateX(-100%);
     transition: transform 0.22s var(--ease);
     box-shadow: var(--shadow-xl);
@@ -1091,8 +1105,8 @@ select, input, textarea, button { font-family: var(--font-ui); }
   /* Hide drag handles on mobile — no hover state anyway, but keep the + insert button */
 
 
-  /* Database table — horizontal scroll + sticky title on mobile */
-  .table-view { overflow-x: auto; }
+  /* The database table is replaced outright by the field ruler below this
+     breakpoint — see components/db/MobileRuler.tsx. Nothing to reflow here. */
 
 }
 /* Floating add-block button */
@@ -1118,9 +1132,6 @@ select, input, textarea, button { font-family: var(--font-ui); }
 @media (max-width: 880px) {
   .fab-add-block { display: flex; }
 }
-/* Hide mobile topbar on desktop */
-.mobile-topbar { display: none; }
-.mobile-menu-btn { display: none; }
 
 
 
@@ -1270,3 +1281,298 @@ select, input, textarea, button { font-family: var(--font-ui); }
   z-index: 2;
 }
 
+
+/* ══════════════════════════════════════════════════════════════════════
+   DATABASE TABLE — the working surface (Établi)
+
+   The database view is built from Tailwind utilities and inline styles;
+   these rules are the few structural decisions that belong to the design
+   system rather than to a component, so they live in one place:
+   the ink rule that frames the data, the row rhythm, and the mono
+   column-header voice. See docs/design-system.md § Établi.
+══════════════════════════════════════════════════════════════════════ */
+
+/* Ink rule #1 of 2 — the header baseline. It is what makes a table read as a
+   printed data sheet instead of a grid of boxes. */
+.db-table thead th {
+  border-bottom: 2px solid var(--text);
+  font-family: var(--font-mono);
+  font-size: 10px;
+  font-weight: 400;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--text-3);
+  background: var(--bg-editor);
+}
+
+/* The type glyph is a symbol, not a word — uppercasing turns "Aa" into "AA".
+   Applies anywhere a mono uppercase label carries a field-type marker. */
+.db-type-glyph { text-transform: none; }
+
+/* Row rhythm. Cells carry their own vertical padding from Tailwind, which
+   compounds with the inner display wrapper's; zeroing it here lets --row be
+   the single number that decides how tall a record is. */
+.db-table tbody td {
+  height: var(--row);
+  padding-block: 0;
+}
+
+/* Digits that get compared line up. */
+.db-table tbody td[data-field-type="number"],
+.db-table tbody td[data-field-type="date"] {
+  font-family: var(--font-mono);
+  font-variant-numeric: tabular-nums;
+  font-size: 12.5px;
+}
+.db-table tbody td[data-field-type="number"] { text-align: right; }
+
+/* Hover is the accent's second allowed job: tint plus a left bar that says
+   which row the pointer owns. */
+.db-table tbody tr:hover > td { background: var(--accent-dim); }
+.db-table tbody tr:hover > td:first-child {
+  box-shadow: inset 2px 0 0 var(--accent);
+}
+
+/* Ink rule #2 of 2 — the status line under the table. */
+.db-statusline {
+  display: flex;
+  align-items: center;
+  height: 30px;
+  margin-top: 0;
+  border-top: 2px solid var(--text);
+  background: var(--sb);
+  font-family: var(--font-mono);
+  font-size: 11px;
+  color: var(--text-3);
+  padding: 0 4px;
+  overflow-x: auto;
+  scrollbar-width: none;
+}
+.db-statusline::-webkit-scrollbar { display: none; }
+.db-statusline > span {
+  padding: 0 10px;
+  border-right: 1px solid var(--border);
+  white-space: nowrap;
+  display: flex;
+  align-items: baseline;
+  gap: 5px;
+}
+.db-statusline > span:last-child { border-right: none; margin-left: auto; }
+.db-statusline .lbl {
+  font-style: normal;
+  font-size: 9px;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--text-3);
+}
+.db-statusline b {
+  font-weight: 500;
+  color: var(--text);
+  font-variant-numeric: tabular-nums;
+}
+
+/* ── Database on a narrow screen: the field ruler ──────────────────────────
+   You navigate the field, not the row. The list stays put; a swipe or a tap
+   on the strip changes which column it shows. Rows are --row-touch tall:
+   density is a pointer-device affordance and does not apply to thumbs. */
+
+.db-ruler { position: relative; }
+
+.db-ruler-strip {
+  display: flex;
+  overflow-x: auto;
+  scrollbar-width: none;
+  background: var(--sb);
+  border-bottom: 2px solid var(--text);
+  scroll-snap-type: x proximity;
+}
+.db-ruler-strip::-webkit-scrollbar { display: none; }
+
+.db-ruler-tab {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  height: 46px;
+  padding: 0 15px;
+  font: inherit;
+  font-size: 13.5px;
+  color: var(--text-3);
+  background: none;
+  border: none;
+  border-right: 1px solid var(--border);
+  white-space: nowrap;
+  cursor: pointer;
+  flex-shrink: 0;
+  scroll-snap-align: center;
+}
+.db-ruler-tab .g { font-family: var(--font-mono); font-size: 11px; opacity: 0.6; }
+.db-ruler-tab.is-active {
+  color: var(--accent);
+  font-weight: 600;
+  background: var(--bg-editor);
+  box-shadow: inset 0 -2px 0 var(--accent);
+}
+
+.db-ruler-caption {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  flex-wrap: nowrap;
+  white-space: nowrap;
+  overflow: hidden;
+  padding: 8px 16px;
+  background: var(--sb);
+  border-bottom: 1px solid var(--border);
+  font-family: var(--font-mono);
+  font-size: 10px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--text-3);
+}
+.db-ruler-caption .right { margin-left: auto; }
+
+.db-ruler-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  min-height: var(--row-touch);
+  border-bottom: 1px solid var(--border);
+  padding: 0 16px;
+}
+.db-ruler-row .n,
+.db-ruler-row .v {
+  font: inherit;
+  background: none;
+  border: none;
+  color: inherit;
+  cursor: pointer;
+  text-align: left;
+  padding: 0;
+  min-height: var(--row-touch);
+  display: flex;
+  align-items: center;
+}
+.db-ruler-row .n {
+  flex: 1;
+  min-width: 0;
+  font-size: 15px;
+  color: var(--text);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  display: block;
+  line-height: var(--row-touch);
+}
+.db-ruler-row .v {
+  flex-shrink: 0;
+  max-width: 55%;
+  justify-content: flex-end;
+  overflow: hidden;
+}
+.db-ruler-row .v:disabled { cursor: default; opacity: 0.65; }
+.db-ruler-row .v:active:not(:disabled) { background: var(--accent-dim); }
+
+.db-ruler-empty {
+  padding: 28px 16px;
+  text-align: center;
+  color: var(--text-3);
+  font-size: 13px;
+  font-style: italic;
+}
+
+.db-ruler-new {
+  margin-left: 10px;
+  font: inherit;
+  font-family: var(--font-mono);
+  font-size: 10px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--accent);
+  background: none;
+  border: 1px solid var(--accent);
+  border-radius: var(--radius-sm);
+  padding: 5px 9px;
+  cursor: pointer;
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+.db-ruler-new:active { background: var(--accent-dim); }
+
+/* ── The per-type edit sheet ───────────────────────────────────────────────
+   Wraps the same InlineCellEditor the desktop table uses, so option lists,
+   relation pickers and date parsing have one implementation. */
+
+.db-sheet-scrim {
+  position: fixed;
+  inset: 0;
+  z-index: 1000;
+  background: rgba(10, 10, 10, 0.32);
+  border: none;
+  padding: 0;
+  cursor: pointer;
+  animation: fade-in var(--t-slow) var(--ease);
+}
+
+.db-sheet {
+  position: fixed;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  z-index: 1001;
+  background: var(--surface);
+  border-top: 1px solid var(--border-mid);
+  border-radius: var(--radius-lg) var(--radius-lg) 0 0;
+  padding: 10px 18px calc(26px + env(safe-area-inset-bottom));
+  max-height: 76vh;
+  overflow: auto;
+  box-shadow: var(--shadow-xl);
+  animation: sheet-rise var(--t-slow) var(--ease);
+}
+
+@keyframes sheet-rise {
+  from { transform: translateY(100%); }
+  to   { transform: translateY(0); }
+}
+@media (prefers-reduced-motion: reduce) {
+  .db-sheet, .db-sheet-scrim { animation: none; }
+}
+
+.db-sheet-grab {
+  width: 36px;
+  height: 4px;
+  border-radius: 2px;
+  background: var(--border-mid);
+  margin: 0 auto 14px;
+}
+
+.db-sheet-head {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  margin-bottom: 14px;
+}
+.db-sheet-head .f {
+  font-family: var(--font-mono);
+  font-size: 10px;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--text-3);
+}
+.db-sheet-head .r {
+  margin-left: auto;
+  font-weight: 600;
+  font-size: 15px;
+  color: var(--text);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.db-sheet-slot { min-height: 48px; }
+.db-sheet-slot input,
+.db-sheet-slot textarea,
+.db-sheet-slot select {
+  width: 100%;
+  min-height: 48px;
+  font-size: 16px; /* < 16px makes iOS Safari zoom the viewport on focus */
+}

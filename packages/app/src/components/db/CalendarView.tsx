@@ -178,7 +178,7 @@ export function CalendarView({
 							alignItems: "center",
 							gap: 6,
 							fontSize: 13,
-							color: "#666",
+							color: "var(--text-2)",
 						}}
 					>
 						<span style={{ fontWeight: 500 }}>Date field:</span>

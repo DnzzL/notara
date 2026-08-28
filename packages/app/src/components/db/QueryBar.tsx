@@ -43,12 +43,12 @@ function FilterValueInput({
 	onChange: (v: string) => void;
 }) {
 	const inputStyle = {
-		border: "1px solid #e9e9e7",
+		border: "1px solid var(--border)",
 		borderRadius: 4,
 		padding: "2px 6px",
 		fontSize: 12,
 		outline: "none",
-		background: "#fff",
+		background: "var(--surface)",
 	} as const;
 	if (field?.type === "checkbox") {
 		return (
@@ -149,7 +149,12 @@ export function FilterBar({
 	return (
 		<div className="flex flex-wrap gap-2 items-center">
 			<span
-				style={{ fontSize: 12, color: "#666", fontWeight: 500, marginRight: 4 }}
+				style={{
+					fontSize: 12,
+					color: "var(--text-2)",
+					fontWeight: 500,
+					marginRight: 4,
+				}}
 			>
 				Filter
 			</span>
@@ -175,11 +180,11 @@ export function FilterBar({
 								});
 							}}
 							style={{
-								border: "1px solid #e9e9e7",
+								border: "1px solid var(--border)",
 								borderRadius: 4,
 								padding: "2px 4px",
 								fontSize: 12,
-								background: "#fff",
+								background: "var(--surface)",
 							}}
 						>
 							<option value="">Field</option>
@@ -196,11 +201,11 @@ export function FilterBar({
 								onChange(idx, { operator: e.target.value as FilterOperator })
 							}
 							style={{
-								border: "1px solid #e9e9e7",
+								border: "1px solid var(--border)",
 								borderRadius: 4,
 								padding: "2px 4px",
 								fontSize: 12,
-								background: "#fff",
+								background: "var(--surface)",
 							}}
 						>
 							{operators.map((op) => (
@@ -222,7 +227,7 @@ export function FilterBar({
 								background: "none",
 								border: "none",
 								cursor: "pointer",
-								color: "#999",
+								color: "var(--text-3)",
 								padding: 2,
 								fontSize: 14,
 							}}
@@ -280,7 +285,12 @@ export function SortBar({
 	return (
 		<div className="flex flex-wrap gap-2 items-center">
 			<span
-				style={{ fontSize: 12, color: "#666", fontWeight: 500, marginRight: 4 }}
+				style={{
+					fontSize: 12,
+					color: "var(--text-2)",
+					fontWeight: 500,
+					marginRight: 4,
+				}}
 			>
 				Sort
 			</span>
@@ -294,11 +304,11 @@ export function SortBar({
 						value={sort.fieldId}
 						onChange={(e) => onChange(idx, { fieldId: e.target.value })}
 						style={{
-							border: "1px solid #e9e9e7",
+							border: "1px solid var(--border)",
 							borderRadius: 4,
 							padding: "2px 4px",
 							fontSize: 12,
-							background: "#fff",
+							background: "var(--surface)",
 						}}
 					>
 						<option value="">Field</option>
@@ -315,11 +325,11 @@ export function SortBar({
 							onChange(idx, { direction: e.target.value as "asc" | "desc" })
 						}
 						style={{
-							border: "1px solid #e9e9e7",
+							border: "1px solid var(--border)",
 							borderRadius: 4,
 							padding: "2px 4px",
 							fontSize: 12,
-							background: "#fff",
+							background: "var(--surface)",
 						}}
 					>
 						<option value="asc">Ascending</option>
@@ -331,7 +341,7 @@ export function SortBar({
 							background: "none",
 							border: "none",
 							cursor: "pointer",
-							color: "#999",
+							color: "var(--text-3)",
 							padding: 2,
 							fontSize: 14,
 						}}

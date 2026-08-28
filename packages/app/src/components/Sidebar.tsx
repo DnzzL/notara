@@ -442,9 +442,12 @@ export function Sidebar({
 			onDragCancel={handleDragCancel}
 		>
 			<SortableContext items={treeOrder} strategy={verticalListSortingStrategy}>
+				{/* `sidebar` is the hook the mobile drawer rules in styles.css target.
+				    Without it the panel keeps its desktop width on a phone and
+				    leaves ~110px for the page. */}
 				<aside
 					data-sidebar
-					className={`bg-sb border-r border-border-sb flex flex-col shrink-0 relative min-w-[200px] max-w-[480px]${className ? ` ${className}` : ""}`}
+					className={`sidebar bg-sb border-r border-border-sb flex flex-col shrink-0 relative min-w-[200px] max-w-[480px]${className ? ` ${className}` : ""}`}
 					style={{ width }}
 				>
 					<WorkspaceSwitcher
