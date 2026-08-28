@@ -8,6 +8,7 @@ import {
 } from "react";
 import { createPortal } from "react-dom";
 import { tryEvaluate } from "../../lib/formula.js";
+import { useIsCompact } from "../../lib/useIsCompact.js";
 import { api, getCurrentWorkspaceId } from "../../rpc-client.js";
 import { usePageStore } from "../../stores/pageStore.js";
 
@@ -110,6 +111,7 @@ export function Popover({
 	minWidth?: number;
 }) {
 	const ref = useRef<HTMLDivElement>(null);
+	const compact = useIsCompact();
 	const [pos, setPos] = useState<{ top: number; left: number }>({
 		top: 0,
 		left: 0,
@@ -181,6 +183,19 @@ export function Popover({
 
 	if (!triggerRect) return null;
 
+	// On a phone a floating box anchored to a control fights the surface it is
+	// anchored to: inside the mobile edit sheet the trigger already sits at the
+	// bottom of the screen, so "below the trigger" is off-screen, and flipping
+	// above lands on top of the value you are trying to read. Every picker
+	// becomes a sheet of its own instead — one change, and select, multiSelect,
+	// relation and page all behave, with no per-type mobile branch.
+	if (compact)
+		return (
+			<div ref={ref} className="db-popover-sheet" style={{ zIndex: 10000 }}>
+				{children}
+			</div>
+		);
+
 	return (
 		<div
 			ref={ref}
@@ -223,6 +238,7 @@ export function CellAnchoredPopover({
 }) {
 	const anchorRef = useRef<HTMLSpanElement>(null);
 	const popRef = useRef<HTMLDivElement>(null);
+	const compact = useIsCompact();
 	const [pos, setPos] = useState<{ top: number; left: number } | null>(null);
 
 	const calcAnchoredPos = useCallback(() => {
@@ -292,21 +308,33 @@ export function CellAnchoredPopover({
 		<>
 			<span ref={anchorRef} style={{ display: "none" }} />
 			{createPortal(
-				<div
-					ref={popRef}
-					className="bg-surface border border-border-mid rounded shadow-[var(--shadow-lg)] p-1 max-h-[360px] overflow-y-auto"
-					style={{
-						position: "fixed",
-						top: pos?.top ?? -9999,
-						left: pos?.left ?? -9999,
-						visibility: pos ? "visible" : "hidden",
-						minWidth,
-						zIndex: 10000,
-					}}
-					onMouseDown={(e) => e.stopPropagation()}
-				>
-					{children}
-				</div>,
+				compact ? (
+					// Same reasoning as Popover: on a phone the picker is the surface.
+					<div
+						ref={popRef}
+						className="db-popover-sheet"
+						style={{ zIndex: 10000 }}
+						onMouseDown={(e) => e.stopPropagation()}
+					>
+						{children}
+					</div>
+				) : (
+					<div
+						ref={popRef}
+						className="bg-surface border border-border-mid rounded shadow-[var(--shadow-lg)] p-1 max-h-[360px] overflow-y-auto"
+						style={{
+							position: "fixed",
+							top: pos?.top ?? -9999,
+							left: pos?.left ?? -9999,
+							visibility: pos ? "visible" : "hidden",
+							minWidth,
+							zIndex: 10000,
+						}}
+						onMouseDown={(e) => e.stopPropagation()}
+					>
+						{children}
+					</div>
+				),
 				document.body,
 			)}
 		</>
@@ -1345,6 +1373,7 @@ function CellInlineMultiAutocomplete<T extends { id: string; title?: string }>({
 		focused && (filtered.length > 0 || (q.length > 0 && filtered.length === 0));
 
 	// Compute dropdown position
+	const compact = useIsCompact();
 	const [dropdownPos, setDropdownPos] = useState<{
 		top: number;
 		left: number;
@@ -1398,20 +1427,27 @@ function CellInlineMultiAutocomplete<T extends { id: string; title?: string }>({
 				createPortal(
 					<div
 						ref={dropdownRef}
-						style={{
-							position: "fixed",
-							top: dropdownPos.top,
-							left: dropdownPos.left,
-							width: dropdownPos.width,
-							zIndex: 10000,
-							background: "var(--surface)",
-							border: "1px solid var(--border)",
-							borderRadius: 8,
-							boxShadow: "var(--shadow-lg)",
-							padding: 8,
-							maxHeight: 260,
-							overflow: "auto",
-						}}
+						// Third of the three popovers in this file, and the same
+						// reasoning: on a phone the picker is the surface.
+						className={compact ? "db-popover-sheet" : undefined}
+						style={
+							compact
+								? { zIndex: 10000 }
+								: {
+										position: "fixed",
+										top: dropdownPos.top,
+										left: dropdownPos.left,
+										width: dropdownPos.width,
+										zIndex: 10000,
+										background: "var(--surface)",
+										border: "1px solid var(--border)",
+										borderRadius: 8,
+										boxShadow: "var(--shadow-lg)",
+										padding: 8,
+										maxHeight: 260,
+										overflow: "auto",
+									}
+						}
 					>
 						{filtered.length === 0 ? (
 							<div

@@ -1590,3 +1590,47 @@ select, input, textarea, button { font-family: var(--font-ui); }
   min-height: 48px;
   font-size: 16px; /* < 16px makes iOS Safari zoom the viewport on focus */
 }
+
+/* A picker on a phone is a sheet, not a floating box. Popover and
+   CellAnchoredPopover both switch to this below the compact breakpoint, so
+   select, multiSelect, relation and page pickers all behave without a
+   per-type mobile branch. See components/db/CellComponents.tsx. */
+.db-popover-sheet {
+  position: fixed;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  max-height: 72vh;
+  overflow-y: auto;
+  background: var(--surface);
+  border-top: 1px solid var(--border-mid);
+  border-radius: var(--radius-lg) var(--radius-lg) 0 0;
+  box-shadow: var(--shadow-xl);
+  padding: 10px 12px calc(20px + env(safe-area-inset-bottom));
+  animation: sheet-rise var(--t-slow) var(--ease);
+}
+@media (prefers-reduced-motion: reduce) {
+  .db-popover-sheet { animation: none; }
+}
+/* Options in a sheet are tap targets, not menu rows.
+   The three pickers render their rows three different ways — buttons, divs
+   with a Tailwind cursor utility, and bare unclassed divs — so match the row
+   position rather than the row markup: any leaf-ish child of the sheet's
+   list is a row. Otherwise they keep their ~29px desktop height, which is
+   below every touch-target guideline. */
+.db-popover-sheet button,
+.db-popover-sheet [role="option"],
+.db-popover-sheet [class*="cursor-pointer"],
+.db-popover-sheet > div > div,
+.db-popover-sheet > div {
+  min-height: var(--row-touch);
+  display: flex;
+  align-items: center;
+}
+/* …except the wrappers, which must stay able to stack their rows. */
+.db-popover-sheet > div:has(> div + div),
+.db-popover-sheet > div > div:has(> div + div) {
+  display: block;
+  min-height: 0;
+}
+.db-popover-sheet input { min-height: 44px; font-size: 16px; }
