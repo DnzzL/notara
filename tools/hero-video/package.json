@@ -1,0 +1,22 @@
+{
+  "name": "notara-hero-video",
+  "private": true,
+  "version": "0.0.0",
+  "description": "Authoring tool for the landing-page hero. Not part of the app build.",
+  "scripts": {
+    "studio": "remotion studio src/index.ts",
+    "render": "remotion render src/index.ts Hero out/hero.mp4"
+  },
+  "dependencies": {
+    "@remotion/cli": "^4.0.518",
+    "@remotion/renderer": "^4.0.518",
+    "react": "^19.2.8",
+    "react-dom": "^19.2.8",
+    "remotion": "^4.0.518"
+  },
+  "devDependencies": {
+    "@types/react": "^19.2.18",
+    "@types/react-dom": "^19.2.5",
+    "typescript": "^7.0.2"
+  }
+}
