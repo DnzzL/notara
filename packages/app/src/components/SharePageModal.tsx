@@ -10,6 +10,7 @@ import { capture } from "../analytics.js";
 import { useSession } from "../auth-client.js";
 import { type AclRelation, api } from "../rpc-client.js";
 import { toaster } from "../toaster.js";
+import { ShareToWebSection } from "./ShareToWebSection.js";
 import { Button, Modal } from "./ui/index.js";
 
 interface Props {
@@ -321,6 +322,8 @@ export function SharePageModal({ pageId, workspaceId, onClose }: Props) {
 							</ul>
 						</section>
 					)}
+
+					<ShareToWebSection pageId={pageId} canManage={canManage} />
 
 					<section className="mb-5">
 						<h3 className="text-[11.5px] font-semibold mb-2.5 text-text-3 uppercase tracking-[0.06em]">

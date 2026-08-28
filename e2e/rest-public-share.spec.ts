@@ -10,7 +10,13 @@
  * nothing: the page would be readable because the reader is a member.
  */
 import { request } from "@playwright/test";
-import { APP_ORIGIN, expect, seedPage, test } from "./multiuser-helpers.js";
+import {
+	APP_ORIGIN,
+	expect,
+	openPage,
+	seedPage,
+	test,
+} from "./multiuser-helpers.js";
 
 /** A request context with no session at all — a stranger with a URL. */
 const anonymous = () => request.newContext({ baseURL: APP_ORIGIN });
@@ -278,6 +284,88 @@ test("an image on a shared page is served by the token, and only that page's ima
 		soloWs.workspaceId,
 	);
 	expect((await attach(onShared)).status()).toBe(404);
+
+	await anon.dispose();
+});
+
+test("a stranger opening the link sees the page, not a login form", async ({
+	alice,
+	soloWs,
+	browser,
+}) => {
+	// Every other route in the app gates on a session. This one must not — the
+	// whole point is that the reader has none, so the assertion is made in a
+	// context that has never signed in.
+	const { pageId } = await seedPage(alice, soloWs, "Open to all", [
+		"Readable by anyone",
+	]);
+	const token = await alice.rpc<string>(
+		"setPageSharing",
+		{ pageId, enabled: true },
+		soloWs.workspaceId,
+	);
+
+	const context = await browser.newContext();
+	const page = await context.newPage();
+	await page.goto(`${APP_ORIGIN}/p/${token}`);
+
+	await expect(
+		page.getByRole("heading", { name: "Open to all" }),
+	).toBeVisible();
+	await expect(page.getByText("Readable by anyone")).toBeVisible();
+	await expect(page.getByText("Made with Notara")).toBeVisible();
+	expect(page.url()).not.toContain("/login");
+
+	// And once revoked, the reader is told the link does not work — never why.
+	await alice.rpc(
+		"setPageSharing",
+		{ pageId, enabled: false },
+		soloWs.workspaceId,
+	);
+	await page.goto(`${APP_ORIGIN}/p/${token}`);
+	await expect(page.getByText("This page isn't available")).toBeVisible();
+
+	await context.close();
+});
+
+test("the share modal publishes the page and hands back a working URL", async ({
+	alice,
+	soloWs,
+}) => {
+	// The toggle lives in the share modal rather than beside it in the page
+	// menu: "who can see this" is one question, and answering it in two places
+	// invites a page locked to three people AND published to everyone.
+	const { pageId } = await seedPage(alice, soloWs, "Toggle me", ["Body text"]);
+	await openPage(alice, soloWs, pageId);
+
+	// The sidebar rows carry a "More actions" button each; the page header's is
+	// the last in the document.
+	await alice.page.getByTitle("More actions").last().click();
+	await alice.page.getByRole("button", { name: "Share…" }).click();
+
+	const toggle = alice.page.locator('input[name="share-to-web"]');
+	await expect(toggle).not.toBeChecked();
+	// click(), not check(): the box is controlled by the server's answer, so it
+	// only flips once setPageSharing returns. check() asserts on the state
+	// synchronously and would race the round-trip.
+	await toggle.click();
+	await expect(toggle).toBeChecked();
+
+	const url = alice.page.locator("code", { hasText: "/p/" });
+	await expect(url).toBeVisible();
+	const publicUrlText = (await url.textContent()) ?? "";
+	expect(publicUrlText).toContain(`${APP_ORIGIN}/p/`);
+
+	// The URL the UI shows is the one that actually serves the page.
+	const anon = await anonymous();
+	const token = publicUrlText.split("/p/")[1] as string;
+	expect((await anon.get(publicUrl(token))).status()).toBe(200);
+
+	// Turning it off breaks the link for good.
+	await toggle.click();
+	await expect(toggle).not.toBeChecked();
+	await expect(url).toBeHidden();
+	expect((await anon.get(publicUrl(token))).status()).toBe(404);
 
 	await anon.dispose();
 });
