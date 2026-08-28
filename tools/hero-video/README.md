@@ -49,6 +49,25 @@ chip inside a cell does not navigate (only the page-link *block* does), and
 markdown shortcuts work but the trailing empty block does not persist between
 steps. Probe every interaction before writing a storyboard around it.
 
+## The pointer
+
+A CDP screencast **does not capture the mouse**. Without a synthetic one the
+video shows effects with no visible cause: a page changes and the viewer cannot
+tell what was clicked, or that anything was clicked at all. That was the single
+biggest thing wrong with the earlier cuts.
+
+`src/clicks.ts` is the click track — position in *source* pixels and time in
+seconds, logged during the recording by reading each target's bounding box
+immediately before clicking it, not eyeballed afterwards. `src/Cursor.tsx`
+draws the pointer back in, arriving at each target slightly *before* the click:
+anticipation is what makes a click read as caused rather than coincidental.
+
+The pointer is positioned in **screen** space, not source space — a real cursor
+is a constant size however far the camera has pushed in.
+
+When you re-record, re-log the clicks. A stale track is worse than none: a
+pointer clicking empty space actively misleads.
+
 ## The camera
 
 Two problems in one: this renders at **693x395** on the landing page. A frame
@@ -58,7 +77,19 @@ in to read, out to close the loop on the frame it opened with.
 
 `TIMELINE` in `src/Hero.tsx` is the whole choreography: keyframes of `{ t, shot }`,
 interpolated between, held where two keyframes share a shot. Every move lands
-*before* the thing it exists to show.
+*before* the thing it exists to show — including pulling back out for the
+sidebar click, which lives outside the reading windows.
+
+### Fluidity
+
+The recorder is fixed at **10fps** and has no flag for more, so anything the
+*app* animates is stepped. The fix is to give the app less to animate and the
+camera more: one short scroll in the whole take, everything else is camera
+movement, which Remotion renders at 60fps and is genuinely smooth.
+
+Capturing a viewport tall enough to remove the last scroll (1440x1460) does
+work — but at 2880x2920 the recorder silently drops most of the take. It
+recorded 6.8 seconds of a 14-second sequence. Stay at 1440x820.
 
 The shots are windows over the source, not CSS scales of the whole frame. The
 content column measures **1035 CSS px** (from the DOM, not guessed); anything

@@ -7,6 +7,8 @@ import {
 	useCurrentFrame,
 	useVideoConfig,
 } from "remotion";
+import { CLICKS } from "./clicks";
+import { Cursor } from "./Cursor";
 
 /**
  * The landing-page hero.
@@ -67,16 +69,17 @@ const DB: Shot = { x: 700, y: 560, w: 1720, h: 980 };
  */
 const TIMELINE: readonly { t: number; shot: Shot }[] = [
 	{ t: 0.0, shot: WIDE },
-	{ t: 1.0, shot: WIDE },
-	{ t: 2.2, shot: PAGE }, // in, while the link is still unclicked
-	{ t: 3.4, shot: PAGE }, // the click, and the redirect
-	{ t: 5.0, shot: BRIEF }, // drift down the brief to its backlink footer
-	{ t: 8.8, shot: BRIEF }, // the backlink expands here
-	{ t: 10.2, shot: PAGE }, // back on the tracker
-	{ t: 12.4, shot: DB }, // ride the scroll down to the databases
-	{ t: 17.6, shot: DB }, // table, board, table
-	{ t: 18.9, shot: WIDE }, // out
-	{ t: 19.9, shot: WIDE },
+	{ t: 0.5, shot: WIDE },
+	{ t: 1.0, shot: PAGE }, // settled before the link is clicked at 1.14
+	{ t: 2.4, shot: PAGE }, // the click, and the redirect
+	{ t: 3.4, shot: BRIEF }, // down the brief; its backlink is clicked at 3.74
+	{ t: 5.2, shot: BRIEF },
+	{ t: 5.7, shot: WIDE }, // out, so the sidebar click at 5.78 is on screen
+	{ t: 6.8, shot: WIDE },
+	{ t: 9.2, shot: DB }, // in over the scroll; Board is clicked at 9.70
+	{ t: 11.9, shot: DB },
+	{ t: 12.7, shot: WIDE }, // out, onto the frame it opened with
+	{ t: 13.1, shot: WIDE },
 ];
 
 const EASE = Easing.bezier(0.32, 0, 0.16, 1);
@@ -112,7 +115,8 @@ export function Hero() {
 	const frame = useCurrentFrame();
 	const { fps, width } = useVideoConfig();
 
-	const shot = shotAt(frame / fps);
+	const t = frame / fps;
+	const shot = shotAt(t);
 	const scale = width / shot.w;
 
 	return (
@@ -132,6 +136,7 @@ export function Hero() {
 					muted
 				/>
 			</div>
+			<Cursor clicks={CLICKS} t={t} shot={shot} scale={scale} />
 			{/* The landing page shows this in a rounded 8px window; a hairline keeps
 			    the paper background of the capture from bleeding into the paper
 			    background of the page. */}

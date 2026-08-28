@@ -7,8 +7,8 @@ export function RemotionRoot() {
 		<Composition
 			id="Hero"
 			component={Hero}
-			durationInFrames={Math.round(19.9 * 30)}
-			fps={30}
+			durationInFrames={Math.round(13.1 * 60)}
+			fps={60}
 			width={1288}
 			height={734}
 		/>
