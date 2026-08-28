@@ -12,7 +12,7 @@ export type Click = { t: number; x: number; y: number; label: string };
 /** 0.6s of lead-in was trimmed off the capture; these are already adjusted. */
 export const CLICKS: readonly Click[] = [
 	{ t: 1.14, x: 848, y: 675, label: "link" },
-	{ t: 3.74, x: 1701, y: 1534, label: "backlink" },
-	{ t: 5.78, x: 284, y: 380, label: "sidebar" },
-	{ t: 9.70, x: 1054, y: 656, label: "board" },
+	{ t: 3.77, x: 1701, y: 1534, label: "backlink" },
+	{ t: 5.82, x: 284, y: 380, label: "sidebar" },
+	{ t: 10.66, x: 1054, y: 656, label: "board" },
 ];

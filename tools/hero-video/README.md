@@ -30,10 +30,20 @@ each step causes the next:
 | the brief is a real page — Goal, Scope, Milestones | it is not a stub |
 | it knows who links to it — one backlink, pointing home | the graph is real, both ways |
 | back to the tracker via the sidebar | the tree kept its place |
-| the same records, as a board | one dataset, several views |
+| the same records, as a board | one dataset, several views — **and this is where it ends**, wide on the kanban |
 
 The claim underneath is *everything is connected*, which is exactly what a
 screenshot cannot say.
+
+It closes on the board rather than returning to the opening frame. A seamless
+loop was the wrong thing to optimise: the last thing on screen is the last
+thing remembered, and a kanban says more than an empty page header. The seam is
+a content change inside an unchanged framing, which barely reads.
+
+**Verify the board actually switched before stopping the recording.** One take
+was cut, composed and shipped with the board missing entirely — the click had
+silently failed and nothing downstream noticed, because every frame still
+looked like a working app.
 
 An earlier cut showed a table turning into a board and nothing else. That
 answers "does it have views", which nobody was asking. The objection a hero for

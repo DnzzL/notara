@@ -72,14 +72,14 @@ const TIMELINE: readonly { t: number; shot: Shot }[] = [
 	{ t: 0.5, shot: WIDE },
 	{ t: 1.0, shot: PAGE }, // settled before the link is clicked at 1.14
 	{ t: 2.4, shot: PAGE }, // the click, and the redirect
-	{ t: 3.4, shot: BRIEF }, // down the brief; its backlink is clicked at 3.74
+	{ t: 3.4, shot: BRIEF }, // down the brief; its backlink is clicked at 3.77
 	{ t: 5.2, shot: BRIEF },
-	{ t: 5.7, shot: WIDE }, // out, so the sidebar click at 5.78 is on screen
-	{ t: 6.8, shot: WIDE },
-	{ t: 9.2, shot: DB }, // in over the scroll; Board is clicked at 9.70
-	{ t: 11.9, shot: DB },
-	{ t: 12.7, shot: WIDE }, // out, onto the frame it opened with
-	{ t: 13.1, shot: WIDE },
+	{ t: 5.7, shot: WIDE }, // out, so the sidebar click at 5.82 is on screen
+	{ t: 6.9, shot: WIDE },
+	{ t: 10.2, shot: DB }, // in over the scroll; Board is clicked at 10.66
+	{ t: 12.3, shot: DB }, // the board, close enough to read a card
+	{ t: 13.4, shot: WIDE }, // out — but still on the board, which is the last
+	{ t: 13.9, shot: WIDE }, // thing you see, and the note the loop ends on
 ];
 
 const EASE = Easing.bezier(0.32, 0, 0.16, 1);
