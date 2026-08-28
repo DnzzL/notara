@@ -115,7 +115,7 @@ export function SlashMenu({
 		<div
 			ref={containerRef}
 			data-slash-menu
-			className="bg-surface border border-border-mid rounded-[5px] shadow-[var(--shadow-xl)] p-1.5 min-w-[272px] max-h-[400px] overflow-y-auto [&::-webkit-scrollbar]:w-[4px] [&::-webkit-scrollbar-track]:bg-transparent [&::-webkit-scrollbar-thumb]:bg-surface-4 [&::-webkit-scrollbar-thumb]:rounded-[2px]"
+			className="bg-surface border border-border-mid rounded shadow-[var(--shadow-xl)] p-1.5 min-w-[272px] max-h-[400px] overflow-y-auto [&::-webkit-scrollbar]:w-[4px] [&::-webkit-scrollbar-track]:bg-transparent [&::-webkit-scrollbar-thumb]:bg-surface-4 [&::-webkit-scrollbar-thumb]:rounded-sm"
 			style={{
 				position: "fixed",
 				top: adjustedPosition.top,

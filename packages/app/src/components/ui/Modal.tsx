@@ -38,7 +38,7 @@ export function Modal({
 
 	return (
 		<div
-			className="fixed inset-0 z-[1000] flex items-center justify-center p-6 bg-[rgba(15,18,30,0.45)] backdrop-blur-[6px] [animation:fade-in_0.15s_var(--ease)]"
+			className="fixed inset-0 z-[1000] flex items-center justify-center p-6 bg-scrim backdrop-blur-[6px] [animation:fade-in_0.15s_var(--ease)]"
 			onClick={closeOnOverlay ? onClose : undefined}
 		>
 			<div
@@ -66,7 +66,7 @@ export function Modal({
 				</div>
 				<div
 					className={cn(
-						"px-6 pt-5 pb-6 overflow-y-auto flex-1 [&::-webkit-scrollbar]:w-[5px] [&::-webkit-scrollbar-track]:bg-transparent [&::-webkit-scrollbar-thumb]:bg-surface-4 [&::-webkit-scrollbar-thumb]:rounded-[3px]",
+						"px-6 pt-5 pb-6 overflow-y-auto flex-1 [&::-webkit-scrollbar]:w-[5px] [&::-webkit-scrollbar-track]:bg-transparent [&::-webkit-scrollbar-thumb]:bg-surface-4 [&::-webkit-scrollbar-thumb]:rounded-sm",
 						bodyClassName,
 					)}
 				>

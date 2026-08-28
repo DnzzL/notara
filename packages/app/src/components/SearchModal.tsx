@@ -1,6 +1,6 @@
-import type { SearchResult } from "@notara/shared";
 import { useEffect, useRef, useState } from "react";
 import { selectPageByIdWithCascade } from "../lib/page-loader.js";
+import { flattenSearchItems } from "../lib/search-navigation.js";
 import { usePageStore } from "../store.js";
 import { cn } from "./ui/cn.js";
 
@@ -11,7 +11,7 @@ function highlightText(text: string, query: string): React.ReactNode {
 	return (
 		<>
 			{text.slice(0, idx)}
-			<mark className="bg-[#fef3c7] p-0 rounded-[2px]">
+			<mark className="bg-accent-mid p-0 rounded-sm">
 				{text.slice(idx, idx + query.length)}
 			</mark>
 			{text.slice(idx + query.length)}
@@ -19,7 +19,7 @@ function highlightText(text: string, query: string): React.ReactNode {
 	);
 }
 
-export function SearchModal() {
+export function SearchModal({ onNavigate }: { onNavigate?: () => void }) {
 	const globalSearch = usePageStore((s) => s.globalSearch);
 	const searchResults = usePageStore((s) => s.searchResults);
 	const recentPages = usePageStore((s) => s.recentPages);
@@ -92,42 +92,54 @@ export function SearchModal() {
 	const pageResults = searchResults.filter((r) => r.type === "page");
 	const blockResults = searchResults.filter((r) => r.type === "block");
 
-	const getFlatResults = (): SearchResult[] => {
-		if (!query.trim()) return [];
-		return [...pageResults, ...blockResults];
-	};
+	// One list for the arrow keys and the highlight. See lib/search-navigation.ts
+	// for why they must not be computed separately.
+	const flatItems = flattenSearchItems({
+		query,
+		recentPages,
+		pageResults,
+		blockResults,
+	});
 
-	const navigateToResult = (result: SearchResult) => {
-		selectPageByIdWithCascade(result.pageId);
+	const openItem = (item: { pageId: string }) => {
+		selectPageByIdWithCascade(item.pageId);
 		setIsOpen(false);
 		setQuery("");
+		// The palette can be opened from inside the mobile drawer; navigating
+		// away with the drawer still covering the page is the same bug the
+		// sidebar tree had.
+		onNavigate?.();
 	};
 
 	const handleKeyDown = (e: React.KeyboardEvent) => {
+		const last = flatItems.length - 1;
 		if (e.key === "ArrowDown") {
 			e.preventDefault();
-			setSelectedIndex((prev) =>
-				Math.min(prev + 1, getFlatResults().length - 1),
-			);
+			setSelectedIndex((prev) => (last < 0 ? 0 : Math.min(prev + 1, last)));
 		} else if (e.key === "ArrowUp") {
 			e.preventDefault();
 			setSelectedIndex((prev) => Math.max(prev - 1, 0));
+		} else if (e.key === "Home") {
+			e.preventDefault();
+			setSelectedIndex(0);
+		} else if (e.key === "End") {
+			e.preventDefault();
+			setSelectedIndex(Math.max(0, last));
 		} else if (e.key === "Enter") {
 			e.preventDefault();
-			const flat = getFlatResults();
-			if (flat[selectedIndex]) navigateToResult(flat[selectedIndex]);
+			const item = flatItems[selectedIndex];
+			if (item) openItem(item);
 		}
 	};
 
 	if (!isOpen) return null;
 
-	const flatResults = getFlatResults();
 	const showRecent = !query.trim() && recentPages.length > 0;
-	const hasResults = flatResults.length > 0;
+	const hasResults = flatItems.length > 0;
 
 	return (
 		<div
-			className="fixed inset-0 z-[10000] flex items-start justify-center pt-[14vh] bg-[rgba(15,18,30,0.4)] backdrop-blur-[8px] [animation:fade-in_0.12s_var(--ease)]"
+			className="fixed inset-0 z-[10000] flex items-start justify-center pt-[14vh] bg-scrim backdrop-blur-[8px] [animation:fade-in_0.12s_var(--ease)]"
 			onClick={(e) => {
 				if (e.target === e.currentTarget) setIsOpen(false);
 			}}
@@ -155,7 +167,7 @@ export function SearchModal() {
 				</div>
 
 				{/* Results */}
-				<div className="overflow-y-auto max-h-[300px] p-1.5 [&::-webkit-scrollbar]:w-[4px] [&::-webkit-scrollbar-track]:bg-transparent [&::-webkit-scrollbar-thumb]:bg-surface-4 [&::-webkit-scrollbar-thumb]:rounded-[2px]">
+				<div className="overflow-y-auto max-h-[300px] p-1.5 [&::-webkit-scrollbar]:w-[4px] [&::-webkit-scrollbar-track]:bg-transparent [&::-webkit-scrollbar-thumb]:bg-surface-4 [&::-webkit-scrollbar-thumb]:rounded-sm">
 					{showRecent && (
 						<div>
 							<div className="px-2.5 py-1.5 text-[10.5px] font-semibold text-text-3 uppercase tracking-[0.07em]">
@@ -168,15 +180,7 @@ export function SearchModal() {
 										"flex items-center gap-2.5 px-2.5 py-2 cursor-pointer rounded transition-[background] duration-[var(--t)] ease-[var(--ease)] hover:bg-surface-3",
 										idx === selectedIndex && "bg-accent-dim",
 									)}
-									onClick={() =>
-										navigateToResult({
-											type: "page",
-											id: page.id,
-											title: page.title,
-											content: "",
-											pageId: page.id,
-										})
-									}
+									onClick={() => openItem({ pageId: page.id })}
 									onMouseEnter={() => setSelectedIndex(idx)}
 								>
 									<span className="text-[15px] shrink-0 w-[22px] text-center">
@@ -209,7 +213,7 @@ export function SearchModal() {
 												"flex items-center gap-2.5 px-2.5 py-2 cursor-pointer rounded transition-[background] duration-[var(--t)] ease-[var(--ease)] hover:bg-surface-3",
 												idx === selectedIndex && "bg-accent-dim",
 											)}
-											onClick={() => navigateToResult(result)}
+											onClick={() => openItem(result)}
 											onMouseEnter={() => setSelectedIndex(idx)}
 										>
 											<span className="text-[15px] shrink-0 w-[22px] text-center">
@@ -239,7 +243,7 @@ export function SearchModal() {
 													"flex items-center gap-2.5 px-2.5 py-2 cursor-pointer rounded transition-[background] duration-[var(--t)] ease-[var(--ease)] hover:bg-surface-3",
 													flatIdx === selectedIndex && "bg-accent-dim",
 												)}
-												onClick={() => navigateToResult(result)}
+												onClick={() => openItem(result)}
 												onMouseEnter={() => setSelectedIndex(flatIdx)}
 											>
 												<span className="text-[15px] shrink-0 w-[22px] text-center">

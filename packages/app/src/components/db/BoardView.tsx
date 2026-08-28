@@ -21,6 +21,7 @@ import {
 import { CSS } from "@dnd-kit/utilities";
 import { fieldTypeSpec } from "@notara/shared";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useIsCompact } from "../../lib/useIsCompact.js";
 import { api } from "../../rpc-client.js";
 import {
 	selectBoardGroupBy,
@@ -30,9 +31,17 @@ import {
 	useDatabaseStore,
 } from "../../stores/databaseStore.js";
 import { cn } from "../ui/cn.js";
+import { Button, IconButton } from "../ui/index.js";
+import { Tabs } from "../ui/Tabs.js";
 import { CellDisplay, SelectPill } from "./CellComponents.js";
+import { DatabaseToolbar } from "./DatabaseToolbar.js";
+import { MobileBoard } from "./MobileBoard.js";
 import { FilterBar, makeDefaultFilter, SortBar } from "./QueryBar.js";
 import { ViewSwitcher } from "./ViewSwitcher.js";
+import { VIEW_TYPES } from "./viewTypes.js";
+
+/** The single column a board shows when it has no group-by field. */
+const UNGROUPED = "All";
 
 export function BoardView({
 	database,
@@ -53,6 +62,7 @@ export function BoardView({
 	allRecords?: Record<string, any[]>;
 	onOpenRecord?: (record: any) => void;
 }) {
+	const isCompact = useIsCompact();
 	const setBoardGroupBy = useDatabaseStore((s) => s.setBoardGroupBy);
 	const toggleBoardField = useDatabaseStore((s) => s.toggleBoardField);
 	const updateFieldValue = useDatabaseStore((s) => s.updateFieldValue);
@@ -122,8 +132,8 @@ export function BoardView({
 		const g: Record<string, typeof records> = {};
 		const order: string[] = [];
 		if (!groupField) {
-			g.All = records;
-			order.push("All");
+			g[UNGROUPED] = records;
+			order.push(UNGROUPED);
 		} else {
 			const fieldOptions: string[] = groupField.options || [];
 			for (const r of records) {
@@ -199,7 +209,7 @@ export function BoardView({
 				setActiveGroupValue(
 					groupField
 						? String(entry.values[groupField.name] || "Untitled")
-						: "All",
+						: UNGROUPED,
 				);
 			}
 		},
@@ -347,11 +357,11 @@ export function BoardView({
 			<div
 				ref={setNodeRef}
 				style={style}
-				className="group min-w-[268px] max-w-[300px] bg-surface-2 border border-border rounded-[5px] px-2.5 py-3 flex flex-col max-h-[62vh] transition-[background,border-color] duration-[var(--t)] ease-[var(--ease)] relative"
+				className="group min-w-[268px] max-w-[300px] bg-surface-2 border border-border rounded px-2.5 py-3 flex flex-col max-h-[62vh] transition-[background,border-color] duration-[var(--t)] ease-[var(--ease)] relative"
 				data-column-id={colName}
 			>
 				<div
-					className="absolute top-2.5 right-2 opacity-0 transition-opacity duration-[var(--t)] ease-[var(--ease)] cursor-grab p-[3px] rounded-[3px] text-text-3 flex items-center touch-action-none group-hover:opacity-100 hover:bg-surface-3 hover:text-text-2 hover:opacity-100"
+					className="absolute top-2.5 right-2 opacity-0 transition-opacity duration-[var(--t)] ease-[var(--ease)] cursor-grab p-[3px] rounded-sm text-text-3 flex items-center touch-action-none group-hover:opacity-100 hover:bg-surface-3 hover:text-text-2 hover:opacity-100"
 					{...listeners}
 					{...attributes}
 					title="Drag to reorder column"
@@ -402,12 +412,12 @@ export function BoardView({
 			<div ref={setNodeRef} style={style}>
 				<div
 					className={cn(
-						"group bg-surface border border-border rounded py-2.5 px-3 cursor-pointer transition-[border-color,box-shadow] duration-[var(--t)] ease-[var(--ease)] relative hover:border-[rgba(43,77,255,0.25)] hover:shadow-sm",
+						"group bg-surface border border-border rounded py-2.5 px-3 cursor-pointer transition-[border-color,box-shadow] duration-[var(--t)] ease-[var(--ease)] relative hover:border-[var(--accent-glow)] hover:shadow-sm",
 						(isDragging || sd) && "opacity-30",
 					)}
 				>
 					<div
-						className="absolute top-2 left-1 opacity-0 transition-opacity duration-[var(--t)] ease-[var(--ease)] cursor-grab p-1 rounded-[3px] text-text-3 flex items-center touch-action-none group-hover:opacity-100 hover:bg-surface-3 hover:text-text-2"
+						className="absolute top-2 left-1 opacity-0 transition-opacity duration-[var(--t)] ease-[var(--ease)] cursor-grab p-1 rounded-sm text-text-3 flex items-center touch-action-none group-hover:opacity-100 hover:bg-surface-3 hover:text-text-2"
 						{...listeners}
 						{...attributes}
 					>
@@ -420,16 +430,17 @@ export function BoardView({
 							<circle cx="11" cy="13" r="1.5" />
 						</svg>
 					</div>
-					<button
+					<IconButton
+						variant="ghost"
 						className={cn(
-							"absolute top-1.5 right-1.5 bg-transparent border-none cursor-pointer text-text-3 px-1 py-0.5 text-[13px] leading-none rounded transition-[opacity,background] duration-[var(--t)] ease-[var(--ease)] z-[1] hover:bg-surface-3 hover:text-accent",
+							"absolute top-1.5 right-1.5 text-[13px] z-[1] hover:text-accent",
 							hasPage ? "opacity-100" : "opacity-0 group-hover:opacity-100",
 						)}
 						onClick={() => onOpenRecord?.(record.record)}
 						title={hasPage ? "Open page" : "Open record"}
 					>
 						{hasPage ? "📄" : "↗"}
-					</button>
+					</IconButton>
 					<span
 						className={cn(
 							"text-[13.5px] font-medium text-text block leading-[1.45]",
@@ -487,49 +498,18 @@ export function BoardView({
 			onDragEnd={handleDragEnd}
 		>
 			<div className="w-full" data-database-view>
-				<div className="flex gap-1.5 mb-2.5 items-center flex-wrap py-1">
+				<DatabaseToolbar name={database.name}>
 					<ViewSwitcher
 						databaseId={database.id}
 						currentViewType={currentView}
 					/>
-					<div
-						className="inline-flex bg-surface-3 border border-border rounded p-0.5"
-						role="tablist"
-					>
-						<button
-							className={cn(
-								"bg-transparent border-none py-1 px-3 text-[12px] font-medium cursor-pointer rounded-[6px]",
-								currentView === "table" ? "bg-text text-bg" : "text-text-3",
-							)}
-							onClick={() => onChangeView("table")}
-							role="tab"
-							aria-selected={currentView === "table"}
-						>
-							Table
-						</button>
-						<button
-							className={cn(
-								"bg-transparent border-none py-1 px-3 text-[12px] font-medium cursor-pointer rounded-[6px]",
-								currentView === "board" ? "bg-text text-bg" : "text-text-3",
-							)}
-							onClick={() => onChangeView("board")}
-							role="tab"
-							aria-selected={currentView === "board"}
-						>
-							Board
-						</button>
-						<button
-							className={cn(
-								"bg-transparent border-none py-1 px-3 text-[12px] font-medium cursor-pointer rounded-[6px]",
-								currentView === "calendar" ? "bg-text text-bg" : "text-text-3",
-							)}
-							onClick={() => onChangeView("calendar")}
-							role="tab"
-							aria-selected={currentView === "calendar"}
-						>
-							Calendar
-						</button>
-					</div>
+					<Tabs
+						variant="toggle"
+						aria-label="View type"
+						value={currentView}
+						onChange={onChangeView}
+						items={VIEW_TYPES}
+					/>
 
 					<div
 						style={{
@@ -538,7 +518,7 @@ export function BoardView({
 							alignItems: "center",
 							gap: 6,
 							fontSize: 13,
-							color: "#666",
+							color: "var(--text-2)",
 						}}
 					>
 						<span style={{ fontWeight: 500 }}>Group by:</span>
@@ -548,7 +528,7 @@ export function BoardView({
 							onChange={(e) =>
 								setBoardGroupBy(database.id, e.target.value || null)
 							}
-							className="border border-border rounded-[5px] px-2 py-[3px] text-[13px] bg-surface text-text cursor-pointer [font-family:var(--font-ui)]"
+							className="border border-border rounded px-2 py-[3px] text-[13px] bg-surface text-text cursor-pointer [font-family:var(--font-ui)]"
 						>
 							<option value="">None</option>
 							{fields.map((f: any) => (
@@ -563,15 +543,16 @@ export function BoardView({
 						style={{ marginLeft: 8, position: "relative" }}
 						ref={fieldsPickerRef}
 					>
-						<button
-							className="bg-transparent border-none cursor-pointer text-[12.5px] text-text-3 px-2 py-1 inline-flex items-center gap-1 rounded-[5px] transition-[background,color] duration-[var(--t)] ease-[var(--ease)] hover:bg-surface-3 hover:text-text-2"
+						<Button
+							variant="ghost"
+							size="sm"
 							onClick={() => setShowFieldsPicker((v) => !v)}
 						>
 							Fields
 							{boardHiddenFieldIds.length > 0
 								? ` (${fields.filter((f: any) => boardHiddenFieldIds.includes(f.id)).length} hidden)`
 								: ""}
-						</button>
+						</Button>
 						{showFieldsPicker && (
 							<div className="absolute top-[calc(100%+6px)] left-0 z-[200] bg-surface border border-border-mid rounded p-2.5 min-w-[200px] shadow-[var(--shadow-lg)]">
 								<div className="text-[11px] font-bold text-text-3 uppercase tracking-[0.07em] mb-2">
@@ -584,7 +565,7 @@ export function BoardView({
 										return (
 											<label
 												key={f.id}
-												className="flex items-center gap-2 py-[5px] cursor-pointer text-[13px] text-text rounded-[5px]"
+												className="flex items-center gap-2 py-[5px] cursor-pointer text-[13px] text-text rounded"
 											>
 												<input
 													type="checkbox"
@@ -602,7 +583,11 @@ export function BoardView({
 								{fields.filter((f: any) => f.id !== groupField?.id).length ===
 									0 && (
 									<div
-										style={{ fontSize: 12, color: "#999", padding: "4px 0" }}
+										style={{
+											fontSize: 12,
+											color: "var(--text-3)",
+											padding: "4px 0",
+										}}
 									>
 										No fields to configure
 									</div>
@@ -646,78 +631,103 @@ export function BoardView({
 							}}
 						/>
 					</div>
+				</DatabaseToolbar>
 
-					<span style={{ marginLeft: "auto", fontSize: 13, color: "#666" }}>
-						{database.name}
-					</span>
-				</div>
-
-				<SortableContext
-					items={displayOrder.map((c) => `column-${c}`)}
-					strategy={horizontalListSortingStrategy}
-				>
-					<div className="flex gap-3.5 pt-3 pb-5 overflow-x-auto min-h-[300px] [&::-webkit-scrollbar]:h-[5px] [&::-webkit-scrollbar-track]:bg-transparent [&::-webkit-scrollbar-thumb]:bg-surface-4 [&::-webkit-scrollbar-thumb]:rounded-[3px]">
-						{displayOrder.map((colName) => (
-							<SortableColumn key={colName} colName={colName}>
-								<h3 className="text-[11px] text-text-3 mb-2.5 ml-0.5 font-bold tracking-[0.07em] uppercase flex items-center gap-1.5">
-									{groupField?.type === "select" &&
-									groupField.options?.includes(colName) ? (
-										<SelectPill
-											value={colName}
-											colorIdx={groupField.options.indexOf(colName)}
-										/>
-									) : (
-										<span style={{ fontSize: 13 }}>{colName}</span>
-									)}
-									<span style={{ color: "#999", fontWeight: 400 }}>
-										{" "}
-										({(groups[colName] || []).length})
-									</span>
-								</h3>
-								<SortableContext
-									items={(groups[colName] || []).map((r) => r.record.id)}
-									strategy={verticalListSortingStrategy}
-								>
-									<ColumnBody
-										colName={colName}
-										isOver={overColumnId === colName}
-									>
-										{(groups[colName] || []).map((item) => (
-											<SortableCard
-												key={item.record.id}
-												record={item}
-												isDragging={activeRecordId === item.record.id}
+				{/* Below the compact breakpoint the columns are a different
+				    interaction model, not a reflowed one: a horizontal row of
+				    columns has no honest thumb equivalent. The toolbar above stays
+				    — losing it would strand you in a view you cannot leave.
+				    See components/db/MobileBoard.tsx. */}
+				{isCompact ? (
+					<MobileBoard
+						groupOrder={displayOrder}
+						groups={groups}
+						groupFieldName={groupField?.name ?? null}
+						visibleFields={fields.filter(
+							(f: any) =>
+								f.id !== groupField?.id && !boardHiddenFieldIds.includes(f.id),
+						)}
+						databases={databases}
+						allRecords={allRecords}
+						onOpenRecord={(r) => onOpenRecord?.(r)}
+						onNewRecord={async (groupName) => {
+							const record = await createDbRecord(database.id, "");
+							if (groupField && groupName !== UNGROUPED)
+								await updateFieldValue(record.id, groupField.id, groupName);
+							await loadDbRecords(database.id);
+							onOpenRecord?.(record);
+						}}
+					/>
+				) : (
+					<SortableContext
+						items={displayOrder.map((c) => `column-${c}`)}
+						strategy={horizontalListSortingStrategy}
+					>
+						<div className="flex gap-3.5 pt-3 pb-5 overflow-x-auto min-h-[300px] [&::-webkit-scrollbar]:h-[5px] [&::-webkit-scrollbar-track]:bg-transparent [&::-webkit-scrollbar-thumb]:bg-surface-4 [&::-webkit-scrollbar-thumb]:rounded-sm">
+							{displayOrder.map((colName) => (
+								<SortableColumn key={colName} colName={colName}>
+									<h3 className="text-[11px] text-text-3 mb-2.5 ml-0.5 font-bold tracking-[0.07em] uppercase flex items-center gap-1.5">
+										{groupField?.type === "select" &&
+										groupField.options?.includes(colName) ? (
+											<SelectPill
+												value={colName}
+												colorIdx={groupField.options.indexOf(colName)}
 											/>
-										))}
-									</ColumnBody>
-								</SortableContext>
-								<div style={{ padding: "8px 4px" }}>
-									<button
-										className="w-full bg-transparent border-[1.5px] border-dashed border-border-mid rounded py-[7px] px-3 text-[13px] text-text-3 cursor-pointer transition-[border-color,color] duration-[var(--t)] ease-[var(--ease)] hover:border-accent hover:text-accent"
-										onClick={async () => {
-											const title = prompt("New record title:");
-											if (title?.trim()) {
-												await createDbRecord(database.id, title.trim());
-												await loadDbRecords(database.id);
-											}
-										}}
+										) : (
+											<span style={{ fontSize: 13 }}>{colName}</span>
+										)}
+										<span style={{ color: "var(--text-3)", fontWeight: 400 }}>
+											{" "}
+											({(groups[colName] || []).length})
+										</span>
+									</h3>
+									<SortableContext
+										items={(groups[colName] || []).map((r) => r.record.id)}
+										strategy={verticalListSortingStrategy}
 									>
-										+ New
-									</button>
-								</div>
-							</SortableColumn>
-						))}
-						{groupField &&
-							(groupField.type === "select" ||
-								groupField.type === "multiSelect") && (
-								<AddBoardColumn
-									groupField={groupField}
-									existingOptions={groupField.options || []}
-									onAdded={() => loadDbFields(database.id)}
-								/>
-							)}
-					</div>
-				</SortableContext>
+										<ColumnBody
+											colName={colName}
+											isOver={overColumnId === colName}
+										>
+											{(groups[colName] || []).map((item) => (
+												<SortableCard
+													key={item.record.id}
+													record={item}
+													isDragging={activeRecordId === item.record.id}
+												/>
+											))}
+										</ColumnBody>
+									</SortableContext>
+									<div style={{ padding: "8px 4px" }}>
+										{/* The dashed add-card affordance is a column footer, not a Button
+										    variant — the dashed border is what says "drop or add here". */}
+										<button
+											className="w-full bg-transparent border-[1.5px] border-dashed border-border-mid rounded py-[7px] px-3 text-[13px] text-text-3 cursor-pointer transition-[border-color,color] duration-[var(--t)] ease-[var(--ease)] hover:border-accent hover:text-accent"
+											onClick={async () => {
+												const title = prompt("New record title:");
+												if (title?.trim()) {
+													await createDbRecord(database.id, title.trim());
+													await loadDbRecords(database.id);
+												}
+											}}
+										>
+											+ New
+										</button>
+									</div>
+								</SortableColumn>
+							))}
+							{groupField &&
+								(groupField.type === "select" ||
+									groupField.type === "multiSelect") && (
+									<AddBoardColumn
+										groupField={groupField}
+										existingOptions={groupField.options || []}
+										onAdded={() => loadDbFields(database.id)}
+									/>
+								)}
+						</div>
+					</SortableContext>
+				)}
 
 				<DragOverlay>
 					{activeRecord ? (
@@ -727,7 +737,7 @@ export function BoardView({
 					) : null}
 					{activeColumnName ? (
 						<div
-							className="min-w-[268px] max-w-[300px] bg-surface border-[1.5px] border-dashed border-border-mid rounded-[5px] px-2.5 py-3 shadow-[var(--shadow-xl)]"
+							className="min-w-[268px] max-w-[300px] bg-surface border-[1.5px] border-dashed border-border-mid rounded px-2.5 py-3 shadow-[var(--shadow-xl)]"
 							style={{ opacity: 0.8, pointerEvents: "none" }}
 						>
 							<h3 className="text-[11px] text-text-3 mb-2.5 ml-0.5 font-bold tracking-[0.07em] uppercase flex items-center gap-1.5">
@@ -770,9 +780,9 @@ function ColumnBody({
 		<div
 			ref={setNodeRef}
 			className={cn(
-				"flex flex-col gap-[7px] flex-1 overflow-y-auto min-h-[40px] py-0.5 [&::-webkit-scrollbar]:w-[3px] [&::-webkit-scrollbar-track]:bg-transparent [&::-webkit-scrollbar-thumb]:bg-surface-4 [&::-webkit-scrollbar-thumb]:rounded-[2px]",
+				"flex flex-col gap-[7px] flex-1 overflow-y-auto min-h-[40px] py-0.5 [&::-webkit-scrollbar]:w-[3px] [&::-webkit-scrollbar-track]:bg-transparent [&::-webkit-scrollbar-thumb]:bg-surface-4 [&::-webkit-scrollbar-thumb]:rounded-sm",
 				isOver &&
-					"bg-[rgba(43,77,255,0.06)] rounded outline-2 outline-dashed outline-border-mid -outline-offset-2",
+					"bg-[var(--accent-dim)] rounded outline-2 outline-dashed outline-border-mid -outline-offset-2",
 			)}
 			id={`col-${colName}`}
 		>
@@ -814,7 +824,7 @@ function AddBoardColumn({
 	if (!editing) {
 		return (
 			<div
-				className="min-w-[268px] max-w-[300px] bg-surface-2 border border-border rounded-[5px] px-2.5 py-3 flex flex-col max-h-[62vh] transition-[background,border-color] duration-[var(--t)] ease-[var(--ease)] relative"
+				className="min-w-[268px] max-w-[300px] bg-surface-2 border border-border rounded px-2.5 py-3 flex flex-col max-h-[62vh] transition-[background,border-color] duration-[var(--t)] ease-[var(--ease)] relative"
 				style={{
 					display: "flex",
 					alignItems: "flex-start",
@@ -827,13 +837,15 @@ function AddBoardColumn({
 				onClick={() => setEditing(true)}
 				title="Add a new column"
 			>
-				<span style={{ fontSize: 13, color: "#666" }}>+ Add column</span>
+				<span style={{ fontSize: 13, color: "var(--text-2)" }}>
+					+ Add column
+				</span>
 			</div>
 		);
 	}
 	return (
 		<div
-			className="min-w-[268px] max-w-[300px] bg-surface-2 border border-border rounded-[5px] px-2.5 py-3 flex flex-col max-h-[62vh] transition-[background,border-color] duration-[var(--t)] ease-[var(--ease)] relative"
+			className="min-w-[268px] max-w-[300px] bg-surface-2 border border-border rounded px-2.5 py-3 flex flex-col max-h-[62vh] transition-[background,border-color] duration-[var(--t)] ease-[var(--ease)] relative"
 			style={{ padding: 8, minWidth: 220 }}
 		>
 			<input
@@ -855,7 +867,7 @@ function AddBoardColumn({
 				placeholder="Column name"
 				style={{
 					width: "100%",
-					border: "1px solid #2eaadc",
+					border: "1px solid var(--accent)",
 					borderRadius: 4,
 					padding: "4px 6px",
 					fontSize: 13,

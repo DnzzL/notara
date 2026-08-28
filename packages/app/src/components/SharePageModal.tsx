@@ -195,7 +195,7 @@ export function SharePageModal({ pageId, workspaceId, onClose }: Props) {
 										key={m.userId}
 										className="flex items-center gap-2.5 px-1 py-1.5"
 									>
-										<span className="w-[30px] h-[30px] rounded-full bg-accent-dim border border-[rgba(43,77,255,0.2)] flex items-center justify-center text-[13px] font-semibold shrink-0 text-accent-2">
+										<span className="w-[30px] h-[30px] rounded-full bg-accent-dim border border-[var(--accent-glow)] flex items-center justify-center text-[13px] font-semibold shrink-0 text-accent-2">
 											{(m.name || m.email)[0]?.toUpperCase()}
 										</span>
 										<div className="flex-1">
@@ -238,7 +238,7 @@ export function SharePageModal({ pageId, workspaceId, onClose }: Props) {
 										key={encodeSubject(e.subject)}
 										className="flex items-center gap-2.5 py-[7px] px-1"
 									>
-										<span className="w-[30px] h-[30px] rounded-full bg-accent-dim border border-[rgba(43,77,255,0.2)] flex items-center justify-center text-[13px] font-semibold shrink-0 text-accent-2">
+										<span className="w-[30px] h-[30px] rounded-full bg-accent-dim border border-[var(--accent-glow)] flex items-center justify-center text-[13px] font-semibold shrink-0 text-accent-2">
 											{label[0]?.toUpperCase()}
 										</span>
 										<div className="flex-1">
@@ -270,7 +270,7 @@ export function SharePageModal({ pageId, workspaceId, onClose }: Props) {
 										{canManage && (
 											<button
 												disabled={pending}
-												className="bg-transparent border-none text-text-3 cursor-pointer text-[12px] p-1 rounded-[5px] transition-all duration-[var(--t)] ease-[var(--ease)] hover:text-danger hover:bg-danger-dim disabled:opacity-50"
+												className="bg-transparent border-none text-text-3 cursor-pointer text-[12px] p-1 rounded transition-all duration-[var(--t)] ease-[var(--ease)] hover:text-danger hover:bg-danger-dim disabled:opacity-50"
 												onClick={() => handleRemove(e.subject)}
 											>
 												✕

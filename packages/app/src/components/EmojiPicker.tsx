@@ -82,7 +82,7 @@ export function EmojiPicker({ open, anchor, onClose, onSelect }: Props) {
 	return (
 		<div
 			ref={ref}
-			className="bg-surface border border-border-mid rounded-[6px] shadow-[var(--shadow-xl)] w-[320px] max-h-[360px] flex flex-col overflow-hidden"
+			className="bg-surface border border-border-mid rounded-lg shadow-[var(--shadow-xl)] w-[320px] max-h-[360px] flex flex-col overflow-hidden"
 			style={{
 				position: "fixed",
 				top: anchor.top,
@@ -94,13 +94,13 @@ export function EmojiPicker({ open, anchor, onClose, onSelect }: Props) {
 			<div className="flex items-center gap-2 px-2 pt-2 pb-1.5 border-b border-border shrink-0">
 				<input
 					name="emoji-search"
-					className="flex-1 px-2.5 py-1.5 border border-border rounded-[4px] text-[13px] outline-none bg-surface-2 text-text placeholder:text-text-3 focus:border-accent focus:shadow-[0_0_0_2px_var(--accent-dim)] transition-[border-color,box-shadow] duration-[var(--t)] ease-[var(--ease)]"
+					className="flex-1 px-2.5 py-1.5 border border-border rounded text-[13px] outline-none bg-surface-2 text-text placeholder:text-text-3 focus:border-accent focus:shadow-[0_0_0_2px_var(--accent-dim)] transition-[border-color,box-shadow] duration-[var(--t)] ease-[var(--ease)]"
 					placeholder="Search emoji…"
 					value={query}
 					onChange={(e) => setQuery(e.target.value)}
 				/>
 				<button
-					className="shrink-0 bg-transparent border border-border rounded-[4px] text-[12px] px-2 py-1.5 cursor-pointer text-text-3 transition-[background,color,border-color] duration-[var(--t)] ease-[var(--ease)] hover:bg-surface-3 hover:text-text hover:border-border-mid leading-none"
+					className="shrink-0 bg-transparent border border-border rounded text-[12px] px-2 py-1.5 cursor-pointer text-text-3 transition-[background,color,border-color] duration-[var(--t)] ease-[var(--ease)] hover:bg-surface-3 hover:text-text hover:border-border-mid leading-none"
 					onClick={() => {
 						onSelect(null);
 						onClose();
@@ -112,7 +112,7 @@ export function EmojiPicker({ open, anchor, onClose, onSelect }: Props) {
 			</div>
 
 			{/* Emoji grid / browse */}
-			<div className="overflow-y-auto flex-1 [&::-webkit-scrollbar]:w-[4px] [&::-webkit-scrollbar-track]:bg-transparent [&::-webkit-scrollbar-thumb]:bg-surface-4 [&::-webkit-scrollbar-thumb]:rounded-[2px]">
+			<div className="overflow-y-auto flex-1 [&::-webkit-scrollbar]:w-[4px] [&::-webkit-scrollbar-track]:bg-transparent [&::-webkit-scrollbar-thumb]:bg-surface-4 [&::-webkit-scrollbar-thumb]:rounded-sm">
 				{filtered ? (
 					filtered.length > 0 ? (
 						<div className="grid grid-cols-8 gap-0.5 p-2">

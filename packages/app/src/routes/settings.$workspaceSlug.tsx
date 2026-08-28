@@ -283,7 +283,7 @@ function WorkspaceSettingsPage() {
 												key={m.userId}
 												className="flex items-center gap-2.5 py-[7px] px-1"
 											>
-												<span className="w-[30px] h-[30px] rounded-full bg-accent-dim border border-[rgba(43,77,255,0.2)] flex items-center justify-center text-[13px] font-semibold shrink-0 text-accent-2">
+												<span className="w-[30px] h-[30px] rounded-full bg-accent-dim border border-[var(--accent-glow)] flex items-center justify-center text-[13px] font-semibold shrink-0 text-accent-2">
 													{(m.name || m.email)[0].toUpperCase()}
 												</span>
 												<div className="flex-1">
@@ -298,7 +298,7 @@ function WorkspaceSettingsPage() {
 													m.role !== "owner" &&
 													m.userId !== session?.user?.id && (
 														<button
-															className="bg-transparent border-none text-text-3 cursor-pointer text-[12px] p-1 rounded-[5px] transition-all duration-[var(--t)] ease-[var(--ease)] hover:text-danger hover:bg-danger-dim"
+															className="bg-transparent border-none text-text-3 cursor-pointer text-[12px] p-1 rounded transition-all duration-[var(--t)] ease-[var(--ease)] hover:text-danger hover:bg-danger-dim"
 															onClick={() => handleRemove(m.userId)}
 															title="Remove member"
 														>

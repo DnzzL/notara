@@ -22,6 +22,7 @@ import {
 	supportsNumericAggregation,
 } from "../lib/aggregate.js";
 import { applyFiltersAndSorts } from "../lib/filterEngine.js";
+import { useIsCompact } from "../lib/useIsCompact.js";
 import { api } from "../rpc-client.js";
 import {
 	selectActiveViewId,
@@ -37,6 +38,7 @@ import { toaster } from "../toaster.js";
 import { BoardView } from "./db/BoardView.js";
 import { CalendarView } from "./db/CalendarView.js";
 import { CellDisplay, InlineCellEditor, Popover } from "./db/CellComponents.js";
+import { DatabaseToolbar } from "./db/DatabaseToolbar.js";
 import {
 	AddFieldPopover,
 	ColumnHeader,
@@ -45,10 +47,13 @@ import {
 	getDefaultWidthForType,
 	OptionsEditor,
 } from "./db/FieldComponents.js";
+import { MobileRuler } from "./db/MobileRuler.js";
 import { FilterBar, makeDefaultFilter, SortBar } from "./db/QueryBar.js";
 import { RecordPanel } from "./db/RecordPanel.js";
 import { ViewSwitcher } from "./db/ViewSwitcher.js";
-import { cn } from "./ui/cn.js";
+import { VIEW_TYPES, type ViewType } from "./db/viewTypes.js";
+import { Button, IconButton, MenuItem } from "./ui/index.js";
+import { Tabs } from "./ui/Tabs.js";
 
 const COL_WIDTHS_STORAGE_KEY_PREFIX = "db-col-widths:";
 /** Sentinel field id for the record-title column in focus navigation. */
@@ -104,10 +109,10 @@ function ColumnFooter({
 			}}
 		>
 			{agg === "none" ? (
-				<span style={{ fontSize: 12, color: "#c7c6c2" }}>Calculate</span>
+				<span style={{ fontSize: 12, color: "var(--text-3)" }}>Calculate</span>
 			) : (
-				<span style={{ fontSize: 12, color: "#37352f" }}>
-					<span style={{ color: "#9b9a97", marginRight: 4 }}>
+				<span style={{ fontSize: 12, color: "var(--text)" }}>
+					<span style={{ color: "var(--text-3)", marginRight: 4 }}>
 						{AGG_LABEL[agg]}
 					</span>
 					{formatted}
@@ -175,7 +180,7 @@ function SortableRow({
 		transform: CSS.Transform.toString(transform),
 		transition,
 		opacity: sortableDragging ? 0.4 : 1,
-		background: selected ? "rgba(46, 170, 220, 0.08)" : undefined,
+		background: selected ? "var(--accent-dim)" : undefined,
 	};
 	return (
 		<tr
@@ -186,44 +191,51 @@ function SortableRow({
 			onMouseLeave={() => setHovered(false)}
 		>
 			<td className="w-11 min-w-[44px] px-0.5 py-1 align-middle relative">
-				<input
-					type="checkbox"
-					name="row-select"
-					checked={selected}
-					onClick={onToggleSelect}
-					onChange={() => {
-						/* handled in onClick to capture shift/cmd */
-					}}
-					style={{
-						opacity: hovered || selected ? 1 : 0,
-						marginRight: 2,
-						cursor: "pointer",
-					}}
-					title="Select row (Shift+click for range)"
-				/>
-				<div
-					className="flex items-center justify-center cursor-grab text-text-3 px-0.5 py-1 rounded transition-[color,background] duration-[var(--t)] ease-[var(--ease)] touch-none select-none text-[16px] leading-none tracking-[1px] hover:bg-surface-3 active:cursor-grabbing active:text-text"
-					{...listeners}
-					{...attributes}
-				>
-					⋮⋮
+				{/* The checkbox, the drag handle and the open button are three
+				    flow-level elements; without this row they stack and set the
+				    height of every record to ~78px. */}
+				<div className="flex items-center gap-0.5">
+					<input
+						type="checkbox"
+						name="row-select"
+						checked={selected}
+						onClick={onToggleSelect}
+						onChange={() => {
+							/* handled in onClick to capture shift/cmd */
+						}}
+						style={{
+							opacity: hovered || selected ? 1 : 0,
+							marginRight: 2,
+							cursor: "pointer",
+						}}
+						title="Select row (Shift+click for range)"
+					/>
+					<div
+						className="flex items-center justify-center cursor-grab text-text-3 px-0.5 py-1 rounded transition-[color,background] duration-[var(--t)] ease-[var(--ease)] touch-none select-none text-[16px] leading-none tracking-[1px] hover:bg-surface-3 active:cursor-grabbing active:text-text"
+						{...listeners}
+						{...attributes}
+					>
+						⋮⋮
+					</div>
+					<IconButton
+						variant="ghost"
+						className="text-[13px] hover:text-accent"
+						style={{ opacity: hovered || hasPage ? 1 : 0 }}
+						onClick={onOpen}
+						title={hasPage ? "Open page" : "Open record"}
+					>
+						{hasPage ? "📄" : "↗"}
+					</IconButton>
 				</div>
-				<button
-					className="bg-transparent border-none cursor-pointer text-text-3 px-0.5 text-[13px] transition-[color] duration-[var(--t)] ease-[var(--ease)] hover:text-accent"
-					style={{ opacity: hovered || hasPage ? 1 : 0 }}
-					onClick={onOpen}
-					title={hasPage ? "Open page" : "Open record"}
-				>
-					{hasPage ? "📄" : "↗"}
-				</button>
-				<button
-					className="absolute top-1 right-1 bg-transparent border-none cursor-pointer text-text-3 text-[15px] px-1.5 py-0.5 rounded-[5px] transition-[all] duration-[var(--t)] ease-[var(--ease)] leading-none hover:text-danger hover:bg-danger-dim"
+				<IconButton
+					variant="ghost"
+					className="absolute top-1 right-1 text-[15px] hover:text-danger hover:bg-danger-dim"
 					style={{ opacity: hovered ? 1 : 0 }}
 					onClick={onDelete}
 					title="Delete record"
 				>
 					×
-				</button>
+				</IconButton>
 			</td>
 			{children}
 		</tr>
@@ -322,20 +334,20 @@ function TitleCell({
 			// Select-then-edit: the wrapping <td> focuses on first click; this opens
 			// the editor only once the cell is already focused (or on double-click).
 			<div
-				className="px-1.5 py-1 rounded-[5px] cursor-text min-h-[24px] text-text font-medium hover:bg-surface-3"
+				className="px-1.5 py-1 rounded cursor-text min-h-[24px] text-text font-medium hover:bg-surface-3"
 				onClick={() => {
 					if (isFocused) onEditingChange(true);
 				}}
 				onDoubleClick={() => onEditingChange(true)}
 			>
-				{title || <span style={{ color: "#d3d1cb" }}>Untitled</span>}
+				{title || <span style={{ color: "var(--text-3)" }}>Untitled</span>}
 			</div>
 		);
 	}
 	return (
 		<input
 			name="record-title"
-			className="w-full border-[1.5px] border-accent rounded-[5px] px-1.5 py-[3px] text-[14px] font-medium outline-none bg-surface text-text [font-family:var(--font-ui)]"
+			className="w-full border-[1.5px] border-accent rounded px-1.5 py-[3px] text-[14px] font-medium outline-none bg-surface text-text [font-family:var(--font-ui)]"
 			value={value}
 			onChange={(e) => setValue(e.target.value)}
 			onBlur={async () => {
@@ -430,6 +442,7 @@ export function DatabaseView({
 	const [activeRowId, setActiveRowId] = useState<string | null>(null);
 	const [, setActiveColId] = useState<string | null>(null);
 	const [openRecordId, setOpenRecordId] = useState<string | null>(null);
+	const isCompact = useIsCompact();
 	const [columnWidths, setColumnWidths] = useState<Record<string, number>>(
 		() => {
 			try {
@@ -637,6 +650,12 @@ export function DatabaseView({
 
 	// Open a record's child page if it has one, otherwise open the record panel.
 	// Shared by the table rows and the board cards.
+	const handleNewRecord = useCallback(async () => {
+		const rec = await createDbRecord(database.id, "");
+		await loadDbRecords(database.id);
+		if (rec?.id) setOpenRecordId(rec.id);
+	}, [createDbRecord, database.id, loadDbRecords]);
+
 	const handleOpenRecord = useCallback(
 		(record: any) => {
 			if (record.pageId) {
@@ -1134,50 +1153,41 @@ export function DatabaseView({
 			onDragEnd={handleAllDragEnd}
 		>
 			<div ref={tableWrapRef} data-database-view>
-				{/* Toolbar */}
-				<div className="flex gap-1.5 mb-2.5 items-center flex-wrap py-1">
+				<DatabaseToolbar
+					name={
+						isEditingName ? (
+							<input
+								type="text"
+								name="database-name"
+								value={dbName}
+								onChange={(e) => setDbName(e.target.value)}
+								onBlur={handleNameSave}
+								onKeyDown={handleNameKeyDown}
+								className="db-toolbar-name-input"
+							/>
+						) : (
+							<button
+								type="button"
+								className="db-toolbar-name-button"
+								onClick={() => setIsEditingName(true)}
+								title="Rename database"
+							>
+								{database.name || "Untitled"}
+							</button>
+						)
+					}
+				>
 					<ViewSwitcher
 						databaseId={database.id}
 						currentViewType={viewType as "table" | "board" | "calendar"}
 					/>
-					<div
-						className="inline-flex bg-surface-3 border border-border rounded p-0.5"
-						role="tablist"
-					>
-						<button
-							className={cn(
-								"bg-transparent border-none py-1 px-3 text-[12px] font-medium cursor-pointer rounded-[6px]",
-								viewType === "table" ? "bg-text text-bg" : "text-text-3",
-							)}
-							onClick={() => changeViewType("table")}
-							role="tab"
-							aria-selected={viewType === "table"}
-						>
-							Table
-						</button>
-						<button
-							className={cn(
-								"bg-transparent border-none py-1 px-3 text-[12px] font-medium cursor-pointer rounded-[6px]",
-								viewType === "board" ? "bg-text text-bg" : "text-text-3",
-							)}
-							onClick={() => changeViewType("board")}
-							role="tab"
-							aria-selected={viewType === "board"}
-						>
-							Board
-						</button>
-						<button
-							className={cn(
-								"bg-transparent border-none py-1 px-3 text-[12px] font-medium cursor-pointer rounded-[6px]",
-								viewType === "calendar" ? "bg-text text-bg" : "text-text-3",
-							)}
-							onClick={() => changeViewType("calendar")}
-							role="tab"
-							aria-selected={viewType === "calendar"}
-						>
-							Calendar
-						</button>
-					</div>
+					<Tabs
+						variant="toggle"
+						aria-label="View type"
+						value={viewType as ViewType}
+						onChange={changeViewType}
+						items={VIEW_TYPES}
+					/>
 
 					<div
 						style={{
@@ -1216,458 +1226,480 @@ export function DatabaseView({
 							}}
 						/>
 					</div>
+					{database.titleHidden && (
+						<Button
+							variant="ghost"
+							size="sm"
+							title="Show the title column"
+							onClick={async () => {
+								await api.updateDatabase({
+									id: database.id,
+									titleHidden: false,
+								});
+								await loadDatabases(database.pageId);
+							}}
+						>
+							Show {database.titleLabel || "Name"} column
+						</Button>
+					)}
+				</DatabaseToolbar>
 
-					<span
+				{/* Table — on a narrow screen this becomes the field ruler, a
+				    different interaction model rather than a reflowed table.
+				    See components/db/MobileRuler.tsx. */}
+				{isCompact ? (
+					<MobileRuler
+						fields={dbFields}
+						rows={sortedRecords}
+						databases={databases}
+						allRecords={dbRecordCache}
+						onEdit={handleCellEdit}
+						onOpenRecord={handleOpenRecord}
+						onNewRecord={handleNewRecord}
+					/>
+				) : (
+					<div
 						style={{
-							marginLeft: "auto",
-							fontSize: 13,
-							color: "#666",
-							display: "flex",
-							alignItems: "center",
-							gap: 8,
+							overflowX: "auto",
+							overflowY: "auto",
+							maxHeight: "calc(100vh - 200px)",
 						}}
 					>
-						{database.titleHidden && (
-							<button
-								className="bg-transparent border-none cursor-pointer text-[12.5px] text-text-3 px-2 py-1 inline-flex items-center gap-1 rounded-[5px] transition-[background,color] duration-[var(--t)] ease-[var(--ease)] hover:bg-surface-3 hover:text-text-2"
-								title="Show the title column"
-								onClick={async () => {
-									await api.updateDatabase({
-										id: database.id,
-										titleHidden: false,
-									});
-									await loadDatabases(database.pageId);
-								}}
-							>
-								Show {database.titleLabel || "Name"} column
-							</button>
-						)}
-						{isEditingName ? (
-							<input
-								type="text"
-								name="database-name"
-								value={dbName}
-								onChange={(e) => setDbName(e.target.value)}
-								onBlur={handleNameSave}
-								onKeyDown={handleNameKeyDown}
-								style={{
-									fontSize: 13,
-									padding: "2px 6px",
-									border: "1px solid #2eaadc",
-									borderRadius: 4,
-									width: 140,
-									outline: "none",
-								}}
-							/>
-						) : (
-							<span
-								onClick={() => setIsEditingName(true)}
-								style={{ cursor: "pointer", fontWeight: 500 }}
-							>
-								{database.name || "Untitled"}
-							</span>
-						)}
-					</span>
-				</div>
-
-				{/* Table */}
-				<div
-					style={{
-						overflowX: "auto",
-						overflowY: "auto",
-						maxHeight: "calc(100vh - 200px)",
-					}}
-				>
-					<table className="w-full border-collapse table-auto">
-						<thead>
-							<tr>
-								<th className="w-11 min-w-[44px]" />
-								{!database.titleHidden && (
-									<ColumnHeader
-										field={{
-											id: "title",
-											name: database.titleLabel || "Name",
-											type: "text",
-										}}
-										onRename={async (label) => {
-											await api.updateDatabase({
-												id: database.id,
-												titleLabel: label,
-											});
-											await loadDatabases(database.pageId);
-										}}
-										onDelete={async () => {
-											await api.updateDatabase({
-												id: database.id,
-												titleHidden: true,
-											});
-											await loadDatabases(database.pageId);
-										}}
-										isTitle
-										width={columnWidths.__title__}
-										onResize={handleColumnResize}
-									/>
-								)}
-								<SortableContext
-									items={dbFields.map((f: any) => f.id)}
-									strategy={horizontalListSortingStrategy}
-								>
-									{dbFields.map((f: any) => (
-										<DraggableColumnHeader
-											key={f.id}
-											field={f}
-											sortInfo={sortByFieldId.get(f.id) ?? null}
-											onHeaderClick={(e) =>
-												handleHeaderSortCycle(f.id, e.shiftKey)
-											}
-											onRename={(name) => handleRenameField(f.id, name)}
-											onDelete={() => handleDeleteField(f.id)}
-											onOptions={() =>
-												setShowOptionsFor(showOptionsFor === f.id ? null : f.id)
-											}
-											onEditFormula={() => setShowFormulaFor(f.id)}
-											onChangeType={async (type) => {
-												await api.updateField({ id: f.id, type });
-												await loadDbFields(database.id);
-												await loadDbRecords(database.id);
+						<table className="db-table w-full border-collapse table-auto">
+							<thead>
+								<tr>
+									<th className="w-11 min-w-[44px]" />
+									{!database.titleHidden && (
+										<ColumnHeader
+											field={{
+												id: "title",
+												name: database.titleLabel || "Name",
+												type: "text",
 											}}
-											onSortAsc={() =>
-												addSort(database.id, {
-													fieldId: f.id,
-													direction: "asc",
-												})
-											}
-											onSortDesc={() =>
-												addSort(database.id, {
-													fieldId: f.id,
-													direction: "desc",
-												})
-											}
-											onFilter={() =>
-												addFilter(database.id, {
-													fieldId: f.id,
-													operator: "contains",
-													value: "",
-												})
-											}
-											onDuplicate={() =>
-												handleAddField(
-													`${f.name} (copy)`,
-													f.type,
-													f.options || undefined,
-													f.relationTargetDbId || null,
-													f.formula || null,
-												)
-											}
-											width={columnWidths[f.id]}
+											onRename={async (label) => {
+												await api.updateDatabase({
+													id: database.id,
+													titleLabel: label,
+												});
+												await loadDatabases(database.pageId);
+											}}
+											onDelete={async () => {
+												await api.updateDatabase({
+													id: database.id,
+													titleHidden: true,
+												});
+												await loadDatabases(database.pageId);
+											}}
+											isTitle
+											width={columnWidths.__title__}
 											onResize={handleColumnResize}
 										/>
-									))}
-								</SortableContext>
-								<th
-									style={{
-										width: 40,
-										position: "sticky",
-										right: 0,
-										background: "var(--bg)",
-										borderLeft: "1px solid var(--border)",
-										zIndex: 2,
-									}}
-								>
-									<button
-										ref={addFieldBtnRef}
-										onClick={() => setShowAddField(true)}
-										className="bg-transparent border-none cursor-pointer text-[16px] text-text-3 px-2 py-0.5 rounded-[5px] transition-[all] duration-[var(--t)] ease-[var(--ease)] hover:text-text-2 hover:bg-surface-3"
-										title="Add property"
+									)}
+									<SortableContext
+										items={dbFields.map((f: any) => f.id)}
+										strategy={horizontalListSortingStrategy}
 									>
-										+
-									</button>
-								</th>
-							</tr>
-						</thead>
-						<SortableContext
-							items={sortedRecords.map((r: any) => r.record.id)}
-							strategy={verticalListSortingStrategy}
-						>
-							<tbody>
-								{sortedRecords.length === 0 && (
-									<tr>
-										<td
-											colSpan={dbFields.length + (database.titleHidden ? 2 : 3)}
-											className="text-text-3 text-[13px] pt-7 pb-3 px-3 text-center italic"
+										{dbFields.map((f: any) => (
+											<DraggableColumnHeader
+												key={f.id}
+												field={f}
+												sortInfo={sortByFieldId.get(f.id) ?? null}
+												onHeaderClick={(e) =>
+													handleHeaderSortCycle(f.id, e.shiftKey)
+												}
+												onRename={(name) => handleRenameField(f.id, name)}
+												onDelete={() => handleDeleteField(f.id)}
+												onOptions={() =>
+													setShowOptionsFor(
+														showOptionsFor === f.id ? null : f.id,
+													)
+												}
+												onEditFormula={() => setShowFormulaFor(f.id)}
+												onChangeType={async (type) => {
+													await api.updateField({ id: f.id, type });
+													await loadDbFields(database.id);
+													await loadDbRecords(database.id);
+												}}
+												onSortAsc={() =>
+													addSort(database.id, {
+														fieldId: f.id,
+														direction: "asc",
+													})
+												}
+												onSortDesc={() =>
+													addSort(database.id, {
+														fieldId: f.id,
+														direction: "desc",
+													})
+												}
+												onFilter={() =>
+													addFilter(database.id, {
+														fieldId: f.id,
+														operator: "contains",
+														value: "",
+													})
+												}
+												onDuplicate={() =>
+													handleAddField(
+														`${f.name} (copy)`,
+														f.type,
+														f.options || undefined,
+														f.relationTargetDbId || null,
+														f.formula || null,
+													)
+												}
+												width={columnWidths[f.id]}
+												onResize={handleColumnResize}
+											/>
+										))}
+									</SortableContext>
+									<th
+										style={{
+											width: 40,
+											position: "sticky",
+											right: 0,
+											background: "var(--bg)",
+											borderLeft: "1px solid var(--border)",
+											zIndex: 2,
+										}}
+									>
+										<IconButton
+											ref={addFieldBtnRef}
+											onClick={() => setShowAddField(true)}
+											variant="ghost"
+											className="text-[16px]"
+											title="Add property"
 										>
-											{dbFields.length === 0
-												? "Empty database — add a property from the column ‘+’, or just press New below."
-												: "No records yet. Press New below to create one."}
-										</td>
-									</tr>
-								)}
-								{sortedRecords.map(({ record, values }: any) => (
-									<SortableRow
-										key={record.id}
-										id={record.id}
-										isDragging={activeRowId === record.id}
-										onDelete={() => handleDeleteRecord(record.id)}
-										onOpen={() => handleOpenRecord(record)}
-										selected={selectedRowIds.has(record.id)}
-										onToggleSelect={(e) => handleToggleRowSelect(record.id, e)}
-										hasPage={!!record.pageId}
-									>
-										{!database.titleHidden &&
-											(() => {
-												const isFocused =
-													focusedCell?.recordId === record.id &&
-													focusedCell?.fieldId === TITLE_COL;
-												return (
-													<td
-														data-focused={isFocused || undefined}
-														onClick={() =>
-															setFocusedCell({
-																recordId: record.id,
-																fieldId: TITLE_COL,
-															})
-														}
-														className="px-2 py-1.5 border-b border-border border-r border-border last:border-r-0 align-middle min-h-[32px] relative font-medium text-[14px] min-w-[180px] text-text"
-														style={(() => {
-															const w = columnWidths.__title__;
-															const base = w
-																? { minWidth: w, width: w }
-																: {
-																		minWidth: 180,
-																		width: getDefaultWidthForType("text"),
-																	};
-															return isFocused &&
-																!(
+											+
+										</IconButton>
+									</th>
+								</tr>
+							</thead>
+							<SortableContext
+								items={sortedRecords.map((r: any) => r.record.id)}
+								strategy={verticalListSortingStrategy}
+							>
+								<tbody>
+									{sortedRecords.length === 0 && (
+										<tr>
+											<td
+												colSpan={
+													dbFields.length + (database.titleHidden ? 2 : 3)
+												}
+												className="text-text-3 text-[13px] pt-7 pb-3 px-3 text-center italic"
+											>
+												{dbFields.length === 0
+													? "Empty database — add a property from the column ‘+’, or just press New below."
+													: "No records yet. Press New below to create one."}
+											</td>
+										</tr>
+									)}
+									{sortedRecords.map(({ record, values }: any) => (
+										<SortableRow
+											key={record.id}
+											id={record.id}
+											isDragging={activeRowId === record.id}
+											onDelete={() => handleDeleteRecord(record.id)}
+											onOpen={() => handleOpenRecord(record)}
+											selected={selectedRowIds.has(record.id)}
+											onToggleSelect={(e) =>
+												handleToggleRowSelect(record.id, e)
+											}
+											hasPage={!!record.pageId}
+										>
+											{!database.titleHidden &&
+												(() => {
+													const isFocused =
+														focusedCell?.recordId === record.id &&
+														focusedCell?.fieldId === TITLE_COL;
+													return (
+														<td
+															data-focused={isFocused || undefined}
+															onClick={() =>
+																setFocusedCell({
+																	recordId: record.id,
+																	fieldId: TITLE_COL,
+																})
+															}
+															className="px-2 py-1.5 border-b border-border border-r border-border last:border-r-0 align-middle min-h-[32px] relative font-medium text-[14px] min-w-[180px] text-text"
+															style={(() => {
+																const w = columnWidths.__title__;
+																const base = w
+																	? { minWidth: w, width: w }
+																	: {
+																			minWidth: 180,
+																			width: getDefaultWidthForType("text"),
+																		};
+																return isFocused &&
+																	!(
+																		editingCell?.recordId === record.id &&
+																		editingCell?.fieldId === TITLE_COL
+																	)
+																	? {
+																			...base,
+																			boxShadow:
+																				"inset 0 0 0 2px var(--accent)",
+																		}
+																	: base;
+															})()}
+														>
+															<TitleCell
+																title={record.title}
+																isFocused={isFocused}
+																editing={
 																	editingCell?.recordId === record.id &&
 																	editingCell?.fieldId === TITLE_COL
-																)
+																}
+																onEditingChange={(on) => {
+																	if (on) {
+																		setEditingCell({
+																			recordId: record.id,
+																			fieldId: TITLE_COL,
+																		});
+																	} else {
+																		setEditingCell(null);
+																		setSeedChar(null);
+																		setFocusedCell({
+																			recordId: record.id,
+																			fieldId: TITLE_COL,
+																		});
+																	}
+																}}
+																seedChar={seedChar}
+																onSave={async (newTitle) => {
+																	await api.updateRecord({
+																		id: record.id,
+																		title: newTitle,
+																	});
+																	await loadDbRecords(database.id);
+																}}
+															/>
+														</td>
+													);
+												})()}
+											{dbFields.map((field: any) => {
+												const val = values[field.name] ?? "";
+												const isEditing =
+													editingCell?.recordId === record.id &&
+													editingCell?.fieldId === field.id;
+												const isFocused =
+													focusedCell?.recordId === record.id &&
+													focusedCell?.fieldId === field.id;
+												const isReadOnly = fieldTypeSpec(field.type).readOnly;
+												const colW = columnWidths[field.id];
+												const baseStyle = colW
+													? { minWidth: colW, width: colW }
+													: undefined;
+												return (
+													<td
+														key={field.id}
+														data-focused={
+															(isFocused && !isEditing) || undefined
+														}
+														data-field-type={field.type}
+														className="db-cell px-2 py-[3px] border-b border-border border-r border-border last:border-r-0 align-middle min-h-[32px] relative"
+														style={
+															isFocused && !isEditing
 																? {
-																		...base,
+																		...baseStyle,
 																		boxShadow: "inset 0 0 0 2px var(--accent)",
 																	}
-																: base;
-														})()}
+																: baseStyle
+														}
 													>
-														<TitleCell
-															title={record.title}
-															isFocused={isFocused}
-															editing={
-																editingCell?.recordId === record.id &&
-																editingCell?.fieldId === TITLE_COL
-															}
-															onEditingChange={(on) => {
-																if (on) {
-																	setEditingCell({
-																		recordId: record.id,
-																		fieldId: TITLE_COL,
-																	});
-																} else {
+														{isEditing && !isReadOnly ? (
+															<InlineCellEditor
+																field={field}
+																value={val}
+																initialValue={seedChar}
+																onSave={(v) =>
+																	handleCellEdit(record.id, field.id, v)
+																}
+																onCancel={() => {
 																	setEditingCell(null);
 																	setSeedChar(null);
 																	setFocusedCell({
 																		recordId: record.id,
-																		fieldId: TITLE_COL,
+																		fieldId: field.id,
 																	});
+																}}
+																onNavigate={(dir) =>
+																	handleCellNavigate(
+																		{ recordId: record.id, fieldId: field.id },
+																		dir,
+																	)
 																}
-															}}
-															seedChar={seedChar}
-															onSave={async (newTitle) => {
-																await api.updateRecord({
-																	id: record.id,
-																	title: newTitle,
-																});
-																await loadDbRecords(database.id);
-															}}
-														/>
+																allRecords={dbRecordCache}
+															/>
+														) : (
+															<div
+																// Select-then-edit: first click focuses, a click on the
+																// already-focused cell (or double-click) opens the editor.
+																onClick={() => {
+																	if (isFocused && !isReadOnly)
+																		setEditingCell({
+																			recordId: record.id,
+																			fieldId: field.id,
+																		});
+																	else
+																		setFocusedCell({
+																			recordId: record.id,
+																			fieldId: field.id,
+																		});
+																}}
+																onDoubleClick={() => {
+																	if (!isReadOnly)
+																		setEditingCell({
+																			recordId: record.id,
+																			fieldId: field.id,
+																		});
+																}}
+																className="px-1.5 py-1 rounded cursor-pointer min-h-[24px] transition-[background] duration-[var(--t)] ease-[var(--ease)] text-text-2 hover:bg-surface-3 hover:text-text"
+																style={
+																	isReadOnly ? { cursor: "default" } : undefined
+																}
+															>
+																<CellDisplay
+																	field={field}
+																	value={val}
+																	databases={databases}
+																	allRecords={dbRecordCache}
+																	recordValues={values}
+																/>
+															</div>
+														)}
 													</td>
 												);
-											})()}
+											})}
+											<td
+												style={{
+													position: "sticky",
+													right: 0,
+													background: "var(--bg)",
+													zIndex: 2,
+												}}
+											/>
+										</SortableRow>
+									))}
+									<tr>
+										<td
+											colSpan={dbFields.length + (database.titleHidden ? 2 : 3)}
+										>
+											<MenuItem
+												type="button"
+												className="rounded-none border-t border-border px-3.5 py-2.5"
+												onClick={handleNewRecord}
+											>
+												+ New record
+											</MenuItem>
+										</td>
+									</tr>
+								</tbody>
+							</SortableContext>
+							{sortedRecords.length > 0 && (
+								<tfoot>
+									<tr>
+										<td style={{ borderTop: "1px solid var(--border)" }} />
+										{!database.titleHidden && (
+											<td
+												className="px-2 py-1.5 align-middle"
+												style={{
+													borderTop: "1px solid var(--border)",
+													...(() => {
+														const w = columnWidths.__title__;
+														return w
+															? { minWidth: w, width: w }
+															: {
+																	minWidth: 180,
+																	width: getDefaultWidthForType("text"),
+																};
+													})(),
+												}}
+											>
+												<ColumnFooter
+													field={{
+														id: "__title__",
+														name: database.titleLabel || "Name",
+														type: "text",
+													}}
+													rows={sortedRecords}
+													agg={footerAggs.__title__ ?? "none"}
+													onChange={(a) => setFooterAgg("__title__", a)}
+													isTitle
+												/>
+											</td>
+										)}
 										{dbFields.map((field: any) => {
-											const val = values[field.name] ?? "";
-											const isEditing =
-												editingCell?.recordId === record.id &&
-												editingCell?.fieldId === field.id;
-											const isFocused =
-												focusedCell?.recordId === record.id &&
-												focusedCell?.fieldId === field.id;
-											const isReadOnly = fieldTypeSpec(field.type).readOnly;
 											const colW = columnWidths[field.id];
-											const baseStyle = colW
-												? { minWidth: colW, width: colW }
-												: undefined;
 											return (
 												<td
 													key={field.id}
-													data-focused={(isFocused && !isEditing) || undefined}
-													className="db-cell px-2 py-[3px] border-b border-border border-r border-border last:border-r-0 align-middle min-h-[32px] relative"
-													style={
-														isFocused && !isEditing
-															? {
-																	...baseStyle,
-																	boxShadow: "inset 0 0 0 2px var(--accent)",
-																}
-															: baseStyle
-													}
+													className="px-2 py-[3px] align-middle"
+													style={{
+														borderTop: "1px solid var(--border)",
+														...(colW ? { minWidth: colW, width: colW } : {}),
+													}}
 												>
-													{isEditing && !isReadOnly ? (
-														<InlineCellEditor
-															field={field}
-															value={val}
-															initialValue={seedChar}
-															onSave={(v) =>
-																handleCellEdit(record.id, field.id, v)
-															}
-															onCancel={() => {
-																setEditingCell(null);
-																setSeedChar(null);
-																setFocusedCell({
-																	recordId: record.id,
-																	fieldId: field.id,
-																});
-															}}
-															onNavigate={(dir) =>
-																handleCellNavigate(
-																	{ recordId: record.id, fieldId: field.id },
-																	dir,
-																)
-															}
-															allRecords={dbRecordCache}
-														/>
-													) : (
-														<div
-															// Select-then-edit: first click focuses, a click on the
-															// already-focused cell (or double-click) opens the editor.
-															onClick={() => {
-																if (isFocused && !isReadOnly)
-																	setEditingCell({
-																		recordId: record.id,
-																		fieldId: field.id,
-																	});
-																else
-																	setFocusedCell({
-																		recordId: record.id,
-																		fieldId: field.id,
-																	});
-															}}
-															onDoubleClick={() => {
-																if (!isReadOnly)
-																	setEditingCell({
-																		recordId: record.id,
-																		fieldId: field.id,
-																	});
-															}}
-															className="px-1.5 py-1 rounded-[5px] cursor-pointer min-h-[24px] transition-[background] duration-[var(--t)] ease-[var(--ease)] text-text-2 hover:bg-surface-3 hover:text-text"
-															style={
-																isReadOnly ? { cursor: "default" } : undefined
-															}
-														>
-															<CellDisplay
-																field={field}
-																value={val}
-																databases={databases}
-																allRecords={dbRecordCache}
-																recordValues={values}
-															/>
-														</div>
-													)}
+													<ColumnFooter
+														field={field}
+														rows={sortedRecords}
+														agg={footerAggs[field.id] ?? "none"}
+														onChange={(a) => setFooterAgg(field.id, a)}
+													/>
 												</td>
 											);
 										})}
 										<td
 											style={{
+												borderTop: "1px solid var(--border)",
 												position: "sticky",
 												right: 0,
 												background: "var(--bg)",
 												zIndex: 2,
 											}}
 										/>
-									</SortableRow>
-								))}
-								<tr>
-									<td
-										colSpan={dbFields.length + (database.titleHidden ? 2 : 3)}
-									>
-										<button
-											type="button"
-											className="w-full text-left bg-transparent border-none cursor-pointer px-3.5 py-2.5 text-[13px] text-text-3 border-t border-border [font-family:var(--font-ui)] transition-[background,color] duration-[var(--t)] ease-[var(--ease)] hover:bg-surface-2 hover:text-text-2"
-											onClick={async () => {
-												const rec = await createDbRecord(database.id, "");
-												await loadDbRecords(database.id);
-												if (rec?.id) setOpenRecordId(rec.id);
-											}}
-										>
-											+ New record
-										</button>
-									</td>
-								</tr>
-							</tbody>
-						</SortableContext>
-						{sortedRecords.length > 0 && (
-							<tfoot>
-								<tr>
-									<td style={{ borderTop: "1px solid #e9e9e7" }} />
-									{!database.titleHidden && (
-										<td
-											className="px-2 py-1.5 align-middle"
-											style={{
-												borderTop: "1px solid #e9e9e7",
-												...(() => {
-													const w = columnWidths.__title__;
-													return w
-														? { minWidth: w, width: w }
-														: {
-																minWidth: 180,
-																width: getDefaultWidthForType("text"),
-															};
-												})(),
-											}}
-										>
-											<ColumnFooter
-												field={{
-													id: "__title__",
-													name: database.titleLabel || "Name",
-													type: "text",
-												}}
-												rows={sortedRecords}
-												agg={footerAggs.__title__ ?? "none"}
-												onChange={(a) => setFooterAgg("__title__", a)}
-												isTitle
-											/>
-										</td>
-									)}
-									{dbFields.map((field: any) => {
-										const colW = columnWidths[field.id];
-										return (
-											<td
-												key={field.id}
-												className="px-2 py-[3px] align-middle"
-												style={{
-													borderTop: "1px solid #e9e9e7",
-													...(colW ? { minWidth: colW, width: colW } : {}),
-												}}
-											>
-												<ColumnFooter
-													field={field}
-													rows={sortedRecords}
-													agg={footerAggs[field.id] ?? "none"}
-													onChange={(a) => setFooterAgg(field.id, a)}
-												/>
-											</td>
-										);
-									})}
-									<td
-										style={{
-											borderTop: "1px solid #e9e9e7",
-											position: "sticky",
-											right: 0,
-											background: "var(--bg)",
-											zIndex: 2,
-										}}
-									/>
-								</tr>
-							</tfoot>
+									</tr>
+								</tfoot>
+							)}
+						</table>
+					</div>
+				)}
+
+				{/* Status line — the second of the table's two ink rules. It carries
+				    both jobs at once: where you are (filters, sort) and what this
+				    database is (records, fields). See docs/design-system.md. */}
+				<div className="db-statusline">
+					<span>
+						<i className="lbl">records</i>
+						<b>{sortedRecords.length}</b>
+						{sortedRecords.length !== records.length && (
+							<span style={{ padding: 0, border: "none" }}>
+								of {records.length}
+							</span>
 						)}
-					</table>
+					</span>
+					<span>
+						<i className="lbl">fields</i>
+						<b>{dbFields.length}</b>
+					</span>
+					{activeFilters.length > 0 && (
+						<span>
+							<i className="lbl">filters</i>
+							<b>{activeFilters.length}</b>
+						</span>
+					)}
+					{activeSorts.length > 0 && (
+						<span>
+							<i className="lbl">sort</i>
+							<b>
+								{dbFields.find((f: any) => f.id === activeSorts[0]?.fieldId)
+									?.name ?? "—"}{" "}
+								{activeSorts[0]?.direction === "desc" ? "↓" : "↑"}
+							</b>
+							{activeSorts.length > 1 && <>+{activeSorts.length - 1}</>}
+						</span>
+					)}
+					<span>{viewType}</span>
 				</div>
 
 				{showAddField && (
@@ -1738,49 +1770,32 @@ export function DatabaseView({
 							bottom: 20,
 							left: "50%",
 							transform: "translateX(-50%)",
-							background: "#37352f",
-							color: "#fff",
+							background: "var(--text)",
+							color: "var(--surface)",
 							borderRadius: 8,
 							padding: "8px 14px",
 							display: "flex",
 							alignItems: "center",
 							gap: 12,
 							fontSize: 13,
-							boxShadow: "0 4px 16px rgba(0,0,0,0.25)",
+							boxShadow: "0 4px 16px var(--shadow-xl)",
 							zIndex: 9999,
 						}}
 					>
 						<span>{selectedRowIds.size} selected</span>
-						<button
-							onClick={handleBulkDelete}
-							style={{
-								background: "transparent",
-								color: "#ff6b6b",
-								border: "1px solid rgba(255,107,107,0.4)",
-								borderRadius: 4,
-								padding: "3px 10px",
-								fontSize: 12,
-								cursor: "pointer",
-							}}
-						>
+						<Button variant="danger" size="sm" onClick={handleBulkDelete}>
 							Delete
-						</button>
-						<button
+						</Button>
+						<Button
+							variant="ghost"
+							size="sm"
 							onClick={() => {
 								setSelectedRowIds(new Set());
 								lastSelectedRowRef.current = null;
 							}}
-							style={{
-								background: "transparent",
-								color: "#ccc",
-								border: "none",
-								padding: "3px 6px",
-								fontSize: 12,
-								cursor: "pointer",
-							}}
 						>
 							Clear
-						</button>
+						</Button>
 					</div>
 				)}
 
@@ -1788,11 +1803,11 @@ export function DatabaseView({
 					{activeRowId ? (
 						<div
 							style={{
-								background: "#fff",
-								border: "1px solid #ddd",
+								background: "var(--surface)",
+								border: "1px solid var(--border-mid)",
 								borderRadius: 6,
 								padding: "8px 16px",
-								boxShadow: "0 4px 12px rgba(0,0,0,0.15)",
+								boxShadow: "0 4px 12px var(--shadow-lg)",
 								fontSize: 14,
 							}}
 						>

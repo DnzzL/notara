@@ -10,11 +10,25 @@ Notara is a **content-first** writing tool with a **Swiss / International typogr
 
 - **Paper, not screen** — warm off-white (`#FAFAF8`), never clinical pure white
 - **Ink + one signal** — near-black ink and a single electric blue. No gradients, no second accent
-- **Structural** — visible grid lines, hairline rules, hard 2px section borders. Composition over decoration
+- **Structural, but rationed** — hairlines do the everyday work; the 2px ink rule is a statement and appears at most twice per screen
+- **Dense and calm** — the working surface is compact (32px rows, 13.5px chrome). Density comes from tight rhythm, not from cramming
 - **Squared** — small radii (3–6px), flat fills. Borders carry the design, not shadows
-- **Display in grotesque** — Bricolage Grotesque, tight and uppercase, gives headings graphic weight; mono labels give a technical, self-hosted feel
+- **Display used once** — Bricolage Grotesque earns its weight by being rare: one title per screen inside the app, uppercase reserved for marketing surfaces. Mono labels give the technical, self-hosted voice
 
 > This supersedes the earlier *editorial / warm-paper + coral* direction (it read too close to other AI products) and the original *indigo-on-white* look.
+
+### Établi — the working surface (2026-08)
+
+The app interior follows a named variant of the system, **Établi**, arrived at by prototyping four directions side by side (see `NOT-130`). It is the Swiss identity of the landing page brought inside, minus the ink that made it tiring to work in all day:
+
+| Kept from the Swiss register | Deliberately dropped |
+|---|---|
+| Warm paper, mono micro-labels, tabular numerals | The visible drafting grid — it was most of the visual noise |
+| Two 2px ink rules framing the data table | 2px rules as a general-purpose divider |
+| Bricolage on the page title | Bricolage uppercase inside the app |
+| Electric blue, strictly for state and primary action | Ink-filled active states in the sidebar and view switcher |
+
+**The rule this variant exists to enforce:** every mark on the working surface must carry information. A select value is legible from its dot — so it does not also get a pill around it.
 
 ---
 
@@ -61,7 +75,15 @@ A light warm-paper panel, only slightly off the content background and separated
 
 ### Accent — Electric Blue
 
-The single accent. Focus rings, active states, CTAs, key marks. Never decorative.
+The single accent. Never decorative. Inside the app it is allowed in exactly five places:
+
+1. Focus rings
+2. The hovered/focused table row (tint + 2px left bar)
+3. The active sidebar node (2px left bar + accent text)
+4. The primary action of a surface (one per surface)
+5. The selected option inside a picker
+
+Anything else that "would look nice in blue" is a bug in the design, not a decision.
 
 | Token | Value | Usage |
 |-------|-------|-------|
@@ -79,6 +101,10 @@ The single accent. Focus rings, active states, CTAs, key marks. Never decorative
 | `--danger` | `#DC2626` | Destructive actions, errors |
 | `--danger-dim` | `rgba(220,38,38,0.08)` | Danger hover backgrounds |
 | `--warning` | `#D97706` | Warnings |
+| `--danger-mid` | `rgba(220,38,38,0.18)` | Danger borders — the step between dim and solid |
+| `--star` | `#D9A441` | Favourite. A mark, not a warning — the two were conflated |
+| `--scrim` | `rgba(15,18,30,0.40)` | Behind every modal, sheet and panel. Was 5 hardcoded backdrops at 3 alphas |
+| `--hover-ink` | `rgba(10,10,10,0.05)` | The neutral hover wash on paper |
 
 ### Borders
 
@@ -88,7 +114,9 @@ The single accent. Focus rings, active states, CTAs, key marks. Never decorative
 | `--border-mid` | `rgba(10,10,10,0.16)` | Inputs, secondary buttons |
 | `--border-sb` | `rgba(10,10,10,0.10)` | Sidebar borders |
 
-**Structural rule:** major section dividers use a solid `2px solid var(--text)` — the defining Swiss move. Hairline `--border` is for rows and internal subdivisions.
+**Structural rule:** the `2px solid var(--text)` ink rule is the defining Swiss move and is therefore rationed, and only ever frames a data surface. On desktop that is two per database — the table's header baseline and the status line. On a narrow screen the tab strip's baseline is a third, which is the ceiling: it brackets the strip, the rows and the status line into one object. Everything else (rows, panels, section splits, sidebar edges) uses hairline `--border`.
+
+On marketing surfaces (`.lp-*`, auth) the 2px rule stays a free structural device; those pages are read once, not worked in.
 
 ---
 
@@ -99,17 +127,38 @@ Three families, three jobs.
 | Variable | Family | Role |
 |----------|--------|------|
 | `--font-ui` | **Archivo** | All UI chrome — sidebar, toolbars, buttons, body |
-| `--font-title` | **Bricolage Grotesque** | Display headings, page titles, brand, big numbers — usually tight + UPPERCASE |
+| `--font-title` | **Bricolage Grotesque** | Display headings, page titles, brand, big numbers. Uppercase on marketing surfaces only |
 | `--font-mono` | **JetBrains Mono** | Labels, kickers, nav, code, kbd, "spec" annotations |
 
 Loaded from Google Fonts with `display=swap`.
 
 ### Conventions
 
-- **Display headings**: Bricolage 700–800, `letter-spacing: -0.03 to -0.04em`, `text-transform: uppercase`, `line-height: 0.9–1.0`.
-- **Labels / kickers / nav / pricing annotations**: JetBrains Mono, 11–13px, `letter-spacing: 0.04–0.16em`, uppercase. Mono is the "technical voice" of the brand.
-- **Body / editor**: Archivo, 14–15px.
-- Numbers in stat/spec contexts use Bricolage for graphic impact (`€29`, `1×`, `0/mo`).
+Bricolage is a display face and behaves differently on the two kinds of surface.
+
+| | Marketing (landing, auth, legal) | App (workspace, database, editor) |
+|---|---|---|
+| Bricolage | Free to use across headings | **One title per screen**, nowhere else |
+| Case | `text-transform: uppercase` | Title case — uppercase reads as shouting on a surface you sit in all day |
+| Size / weight | 700–800, `-0.03 to -0.04em` | 700, 25px, `-0.028em` |
+
+- **Labels / kickers / column headers**: JetBrains Mono, 9–13px, `letter-spacing: 0.04–0.16em`, uppercase. Mono is the "technical voice" of the brand — this one is the same on both surfaces.
+- **Body / editor**: Archivo 14–15px. **App chrome**: Archivo 13.5px.
+- **Numbers that get compared** (a TJM column, a record count, a date) use `--font-mono` with `font-variant-numeric: tabular-nums`, so digits line up down the column. Numbers that get *admired* (a landing stat, a price) use Bricolage.
+
+---
+
+## Density
+
+The working surface is compact on purpose. A database is a place you scan, and scanning costs a scroll per row.
+
+| Token | Value | Used for |
+|-------|-------|----------|
+| `--row` | `32px` | Database table rows, sidebar nodes, list rows |
+| `--row-touch` | `48px` | Any row that is a tap target on mobile |
+
+- App chrome text is **13.5px**; editor body stays 15px. The editor is for reading, the chrome is for operating.
+- Tap targets stay ≥44px on touch regardless of `--row` — density is a pointer-device affordance, not a universal one.
 
 ---
 
@@ -158,6 +207,33 @@ Flatter than before — Swiss prefers borders over glow. Used for elevation only
 
 ## Component Patterns
 
+## Primitives (`components/ui/`)
+
+Reach for these before writing a class string. They exist because the same string was already written five to eight times and the copies had drifted.
+
+| Primitive | Covers | Why it exists |
+|---|---|---|
+| `Button` / `IconButton` | Every action | 4 variants × 3 sizes; forwards `ref` so popovers can anchor to it |
+| `Input` / `Select` | Every text/number/date/select field | **The one focus treatment.** The app had five |
+| `Tabs` | Mode toggles and pane navigation | Encodes the two active languages below. The view-type control lives in `db/viewTypes.ts` and is used by all three views |
+| `MenuItem` | Any dropdown or popover row | Was copy-pasted 8× in `WorkspaceSwitcher` alone |
+| `Badge` | A value that carries state or metadata | Defaults to a dot, not a pill. Multi-select cells collapse past two values into a `+N` badge rather than wrapping the row |
+| `Field`, `Modal` | Form rows, modal shells | |
+
+`packages/app/test/design-tokens.test.ts` enforces the colour and radius rules. It does **not** enforce primitive usage — that is a review question, not a machine one.
+
+### Active, and what kind of active
+
+The app once expressed "active" six ways for what was mostly one idea. Three roles now, and the distinction carries meaning:
+
+| Role | Question it answers | Treatment |
+|---|---|---|
+| **Toggle** | Which *mode* of the same content? (Table / Board / Calendar) | Solid `--accent` fill, white text. A switch should read as thrown |
+| **Navigation** | Which *place* am I in? (page tree, saved view, workspace, admin pane) | `--accent-dim` tint + a 2px `--accent` marker — left bar in a vertical list, underline on a horizontal row |
+| **Selection** | Which *data* is picked? (a row, an option) | `--accent-dim` tint, no marker |
+
+Never an ink fill. `bg-text text-bg` was the loudest thing on the working surface and is reserved for marketing surfaces.
+
 ### Buttons (`components/ui/Button.tsx` → `.btn`)
 
 | Variant | Resting | Hover |
@@ -179,7 +255,7 @@ Label + control wrapper for `.auth-field` forms. Props: `label`, `htmlFor`, opti
 
 ### Inputs / focus ring
 
-`border-color: --accent` + `box-shadow: 0 0 0 3px --accent-dim`. Never a bare colored border.
+`border-color: --accent` + `box-shadow: 0 0 0 3px --accent-dim`. Never a bare coloured border — `focus:border-accent` on its own was the single most common divergence. Use `ui/Input.tsx`, which is where this lives now; the global `:focus-visible` outline stays as the keyboard fallback for everything that is not a field.
 
 ### Section dividers
 
@@ -189,9 +265,42 @@ Label + control wrapper for `.auth-field` forms. Props: `label`, `htmlFor`, opti
 
 Light warm-paper `--sb` panel, ink `--text-sb*` text, `--accent-dim` selected node + electric-blue left bar. Low-contrast and calm against the content area; identity comes from mono section headers, crisp bordered inputs, and the blue accent rather than a dark fill.
 
-### Database table (spec sheet)
+### Database table (`.db-table`, styles.css)
 
-Column headers are JetBrains Mono, uppercase, 10.5px, with a `2px solid var(--text)` baseline rule. View switcher (Table/Board) uses an **ink-filled** active segment (`--text` bg, `--bg` text), matching the landing's "spec sheet" register.
+The database view is otherwise built from Tailwind utilities and inline styles; only the decisions that belong to the *system* rather than to a component live in CSS:
+
+- Column headers: JetBrains Mono, uppercase, 10px, `0.1em` tracking, with the `2px solid var(--text)` baseline rule. The field-type marker carries `.db-type-glyph`, which opts out of the uppercase — otherwise `Aa` renders as `AA`.
+- Rows are `var(--row)` tall and their vertical padding is zeroed, so `--row` is the single number that decides record height. (Before this, the row gutter's controls stacked and every record was ~78px.)
+- `number` and `date` cells use mono + `tabular-nums`; `number` is right-aligned. Digits in a column line up.
+- Hover: `--accent-dim` tint plus a 2px accent left bar.
+- The view switcher's active segment is **accent-filled**, not ink-filled. Ink fills were the single loudest thing on the working surface.
+
+### Database status line (`.db-statusline`)
+
+The second ink rule, directly under the table. It carries two jobs at once — *where you are* (filters, sort, view type) and *what this is* (record count, field count) — so the surface needs one footer instead of two. Mono, 11px, tabular numerals, `--sb` panel.
+
+### Database on a narrow screen
+
+Below 880px each view is **replaced**, not reflowed. All three share one navigation language — a horizontally scrollable strip of tabs (`db/Strip.tsx`), a mono caption stating where you are, then a list of `--row-touch` rows. `Strip` is a real tablist: roving tabindex, arrow keys, `aria-controls`. The bar above them is one shared shell, `db/DatabaseToolbar.tsx` — it used to exist three times, which is how a responsive fix landed on one view and left the other two with the database name floating below the view selector.
+
+| View | What you navigate | Component |
+|---|---|---|
+| Table | the **field**, not the row — the record list stays put while the column changes | `db/MobileRuler.tsx` |
+| Board | the **group**, not the column — one group's cards, full width | `db/MobileBoard.tsx` |
+| Calendar | the **date field**, when there is more than one — otherwise nothing; it becomes an **agenda**, days in order, undated last | `db/MobileAgenda.tsx` |
+
+Tapping a value raises a bottom sheet around the same `InlineCellEditor` the desktop table uses, and every picker (`Popover`, `CellAnchoredPopover`, the relation autocomplete) becomes a `.db-popover-sheet`, so per-type behaviour has one implementation.
+
+Two rules that cost a bug each:
+
+- **Branch below the toolbar, never above it.** An early return that skips the view's own toolbar strands the user in a view with no way back.
+- **Don't keep a control whose scope the new layout doesn't have.** The calendar's month stepper is hidden in agenda mode: the agenda lists every record, so a month claim would be a lie.
+
+Agenda grouping is a pure function in `lib/agenda.ts` with its own test — ordering and the undated bucket are where an agenda quietly goes wrong.
+
+Rows are `--row-touch` (48px). Sheet inputs are 16px — anything smaller makes iOS Safari zoom the viewport on focus.
+
+This is the one place where narrow means a different component rather than a reflowed one, which is why `lib/useIsCompact.ts` exists. **Reach for a media query first.** The hook is for markup that differs, not layout that adapts.
 
 ### Modals / popovers
 
@@ -213,6 +322,9 @@ Self-contained Swiss system on the marketing page: fixed `.lp-gridlines` overlay
 - Favor borders and contrast for separation; shadows only for true elevation
 
 **Don't:**
+- Hardcode a hex in a component. The database view spent a long time full of Notion's palette (`#2eaadc`, `#37352f`, `#e9e9e7`) and simply did not participate in this system — a redesign was mostly a find-and-replace
+- Write a CSS rule for a class no element carries. `.table-view` and the `.sidebar` mobile drawer were both dead for months, which is what actually made the app unusable on a phone. If a rule matters, assert it in the browser
+- Put `display: none` for mobile-only chrome *after* the media query that turns it on — equal specificity means source order wins and the rule dies silently
 - Reintroduce the warm-paper/coral or indigo-on-white palettes (superseded)
 - Add a second accent color without updating this doc
 - Use large/pill radii or soft glowy shadows for layout — it breaks the Swiss read

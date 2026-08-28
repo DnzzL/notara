@@ -8,21 +8,28 @@ import {
 } from "react";
 import { createPortal } from "react-dom";
 import { tryEvaluate } from "../../lib/formula.js";
+import { splitMultiSelect } from "../../lib/multiSelect.js";
+import { useIsCompact } from "../../lib/useIsCompact.js";
 import { api, getCurrentWorkspaceId } from "../../rpc-client.js";
 import { usePageStore } from "../../stores/pageStore.js";
+import { Badge } from "../ui/Badge.js";
 
 // ── Shared constants ──────────────────────────────────────────────────────
 
+// Option colours — user data, deliberately theme-independent: a green option
+// stays green whatever the chrome does. The pastel fills these used to carry
+// are gone; the colour now lives in a dot, which is the design system's rule
+// for a value that already reads from its colour.
 const SELECT_COLORS = [
-	{ bg: "#e3e2e0", fg: "#1e1e1e" },
-	{ bg: "#e9d5ca", fg: "#1e1e1e" },
-	{ bg: "#fad4c0", fg: "#1e1e1e" },
-	{ bg: "#fdecc8", fg: "#1e1e1e" },
-	{ bg: "#dcf4d4", fg: "#1e1e1e" },
-	{ bg: "#d3e5ef", fg: "#1e1e1e" },
-	{ bg: "#dadfee", fg: "#1e1e1e" },
-	{ bg: "#f5d6e8", fg: "#1e1e1e" },
-	{ bg: "#ffe2dd", fg: "#1e1e1e" },
+	{ dot: "var(--text-3)" },
+	{ dot: "#A1663B" },
+	{ dot: "var(--warning)" },
+	{ dot: "#C9A227" },
+	{ dot: "var(--success)" },
+	{ dot: "#2B7FB8" },
+	{ dot: "#5B5BD6" },
+	{ dot: "#C2408A" },
+	{ dot: "var(--danger)" },
 ];
 
 export function optionColor(idx: number) {
@@ -107,6 +114,7 @@ export function Popover({
 	minWidth?: number;
 }) {
 	const ref = useRef<HTMLDivElement>(null);
+	const compact = useIsCompact();
 	const [pos, setPos] = useState<{ top: number; left: number }>({
 		top: 0,
 		left: 0,
@@ -178,6 +186,19 @@ export function Popover({
 
 	if (!triggerRect) return null;
 
+	// On a phone a floating box anchored to a control fights the surface it is
+	// anchored to: inside the mobile edit sheet the trigger already sits at the
+	// bottom of the screen, so "below the trigger" is off-screen, and flipping
+	// above lands on top of the value you are trying to read. Every picker
+	// becomes a sheet of its own instead — one change, and select, multiSelect,
+	// relation and page all behave, with no per-type mobile branch.
+	if (compact)
+		return (
+			<div ref={ref} className="db-popover-sheet" style={{ zIndex: 10000 }}>
+				{children}
+			</div>
+		);
+
 	return (
 		<div
 			ref={ref}
@@ -187,10 +208,10 @@ export function Popover({
 				left: pos.left,
 				zIndex: 10000,
 				minWidth,
-				background: "#fff",
-				border: "1px solid #e9e9e7",
+				background: "var(--surface)",
+				border: "1px solid var(--border)",
 				borderRadius: 8,
-				boxShadow: "0 4px 20px rgba(0,0,0,0.15)",
+				boxShadow: "var(--shadow-lg)",
 				padding: 8,
 				maxHeight: "70vh",
 				overflow: "auto",
@@ -220,6 +241,7 @@ export function CellAnchoredPopover({
 }) {
 	const anchorRef = useRef<HTMLSpanElement>(null);
 	const popRef = useRef<HTMLDivElement>(null);
+	const compact = useIsCompact();
 	const [pos, setPos] = useState<{ top: number; left: number } | null>(null);
 
 	const calcAnchoredPos = useCallback(() => {
@@ -289,21 +311,33 @@ export function CellAnchoredPopover({
 		<>
 			<span ref={anchorRef} style={{ display: "none" }} />
 			{createPortal(
-				<div
-					ref={popRef}
-					className="bg-surface border border-border-mid rounded shadow-[var(--shadow-lg)] p-1 max-h-[360px] overflow-y-auto"
-					style={{
-						position: "fixed",
-						top: pos?.top ?? -9999,
-						left: pos?.left ?? -9999,
-						visibility: pos ? "visible" : "hidden",
-						minWidth,
-						zIndex: 10000,
-					}}
-					onMouseDown={(e) => e.stopPropagation()}
-				>
-					{children}
-				</div>,
+				compact ? (
+					// Same reasoning as Popover: on a phone the picker is the surface.
+					<div
+						ref={popRef}
+						className="db-popover-sheet"
+						style={{ zIndex: 10000 }}
+						onMouseDown={(e) => e.stopPropagation()}
+					>
+						{children}
+					</div>
+				) : (
+					<div
+						ref={popRef}
+						className="bg-surface border border-border-mid rounded shadow-[var(--shadow-lg)] p-1 max-h-[360px] overflow-y-auto"
+						style={{
+							position: "fixed",
+							top: pos?.top ?? -9999,
+							left: pos?.left ?? -9999,
+							visibility: pos ? "visible" : "hidden",
+							minWidth,
+							zIndex: 10000,
+						}}
+						onMouseDown={(e) => e.stopPropagation()}
+					>
+						{children}
+					</div>
+				),
 				document.body,
 			)}
 		</>
@@ -315,25 +349,46 @@ export function CellAnchoredPopover({
 export function SelectPill({
 	value,
 	colorIdx,
+	bare = false,
 }: {
 	value: string;
 	colorIdx: number;
+	/** A single value reads from its dot — it does not also need a pill. */
+	bare?: boolean;
 }) {
 	const c = optionColor(colorIdx);
 	return (
-		<span
-			style={{
-				display: "inline-block",
-				background: c.bg,
-				color: c.fg,
-				borderRadius: 4,
-				padding: "1px 7px",
-				fontSize: 13,
-				fontWeight: 500,
-				lineHeight: "20px",
-			}}
-		>
+		<Badge variant={bare ? "dot" : "outline"} dotColor={c.dot}>
 			{value}
+		</Badge>
+	);
+}
+
+/**
+ * Several values side by side, each needing a boundary — the one case the
+ * design system reserves a chip for. Past two they collapse into a count, so a
+ * cell with eight tags is still one --row tall instead of wrapping the table
+ * out of its rhythm.
+ */
+export function SelectPills({
+	values,
+	options,
+}: {
+	values: string[];
+	options: string[];
+}) {
+	const { shown, hidden } = splitMultiSelect(values);
+	return (
+		<span className="db-multiselect">
+			{shown.map((v) => {
+				const i = options.indexOf(v);
+				return <SelectPill key={v} value={v} colorIdx={i >= 0 ? i : 0} />;
+			})}
+			{hidden.length > 0 && (
+				<Badge variant="neutral" title={hidden.join(", ")}>
+					+{hidden.length}
+				</Badge>
+			)}
 		</span>
 	);
 }
@@ -384,7 +439,7 @@ export function CellDisplay({
 					title={res.error}
 					style={{
 						fontSize: 12,
-						color: "#c44",
+						color: "var(--danger)",
 						fontFamily: "ui-monospace, SFMono-Regular, Menlo, monospace",
 					}}
 				>
@@ -394,22 +449,28 @@ export function CellDisplay({
 		}
 		const v = res.value;
 		if (v === null || v === undefined || v === "")
-			return <span style={{ color: "#d3d1cb" }}>&nbsp;</span>;
+			return <span style={{ color: "var(--text-3)" }}>&nbsp;</span>;
 		if (typeof v === "number") {
 			const display = Number.isFinite(v)
 				? v.toLocaleString(undefined, { maximumFractionDigits: 6 })
 				: String(v);
-			return <span style={{ fontSize: 13, color: "#37352f" }}>{display}</span>;
+			return (
+				<span style={{ fontSize: 13, color: "var(--text)" }}>{display}</span>
+			);
 		}
 		if (typeof v === "boolean")
 			return (
-				<span style={{ fontSize: 13, color: "#37352f" }}>{v ? "✓" : ""}</span>
+				<span style={{ fontSize: 13, color: "var(--text)" }}>
+					{v ? "✓" : ""}
+				</span>
 			);
-		return <span style={{ fontSize: 13, color: "#37352f" }}>{String(v)}</span>;
+		return (
+			<span style={{ fontSize: 13, color: "var(--text)" }}>{String(v)}</span>
+		);
 	}
 
 	if (value === null || value === undefined || value === "") {
-		return <span style={{ color: "#d3d1cb" }}>&nbsp;</span>;
+		return <span style={{ color: "var(--text-3)" }}>&nbsp;</span>;
 	}
 
 	if (field.type === "checkbox") {
@@ -428,8 +489,8 @@ export function CellDisplay({
 						width: 18,
 						height: 18,
 						borderRadius: 3,
-						border: checked ? "none" : "1.5px solid #c0c0bd",
-						background: checked ? "#2eaadc" : "transparent",
+						border: checked ? "none" : "1.5px solid var(--border-mid)",
+						background: checked ? "var(--accent)" : "transparent",
 						display: "flex",
 						alignItems: "center",
 						justifyContent: "center",
@@ -455,36 +516,29 @@ export function CellDisplay({
 		const opts = field.options || [];
 		const idx = opts.indexOf(String(value));
 		return value ? (
-			<SelectPill value={String(value)} colorIdx={idx >= 0 ? idx : 0} />
+			<SelectPill value={String(value)} colorIdx={idx >= 0 ? idx : 0} bare />
 		) : (
-			<span style={{ color: "#d3d1cb" }}>&nbsp;</span>
+			<span style={{ color: "var(--text-3)" }}>&nbsp;</span>
 		);
 	}
 
 	if (field.type === "multiSelect") {
 		const vals = decodeCell(field.type, value);
-		if (!vals.length) return <span style={{ color: "#d3d1cb" }}>&nbsp;</span>;
-		const opts = field.options || [];
-		return (
-			<div
-				style={{ display: "flex", gap: 4, flexWrap: "wrap", padding: "2px 0" }}
-			>
-				{vals.map((v) => {
-					const i = opts.indexOf(v);
-					return <SelectPill key={v} value={v} colorIdx={i >= 0 ? i : 0} />;
-				})}
-			</div>
-		);
+		if (!vals.length)
+			return <span style={{ color: "var(--text-3)" }}>&nbsp;</span>;
+		return <SelectPills values={vals} options={field.options || []} />;
 	}
 
 	if (field.type === "date")
 		return (
-			<span style={{ fontSize: 13, color: "#37352f" }}>{String(value)}</span>
+			<span style={{ fontSize: 13, color: "var(--text)" }}>
+				{String(value)}
+			</span>
 		);
 	if (field.type === "number") {
-		if (!value) return <span style={{ color: "#d3d1cb" }}>&nbsp;</span>;
+		if (!value) return <span style={{ color: "var(--text-3)" }}>&nbsp;</span>;
 		return (
-			<span style={{ fontSize: 13, color: "#37352f" }}>
+			<span style={{ fontSize: 13, color: "var(--text)" }}>
 				{Number(value).toLocaleString()}
 			</span>
 		);
@@ -492,7 +546,8 @@ export function CellDisplay({
 
 	if (field.type === "page") {
 		const vals = decodeCell(field.type, value);
-		if (!vals.length) return <span style={{ color: "#d3d1cb" }}>&nbsp;</span>;
+		if (!vals.length)
+			return <span style={{ color: "var(--text-3)" }}>&nbsp;</span>;
 		return (
 			<div
 				style={{ display: "flex", gap: 4, flexWrap: "wrap", padding: "2px 0" }}
@@ -507,7 +562,7 @@ export function CellDisplay({
 	if (field.type === "people") {
 		const userIds = decodeCell(field.type, value);
 		if (!userIds.length)
-			return <span style={{ color: "#d3d1cb" }}>&nbsp;</span>;
+			return <span style={{ color: "var(--text-3)" }}>&nbsp;</span>;
 		return (
 			<div
 				style={{
@@ -527,7 +582,8 @@ export function CellDisplay({
 
 	if (field.type === "relation") {
 		const vals = decodeCell(field.type, value);
-		if (!vals.length) return <span style={{ color: "#d3d1cb" }}>&nbsp;</span>;
+		if (!vals.length)
+			return <span style={{ color: "var(--text-3)" }}>&nbsp;</span>;
 		const targetDbId = field.relationTargetDbId;
 		return (
 			<div
@@ -547,7 +603,7 @@ export function CellDisplay({
 	}
 
 	return (
-		<span style={{ fontSize: 13, color: "#37352f" }}>{String(value)}</span>
+		<span style={{ fontSize: 13, color: "var(--text)" }}>{String(value)}</span>
 	);
 }
 
@@ -585,7 +641,7 @@ function PageChip({ pageId }: { pageId: string }) {
 	};
 	return (
 		<span
-			className="inline-flex items-center gap-1 bg-surface-3 border border-border rounded-[5px] px-2 py-0.5 text-[12.5px] cursor-pointer max-w-[200px] overflow-hidden text-ellipsis whitespace-nowrap text-text-2 transition-[background,color] duration-[var(--t)] ease-[var(--ease)] hover:bg-surface-4 hover:text-text"
+			className="inline-flex items-center gap-1 bg-surface-3 border border-border rounded px-2 py-0.5 text-[12.5px] cursor-pointer max-w-[200px] overflow-hidden text-ellipsis whitespace-nowrap text-text-2 transition-[background,color] duration-[var(--t)] ease-[var(--ease)] hover:bg-surface-4 hover:text-text"
 			onClick={onClick}
 			title={`${title} — ${navigator.platform.includes("Mac") ? "⌘" : "Ctrl"}-click to open`}
 		>
@@ -644,7 +700,7 @@ function RelationChip({
 
 	return (
 		<span
-			className="inline-block bg-accent-dim border border-[rgba(43,77,255,0.2)] text-accent-2 rounded-[5px] px-2 py-0.5 text-[12.5px] max-w-[200px] overflow-hidden text-ellipsis whitespace-nowrap cursor-pointer"
+			className="inline-block bg-accent-dim border border-[var(--accent-glow)] text-accent-2 rounded px-2 py-0.5 text-[12.5px] max-w-[200px] overflow-hidden text-ellipsis whitespace-nowrap cursor-pointer"
 			onClick={onClick}
 			title={`${title} — ${navigator.platform.includes("Mac") ? "⌘" : "Ctrl"}-click to open`}
 		>
@@ -679,7 +735,7 @@ export function PeopleChip({ userId }: { userId: string }) {
 
 	return (
 		<span
-			className="inline-flex items-center gap-[5px] bg-surface-3 border border-border rounded-[20px] py-px pl-[3px] pr-2 text-[12.5px] max-w-[200px] text-text-2"
+			className="inline-flex items-center gap-[5px] bg-surface-3 border border-border rounded-full py-px pl-[3px] pr-2 text-[12.5px] max-w-[200px] text-text-2"
 			title={name}
 		>
 			<span className="inline-flex items-center justify-center w-5 h-5 rounded-full bg-accent-dim text-accent-2 text-[10px] font-semibold shrink-0">
@@ -790,7 +846,7 @@ function SelectPopover({
 		<CellAnchoredPopover onClose={onCancel}>
 			<input
 				name="cell-select-search"
-				className="w-full px-2 py-[7px] border border-border rounded-[5px] text-[13px] outline-none box-border mb-1 bg-surface-2 text-text [font-family:var(--font-ui)] focus:border-accent"
+				className="w-full px-2 py-[7px] border border-border rounded text-[13px] outline-none box-border mb-1 bg-surface-2 text-text [font-family:var(--font-ui)] focus:border-accent"
 				placeholder="Search or create…"
 				value={query}
 				onChange={(e) => setQuery(e.target.value)}
@@ -803,16 +859,18 @@ function SelectPopover({
 						return (
 							<div
 								key="clear"
-								className="px-2 py-1.5 rounded-[5px] cursor-pointer flex items-center gap-2 text-text-2 hover:bg-surface-3 hover:text-text"
+								className="px-2 py-1.5 rounded cursor-pointer flex items-center gap-2 text-text-2 hover:bg-surface-3 hover:text-text"
 								onClick={clear}
 								style={{
-									borderBottom: "1px solid #f0f0f0",
+									borderBottom: "1px solid var(--border)",
 									marginBottom: 2,
-									background: isActive ? "rgba(46,170,220,0.12)" : undefined,
+									background: isActive ? "var(--accent-mid)" : undefined,
 								}}
 							>
 								<span style={{ fontSize: 14, opacity: 0.5 }}>✕</span>
-								<span style={{ fontSize: 13, color: "#888" }}>Clear</span>
+								<span style={{ fontSize: 13, color: "var(--text-3)" }}>
+									Clear
+								</span>
 							</div>
 						);
 					}
@@ -827,12 +885,12 @@ function SelectPopover({
 						return (
 							<div
 								key={opt}
-								className="px-2 py-1.5 rounded-[5px] cursor-pointer flex items-center gap-2 text-text-2 hover:bg-surface-3 hover:text-text"
+								className="px-2 py-1.5 rounded cursor-pointer flex items-center gap-2 text-text-2 hover:bg-surface-3 hover:text-text"
 								style={{
 									background: isActive
-										? "rgba(46,170,220,0.12)"
+										? "var(--accent-mid)"
 										: isSelected
-											? "rgba(0,0,0,0.05)"
+											? "var(--hover-ink)"
 											: undefined,
 								}}
 								onClick={() => choose(opt)}
@@ -840,15 +898,18 @@ function SelectPopover({
 								<span
 									style={{
 										display: "inline-block",
-										background: c.bg,
-										borderRadius: 3,
-										width: 12,
-										height: 12,
+										background: c.dot,
+										borderRadius: "50%",
+										width: 8,
+										height: 8,
+										flexShrink: 0,
 									}}
 								/>
 								<span style={{ fontSize: 13, flex: 1 }}>{opt}</span>
 								{isSelected && (
-									<span style={{ color: "#2eaadc", fontSize: 14 }}>✓</span>
+									<span style={{ color: "var(--accent)", fontSize: 14 }}>
+										✓
+									</span>
 								)}
 							</div>
 						);
@@ -857,10 +918,10 @@ function SelectPopover({
 						return (
 							<div
 								key="create"
-								className="px-2 py-1.5 rounded-[5px] cursor-pointer flex items-center gap-2 text-text-2 hover:bg-surface-3 hover:text-text text-accent hover:bg-accent-dim hover:text-accent"
+								className="px-2 py-1.5 rounded cursor-pointer flex items-center gap-2 text-text-2 hover:bg-surface-3 hover:text-text text-accent hover:bg-accent-dim hover:text-accent"
 								onClick={create}
 								style={{
-									background: isActive ? "rgba(46,170,220,0.12)" : undefined,
+									background: isActive ? "var(--accent-mid)" : undefined,
 								}}
 							>
 								<span style={{ fontSize: 12, opacity: 0.6 }}>+</span>
@@ -873,7 +934,13 @@ function SelectPopover({
 					return null;
 				})}
 				{filtered.length === 0 && !canCreate && !hasValue && (
-					<div style={{ padding: "8px 12px", color: "#888", fontSize: 13 }}>
+					<div
+						style={{
+							padding: "8px 12px",
+							color: "var(--text-3)",
+							fontSize: 13,
+						}}
+					>
 						No options
 					</div>
 				)}
@@ -946,7 +1013,9 @@ export function RelationPicker({
 	return (
 		<CellAnchoredPopover onClose={onClose} minWidth={260}>
 			{!targetDb ? (
-				<div style={{ padding: "8px 12px", color: "#888", fontSize: 13 }}>
+				<div
+					style={{ padding: "8px 12px", color: "var(--text-3)", fontSize: 13 }}
+				>
 					{targetDbId
 						? "Loading related records..."
 						: "No relation target set. Edit this property to choose a target database."}
@@ -957,7 +1026,7 @@ export function RelationPicker({
 						style={{
 							padding: "4px 8px",
 							fontSize: 11,
-							color: "#999",
+							color: "var(--text-3)",
 							fontWeight: 500,
 						}}
 					>
@@ -966,7 +1035,7 @@ export function RelationPicker({
 					{records.length > 0 && (
 						<input
 							name="cell-relation-search"
-							className="w-full px-2 py-[7px] border border-border rounded-[5px] text-[13px] outline-none box-border mb-1 bg-surface-2 text-text [font-family:var(--font-ui)] focus:border-accent"
+							className="w-full px-2 py-[7px] border border-border rounded text-[13px] outline-none box-border mb-1 bg-surface-2 text-text [font-family:var(--font-ui)] focus:border-accent"
 							placeholder="Search records…"
 							value={query}
 							onChange={(e) => setQuery(e.target.value)}
@@ -974,7 +1043,13 @@ export function RelationPicker({
 						/>
 					)}
 					{filteredRecords.length === 0 ? (
-						<div style={{ padding: "8px 12px", color: "#888", fontSize: 13 }}>
+						<div
+							style={{
+								padding: "8px 12px",
+								color: "var(--text-3)",
+								fontSize: 13,
+							}}
+						>
 							{records.length === 0
 								? `No records in ${targetDb.name}`
 								: "No matching records found"}
@@ -994,9 +1069,9 @@ export function RelationPicker({
 										alignItems: "center",
 										gap: 8,
 										background: isActive
-											? "rgba(46,170,220,0.12)"
+											? "var(--accent-mid)"
 											: selected
-												? "rgba(0,0,0,0.05)"
+												? "var(--hover-ink)"
 												: "transparent",
 									}}
 									onClick={() => toggle(r.id)}
@@ -1006,8 +1081,10 @@ export function RelationPicker({
 											width: 18,
 											height: 18,
 											borderRadius: 3,
-											border: selected ? "none" : "1.5px solid #c0c0bd",
-											background: selected ? "#2eaadc" : "transparent",
+											border: selected
+												? "none"
+												: "1.5px solid var(--border-mid)",
+											background: selected ? "var(--accent)" : "transparent",
 											display: "flex",
 											alignItems: "center",
 											justifyContent: "center",
@@ -1047,10 +1124,10 @@ export function RelationPicker({
 					<div
 						style={{
 							padding: "4px 8px",
-							color: "#888",
+							color: "var(--text-3)",
 							fontSize: 12,
 							cursor: "pointer",
-							borderTop: "1px solid #f0f0f0",
+							borderTop: "1px solid var(--border)",
 							marginTop: 4,
 							paddingTop: 4,
 						}}
@@ -1117,9 +1194,9 @@ function PeopleInlineAutocomplete({
 						alignItems: "center",
 						gap: 8,
 						background: isActive
-							? "rgba(46,170,220,0.12)"
+							? "var(--accent-mid)"
 							: selected
-								? "rgba(0,0,0,0.05)"
+								? "var(--hover-ink)"
 								: "transparent",
 					}}
 				>
@@ -1131,8 +1208,8 @@ function PeopleInlineAutocomplete({
 							width: 24,
 							height: 24,
 							borderRadius: "50%",
-							background: "rgba(46,170,220,0.15)",
-							color: "#2eaadc",
+							background: "var(--accent-mid)",
+							color: "var(--accent)",
 							fontSize: 11,
 							fontWeight: 600,
 							flexShrink: 0,
@@ -1155,7 +1232,7 @@ function PeopleInlineAutocomplete({
 						<span
 							style={{
 								fontSize: 11,
-								color: "#888",
+								color: "var(--text-3)",
 								overflow: "hidden",
 								textOverflow: "ellipsis",
 							}}
@@ -1284,6 +1361,7 @@ function CellInlineMultiAutocomplete<T extends { id: string; title?: string }>({
 		focused && (filtered.length > 0 || (q.length > 0 && filtered.length === 0));
 
 	// Compute dropdown position
+	const compact = useIsCompact();
 	const [dropdownPos, setDropdownPos] = useState<{
 		top: number;
 		left: number;
@@ -1312,7 +1390,7 @@ function CellInlineMultiAutocomplete<T extends { id: string; title?: string }>({
 				ref={anchorRef}
 				className="flex flex-wrap gap-1 items-center"
 				style={{
-					border: "1px solid #2eaadc",
+					border: "1px solid var(--accent)",
 					borderRadius: 4,
 					padding: "2px 4px",
 					minHeight: 28,
@@ -1337,26 +1415,33 @@ function CellInlineMultiAutocomplete<T extends { id: string; title?: string }>({
 				createPortal(
 					<div
 						ref={dropdownRef}
-						style={{
-							position: "fixed",
-							top: dropdownPos.top,
-							left: dropdownPos.left,
-							width: dropdownPos.width,
-							zIndex: 10000,
-							background: "#fff",
-							border: "1px solid #e9e9e7",
-							borderRadius: 8,
-							boxShadow: "0 4px 20px rgba(0,0,0,0.15)",
-							padding: 8,
-							maxHeight: 260,
-							overflow: "auto",
-						}}
+						// Third of the three popovers in this file, and the same
+						// reasoning: on a phone the picker is the surface.
+						className={compact ? "db-popover-sheet" : undefined}
+						style={
+							compact
+								? { zIndex: 10000 }
+								: {
+										position: "fixed",
+										top: dropdownPos.top,
+										left: dropdownPos.left,
+										width: dropdownPos.width,
+										zIndex: 10000,
+										background: "var(--surface)",
+										border: "1px solid var(--border)",
+										borderRadius: 8,
+										boxShadow: "var(--shadow-lg)",
+										padding: 8,
+										maxHeight: 260,
+										overflow: "auto",
+									}
+						}
 					>
 						{filtered.length === 0 ? (
 							<div
 								style={{
 									padding: "8px 12px",
-									color: "#888",
+									color: "var(--text-3)",
 									fontSize: 13,
 								}}
 							>
@@ -1473,8 +1558,8 @@ export function InlineCellEditor({
 						width: 18,
 						height: 18,
 						borderRadius: 3,
-						border: checked ? "none" : "1.5px solid #c0c0bd",
-						background: checked ? "#2eaadc" : "transparent",
+						border: checked ? "none" : "1.5px solid var(--border-mid)",
+						background: checked ? "var(--accent)" : "transparent",
 						display: "flex",
 						alignItems: "center",
 						justifyContent: "center",
@@ -1518,7 +1603,7 @@ export function InlineCellEditor({
 				onKeyDown={handleKeyDown}
 				style={{
 					width: "100%",
-					border: "1px solid #2eaadc",
+					border: "1px solid var(--accent)",
 					borderRadius: 4,
 					padding: "2px 4px",
 					fontSize: 13,
@@ -1539,7 +1624,7 @@ export function InlineCellEditor({
 				onKeyDown={handleKeyDown}
 				style={{
 					width: "100%",
-					border: "1px solid #2eaadc",
+					border: "1px solid var(--accent)",
 					borderRadius: 4,
 					padding: "2px 4px",
 					fontSize: 13,
@@ -1585,9 +1670,9 @@ export function InlineCellEditor({
 							alignItems: "center",
 							gap: 8,
 							background: isActive
-								? "rgba(46,170,220,0.12)"
+								? "var(--accent-mid)"
 								: selected
-									? "rgba(0,0,0,0.05)"
+									? "var(--hover-ink)"
 									: "transparent",
 						}}
 					>
@@ -1596,8 +1681,8 @@ export function InlineCellEditor({
 								width: 18,
 								height: 18,
 								borderRadius: 3,
-								border: selected ? "none" : "1.5px solid #c0c0bd",
-								background: selected ? "#2eaadc" : "transparent",
+								border: selected ? "none" : "1.5px solid var(--border-mid)",
+								background: selected ? "var(--accent)" : "transparent",
 								display: "flex",
 								alignItems: "center",
 								justifyContent: "center",
@@ -1663,9 +1748,9 @@ export function InlineCellEditor({
 							alignItems: "center",
 							gap: 8,
 							background: isActive
-								? "rgba(46,170,220,0.12)"
+								? "var(--accent-mid)"
 								: selected
-									? "rgba(0,0,0,0.05)"
+									? "var(--hover-ink)"
 									: "transparent",
 						}}
 					>
@@ -1674,8 +1759,8 @@ export function InlineCellEditor({
 								width: 18,
 								height: 18,
 								borderRadius: 3,
-								border: selected ? "none" : "1.5px solid #c0c0bd",
-								background: selected ? "#2eaadc" : "transparent",
+								border: selected ? "none" : "1.5px solid var(--border-mid)",
+								background: selected ? "var(--accent)" : "transparent",
 								display: "flex",
 								alignItems: "center",
 								justifyContent: "center",
@@ -1741,7 +1826,7 @@ export function InlineCellEditor({
 			onKeyDown={handleKeyDown}
 			style={{
 				width: "100%",
-				border: "1px solid #2eaadc",
+				border: "1px solid var(--accent)",
 				borderRadius: 4,
 				padding: "2px 4px",
 				fontSize: 13,

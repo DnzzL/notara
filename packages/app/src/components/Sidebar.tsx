@@ -442,9 +442,12 @@ export function Sidebar({
 			onDragCancel={handleDragCancel}
 		>
 			<SortableContext items={treeOrder} strategy={verticalListSortingStrategy}>
+				{/* `sidebar` is the hook the mobile drawer rules in styles.css target.
+				    Without it the panel keeps its desktop width on a phone and
+				    leaves ~110px for the page. */}
 				<aside
 					data-sidebar
-					className={`bg-sb border-r border-border-sb flex flex-col shrink-0 relative min-w-[200px] max-w-[480px]${className ? ` ${className}` : ""}`}
+					className={`sidebar bg-sb border-r border-border-sb flex flex-col shrink-0 relative min-w-[200px] max-w-[480px]${className ? ` ${className}` : ""}`}
 					style={{ width }}
 				>
 					<WorkspaceSwitcher
@@ -455,7 +458,7 @@ export function Sidebar({
 					<div className="sticky top-0 z-[2] bg-sb px-2.5 pt-2.5 pb-[7px] flex flex-col gap-1.5 border-b border-transparent transition-[border-color] duration-[var(--t)] ease-[var(--ease)]">
 						<button
 							data-search-trigger
-							className="flex-1 flex items-center justify-between gap-2 px-2.5 py-[7px] border border-border-mid bg-surface rounded cursor-pointer text-[12.5px] text-text-sb-3 transition-[background,border-color,color] duration-[var(--t)] ease-[var(--ease)] hover:border-text hover:text-text-sb-2 [&_kbd]:font-[var(--font-mono)] [&_kbd]:text-[10px] [&_kbd]:text-text-sb-3 [&_kbd]:bg-surface-3 [&_kbd]:border [&_kbd]:border-border [&_kbd]:rounded-[3px] [&_kbd]:px-[5px] [&_kbd]:py-px"
+							className="flex-1 flex items-center justify-between gap-2 px-2.5 py-[7px] border border-border-mid bg-surface rounded cursor-pointer text-[12.5px] text-text-sb-3 transition-[background,border-color,color] duration-[var(--t)] ease-[var(--ease)] hover:border-text hover:text-text-sb-2 [&_kbd]:font-[var(--font-mono)] [&_kbd]:text-[10px] [&_kbd]:text-text-sb-3 [&_kbd]:bg-surface-3 [&_kbd]:border [&_kbd]:border-border [&_kbd]:rounded-sm [&_kbd]:px-[5px] [&_kbd]:py-px"
 							onClick={openSearch}
 							title="Open quick search"
 						>
@@ -472,7 +475,7 @@ export function Sidebar({
 						/>
 					</div>
 
-					<nav className="flex-1 overflow-y-auto overflow-x-hidden px-1.5 pt-0.5 pb-3.5 [&::-webkit-scrollbar]:w-[3px] [&::-webkit-scrollbar-track]:bg-transparent [&::-webkit-scrollbar-thumb]:bg-sb-3 [&::-webkit-scrollbar-thumb]:rounded-[2px] [&::-webkit-scrollbar-thumb:hover]:bg-sb-4">
+					<nav className="flex-1 overflow-y-auto overflow-x-hidden px-1.5 pt-0.5 pb-3.5 [&::-webkit-scrollbar]:w-[3px] [&::-webkit-scrollbar-track]:bg-transparent [&::-webkit-scrollbar-thumb]:bg-sb-3 [&::-webkit-scrollbar-thumb]:rounded-sm [&::-webkit-scrollbar-thumb:hover]:bg-sb-4">
 						{favorites.length > 0 && (
 							<>
 								<div className="text-[11px] font-medium text-text-sb-3 px-2 pt-2.5 pb-[3px] flex items-center gap-1">
@@ -482,7 +485,7 @@ export function Sidebar({
 									{favorites.map((page) => (
 										<div
 											key={`fav-${page.id}`}
-											className={`relative px-1 cursor-pointer rounded-lg text-[13px] text-text-sb-2 flex items-center gap-0.5 min-h-[28px] transition-[background,color] duration-[var(--t)] ease-[var(--ease)] hover:bg-[rgba(10,10,10,0.045)] hover:text-text-sb ${currentPage?.id === page.id ? "bg-sb-3! text-text-sb! font-medium!" : ""}`}
+											className={`relative px-1 cursor-pointer rounded-lg text-[13px] text-text-sb-2 flex items-center gap-0.5 min-h-[28px] transition-[background,color] duration-[var(--t)] ease-[var(--ease)] hover:bg-[var(--hover-ink)] hover:text-text-sb ${currentPage?.id === page.id ? "bg-sb-3! text-text-sb! font-medium!" : ""}`}
 											onClick={() => {
 												selectPageWithCascade(page);
 												onNavigate?.();
@@ -549,6 +552,7 @@ export function Sidebar({
 										(node: TreeNodeData, index: number) => (
 											<PageTreeNode
 												key={node.id}
+												onNavigate={onNavigate}
 												node={node}
 												indexPath={[index]}
 												pageMap={pageMap}
@@ -572,7 +576,7 @@ export function Sidebar({
 					<div className="sticky bottom-0 bg-sb px-2 pt-[5px] pb-2.5 flex flex-col gap-px border-t border-border-sb">
 						<button
 							data-new-page
-							className="flex items-center gap-2 bg-transparent border-none cursor-pointer px-2.5 py-1.5 text-[12.5px] text-text-sb-3 rounded-lg text-left transition-[background,color] duration-[var(--t)] ease-[var(--ease)] hover:bg-[rgba(10,10,10,0.05)] hover:text-text-sb"
+							className="flex items-center gap-2 bg-transparent border-none cursor-pointer px-2.5 py-1.5 text-[12.5px] text-text-sb-3 rounded-lg text-left transition-[background,color] duration-[var(--t)] ease-[var(--ease)] hover:bg-[var(--hover-ink)] hover:text-text-sb"
 							onClick={handleCreateClick}
 						>
 							<span className="text-text-sb-3 text-[14px] w-4 text-center transition-[color] duration-[var(--t)] ease-[var(--ease)]">
@@ -581,7 +585,7 @@ export function Sidebar({
 							New page
 						</button>
 						<button
-							className="flex items-center gap-2 bg-transparent border-none cursor-pointer px-2.5 py-1.5 text-[12.5px] text-text-sb-3 rounded-lg text-left transition-[background,color] duration-[var(--t)] ease-[var(--ease)] hover:bg-[rgba(10,10,10,0.05)] hover:text-text-sb"
+							className="flex items-center gap-2 bg-transparent border-none cursor-pointer px-2.5 py-1.5 text-[12.5px] text-text-sb-3 rounded-lg text-left transition-[background,color] duration-[var(--t)] ease-[var(--ease)] hover:bg-[var(--hover-ink)] hover:text-text-sb"
 							onClick={() => onStartTour?.()}
 							title="Help / Onboarding tour"
 						>
@@ -618,11 +622,11 @@ export function Sidebar({
 							if (!page) return null;
 							const isNesting = dragOverTarget?.zone === "nest";
 							return (
-								<div className="flex items-center gap-1.5 text-[13px] text-text-2 px-1.5 py-1 bg-surface-3 rounded-[5px] border border-border">
+								<div className="flex items-center gap-1.5 text-[13px] text-text-2 px-1.5 py-1 bg-surface-3 rounded border border-border">
 									<span className="icon">{page.icon || "📄"}</span>
 									{page.title || "Untitled"}
 									{isNesting && (
-										<span className="text-[10px] font-medium text-accent ml-1 px-1.5 py-0.5 bg-accent-dim/30 rounded-[3px]">
+										<span className="text-[10px] font-medium text-accent ml-1 px-1.5 py-0.5 bg-accent-dim/30 rounded-sm">
 											Nest
 										</span>
 									)}
@@ -660,6 +664,8 @@ interface PageTreeNodeProps {
 	onIconClick: (pageId: string, coords: { top: number; left: number }) => void;
 	depth: number;
 	lockedPageIds: Set<string>;
+	/** Dismiss the mobile drawer. Inert on desktop. */
+	onNavigate?: () => void;
 }
 
 const INDENT_STEP = 12;
@@ -676,6 +682,7 @@ function PageTreeNode({
 	onIconClick,
 	depth,
 	lockedPageIds,
+	onNavigate,
 }: PageTreeNodeProps) {
 	const page = pageMap.get(node.id);
 	if (!page) return null;
@@ -731,8 +738,15 @@ function PageTreeNode({
 			>
 				<TreeView.Branch>
 					<TreeView.BranchControl
-						className={`group relative flex items-center gap-0.5 min-h-[28px] px-1 rounded-lg text-[13px] text-text-sb-2 cursor-pointer transition-[background,color] duration-[var(--t)] ease-[var(--ease)] hover:bg-[rgba(10,10,10,0.045)] hover:text-text-sb${isHovered ? (isNestTarget ? " bg-accent-dim rounded-lg shadow-[0_0_0_2px_var(--accent-mid)]" : " bg-sb-2 rounded-lg") : ""}`}
-						onClick={(e: React.MouseEvent) => e.preventDefault()}
+						className={`group relative flex items-center gap-0.5 min-h-[28px] px-1 rounded-lg text-[13px] text-text-sb-2 cursor-pointer transition-[background,color] duration-[var(--t)] ease-[var(--ease)] hover:bg-[var(--hover-ink)] hover:text-text-sb${isHovered ? (isNestTarget ? " bg-accent-dim rounded-lg shadow-[0_0_0_2px_var(--accent-mid)]" : " bg-sb-2 rounded-lg") : ""}`}
+						onClick={(e: React.MouseEvent) => {
+							e.preventDefault();
+							// Ark only fires onSelectionChange when the selection actually
+							// changes, so tapping the page you are already on left the
+							// mobile drawer open over the page it had just "navigated" to.
+							// Dismissing is a property of the tap, not of the change.
+							onNavigate?.();
+						}}
 					>
 						{dropZone === "before" && (
 							<div className="absolute left-1 right-1 top-0 h-0.5 bg-accent rounded z-[5] pointer-events-none" />
@@ -741,7 +755,7 @@ function PageTreeNode({
 							<div className="absolute left-1 right-1 bottom-0 h-0.5 bg-accent rounded z-[5] pointer-events-none" />
 						)}
 						<div
-							className="flex items-center justify-center w-4 h-4 cursor-grab opacity-0 transition-opacity duration-[var(--t)] ease-[var(--ease)] shrink-0 rounded-[3px] text-text-sb-3 text-[10px] leading-none select-none group-hover:opacity-100 hover:bg-sb-3 hover:text-text-sb-2 active:cursor-grabbing"
+							className="flex items-center justify-center w-4 h-4 cursor-grab opacity-0 transition-opacity duration-[var(--t)] ease-[var(--ease)] shrink-0 rounded-sm text-text-sb-3 text-[10px] leading-none select-none group-hover:opacity-100 hover:bg-sb-3 hover:text-text-sb-2 active:cursor-grabbing"
 							onMouseDown={(e: React.MouseEvent) => e.stopPropagation()}
 							{...listeners}
 							{...attributes}
@@ -751,7 +765,7 @@ function PageTreeNode({
 						</div>
 
 						<TreeView.BranchIndicator
-							className="inline-flex items-center justify-center w-3.5 h-3.5 text-[8px] text-text-sb-3 cursor-pointer transition-[transform,color] duration-[var(--t)] ease-[var(--ease)] shrink-0 rounded-[3px] data-[state=open]:rotate-90 data-[state=closed]:rotate-0 hover:text-text-sb-2 hover:bg-sb-2"
+							className="inline-flex items-center justify-center w-3.5 h-3.5 text-[8px] text-text-sb-3 cursor-pointer transition-[transform,color] duration-[var(--t)] ease-[var(--ease)] shrink-0 rounded-sm data-[state=open]:rotate-90 data-[state=closed]:rotate-0 hover:text-text-sb-2 hover:bg-sb-2"
 							asChild
 						>
 							<span>▶</span>
@@ -782,7 +796,7 @@ function PageTreeNode({
 
 						{page.isFavorite && (
 							<span
-								className="bg-transparent border-none cursor-pointer text-text-sb-3 text-[13px] px-[3px] ml-auto transition-[color] duration-[var(--t)] ease-[var(--ease)] group-hover:visible hover:text-amber-400 data-[active=true]:visible data-[active=true]:text-amber-400 invisible"
+								className="bg-transparent border-none cursor-pointer text-text-sb-3 text-[13px] px-[3px] ml-auto transition-[color] duration-[var(--t)] ease-[var(--ease)] group-hover:visible hover:text-star data-[active=true]:visible data-[active=true]:text-star invisible"
 								data-active="true"
 								aria-label="Favorited"
 							>
@@ -804,6 +818,7 @@ function PageTreeNode({
 							{node.children?.map((child, i) => (
 								<PageTreeNode
 									key={child.id}
+									onNavigate={onNavigate}
 									node={child}
 									indexPath={[...indexPath, i]}
 									pageMap={pageMap}

@@ -24,7 +24,7 @@ export function BacklinksPanel() {
 	return (
 		<div className="mt-6 pt-2 border-t border-border">
 			<button
-				className="hover:bg-surface-2 rounded-[5px] w-full"
+				className="hover:bg-surface-2 rounded w-full"
 				onClick={() => setIsExpanded(!isExpanded)}
 				style={{
 					display: "flex",
@@ -36,7 +36,7 @@ export function BacklinksPanel() {
 					border: "none",
 					cursor: "pointer",
 					fontSize: "13px",
-					color: "#6b7280",
+					color: "var(--text-2)",
 				}}
 			>
 				<span className="text-[10px]">{isExpanded ? "▼" : "▶"}</span>
@@ -53,12 +53,12 @@ export function BacklinksPanel() {
 					style={{ padding: "4px 0", maxHeight: "200px", overflowY: "auto" }}
 				>
 					{backlinksLoading && (
-						<div style={{ padding: "8px 12px", color: "#6b7280" }}>
+						<div style={{ padding: "8px 12px", color: "var(--text-2)" }}>
 							Loading backlinks...
 						</div>
 					)}
 					{!backlinksLoading && backlinks.length === 0 && (
-						<div style={{ padding: "8px 12px", color: "#6b7280" }}>
+						<div style={{ padding: "8px 12px", color: "var(--text-2)" }}>
 							No pages reference this page
 						</div>
 					)}
@@ -92,7 +92,7 @@ function BacklinkItem({
 
 	return (
 		<button
-			className="hover:bg-surface-2 rounded-[5px] block w-full"
+			className="hover:bg-surface-2 rounded block w-full"
 			onClick={() => onNavigate(backlink.pageId)}
 			style={{
 				display: "block",
@@ -107,13 +107,13 @@ function BacklinkItem({
 		>
 			<div
 				className="backlink-page-title"
-				style={{ fontWeight: "500", marginBottom: "4px", color: "#37352f" }}
+				style={{ fontWeight: "500", marginBottom: "4px", color: "var(--text)" }}
 			>
 				📄 {backlink.pageTitle}
 			</div>
 			<div
 				className="backlink-snippet"
-				style={{ color: "#6b7280", fontSize: "12px", lineHeight: "1.4" }}
+				style={{ color: "var(--text-2)", fontSize: "12px", lineHeight: "1.4" }}
 			>
 				{snippet}
 			</div>

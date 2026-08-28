@@ -1,12 +1,12 @@
 import { cva, type VariantProps } from "class-variance-authority";
-import type { ButtonHTMLAttributes, ReactNode } from "react";
+import type { ButtonHTMLAttributes, ReactNode, Ref } from "react";
 import { cn } from "./cn.js";
 
 export type ButtonVariant = "ghost" | "secondary" | "primary" | "danger";
 export type ButtonSize = "sm" | "md" | "lg";
 
 const button = cva(
-	"inline-flex items-center gap-1.5 font-semibold border rounded-[var(--radius-sm)] cursor-pointer leading-none whitespace-nowrap tracking-[0.005em] transition-[background,color,border-color,box-shadow] duration-[var(--t)] ease-[var(--ease)] disabled:opacity-50 disabled:cursor-not-allowed disabled:pointer-events-none",
+	"inline-flex items-center gap-1.5 font-semibold border rounded-sm cursor-pointer leading-none whitespace-nowrap tracking-[0.005em] transition-[background,color,border-color,box-shadow] duration-[var(--t)] ease-[var(--ease)] disabled:opacity-50 disabled:cursor-not-allowed disabled:pointer-events-none",
 	{
 		variants: {
 			variant: {
@@ -17,7 +17,7 @@ const button = cva(
 				primary:
 					"bg-accent border-accent text-white hover:bg-text hover:border-text",
 				danger:
-					"bg-danger-dim border-[rgba(220,38,38,0.15)] text-danger hover:bg-danger hover:border-danger hover:text-white",
+					"bg-danger-dim border-danger-mid text-danger hover:bg-danger hover:border-danger hover:text-white",
 			},
 			size: {
 				sm: "py-[5px] px-[11px] text-[12.5px]",
@@ -42,6 +42,8 @@ export interface ButtonProps
 	extends ButtonHTMLAttributes<HTMLButtonElement>,
 		VariantProps<typeof button> {
 	children: ReactNode;
+	/** Popovers anchor to their trigger, so a shared button has to forward this. */
+	ref?: Ref<HTMLButtonElement>;
 }
 
 export function Button({
@@ -49,10 +51,12 @@ export function Button({
 	size = "md",
 	className,
 	children,
+	ref,
 	...props
 }: ButtonProps) {
 	return (
 		<button
+			ref={ref}
 			className={cn(button({ variant, size, icon: false }), className)}
 			{...props}
 		>
@@ -67,10 +71,12 @@ export function IconButton({
 	size = "sm",
 	className,
 	children,
+	ref,
 	...props
 }: ButtonProps) {
 	return (
 		<button
+			ref={ref}
 			className={cn(button({ variant, size, icon: true }), className)}
 			{...props}
 		>

@@ -5,6 +5,7 @@ import {
 	operatorsForFieldType,
 	type Sort,
 } from "../../lib/filterEngine.js";
+import { Button, IconButton, Input, Select } from "../ui/index.js";
 
 // ── Filter Bar (type-aware) ─────────────────────────────────────────────────
 //
@@ -42,34 +43,26 @@ function FilterValueInput({
 	value: string;
 	onChange: (v: string) => void;
 }) {
-	const inputStyle = {
-		border: "1px solid #e9e9e7",
-		borderRadius: 4,
-		padding: "2px 6px",
-		fontSize: 12,
-		outline: "none",
-		background: "#fff",
-	} as const;
 	if (field?.type === "checkbox") {
 		return (
-			<select
+			<Select
 				name="filter-checkbox-value"
 				value={value || "true"}
 				onChange={(e) => onChange(e.target.value)}
-				style={inputStyle}
+				size="sm"
 			>
 				<option value="true">Checked</option>
 				<option value="false">Unchecked</option>
-			</select>
+			</Select>
 		);
 	}
 	if (field && (field.type === "select" || field.type === "multiSelect")) {
 		return (
-			<select
+			<Select
 				name="filter-select-value"
 				value={value}
 				onChange={(e) => onChange(e.target.value)}
-				style={inputStyle}
+				size="sm"
 			>
 				<option value="">Value</option>
 				{(field.options || []).map((o: string) => (
@@ -77,39 +70,41 @@ function FilterValueInput({
 						{o}
 					</option>
 				))}
-			</select>
+			</Select>
 		);
 	}
 	if (field?.type === "number") {
 		return (
-			<input
+			<Input
 				name="filter-number-value"
 				type="number"
 				value={value}
 				onChange={(e) => onChange(e.target.value)}
 				placeholder="Value"
-				style={{ ...inputStyle, width: 80 }}
+				size="sm"
+				className="w-20"
 			/>
 		);
 	}
 	if (field?.type === "date") {
 		return (
-			<input
+			<Input
 				name="filter-date-value"
 				type="date"
 				value={value}
 				onChange={(e) => onChange(e.target.value)}
-				style={inputStyle}
+				size="sm"
 			/>
 		);
 	}
 	return (
-		<input
+		<Input
 			name="filter-text-value"
 			value={value}
 			onChange={(e) => onChange(e.target.value)}
 			placeholder="Value"
-			style={{ ...inputStyle, width: 100 }}
+			size="sm"
+			className="w-[100px]"
 		/>
 	);
 }
@@ -129,10 +124,7 @@ export function FilterBar({
 }) {
 	if (filters.length === 0) {
 		return (
-			<button
-				onClick={onAdd}
-				className="bg-transparent border-none cursor-pointer text-[12.5px] text-text-3 px-2 py-1 inline-flex items-center gap-1 rounded-[5px] transition-[background,color] duration-[var(--t)] ease-[var(--ease)] hover:bg-surface-3 hover:text-text-2"
-			>
+			<Button onClick={onAdd} variant="ghost" size="sm">
 				<svg width="14" height="14" viewBox="0 0 16 16" fill="currentColor">
 					<path
 						d="M2 3h12M4 8h8M6 13h4"
@@ -143,13 +135,18 @@ export function FilterBar({
 					/>
 				</svg>
 				Filter
-			</button>
+			</Button>
 		);
 	}
 	return (
 		<div className="flex flex-wrap gap-2 items-center">
 			<span
-				style={{ fontSize: 12, color: "#666", fontWeight: 500, marginRight: 4 }}
+				style={{
+					fontSize: 12,
+					color: "var(--text-2)",
+					fontWeight: 500,
+					marginRight: 4,
+				}}
 			>
 				Filter
 			</span>
@@ -162,7 +159,7 @@ export function FilterBar({
 						key={`${filter.fieldId}-${idx}`}
 						className="flex gap-1 items-center bg-surface-2 rounded py-1 px-2 border border-border"
 					>
-						<select
+						<Select
 							name="filter-field"
 							value={filter.fieldId}
 							onChange={(e) => {
@@ -174,13 +171,6 @@ export function FilterBar({
 									value: defaultValueForField(next),
 								});
 							}}
-							style={{
-								border: "1px solid #e9e9e7",
-								borderRadius: 4,
-								padding: "2px 4px",
-								fontSize: 12,
-								background: "#fff",
-							}}
 						>
 							<option value="">Field</option>
 							{fields.map((f) => (
@@ -188,27 +178,20 @@ export function FilterBar({
 									{f.name}
 								</option>
 							))}
-						</select>
-						<select
+						</Select>
+						<Select
 							name="filter-operator"
 							value={filter.operator}
 							onChange={(e) =>
 								onChange(idx, { operator: e.target.value as FilterOperator })
 							}
-							style={{
-								border: "1px solid #e9e9e7",
-								borderRadius: 4,
-								padding: "2px 4px",
-								fontSize: 12,
-								background: "#fff",
-							}}
 						>
 							{operators.map((op) => (
 								<option key={op} value={op}>
 									{OPERATOR_LABELS[op]}
 								</option>
 							))}
-						</select>
+						</Select>
 						{showValue && (
 							<FilterValueInput
 								field={field}
@@ -216,28 +199,15 @@ export function FilterBar({
 								onChange={(v) => onChange(idx, { value: v })}
 							/>
 						)}
-						<button
-							onClick={() => onRemove(idx)}
-							style={{
-								background: "none",
-								border: "none",
-								cursor: "pointer",
-								color: "#999",
-								padding: 2,
-								fontSize: 14,
-							}}
-						>
+						<IconButton onClick={() => onRemove(idx)} aria-label="Remove">
 							&times;
-						</button>
+						</IconButton>
 					</div>
 				);
 			})}
-			<button
-				onClick={onAdd}
-				className="bg-transparent border-none cursor-pointer text-text-3 text-[12px] px-1.5 py-1 rounded-[5px] transition-[background] duration-[var(--t)] ease-[var(--ease)] hover:bg-surface-3"
-			>
+			<Button onClick={onAdd} variant="ghost" size="sm">
 				+ Add filter
-			</button>
+			</Button>
 		</div>
 	);
 }
@@ -259,10 +229,7 @@ export function SortBar({
 }) {
 	if (sorts.length === 0) {
 		return (
-			<button
-				onClick={onAdd}
-				className="bg-transparent border-none cursor-pointer text-[12.5px] text-text-3 px-2 py-1 inline-flex items-center gap-1 rounded-[5px] transition-[background,color] duration-[var(--t)] ease-[var(--ease)] hover:bg-surface-3 hover:text-text-2"
-			>
+			<Button onClick={onAdd} variant="ghost" size="sm">
 				<svg width="14" height="14" viewBox="0 0 16 16" fill="currentColor">
 					<path
 						d="M4 3v10M4 3l-2 2M4 3l2 2M12 13V3M12 13l-2-2M12 13l2-2"
@@ -274,13 +241,18 @@ export function SortBar({
 					/>
 				</svg>
 				Sort
-			</button>
+			</Button>
 		);
 	}
 	return (
 		<div className="flex flex-wrap gap-2 items-center">
 			<span
-				style={{ fontSize: 12, color: "#666", fontWeight: 500, marginRight: 4 }}
+				style={{
+					fontSize: 12,
+					color: "var(--text-2)",
+					fontWeight: 500,
+					marginRight: 4,
+				}}
 			>
 				Sort
 			</span>
@@ -289,17 +261,10 @@ export function SortBar({
 					key={`${sort.fieldId}-${idx}`}
 					className="flex gap-1 items-center bg-surface-2 rounded py-1 px-2 border border-border"
 				>
-					<select
+					<Select
 						name="sort-field"
 						value={sort.fieldId}
 						onChange={(e) => onChange(idx, { fieldId: e.target.value })}
-						style={{
-							border: "1px solid #e9e9e7",
-							borderRadius: 4,
-							padding: "2px 4px",
-							fontSize: 12,
-							background: "#fff",
-						}}
 					>
 						<option value="">Field</option>
 						{fields.map((f) => (
@@ -307,45 +272,25 @@ export function SortBar({
 								{f.name}
 							</option>
 						))}
-					</select>
-					<select
+					</Select>
+					<Select
 						name="sort-direction"
 						value={sort.direction}
 						onChange={(e) =>
 							onChange(idx, { direction: e.target.value as "asc" | "desc" })
 						}
-						style={{
-							border: "1px solid #e9e9e7",
-							borderRadius: 4,
-							padding: "2px 4px",
-							fontSize: 12,
-							background: "#fff",
-						}}
 					>
 						<option value="asc">Ascending</option>
 						<option value="desc">Descending</option>
-					</select>
-					<button
-						onClick={() => onRemove(idx)}
-						style={{
-							background: "none",
-							border: "none",
-							cursor: "pointer",
-							color: "#999",
-							padding: 2,
-							fontSize: 14,
-						}}
-					>
+					</Select>
+					<IconButton onClick={() => onRemove(idx)} aria-label="Remove">
 						&times;
-					</button>
+					</IconButton>
 				</div>
 			))}
-			<button
-				onClick={onAdd}
-				className="bg-transparent border-none cursor-pointer text-text-3 text-[12px] px-1.5 py-1 rounded-[5px] transition-[background] duration-[var(--t)] ease-[var(--ease)] hover:bg-surface-3"
-			>
+			<Button onClick={onAdd} variant="ghost" size="sm">
 				+ Add sort
-			</button>
+			</Button>
 		</div>
 	);
 }

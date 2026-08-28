@@ -12,7 +12,7 @@ import {
 	serializeViewConfig,
 	useDatabaseStore,
 } from "../../stores/databaseStore.js";
-import { cn } from "../ui/cn.js";
+import { Button, IconButton, MenuItem } from "../ui/index.js";
 
 export function ViewSwitcher({
 	databaseId,
@@ -199,9 +199,11 @@ export function ViewSwitcher({
 			ref={dropdownRef}
 			style={{ position: "relative", display: "inline-block" }}
 		>
-			<button
+			<Button
 				onClick={() => setOpen((v) => !v)}
-				className="bg-transparent border-none cursor-pointer text-[12.5px] text-text px-2 py-1 inline-flex items-center gap-1 rounded-[5px] transition-[background,color] duration-[var(--t)] ease-[var(--ease)] hover:bg-surface-3 hover:text-text-2"
+				variant="ghost"
+				size="sm"
+				className="text-text"
 				title="Switch view"
 			>
 				<svg width="14" height="14" viewBox="0 0 16 16" fill="currentColor">
@@ -215,7 +217,7 @@ export function ViewSwitcher({
 					{isDirtyEffective && activeView && (
 						<span
 							style={{
-								color: "var(--accent, #2eaadc)",
+								color: "var(--accent)",
 								fontSize: 11,
 								marginLeft: 4,
 							}}
@@ -241,7 +243,7 @@ export function ViewSwitcher({
 						strokeLinejoin="round"
 					/>
 				</svg>
-			</button>
+			</Button>
 
 			{open && (
 				<div
@@ -249,14 +251,10 @@ export function ViewSwitcher({
 					style={{ maxHeight: 320, overflowY: "auto" }}
 				>
 					{/* 'All' default view */}
-					<button
+					<MenuItem
 						onClick={() => handleSelect(null)}
-						className={cn(
-							"w-full bg-transparent border-none text-left px-3 py-1.5 text-[13px] cursor-pointer flex items-center gap-2 transition-[background] duration-[var(--t)] ease-[var(--ease)]",
-							!activeView
-								? "text-text font-medium"
-								: "text-text-2 hover:bg-surface-3",
-						)}
+						active={!activeView}
+						className="rounded-none"
 					>
 						<svg
 							width="14"
@@ -271,20 +269,13 @@ export function ViewSwitcher({
 							<rect x="9" y="9" width="6" height="6" rx="1" />
 						</svg>
 						<span>All</span>
-						{!activeView && (
-							<span
-								style={{ marginLeft: "auto", color: "var(--accent, #2eaadc)" }}
-							>
-								✓
-							</span>
-						)}
-					</button>
+					</MenuItem>
 
 					{dbViews.length > 0 && (
 						<div
 							style={{
 								height: 1,
-								background: "var(--border, #e9e9e7)",
+								background: "var(--border)",
 								margin: "3px 8px",
 							}}
 						/>
@@ -320,21 +311,17 @@ export function ViewSwitcher({
 										margin: "2px 3px",
 										padding: "2px 6px",
 										fontSize: 13,
-										border: "1px solid #2eaadc",
+										border: "1px solid var(--accent)",
 										borderRadius: 4,
 										outline: "none",
 									}}
 									onClick={(e) => e.stopPropagation()}
 								/>
 							) : (
-								<button
+								<MenuItem
 									onClick={() => handleSelect(view)}
-									className={cn(
-										"w-full bg-transparent border-none text-left px-3 py-1.5 text-[13px] cursor-pointer flex items-center gap-2 transition-[background] duration-[var(--t)] ease-[var(--ease)]",
-										activeViewId === view.id
-											? "text-text font-medium"
-											: "text-text-2 hover:bg-surface-3",
-									)}
+									active={activeViewId === view.id}
+									className="rounded-none"
 								>
 									<svg
 										width="14"
@@ -357,7 +344,7 @@ export function ViewSwitcher({
 									{view.isDefault && (
 										<span
 											style={{
-												color: "var(--accent, #2eaadc)",
+												color: "var(--accent)",
 												fontSize: 13,
 												lineHeight: 1,
 											}}
@@ -366,17 +353,7 @@ export function ViewSwitcher({
 											★
 										</span>
 									)}
-									{activeViewId === view.id && (
-										<span
-											style={{
-												marginLeft: "auto",
-												color: "var(--accent, #2eaadc)",
-											}}
-										>
-											✓
-										</span>
-									)}
-								</button>
+								</MenuItem>
 							)}
 
 							{/* Actions (rename/delete) */}
@@ -385,7 +362,7 @@ export function ViewSwitcher({
 									className="hidden group-hover:flex items-center gap-0.5 absolute right-1 top-1/2 -translate-y-1/2 bg-surface rounded border border-border shadow-sm"
 									onClick={(e) => e.stopPropagation()}
 								>
-									<button
+									<IconButton
 										title={
 											view.isDefault ? "Remove default" : "Set as default view"
 										}
@@ -396,27 +373,30 @@ export function ViewSwitcher({
 												view.isDefault ? null : view.id,
 											);
 										}}
-										className="bg-transparent border-none cursor-pointer text-text-3 px-1 py-0.5 text-[11px] rounded transition-[color] hover:text-accent"
+										variant="ghost"
+										className="text-[11px] hover:text-accent"
 									>
 										{view.isDefault ? "★" : "☆"}
-									</button>
-									<button
+									</IconButton>
+									<IconButton
 										title="Rename view"
 										onClick={() => {
 											setRenamingId(view.id);
 											setRenameValue(view.name);
 										}}
-										className="bg-transparent border-none cursor-pointer text-text-3 px-1 py-0.5 text-[11px] rounded transition-[color] hover:text-text"
+										variant="ghost"
+										className="text-[11px]"
 									>
 										✏️
-									</button>
-									<button
+									</IconButton>
+									<IconButton
 										title="Delete view"
 										onClick={() => handleDelete(view)}
-										className="bg-transparent border-none cursor-pointer text-text-3 px-1 py-0.5 text-[11px] rounded transition-[color] hover:text-red-500"
+										variant="ghost"
+										className="text-[11px] hover:text-danger"
 									>
 										🗑️
-									</button>
+									</IconButton>
 								</div>
 							)}
 						</div>
@@ -425,7 +405,7 @@ export function ViewSwitcher({
 					<div
 						style={{
 							height: 1,
-							background: "var(--border, #e9e9e7)",
+							background: "var(--border)",
 							margin: "3px 8px",
 						}}
 					/>
@@ -433,11 +413,7 @@ export function ViewSwitcher({
 					{/* Save / Reset (visible when dirty and a saved view is active) */}
 					{isDirtyEffective && activeView && (
 						<>
-							<button
-								onClick={handleSave}
-								className="w-full bg-transparent border-none text-left px-3 py-1.5 text-[13px] cursor-pointer flex items-center gap-2 transition-[background,color] duration-[var(--t)] ease-[var(--ease)] hover:bg-surface-3 text-text hover:bg-surface-3"
-								style={{ fontWeight: 500 }}
-							>
+							<MenuItem onClick={handleSave} className="rounded-none">
 								<svg
 									width="14"
 									height="14"
@@ -454,11 +430,8 @@ export function ViewSwitcher({
 									/>
 								</svg>
 								<span>Save</span>
-							</button>
-							<button
-								onClick={handleReset}
-								className="w-full bg-transparent border-none text-left px-3 py-1.5 text-[13px] cursor-pointer flex items-center gap-2 transition-[background,color] duration-[var(--t)] ease-[var(--ease)] text-text-3 hover:text-text hover:bg-surface-3"
-							>
+							</MenuItem>
+							<MenuItem onClick={handleReset} className="rounded-none">
 								<svg
 									width="14"
 									height="14"
@@ -481,11 +454,11 @@ export function ViewSwitcher({
 									/>
 								</svg>
 								<span>Reset</span>
-							</button>
+							</MenuItem>
 							<div
 								style={{
 									height: 1,
-									background: "var(--border, #e9e9e7)",
+									background: "var(--border)",
 									margin: "3px 8px",
 								}}
 							/>
@@ -517,16 +490,16 @@ export function ViewSwitcher({
 									width: "100%",
 									padding: "4px 6px",
 									fontSize: 13,
-									border: "1px solid #2eaadc",
+									border: "1px solid var(--accent)",
 									borderRadius: 4,
 									outline: "none",
 								}}
 							/>
 						</div>
 					) : (
-						<button
+						<MenuItem
 							onClick={() => setSavingAs(true)}
-							className="w-full bg-transparent border-none text-left px-3 py-1.5 text-[13px] text-text-3 cursor-pointer flex items-center gap-2 transition-[background,color] duration-[var(--t)] ease-[var(--ease)] hover:bg-surface-3 hover:text-text-2"
+							className="rounded-none"
 						>
 							<svg
 								width="14"
@@ -544,7 +517,7 @@ export function ViewSwitcher({
 								/>
 							</svg>
 							<span>Save as view</span>
-						</button>
+						</MenuItem>
 					)}
 				</div>
 			)}

@@ -32,7 +32,11 @@
   --color-accent-mid:  var(--accent-mid);
   --color-accent-glow: var(--accent-glow);
   --color-danger:      var(--danger);
+  --color-scrim:       var(--scrim);
+  --color-hover-ink:   var(--hover-ink);
+  --color-star:        var(--star);
   --color-danger-dim:  var(--danger-dim);
+  --color-danger-mid:  var(--danger-mid);
   --color-success:     var(--success);
   --color-warning:     var(--warning);
 }
@@ -76,9 +80,13 @@
   --accent-glow:  rgba(43,77,255,0.22);
 
   /* States */
+  --scrim:        rgba(15,18,30,0.40);  /* behind every modal, sheet and panel */
+  --hover-ink:    rgba(10,10,10,0.05);  /* the neutral hover wash on paper */
+  --star:         #D9A441;              /* favourite — a mark, not a warning */
   --success:      #16A34A;
   --danger:       #DC2626;
   --danger-dim:   rgba(220,38,38,0.08);
+  --danger-mid:   rgba(220,38,38,0.18);
   --warning:      #D97706;
 
   /* Shadows — flatter, Swiss prefers borders over glow */
@@ -87,6 +95,11 @@
   --shadow-md:    0 4px 14px rgba(10,10,10,0.09);
   --shadow-lg:    0 10px 28px rgba(10,10,10,0.12);
   --shadow-xl:    0 20px 48px rgba(10,10,10,0.16);
+
+  /* Density — the working surface is compact on purpose. Tap targets stay at
+     --row-touch on coarse pointers; density is a pointer-device affordance. */
+  --row:          32px;
+  --row-touch:    48px;
 
   /* Radius — Swiss small / squared */
   --radius-sm:    3px;
@@ -140,6 +153,12 @@ body {
 /* ── App shell ─────────────────────────────────────────────────────── */
 .app { display: flex; height: 100vh; overflow: hidden; }
 
+/* Mobile-only chrome. Declared here, above the max-width query that turns it
+   on — a plain `display:none` further down the file would outrank the query
+   on source order and silently kill the hamburger on phones. */
+.mobile-topbar { display: none; }
+.mobile-menu-btn { display: none; }
+
 
 /* ── Ark UI TreeView base resets ── */
 
@@ -148,9 +167,15 @@ body {
 [data-part="branch"], [data-part="item"] { list-style: none; margin: 0; padding: 0; }
 [data-part="branch-content"] { list-style: none; margin: 0; padding: 0; }
 [data-part="branch-control"] { background: none; border: none; width: 100%; text-align: left; font: inherit; }
+/* "You are here" in the page tree. Same language as every other active state
+   in the app: a faint accent tint plus a 2px accent left bar. This used to be
+   a taupe --sb-3 fill with no accent at all, which meant a workspace showed
+   two unrelated active languages at once — taupe in the sidebar, electric
+   blue in the database view switcher. */
 [data-part="branch-control"][data-selected] {
-  background: var(--sb-3);
-  color: var(--text-sb);
+  background: var(--accent-dim);
+  box-shadow: inset 2px 0 0 var(--accent);
+  color: var(--accent-2);
   font-weight: 500;
 }
 
@@ -335,7 +360,7 @@ body {
   margin: 4px 0;
   background: var(--surface-2);
   border: 1px solid var(--border);
-  border-radius: var(--radius-md);
+  border-radius: var(--radius);
 }
 .editor .ProseMirror .callout-icon {
   flex: none;
@@ -627,8 +652,8 @@ body {
   display: flex;
   align-items: center;
   gap: 8px;
-  background: #FEF2F2;
-  border: 1px solid #FECACA;
+  background: var(--danger-dim);
+  border: 1px solid var(--danger-mid);
   border-radius: var(--radius-sm);
   padding: 10px 13px;
   font-size: 13px;
@@ -1019,8 +1044,11 @@ select, input, textarea, button { font-family: var(--font-ui); }
     left: 0;
     bottom: 0;
     z-index: 200;
-    width: 80vw;
+    /* The desktop resizer writes an inline width; on a phone the drawer
+       width wins, so this has to outrank it. */
+    width: 80vw !important;
     max-width: 320px;
+    min-width: 0 !important;
     transform: translateX(-100%);
     transition: transform 0.22s var(--ease);
     box-shadow: var(--shadow-xl);
@@ -1032,7 +1060,7 @@ select, input, textarea, button { font-family: var(--font-ui); }
     display: none;
     position: fixed;
     inset: 0;
-    background: rgba(0,0,0,0.35);
+    background: var(--scrim);
     z-index: 199;
   }
   .sidebar-backdrop.sidebar-backdrop--open {
@@ -1091,8 +1119,8 @@ select, input, textarea, button { font-family: var(--font-ui); }
   /* Hide drag handles on mobile — no hover state anyway, but keep the + insert button */
 
 
-  /* Database table — horizontal scroll + sticky title on mobile */
-  .table-view { overflow-x: auto; }
+  /* The database table is replaced outright by the field ruler below this
+     breakpoint — see components/db/MobileRuler.tsx. Nothing to reflow here. */
 
 }
 /* Floating add-block button */
@@ -1118,9 +1146,6 @@ select, input, textarea, button { font-family: var(--font-ui); }
 @media (max-width: 880px) {
   .fab-add-block { display: flex; }
 }
-/* Hide mobile topbar on desktop */
-.mobile-topbar { display: none; }
-.mobile-menu-btn { display: none; }
 
 
 
@@ -1264,9 +1289,554 @@ select, input, textarea, button { font-family: var(--font-ui); }
 .block-lock-badge {
   position: absolute; top: 2px; right: 2px;
   width: 18px; height: 18px; border-radius: 50%;
-  background: var(--accent, #4a6cf7); color: #fff;
+  background: var(--accent); color: #fff;
   font-size: 10px; font-weight: 600;
   display: inline-flex; align-items: center; justify-content: center;
   z-index: 2;
 }
 
+
+/* ══════════════════════════════════════════════════════════════════════
+   DATABASE TABLE — the working surface (Établi)
+
+   The database view is built from Tailwind utilities and inline styles;
+   these rules are the few structural decisions that belong to the design
+   system rather than to a component, so they live in one place:
+   the ink rule that frames the data, the row rhythm, and the mono
+   column-header voice. See docs/design-system.md § Établi.
+══════════════════════════════════════════════════════════════════════ */
+
+/* Ink rule 1 — the header baseline. It is what makes a table read as a
+   printed data sheet instead of a grid of boxes. */
+.db-table thead th {
+  border-bottom: 2px solid var(--text);
+  font-family: var(--font-mono);
+  font-size: 10px;
+  font-weight: 400;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--text-3);
+  background: var(--bg-editor);
+}
+
+/* The type glyph is a symbol, not a word — uppercasing turns "Aa" into "AA".
+   Applies anywhere a mono uppercase label carries a field-type marker. */
+.db-type-glyph { text-transform: none; }
+
+/* Row rhythm. Cells carry their own vertical padding from Tailwind, which
+   compounds with the inner display wrapper's; zeroing it here lets --row be
+   the single number that decides how tall a record is. */
+.db-table tbody td {
+  height: var(--row);
+  padding-block: 0;
+}
+
+/* Digits that get compared line up. */
+.db-table tbody td[data-field-type="number"],
+.db-table tbody td[data-field-type="date"] {
+  font-family: var(--font-mono);
+  font-variant-numeric: tabular-nums;
+  font-size: 12.5px;
+}
+.db-table tbody td[data-field-type="number"] { text-align: right; }
+
+/* Hover is the accent's second allowed job: tint plus a left bar that says
+   which row the pointer owns. */
+.db-table tbody tr:hover > td { background: var(--accent-dim); }
+.db-table tbody tr:hover > td:first-child {
+  box-shadow: inset 2px 0 0 var(--accent);
+}
+
+/* Ink rule 2 — the status line under the table. On a narrow screen the tab
+   strip's baseline is a third; together they bracket strip, rows and status
+   line into one object. That is the ceiling. */
+.db-statusline {
+  display: flex;
+  align-items: center;
+  height: 30px;
+  margin-top: 0;
+  border-top: 2px solid var(--text);
+  background: var(--sb);
+  font-family: var(--font-mono);
+  font-size: 11px;
+  color: var(--text-3);
+  padding: 0 4px;
+  overflow-x: auto;
+  scrollbar-width: none;
+}
+.db-statusline::-webkit-scrollbar { display: none; }
+.db-statusline > span {
+  padding: 0 10px;
+  border-right: 1px solid var(--border);
+  white-space: nowrap;
+  display: flex;
+  align-items: baseline;
+  gap: 5px;
+}
+.db-statusline > span:last-child { border-right: none; margin-left: auto; }
+.db-statusline .lbl {
+  font-style: normal;
+  font-size: 9px;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--text-3);
+}
+.db-statusline b {
+  font-weight: 500;
+  color: var(--text);
+  font-variant-numeric: tabular-nums;
+}
+
+/* ── Database on a narrow screen ───────────────────────────────────────────
+   One navigation language, shared by the table's field ruler and the board's
+   group strip: a horizontally scrollable strip of tabs, a mono caption stating
+   where you are, then a list of --row-touch rows. Density is a pointer-device
+   affordance and does not apply to thumbs.
+
+   Table  → you navigate the *field*; the record list stays put.
+   Board  → you navigate the *group*; one column at a time, full width.
+   Calendar → an agenda, which needs no strip. See lib/agenda.ts. */
+
+.db-ruler { position: relative; }
+
+.db-strip {
+  display: flex;
+  overflow-x: auto;
+  scrollbar-width: none;
+  background: var(--sb);
+  border-bottom: 2px solid var(--text);
+  scroll-snap-type: x proximity;
+}
+.db-strip::-webkit-scrollbar { display: none; }
+
+.db-strip-tab {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  height: 46px;
+  padding: 0 15px;
+  font: inherit;
+  font-size: 13.5px;
+  color: var(--text-3);
+  background: none;
+  border: none;
+  border-right: 1px solid var(--border);
+  white-space: nowrap;
+  cursor: pointer;
+  flex-shrink: 0;
+  scroll-snap-align: center;
+}
+.db-strip-tab .g { font-family: var(--font-mono); font-size: 11px; opacity: 0.6; }
+.db-strip-tab.is-active {
+  color: var(--accent);
+  font-weight: 600;
+  background: var(--bg-editor);
+  box-shadow: inset 0 -2px 0 var(--accent);
+}
+
+.db-strip-caption {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  flex-wrap: nowrap;
+  white-space: nowrap;
+  overflow: hidden;
+  padding: 8px 16px;
+  background: var(--sb);
+  border-bottom: 1px solid var(--border);
+  font-family: var(--font-mono);
+  font-size: 10px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--text-3);
+}
+.db-strip-caption .right { margin-left: auto; }
+
+.db-ruler-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  min-height: var(--row-touch);
+  border-bottom: 1px solid var(--border);
+  padding: 0 16px;
+}
+.db-ruler-row .n,
+.db-ruler-row .v {
+  font: inherit;
+  background: none;
+  border: none;
+  color: inherit;
+  cursor: pointer;
+  text-align: left;
+  padding: 0;
+  min-height: var(--row-touch);
+  display: flex;
+  align-items: center;
+}
+.db-ruler-row .n {
+  flex: 1;
+  min-width: 0;
+  font-size: 15px;
+  color: var(--text);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  display: block;
+  line-height: var(--row-touch);
+}
+.db-ruler-row .v {
+  flex-shrink: 0;
+  max-width: 55%;
+  justify-content: flex-end;
+  overflow: hidden;
+}
+.db-ruler-row .v:disabled { cursor: default; opacity: 0.65; }
+.db-ruler-row .v:active:not(:disabled) { background: var(--accent-dim); }
+
+.db-ruler-empty {
+  padding: 28px 16px;
+  text-align: center;
+  color: var(--text-3);
+  font-size: 13px;
+  font-style: italic;
+}
+
+.db-strip-new {
+  margin-left: 10px;
+  font: inherit;
+  font-family: var(--font-mono);
+  font-size: 10px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--accent);
+  background: none;
+  border: 1px solid var(--accent);
+  border-radius: var(--radius-sm);
+  padding: 5px 9px;
+  cursor: pointer;
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+.db-strip-new:active { background: var(--accent-dim); }
+
+/* ── The per-type edit sheet ───────────────────────────────────────────────
+   Wraps the same InlineCellEditor the desktop table uses, so option lists,
+   relation pickers and date parsing have one implementation. */
+
+.db-sheet-scrim {
+  position: fixed;
+  inset: 0;
+  z-index: 1000;
+  background: var(--scrim);
+  border: none;
+  padding: 0;
+  cursor: pointer;
+  animation: fade-in var(--t-slow) var(--ease);
+}
+
+.db-sheet {
+  position: fixed;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  z-index: 1001;
+  background: var(--surface);
+  border-top: 1px solid var(--border-mid);
+  border-radius: var(--radius-lg) var(--radius-lg) 0 0;
+  padding: 10px 18px calc(26px + env(safe-area-inset-bottom));
+  max-height: 76vh;
+  overflow: auto;
+  box-shadow: var(--shadow-xl);
+  animation: sheet-rise var(--t-slow) var(--ease);
+}
+
+@keyframes sheet-rise {
+  from { transform: translateY(100%); }
+  to   { transform: translateY(0); }
+}
+@media (prefers-reduced-motion: reduce) {
+  .db-sheet, .db-sheet-scrim { animation: none; }
+}
+
+.db-sheet-grab {
+  width: 36px;
+  height: 4px;
+  border-radius: 2px;
+  background: var(--border-mid);
+  margin: 0 auto 14px;
+}
+
+.db-sheet-head {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  margin-bottom: 14px;
+}
+.db-sheet-head .f {
+  font-family: var(--font-mono);
+  font-size: 10px;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--text-3);
+}
+.db-sheet-head .r {
+  margin-left: auto;
+  font-weight: 600;
+  font-size: 15px;
+  color: var(--text);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.db-sheet-slot { min-height: 48px; }
+.db-sheet-slot input,
+.db-sheet-slot textarea,
+.db-sheet-slot select {
+  width: 100%;
+  min-height: 48px;
+  font-size: 16px; /* < 16px makes iOS Safari zoom the viewport on focus */
+}
+
+/* A picker on a phone is a sheet, not a floating box. Popover and
+   CellAnchoredPopover both switch to this below the compact breakpoint, so
+   select, multiSelect, relation and page pickers all behave without a
+   per-type mobile branch. See components/db/CellComponents.tsx. */
+.db-popover-sheet {
+  position: fixed;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  max-height: 72vh;
+  overflow-y: auto;
+  background: var(--surface);
+  border-top: 1px solid var(--border-mid);
+  border-radius: var(--radius-lg) var(--radius-lg) 0 0;
+  box-shadow: var(--shadow-xl);
+  padding: 10px 12px calc(20px + env(safe-area-inset-bottom));
+  animation: sheet-rise var(--t-slow) var(--ease);
+}
+@media (prefers-reduced-motion: reduce) {
+  .db-popover-sheet { animation: none; }
+}
+/* Options in a sheet are tap targets, not menu rows.
+   The three pickers render their rows three different ways — buttons, divs
+   with a Tailwind cursor utility, and bare unclassed divs — so match the row
+   position rather than the row markup: any leaf-ish child of the sheet's
+   list is a row. Otherwise they keep their ~29px desktop height, which is
+   below every touch-target guideline. */
+.db-popover-sheet button,
+.db-popover-sheet [role="option"],
+.db-popover-sheet [class*="cursor-pointer"],
+.db-popover-sheet > div > div,
+.db-popover-sheet > div {
+  min-height: var(--row-touch);
+  display: flex;
+  align-items: center;
+}
+/* …except the wrappers, which must stay able to stack their rows. */
+.db-popover-sheet > div:has(> div + div),
+.db-popover-sheet > div > div:has(> div + div) {
+  display: block;
+  min-height: 0;
+}
+.db-popover-sheet input { min-height: 44px; font-size: 16px; }
+
+
+/* ── Database toolbar ─────────────────────────────────────────────────────
+   One shell for all three views (components/db/DatabaseToolbar.tsx).
+
+   Desktop: one row, the database name a mono kicker at the right end.
+   Narrow:  the name is that kicker on its own line — it answers "which
+            database is this?", the one thing on the bar you cannot infer from
+            anything else — and the controls become a single scrollable row.
+
+   `db-toolbar-controls` is display:contents on desktop, so the flex layout is
+   exactly what it was before the shell existed. */
+
+.db-toolbar-name {
+  margin-left: auto;
+  min-width: 0;
+  font-family: var(--font-mono);
+  font-size: 10px;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--text-3);
+}
+
+.db-toolbar-name-button {
+  font: inherit;
+  color: inherit;
+  background: none;
+  border: none;
+  padding: 2px 4px;
+  margin: -2px -4px;
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+  letter-spacing: inherit;
+  text-transform: inherit;
+}
+.db-toolbar-name-button:hover { color: var(--text-2); background: var(--hover-ink); }
+
+.db-toolbar-name-input {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  width: 140px;
+  padding: 2px 6px;
+  background: var(--surface);
+  border: 1px solid var(--accent);
+  border-radius: var(--radius-sm);
+  outline: none;
+  box-shadow: 0 0 0 3px var(--accent-dim);
+}
+
+@media (max-width: 880px) {
+  .db-toolbar { flex-wrap: wrap; gap: 8px; }
+
+  .db-toolbar-name {
+    order: -1;
+    flex: 0 0 100%;
+    margin-left: 0;
+  }
+  /* On its own full-width row there is nothing to clip against. */
+  .db-toolbar-name-button { white-space: normal; text-align: left; }
+
+  .db-toolbar-controls {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    flex: 1 1 100%;
+    min-width: 0;
+    flex-wrap: nowrap;
+    overflow-x: auto;
+    scrollbar-width: none;
+    padding-bottom: 2px;
+  }
+  .db-toolbar-controls::-webkit-scrollbar { display: none; }
+  .db-toolbar-controls > * { flex-shrink: 0; }
+}
+
+/* ── Board on a narrow screen: one group at a time ────────────────────────── */
+
+.db-strip-count {
+  font-family: var(--font-mono);
+  font-size: 10px;
+  color: var(--text-3);
+  background: var(--surface-3);
+  border-radius: var(--radius-sm);
+  padding: 1px 5px;
+  margin-left: 2px;
+}
+.db-strip-tab.is-active .db-strip-count {
+  background: var(--accent-dim);
+  color: var(--accent-2);
+}
+
+.db-board-card {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  width: 100%;
+  min-height: var(--row-touch);
+  padding: 12px 16px;
+  font: inherit;
+  color: inherit;
+  text-align: left;
+  background: none;
+  border: none;
+  border-bottom: 1px solid var(--border);
+  cursor: pointer;
+}
+.db-board-card:active { background: var(--accent-dim); }
+.db-board-card .t { font-size: 15px; color: var(--text); }
+.db-board-card .f { display: flex; flex-wrap: wrap; gap: 6px 16px; }
+.db-board-card .p {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+  white-space: nowrap;
+}
+.db-board-card .p i {
+  font-style: normal;
+  font-family: var(--font-mono);
+  font-size: 9px;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--text-3);
+}
+
+/* ── Calendar on a narrow screen: an agenda ───────────────────────────────── */
+
+.db-agenda-day h3 {
+  position: sticky;
+  top: 0;
+  z-index: 1;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 0;
+  padding: 7px 16px;
+  background: var(--sb);
+  border-bottom: 1px solid var(--border);
+  font-family: var(--font-mono);
+  font-size: 10px;
+  font-weight: 400;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--text-3);
+}
+/* Today is the one day worth marking, so it gets the accent and nothing else does. */
+.db-agenda-day h3.is-today {
+  color: var(--accent-2);
+  box-shadow: inset 2px 0 0 var(--accent);
+}
+.db-agenda-day h3 span {
+  margin-left: auto;
+  font-variant-numeric: tabular-nums;
+}
+
+.db-agenda-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  width: 100%;
+  min-height: var(--row-touch);
+  padding: 0 16px;
+  font: inherit;
+  color: inherit;
+  text-align: left;
+  background: none;
+  border: none;
+  border-bottom: 1px solid var(--border);
+  cursor: pointer;
+}
+.db-agenda-row:active { background: var(--accent-dim); }
+.db-agenda-row .t {
+  flex: 1;
+  min-width: 0;
+  font-size: 15px;
+  color: var(--text);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.db-agenda-row .f {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-shrink: 0;
+  max-width: 45%;
+  overflow: hidden;
+  white-space: nowrap;
+}
+
+/* Several select values in one cell. They collapse past two rather than wrap,
+   so a tag-heavy record stays one --row tall. See db/CellComponents.tsx. */
+.db-multiselect {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  min-width: 0;
+  overflow: hidden;
+}

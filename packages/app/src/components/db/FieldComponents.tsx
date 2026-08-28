@@ -188,7 +188,7 @@ export function ColumnHeader({
 								}}
 								style={{
 									width: "100%",
-									border: "1px solid #2eaadc",
+									border: "1px solid var(--accent)",
 									borderRadius: 4,
 									padding: "4px 8px",
 									fontSize: 13,
@@ -249,7 +249,7 @@ export function ColumnHeader({
 						padding: "4px 3px",
 						fontSize: 14,
 						lineHeight: 1,
-						color: "#9b9a97",
+						color: "var(--text-3)",
 					}}
 					onClick={(e) => e.stopPropagation()}
 				>
@@ -278,6 +278,7 @@ export function ColumnHeader({
 						width: 16,
 						textAlign: "center",
 					}}
+					className="db-type-glyph"
 				>
 					{typeInfo?.icon || "?"}
 				</span>
@@ -296,7 +297,7 @@ export function ColumnHeader({
 							fontSize: 11,
 							opacity: 0.7,
 							marginLeft: 4,
-							color: "#2eaadc",
+							color: "var(--accent)",
 							fontWeight: 600,
 						}}
 					>
@@ -375,7 +376,7 @@ export function ColumnHeader({
 							}}
 							style={{
 								width: "100%",
-								border: "1px solid #2eaadc",
+								border: "1px solid var(--accent)",
 								borderRadius: 4,
 								padding: "4px 8px",
 								fontSize: 13,
@@ -389,7 +390,7 @@ export function ColumnHeader({
 							style={{
 								padding: "4px 8px",
 								fontSize: 11,
-								color: "#999",
+								color: "var(--text-3)",
 								marginBottom: 4,
 								fontWeight: 500,
 							}}
@@ -417,7 +418,7 @@ export function ColumnHeader({
 								</span>
 								<span>{ft.label}</span>
 								{ft.type === field.type && (
-									<span style={{ marginLeft: "auto", color: "#2eaadc" }}>
+									<span style={{ marginLeft: "auto", color: "var(--accent)" }}>
 										✓
 									</span>
 								)}
@@ -442,7 +443,9 @@ export function ColumnHeader({
 								</span>
 							)}
 						</div>
-						<div style={{ borderTop: "1px solid #f0f0f0", margin: "4px 0" }} />
+						<div
+							style={{ borderTop: "1px solid var(--border)", margin: "4px 0" }}
+						/>
 
 						{onSortAsc && (
 							<div
@@ -479,7 +482,10 @@ export function ColumnHeader({
 						)}
 						{(onSortAsc || onSortDesc || onFilter) && (
 							<div
-								style={{ borderTop: "1px solid #f0f0f0", margin: "4px 0" }}
+								style={{
+									borderTop: "1px solid var(--border)",
+									margin: "4px 0",
+								}}
 							/>
 						)}
 						{onOptions &&
@@ -577,7 +583,7 @@ function SortableOptionRow({
 		gap: 6,
 		padding: "2px 4px",
 		borderRadius: 4,
-		background: isDragging ? "#f7f7f5" : undefined,
+		background: isDragging ? "var(--surface-2)" : undefined,
 	};
 	return (
 		<div ref={setNodeRef} style={style}>
@@ -587,7 +593,7 @@ function SortableOptionRow({
 				title="Drag to reorder"
 				style={{
 					cursor: "grab",
-					color: "#c0c0bd",
+					color: "var(--text-3)",
 					fontSize: 11,
 					lineHeight: 1,
 					touchAction: "none",
@@ -601,10 +607,11 @@ function SortableOptionRow({
 			<span
 				style={{
 					display: "inline-block",
-					background: c.bg,
-					borderRadius: 3,
-					width: 14,
-					height: 14,
+					background: c.dot,
+					borderRadius: "50%",
+					width: 8,
+					height: 8,
+					flexShrink: 0,
 				}}
 			/>
 			<span style={{ fontSize: 13, flex: 1 }}>{opt}</span>
@@ -614,7 +621,7 @@ function SortableOptionRow({
 					background: "none",
 					border: "none",
 					cursor: "pointer",
-					color: "#ccc",
+					color: "var(--border-mid)",
 					padding: 2,
 					fontSize: 14,
 					lineHeight: 1,
@@ -695,7 +702,9 @@ export function OptionsEditor({
 			>
 				Edit "{field.name}" options
 			</div>
-			<div style={{ padding: "0 8px 6px", fontSize: 11, color: "#999" }}>
+			<div
+				style={{ padding: "0 8px 6px", fontSize: 11, color: "var(--text-3)" }}
+			>
 				Drag to reorder — groups follow this order.
 			</div>
 			<DndContext
@@ -722,7 +731,7 @@ export function OptionsEditor({
 					alignItems: "center",
 					gap: 6,
 					marginTop: 8,
-					borderTop: "1px solid #f0f0f0",
+					borderTop: "1px solid var(--border)",
 					paddingTop: 8,
 				}}
 			>
@@ -796,7 +805,7 @@ export function FormulaEditor({
 				rows={4}
 				style={{
 					width: "100%",
-					border: "1px solid #e9e9e7",
+					border: "1px solid var(--border)",
 					borderRadius: 4,
 					padding: "6px 8px",
 					fontSize: 12,
@@ -807,7 +816,12 @@ export function FormulaEditor({
 				}}
 			/>
 			<div
-				style={{ fontSize: 10, color: "#999", marginTop: 4, padding: "0 4px" }}
+				style={{
+					fontSize: 10,
+					color: "var(--text-3)",
+					marginTop: 4,
+					padding: "0 4px",
+				}}
 			>
 				Refs: <code>prop("Field Name")</code> · Ops: <code>+ - * /</code> · Fns:{" "}
 				<code>if, sum, round, min, max</code>. <kbd>Cmd</kbd>+<kbd>Enter</kbd>{" "}
@@ -925,7 +939,7 @@ export function AddFieldPopover({
 						}}
 						style={{
 							width: "100%",
-							border: "1px solid #e9e9e7",
+							border: "1px solid var(--border)",
 							borderRadius: 4,
 							padding: "6px 8px",
 							fontSize: 13,
@@ -938,7 +952,7 @@ export function AddFieldPopover({
 					<div
 						style={{
 							fontSize: 11,
-							color: "#999",
+							color: "var(--text-3)",
 							marginBottom: 6,
 							fontWeight: 500,
 						}}
@@ -964,7 +978,7 @@ export function AddFieldPopover({
 									borderRadius: 4,
 									cursor: "pointer",
 									background:
-										type === ft.type ? "rgba(0,0,0,0.05)" : "transparent",
+										type === ft.type ? "var(--hover-ink)" : "transparent",
 									fontSize: 13,
 								}}
 								onClick={() => setType(ft.type)}
@@ -984,7 +998,7 @@ export function AddFieldPopover({
 									<span
 										style={{
 											marginLeft: "auto",
-											color: "#2eaadc",
+											color: "var(--accent)",
 											fontSize: 12,
 										}}
 									>
@@ -1004,7 +1018,7 @@ export function AddFieldPopover({
 								padding: "5px 8px",
 								cursor: "pointer",
 								fontSize: 12,
-								color: "#999",
+								color: "var(--text-3)",
 								marginTop: 4,
 							}}
 						>
@@ -1033,7 +1047,7 @@ export function AddFieldPopover({
 											borderRadius: 4,
 											cursor: "pointer",
 											background:
-												type === ft.type ? "rgba(0,0,0,0.05)" : "transparent",
+												type === ft.type ? "var(--hover-ink)" : "transparent",
 											fontSize: 13,
 										}}
 										onClick={() => setType(ft.type)}
@@ -1053,7 +1067,7 @@ export function AddFieldPopover({
 											<span
 												style={{
 													marginLeft: "auto",
-													color: "#2eaadc",
+													color: "var(--accent)",
 													fontSize: 12,
 												}}
 											>
@@ -1069,14 +1083,14 @@ export function AddFieldPopover({
 						<div
 							style={{
 								marginBottom: 12,
-								borderTop: "1px solid #f0f0f0",
+								borderTop: "1px solid var(--border)",
 								paddingTop: 8,
 							}}
 						>
 							<div
 								style={{
 									fontSize: 11,
-									color: "#999",
+									color: "var(--text-3)",
 									marginBottom: 6,
 									fontWeight: 500,
 								}}
@@ -1099,10 +1113,11 @@ export function AddFieldPopover({
 											<span
 												style={{
 													display: "inline-block",
-													background: c.bg,
-													borderRadius: 3,
-													width: 14,
-													height: 14,
+													background: c.dot,
+													borderRadius: "50%",
+													width: 8,
+													height: 8,
+													flexShrink: 0,
 												}}
 											/>
 											<span style={{ fontSize: 13, flex: 1 }}>{opt}</span>
@@ -1114,7 +1129,7 @@ export function AddFieldPopover({
 													background: "none",
 													border: "none",
 													cursor: "pointer",
-													color: "#ccc",
+													color: "var(--border-mid)",
 													fontSize: 14,
 													padding: 2,
 													lineHeight: 1,
@@ -1162,14 +1177,14 @@ export function AddFieldPopover({
 						<div
 							style={{
 								marginBottom: 12,
-								borderTop: "1px solid #f0f0f0",
+								borderTop: "1px solid var(--border)",
 								paddingTop: 8,
 							}}
 						>
 							<div
 								style={{
 									fontSize: 11,
-									color: "#999",
+									color: "var(--text-3)",
 									marginBottom: 6,
 									fontWeight: 500,
 								}}
@@ -1184,7 +1199,7 @@ export function AddFieldPopover({
 								rows={3}
 								style={{
 									width: "100%",
-									border: "1px solid #e9e9e7",
+									border: "1px solid var(--border)",
 									borderRadius: 4,
 									padding: "6px 8px",
 									fontSize: 12,
@@ -1194,7 +1209,9 @@ export function AddFieldPopover({
 									resize: "vertical",
 								}}
 							/>
-							<div style={{ fontSize: 10, color: "#999", marginTop: 4 }}>
+							<div
+								style={{ fontSize: 10, color: "var(--text-3)", marginTop: 4 }}
+							>
 								Refs: <code>prop("Field Name")</code> · Ops:{" "}
 								<code>+ - * /</code> · Fns:{" "}
 								<code>if, sum, round, min, max</code>
@@ -1206,14 +1223,14 @@ export function AddFieldPopover({
 						<div
 							style={{
 								marginBottom: 12,
-								borderTop: "1px solid #f0f0f0",
+								borderTop: "1px solid var(--border)",
 								paddingTop: 8,
 							}}
 						>
 							<div
 								style={{
 									fontSize: 11,
-									color: "#999",
+									color: "var(--text-3)",
 									marginBottom: 6,
 									fontWeight: 500,
 								}}
@@ -1226,7 +1243,7 @@ export function AddFieldPopover({
 								onChange={(e) => setRelationTarget(e.target.value || null)}
 								style={{
 									width: "100%",
-									border: "1px solid #e9e9e7",
+									border: "1px solid var(--border)",
 									borderRadius: 4,
 									padding: "6px 8px",
 									fontSize: 13,
@@ -1252,7 +1269,7 @@ export function AddFieldPopover({
 					style={{
 						flexShrink: 0,
 						paddingTop: 8,
-						borderTop: "1px solid #f0f0f0",
+						borderTop: "1px solid var(--border)",
 						marginTop: 8,
 					}}
 				>
