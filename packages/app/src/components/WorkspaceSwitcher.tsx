@@ -3,6 +3,7 @@ import { useNavigate, useParams } from "@tanstack/react-router";
 import { useEffect, useRef, useState } from "react";
 import { signOut } from "../auth-client.js";
 import { api, setCurrentWorkspaceId } from "../rpc-client.js";
+import { MenuItem } from "./ui/MenuItem.js";
 
 interface WorkspaceSwitcherProps {
 	onCollapse?: () => void;
@@ -86,19 +87,18 @@ export function WorkspaceSwitcher({
 				<div className="absolute top-[calc(100%-2px)] left-2 right-2 bg-surface border border-border-mid rounded shadow-[var(--shadow-lg)] z-[200] overflow-hidden">
 					<div className="p-1 border-b border-border">
 						{workspaces.map((ws) => (
-							<button
+							<MenuItem
 								key={ws.id}
-								className={`flex items-center gap-2 w-full px-2.5 py-[7px] bg-transparent border-none cursor-pointer text-[13px] text-text-2 text-left rounded-lg [font-family:var(--font-ui)] transition-[background,color] duration-[var(--t)] ease-[var(--ease)] hover:bg-surface-3 hover:text-text ${ws.id === current?.id ? "font-medium text-text" : ""}`}
+								active={ws.id === current?.id}
 								onClick={() => switchTo(ws)}
+								leading={
+									<span className="w-[26px] h-[26px] rounded bg-accent text-white text-xs font-bold flex items-center justify-center shrink-0 tracking-[-0.02em]">
+										{ws.name[0].toUpperCase()}
+									</span>
+								}
 							>
-								<span className="w-[26px] h-[26px] rounded bg-accent text-white text-xs font-bold flex items-center justify-center shrink-0 tracking-[-0.02em]">
-									{ws.name[0].toUpperCase()}
-								</span>
-								<span>{ws.name}</span>
-								{ws.id === current?.id && (
-									<span className="ml-auto text-accent">✓</span>
-								)}
-							</button>
+								{ws.name}
+							</MenuItem>
 						))}
 					</div>
 
@@ -107,8 +107,7 @@ export function WorkspaceSwitcher({
 							Settings
 						</div>
 						{current && (
-							<button
-								className="flex items-center gap-2 w-full px-2.5 py-[7px] bg-transparent border-none cursor-pointer text-[13px] text-text-2 text-left rounded-lg [font-family:var(--font-ui)] transition-[background,color] duration-[var(--t)] ease-[var(--ease)] hover:bg-surface-3 hover:text-text"
+							<MenuItem
 								onClick={() => {
 									setOpen(false);
 									navigate({
@@ -118,29 +117,27 @@ export function WorkspaceSwitcher({
 								}}
 							>
 								Settings
-							</button>
+							</MenuItem>
 						)}
 						{onOpenImport && (
-							<button
-								className="flex items-center gap-2 w-full px-2.5 py-[7px] bg-transparent border-none cursor-pointer text-[13px] text-text-2 text-left rounded-lg [font-family:var(--font-ui)] transition-[background,color] duration-[var(--t)] ease-[var(--ease)] hover:bg-surface-3 hover:text-text"
+							<MenuItem
 								onClick={() => {
 									setOpen(false);
 									onOpenImport();
 								}}
 							>
 								Import
-							</button>
+							</MenuItem>
 						)}
 						{onOpenTrash && (
-							<button
-								className="flex items-center gap-2 w-full px-2.5 py-[7px] bg-transparent border-none cursor-pointer text-[13px] text-text-2 text-left rounded-lg [font-family:var(--font-ui)] transition-[background,color] duration-[var(--t)] ease-[var(--ease)] hover:bg-surface-3 hover:text-text"
+							<MenuItem
 								onClick={() => {
 									setOpen(false);
 									onOpenTrash();
 								}}
 							>
 								Trash
-							</button>
+							</MenuItem>
 						)}
 					</div>
 
@@ -148,33 +145,30 @@ export function WorkspaceSwitcher({
 						<div className="[font-family:var(--font-mono)] text-[9.5px] font-medium uppercase tracking-[0.12em] text-text-3 px-2.5 pt-1 pb-[5px]">
 							Account
 						</div>
-						<button
-							className="flex items-center gap-2 w-full px-2.5 py-[7px] bg-transparent border-none cursor-pointer text-[13px] text-text-2 text-left rounded-lg [font-family:var(--font-ui)] transition-[background,color] duration-[var(--t)] ease-[var(--ease)] hover:bg-surface-3 hover:text-text"
+						<MenuItem
 							onClick={() => {
 								setOpen(false);
 								navigate({ to: "/workspaces" });
 							}}
 						>
 							+ New workspace
-						</button>
-						<button
-							className="flex items-center gap-2 w-full px-2.5 py-[7px] bg-transparent border-none cursor-pointer text-[13px] text-text-2 text-left rounded-lg [font-family:var(--font-ui)] transition-[background,color] duration-[var(--t)] ease-[var(--ease)] hover:bg-surface-3 hover:text-text"
+						</MenuItem>
+						<MenuItem
 							onClick={() => {
 								setOpen(false);
 								navigate({ to: "/workspaces" });
 							}}
 						>
 							Join with invite
-						</button>
-						<button
-							className="flex items-center gap-2 w-full px-2.5 py-[7px] bg-transparent border-none cursor-pointer text-[13px] text-text-2 text-left rounded-lg [font-family:var(--font-ui)] transition-[background,color] duration-[var(--t)] ease-[var(--ease)] hover:bg-surface-3 hover:text-text"
+						</MenuItem>
+						<MenuItem
 							onClick={() => {
 								setOpen(false);
 								navigate({ to: "/admin" });
 							}}
 						>
 							Admin panel
-						</button>
+						</MenuItem>
 						<button
 							className="flex items-center gap-2 w-full px-2.5 py-[7px] bg-transparent border-none cursor-pointer text-[13px] text-text-2 text-left rounded-lg [font-family:var(--font-ui)] transition-[background,color] duration-[var(--t)] ease-[var(--ease)] hover:bg-surface-3 hover:text-text text-danger hover:bg-danger-dim! hover:text-danger!"
 							onClick={handleSignOut}

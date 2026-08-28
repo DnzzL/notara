@@ -101,6 +101,10 @@ Anything else that "would look nice in blue" is a bug in the design, not a decis
 | `--danger` | `#DC2626` | Destructive actions, errors |
 | `--danger-dim` | `rgba(220,38,38,0.08)` | Danger hover backgrounds |
 | `--warning` | `#D97706` | Warnings |
+| `--danger-mid` | `rgba(220,38,38,0.18)` | Danger borders — the step between dim and solid |
+| `--star` | `#D9A441` | Favourite. A mark, not a warning — the two were conflated |
+| `--scrim` | `rgba(15,18,30,0.40)` | Behind every modal, sheet and panel. Was 5 hardcoded backdrops at 3 alphas |
+| `--hover-ink` | `rgba(10,10,10,0.05)` | The neutral hover wash on paper |
 
 ### Borders
 
@@ -203,6 +207,33 @@ Flatter than before — Swiss prefers borders over glow. Used for elevation only
 
 ## Component Patterns
 
+## Primitives (`components/ui/`)
+
+Reach for these before writing a class string. They exist because the same string was already written five to eight times and the copies had drifted.
+
+| Primitive | Covers | Why it exists |
+|---|---|---|
+| `Button` / `IconButton` | Every action | 4 variants × 3 sizes |
+| `Input` / `Select` | Every text/number/date/select field | **The one focus treatment.** The app had five |
+| `Tabs` | Mode toggles and pane navigation | Encodes the two active languages below |
+| `MenuItem` | Any dropdown or popover row | Was copy-pasted 8× in `WorkspaceSwitcher` alone |
+| `Badge` | A value that carries state or metadata | Defaults to a dot, not a pill |
+| `Field`, `Modal` | Form rows, modal shells | |
+
+`packages/app/test/design-tokens.test.ts` enforces the colour and radius rules. It does **not** enforce primitive usage — that is a review question, not a machine one.
+
+### Active, and what kind of active
+
+The app once expressed "active" six ways for what was mostly one idea. Three roles now, and the distinction carries meaning:
+
+| Role | Question it answers | Treatment |
+|---|---|---|
+| **Toggle** | Which *mode* of the same content? (Table / Board / Calendar) | Solid `--accent` fill, white text. A switch should read as thrown |
+| **Navigation** | Which *place* am I in? (page tree, saved view, workspace, admin pane) | `--accent-dim` tint + a 2px `--accent` marker — left bar in a vertical list, underline on a horizontal row |
+| **Selection** | Which *data* is picked? (a row, an option) | `--accent-dim` tint, no marker |
+
+Never an ink fill. `bg-text text-bg` was the loudest thing on the working surface and is reserved for marketing surfaces.
+
 ### Buttons (`components/ui/Button.tsx` → `.btn`)
 
 | Variant | Resting | Hover |
@@ -224,7 +255,7 @@ Label + control wrapper for `.auth-field` forms. Props: `label`, `htmlFor`, opti
 
 ### Inputs / focus ring
 
-`border-color: --accent` + `box-shadow: 0 0 0 3px --accent-dim`. Never a bare colored border.
+`border-color: --accent` + `box-shadow: 0 0 0 3px --accent-dim`. Never a bare coloured border — `focus:border-accent` on its own was the single most common divergence. Use `ui/Input.tsx`, which is where this lives now; the global `:focus-visible` outline stays as the keyboard fallback for everything that is not a field.
 
 ### Section dividers
 

@@ -12,7 +12,7 @@ import {
 	serializeViewConfig,
 	useDatabaseStore,
 } from "../../stores/databaseStore.js";
-import { cn } from "../ui/cn.js";
+import { MenuItem } from "../ui/MenuItem.js";
 
 export function ViewSwitcher({
 	databaseId,
@@ -249,14 +249,10 @@ export function ViewSwitcher({
 					style={{ maxHeight: 320, overflowY: "auto" }}
 				>
 					{/* 'All' default view */}
-					<button
+					<MenuItem
 						onClick={() => handleSelect(null)}
-						className={cn(
-							"w-full bg-transparent border-none text-left px-3 py-1.5 text-[13px] cursor-pointer flex items-center gap-2 transition-[background] duration-[var(--t)] ease-[var(--ease)]",
-							!activeView
-								? "text-text font-medium"
-								: "text-text-2 hover:bg-surface-3",
-						)}
+						active={!activeView}
+						className="rounded-none"
 					>
 						<svg
 							width="14"
@@ -271,12 +267,7 @@ export function ViewSwitcher({
 							<rect x="9" y="9" width="6" height="6" rx="1" />
 						</svg>
 						<span>All</span>
-						{!activeView && (
-							<span style={{ marginLeft: "auto", color: "var(--accent)" }}>
-								✓
-							</span>
-						)}
-					</button>
+					</MenuItem>
 
 					{dbViews.length > 0 && (
 						<div
@@ -325,14 +316,10 @@ export function ViewSwitcher({
 									onClick={(e) => e.stopPropagation()}
 								/>
 							) : (
-								<button
+								<MenuItem
 									onClick={() => handleSelect(view)}
-									className={cn(
-										"w-full bg-transparent border-none text-left px-3 py-1.5 text-[13px] cursor-pointer flex items-center gap-2 transition-[background] duration-[var(--t)] ease-[var(--ease)]",
-										activeViewId === view.id
-											? "text-text font-medium"
-											: "text-text-2 hover:bg-surface-3",
-									)}
+									active={activeViewId === view.id}
+									className="rounded-none"
 								>
 									<svg
 										width="14"
@@ -364,17 +351,7 @@ export function ViewSwitcher({
 											★
 										</span>
 									)}
-									{activeViewId === view.id && (
-										<span
-											style={{
-												marginLeft: "auto",
-												color: "var(--accent)",
-											}}
-										>
-											✓
-										</span>
-									)}
-								</button>
+								</MenuItem>
 							)}
 
 							{/* Actions (rename/delete) */}

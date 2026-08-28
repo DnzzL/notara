@@ -50,9 +50,18 @@ import { MobileRuler } from "./db/MobileRuler.js";
 import { FilterBar, makeDefaultFilter, SortBar } from "./db/QueryBar.js";
 import { RecordPanel } from "./db/RecordPanel.js";
 import { ViewSwitcher } from "./db/ViewSwitcher.js";
-import { cn } from "./ui/cn.js";
+import { type TabItem, Tabs } from "./ui/Tabs.js";
 
 const COL_WIDTHS_STORAGE_KEY_PREFIX = "db-col-widths:";
+type ViewType = "table" | "board" | "calendar";
+
+/** The three ways to render the same records. A toggle, not navigation. */
+const VIEW_TYPES: readonly TabItem<ViewType>[] = [
+	{ value: "table", label: "Table" },
+	{ value: "board", label: "Board" },
+	{ value: "calendar", label: "Calendar" },
+];
+
 /** Sentinel field id for the record-title column in focus navigation. */
 const TITLE_COL = "__title__";
 
@@ -1154,46 +1163,13 @@ export function DatabaseView({
 						databaseId={database.id}
 						currentViewType={viewType as "table" | "board" | "calendar"}
 					/>
-					<div
-						className="inline-flex bg-sb border border-border rounded p-0.5"
-						role="tablist"
-					>
-						<button
-							className={cn(
-								"bg-transparent border-none py-1 px-3 text-[12px] font-medium cursor-pointer rounded-sm",
-								viewType === "table" ? "bg-accent text-white" : "text-text-3",
-							)}
-							onClick={() => changeViewType("table")}
-							role="tab"
-							aria-selected={viewType === "table"}
-						>
-							Table
-						</button>
-						<button
-							className={cn(
-								"bg-transparent border-none py-1 px-3 text-[12px] font-medium cursor-pointer rounded-sm",
-								viewType === "board" ? "bg-accent text-white" : "text-text-3",
-							)}
-							onClick={() => changeViewType("board")}
-							role="tab"
-							aria-selected={viewType === "board"}
-						>
-							Board
-						</button>
-						<button
-							className={cn(
-								"bg-transparent border-none py-1 px-3 text-[12px] font-medium cursor-pointer rounded-sm",
-								viewType === "calendar"
-									? "bg-accent text-white"
-									: "text-text-3",
-							)}
-							onClick={() => changeViewType("calendar")}
-							role="tab"
-							aria-selected={viewType === "calendar"}
-						>
-							Calendar
-						</button>
-					</div>
+					<Tabs
+						variant="toggle"
+						aria-label="View type"
+						value={viewType as ViewType}
+						onChange={changeViewType}
+						items={VIEW_TYPES}
+					/>
 
 					<div
 						style={{
