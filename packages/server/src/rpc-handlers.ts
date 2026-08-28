@@ -18,6 +18,7 @@ import * as Blocks from "./handlers/blocks.js";
 import * as Databases from "./handlers/databases.js";
 import * as ImportExport from "./handlers/importExport.js";
 import * as Onboarding from "./handlers/onboarding.js";
+import * as PageShares from "./handlers/page-shares.js";
 import * as Pages from "./handlers/pages.js";
 import * as Permissions from "./handlers/permissions.js";
 import * as Search from "./handlers/search.js";
@@ -812,6 +813,36 @@ export const rpcHandlersLayer = AppRpc.toLayer({
 	listLockedPageIds: () =>
 		withAuthedWorkspace(({ userId, workspaceId, role }) =>
 			Permissions.listVisibleLockedPageIds(userId, workspaceId, role),
+		).pipe(dieUnlessApiError),
+	getPageShare: ({ pageId }) =>
+		withAuthedWorkspace(({ userId, workspaceId }) =>
+			Effect.gen(function* () {
+				// Editor, not viewer: knowing whether a page is on the open web is
+				// part of controlling it, and the toggle sits beside this reading.
+				yield* Permissions.checkPagePermission(
+					userId,
+					workspaceId,
+					pageId,
+					"editor",
+				);
+				return yield* PageShares.get(workspaceId, pageId);
+			}),
+		).pipe(dieUnlessApiError),
+	setPageSharing: ({ pageId, enabled }) =>
+		withAuthedWorkspace(({ userId, workspaceId }) =>
+			Effect.gen(function* () {
+				yield* Permissions.checkPagePermission(
+					userId,
+					workspaceId,
+					pageId,
+					"editor",
+				);
+				if (!enabled) {
+					yield* PageShares.disable(workspaceId, pageId);
+					return null;
+				}
+				return yield* PageShares.enable(workspaceId, pageId, userId);
+			}),
 		).pipe(dieUnlessApiError),
 	getPagePermissions: ({ pageId }) =>
 		withAuthedWorkspace(({ userId, workspaceId }) =>

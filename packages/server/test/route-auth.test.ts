@@ -134,6 +134,15 @@ describe("public routes stay reachable", () => {
 		]);
 	});
 
+	test("a bogus share token 404s rather than erroring", async () => {
+		// The public-share route is unauthenticated by design (NOT-42). What must
+		// hold for an anonymous caller is that an unknown token is a plain 404 —
+		// not a 500 (which would say the route ran and something broke) and not a
+		// 401 (which would say tokens are only for signed-in callers).
+		const res = await call("GET", "/api/public/pages/not-a-real-token");
+		expect(res.status).toBe(404);
+	});
+
 	test("the source URL an operator publishes is the one they configured", async () => {
 		// An operator running a modified build owes users THEIR source, not ours.
 		const res = await call("GET", "/api/public-config");

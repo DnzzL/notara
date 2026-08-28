@@ -27,6 +27,7 @@ import { demoMode, startDemoPurge } from "./demo.js";
 import * as Attachments from "./handlers/attachments.js";
 import { listBackups, triggerBackup } from "./handlers/backup.js";
 import * as ImportExport from "./handlers/importExport.js";
+import * as PublicPage from "./handlers/public-page.js";
 import { restoreBackup } from "./handlers/restore.js";
 import { loadSettings, saveSettings } from "./handlers/settings.js";
 import * as Upload from "./handlers/upload.js";
@@ -35,6 +36,7 @@ import {
 	checkRateLimit,
 	corsHeaders,
 	getIp,
+	NO_INDEX,
 	tooManyRequests,
 } from "./middleware.js";
 import { LoggerLive, reportCause } from "./observability.js";
@@ -228,6 +230,104 @@ const staticFilesRoute = Effect.gen(function* () {
 				{ headers: { "Content-Type": "application/json", ...corsHeaders } },
 			),
 		),
+	);
+
+	// A page published as a read-only public link (NOT-42).
+	//
+	// The first unauthenticated read path in the app. Everything that decides
+	// what a stranger may see lives in handlers/public-page.ts; this route only
+	// converts its one answer into HTTP.
+	//
+	// Rate-limited by IP: the token is 192 bits and unguessable, but this is the
+	// one route anyone on the internet can call in a loop, and the limiter is
+	// already here.
+	yield* router.add(
+		"GET",
+		"/api/public/pages/:token",
+		Effect.gen(function* () {
+			const request = yield* HttpServerRequest.HttpServerRequest;
+			if (!checkRateLimit(`${getIp(request)}:public-page`, 120))
+				return tooManyRequests(60);
+
+			const params = yield* HttpRouter.params;
+			const token = params.token as string | undefined;
+
+			// One 404 for every no — revoked, never minted, in the bin, or locked
+			// since. Any distinction tells a stranger about a workspace they have
+			// no relationship with.
+			const notFound = HttpServerResponse.text("Not found", {
+				status: 404,
+				headers: { ...corsHeaders, ...NO_INDEX },
+			});
+			if (!token) return notFound;
+
+			const result = yield* PublicPage.resolvePublicPage(token);
+			if (!result) return notFound;
+
+			return HttpServerResponse.text(JSON.stringify(result), {
+				headers: {
+					"Content-Type": "application/json",
+					...corsHeaders,
+					...NO_INDEX,
+					// A shared page is a link someone chose to hand out, not a page
+					// they chose to publish to search engines. Not configurable: an
+					// opt-in nobody finds is a setting that only ever surprises.
+					"Cache-Control": "no-store",
+				},
+			});
+		}).pipe(withPlatformServices, Effect.catchAllCause(causeResponse)),
+	);
+
+	// An image or PDF embedded in a shared page, reachable by the same token.
+	//
+	// ADR-006 already says an attachment is readable exactly when its page is.
+	// A share token does not change that rule, it changes who the reader is —
+	// and it grants one page, so the file must belong to that page. See
+	// handlers/public-page.ts.
+	yield* router.add(
+		"GET",
+		"/api/public/pages/:token/attachments/:fileName",
+		Effect.gen(function* () {
+			const request = yield* HttpServerRequest.HttpServerRequest;
+			if (!checkRateLimit(`${getIp(request)}:public-page`, 120))
+				return tooManyRequests(60);
+
+			const params = yield* HttpRouter.params;
+			const token = params.token as string | undefined;
+			const fileName = params.fileName as string | undefined;
+
+			const notFound = HttpServerResponse.text("Not found", {
+				status: 404,
+				headers: { ...corsHeaders, ...NO_INDEX },
+			});
+
+			// Same traversal guard as the authenticated route: the name is used to
+			// build a path, so it is validated before it gets near one.
+			if (!token || !fileName || !/^[a-zA-Z0-9._-]+$/.test(fileName))
+				return notFound;
+
+			const allowed = yield* PublicPage.attachmentBelongsToShare(
+				token,
+				fileName,
+			);
+			if (!allowed) return notFound;
+
+			const dataDir = process.env.DATA_DIR
+				? path.join(process.env.DATA_DIR, "attachments")
+				: path.join(rootDir, ".data", "attachments");
+			const filePath = path.join(dataDir, fileName);
+			if (!fs.existsSync(filePath)) return notFound;
+
+			const content = fs.readFileSync(filePath);
+			return HttpServerResponse.uint8Array(new Uint8Array(content), {
+				headers: {
+					"Content-Type":
+						mimeTypes[path.extname(filePath)] || "application/octet-stream",
+					...corsHeaders,
+					...NO_INDEX,
+				},
+			});
+		}).pipe(withPlatformServices, Effect.catchAllCause(causeResponse)),
 	);
 
 	// Settings GET (admin only — the payload carries the S3 access key and secret)

@@ -7,6 +7,7 @@ import { Route as forgotPasswordRoute } from "./routes/forgot-password.js";
 import { Route as indexRoute } from "./routes/index.js";
 import { Route as joinTokenRoute } from "./routes/join.$token.js";
 import { Route as loginRoute } from "./routes/login.js";
+import { Route as publicPageRoute } from "./routes/p.$token.js";
 import { Route as pricingRoute } from "./routes/pricing.js";
 import { Route as privacyRoute } from "./routes/privacy.js";
 import { Route as resetPasswordRoute } from "./routes/reset-password.js";
@@ -20,6 +21,7 @@ const routeTree = rootRoute.addChildren([
 	workspacesRoute,
 	workspaceSlugRoute,
 	joinTokenRoute,
+	publicPageRoute,
 	forgotPasswordRoute,
 	resetPasswordRoute,
 	adminRoute,
