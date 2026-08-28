@@ -159,9 +159,15 @@ body {
 [data-part="branch"], [data-part="item"] { list-style: none; margin: 0; padding: 0; }
 [data-part="branch-content"] { list-style: none; margin: 0; padding: 0; }
 [data-part="branch-control"] { background: none; border: none; width: 100%; text-align: left; font: inherit; }
+/* "You are here" in the page tree. Same language as every other active state
+   in the app: a faint accent tint plus a 2px accent left bar. This used to be
+   a taupe --sb-3 fill with no accent at all, which meant a workspace showed
+   two unrelated active languages at once — taupe in the sidebar, electric
+   blue in the database view switcher. */
 [data-part="branch-control"][data-selected] {
-  background: var(--sb-3);
-  color: var(--text-sb);
+  background: var(--accent-dim);
+  box-shadow: inset 2px 0 0 var(--accent);
+  color: var(--accent-2);
   font-weight: 500;
 }
 
@@ -346,7 +352,7 @@ body {
   margin: 4px 0;
   background: var(--surface-2);
   border: 1px solid var(--border);
-  border-radius: var(--radius-md);
+  border-radius: var(--radius);
 }
 .editor .ProseMirror .callout-icon {
   flex: none;

@@ -177,7 +177,7 @@ function SortableRow({
 		transform: CSS.Transform.toString(transform),
 		transition,
 		opacity: sortableDragging ? 0.4 : 1,
-		background: selected ? "rgba(46, 170, 220, 0.08)" : undefined,
+		background: selected ? "var(--accent-dim)" : undefined,
 	};
 	return (
 		<tr

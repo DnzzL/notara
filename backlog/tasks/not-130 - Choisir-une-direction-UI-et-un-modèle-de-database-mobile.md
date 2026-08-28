@@ -5,7 +5,7 @@ status: ready-for-agent
 assignee:
   - '@thomas'
 created_date: '2026-08-28 07:44'
-updated_date: '2026-08-28 08:11'
+updated_date: '2026-08-28 08:39'
 labels:
   - enhancement
 dependencies: []
@@ -27,8 +27,8 @@ Cette tâche est bloquée sur une décision, pas sur du code : il faut arbitrer 
 
 ## Acceptance Criteria
 <!-- AC:BEGIN -->
-- [ ] #1 Une direction esthétique est retenue et consignée dans un ADR
-- [ ] #2 Un modèle de database mobile est retenu et consigné dans le même ADR
+- [x] #1 Une direction esthétique est retenue et consignée dans un ADR
+- [x] #2 Un modèle de database mobile est retenu et consigné dans le même ADR
 - [ ] #3 La branche proto/ui-directions est supprimée une fois la décision prise
 <!-- AC:END -->
 
@@ -42,4 +42,6 @@ Décision prise en revue du prototype (branche proto/ui-directions).
 - Database mobile retenue : ruler (?m=ruler) — on navigue le champ, pas la ligne.
 
 Reste à faire : plan de migration, mise à jour de docs/design-system.md, implémentation.
+
+Implémenté sur la branche feat/design-etabli (46205b6). Validé via agent-browser en mode DEMO_MODE : desktop 1440px et iPhone 14 (390px), édition mobile de bout en bout.
 <!-- SECTION:NOTES:END -->

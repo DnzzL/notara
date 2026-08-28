@@ -849,7 +849,7 @@ function SelectPopover({
 								style={{
 									borderBottom: "1px solid #f0f0f0",
 									marginBottom: 2,
-									background: isActive ? "rgba(46,170,220,0.12)" : undefined,
+									background: isActive ? "var(--accent-mid)" : undefined,
 								}}
 							>
 								<span style={{ fontSize: 14, opacity: 0.5 }}>✕</span>
@@ -873,7 +873,7 @@ function SelectPopover({
 								className="px-2 py-1.5 rounded-[5px] cursor-pointer flex items-center gap-2 text-text-2 hover:bg-surface-3 hover:text-text"
 								style={{
 									background: isActive
-										? "rgba(46,170,220,0.12)"
+										? "var(--accent-mid)"
 										: isSelected
 											? "rgba(0,0,0,0.05)"
 											: undefined,
@@ -905,7 +905,7 @@ function SelectPopover({
 								className="px-2 py-1.5 rounded-[5px] cursor-pointer flex items-center gap-2 text-text-2 hover:bg-surface-3 hover:text-text text-accent hover:bg-accent-dim hover:text-accent"
 								onClick={create}
 								style={{
-									background: isActive ? "rgba(46,170,220,0.12)" : undefined,
+									background: isActive ? "var(--accent-mid)" : undefined,
 								}}
 							>
 								<span style={{ fontSize: 12, opacity: 0.6 }}>+</span>
@@ -1053,7 +1053,7 @@ export function RelationPicker({
 										alignItems: "center",
 										gap: 8,
 										background: isActive
-											? "rgba(46,170,220,0.12)"
+											? "var(--accent-mid)"
 											: selected
 												? "rgba(0,0,0,0.05)"
 												: "transparent",
@@ -1178,7 +1178,7 @@ function PeopleInlineAutocomplete({
 						alignItems: "center",
 						gap: 8,
 						background: isActive
-							? "rgba(46,170,220,0.12)"
+							? "var(--accent-mid)"
 							: selected
 								? "rgba(0,0,0,0.05)"
 								: "transparent",
@@ -1192,7 +1192,7 @@ function PeopleInlineAutocomplete({
 							width: 24,
 							height: 24,
 							borderRadius: "50%",
-							background: "rgba(46,170,220,0.15)",
+							background: "var(--accent-mid)",
 							color: "var(--accent)",
 							fontSize: 11,
 							fontWeight: 600,
@@ -1646,7 +1646,7 @@ export function InlineCellEditor({
 							alignItems: "center",
 							gap: 8,
 							background: isActive
-								? "rgba(46,170,220,0.12)"
+								? "var(--accent-mid)"
 								: selected
 									? "rgba(0,0,0,0.05)"
 									: "transparent",
@@ -1724,7 +1724,7 @@ export function InlineCellEditor({
 							alignItems: "center",
 							gap: 8,
 							background: isActive
-								? "rgba(46,170,220,0.12)"
+								? "var(--accent-mid)"
 								: selected
 									? "rgba(0,0,0,0.05)"
 									: "transparent",
