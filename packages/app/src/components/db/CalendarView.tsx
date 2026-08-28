@@ -138,7 +138,7 @@ export function CalendarView({
 				>
 					<button
 						className={cn(
-							"bg-transparent border-none py-1 px-3 text-[12px] font-medium cursor-pointer rounded-[6px]",
+							"bg-transparent border-none py-1 px-3 text-[12px] font-medium cursor-pointer rounded-lg",
 							"text-text-3",
 						)}
 						onClick={() => switchView("table")}
@@ -149,7 +149,7 @@ export function CalendarView({
 					</button>
 					<button
 						className={cn(
-							"bg-transparent border-none py-1 px-3 text-[12px] font-medium cursor-pointer rounded-[6px]",
+							"bg-transparent border-none py-1 px-3 text-[12px] font-medium cursor-pointer rounded-lg",
 							"text-text-3",
 						)}
 						onClick={() => switchView("board")}
@@ -160,7 +160,7 @@ export function CalendarView({
 					</button>
 					<button
 						className={cn(
-							"bg-transparent border-none py-1 px-3 text-[12px] font-medium cursor-pointer rounded-[6px]",
+							"bg-transparent border-none py-1 px-3 text-[12px] font-medium cursor-pointer rounded-lg",
 							"bg-text text-bg",
 						)}
 						role="tab"
@@ -186,7 +186,7 @@ export function CalendarView({
 							name="calendar-date-field"
 							value={dateField?.id || ""}
 							onChange={(e) => setDateFieldId(e.target.value || null)}
-							className="border border-border rounded-[5px] px-2 py-[3px] text-[13px] bg-surface text-text cursor-pointer [font-family:var(--font-ui)]"
+							className="border border-border rounded px-2 py-[3px] text-[13px] bg-surface text-text cursor-pointer [font-family:var(--font-ui)]"
 						>
 							{dateFields.map((f: any) => (
 								<option key={f.id} value={f.id}>
@@ -199,7 +199,7 @@ export function CalendarView({
 			</div>
 
 			{!dateField ? (
-				<div className="bg-surface-2 rounded-[5px] p-8 text-center text-text-3 text-[14px]">
+				<div className="bg-surface-2 rounded p-8 text-center text-text-3 text-[14px]">
 					Add a Date field to use the calendar view.
 				</div>
 			) : (
@@ -208,7 +208,7 @@ export function CalendarView({
 					<div className="flex items-center gap-3 mb-3">
 						<button
 							onClick={handlePrev}
-							className="bg-transparent border border-border rounded-[5px] px-2 py-1 text-[13px] text-text-2 cursor-pointer transition-[background,color] duration-[var(--t)] ease-[var(--ease)] hover:bg-surface-3 hover:text-text"
+							className="bg-transparent border border-border rounded px-2 py-1 text-[13px] text-text-2 cursor-pointer transition-[background,color] duration-[var(--t)] ease-[var(--ease)] hover:bg-surface-3 hover:text-text"
 						>
 							‹
 						</button>
@@ -217,7 +217,7 @@ export function CalendarView({
 						</span>
 						<button
 							onClick={handleNext}
-							className="bg-transparent border border-border rounded-[5px] px-2 py-1 text-[13px] text-text-2 cursor-pointer transition-[background,color] duration-[var(--t)] ease-[var(--ease)] hover:bg-surface-3 hover:text-text"
+							className="bg-transparent border border-border rounded px-2 py-1 text-[13px] text-text-2 cursor-pointer transition-[background,color] duration-[var(--t)] ease-[var(--ease)] hover:bg-surface-3 hover:text-text"
 						>
 							›
 						</button>
@@ -280,7 +280,7 @@ export function CalendarView({
 											<button
 												key={r.record.id}
 												onClick={() => onOpenRecord?.(r.record)}
-												className="w-full text-left bg-surface-3 border border-border rounded-[3px] px-1.5 py-0.5 text-[11.5px] text-text truncate cursor-pointer transition-[background,border-color] duration-[var(--t)] ease-[var(--ease)] hover:bg-surface-4 hover:border-border-mid"
+												className="w-full text-left bg-surface-3 border border-border rounded-sm px-1.5 py-0.5 text-[11.5px] text-text truncate cursor-pointer transition-[background,border-color] duration-[var(--t)] ease-[var(--ease)] hover:bg-surface-4 hover:border-border-mid"
 												title={r.record.title}
 											>
 												{r.record.title || "Untitled"}
@@ -306,7 +306,7 @@ export function CalendarView({
 				unmountOnExit
 			>
 				<Portal>
-					<DialogBackdrop className="fixed inset-0 bg-[rgba(15,18,30,0.4)] backdrop-blur-[6px] z-[1000] [animation:fade-in_0.14s_var(--ease)]" />
+					<DialogBackdrop className="fixed inset-0 bg-scrim backdrop-blur-[6px] z-[1000] [animation:fade-in_0.14s_var(--ease)]" />
 					<DialogPositioner className="fixed inset-0 z-[1001] flex items-center justify-center p-6">
 						<DialogContent className="bg-surface border border-border-mid rounded-lg shadow-[var(--shadow-xl)] w-[380px] max-w-full overflow-hidden [animation:modal-pop_0.18s_var(--ease-spring)]">
 							<div className="flex items-center justify-between px-5 py-4 border-b border-border">
@@ -314,7 +314,7 @@ export function CalendarView({
 									New record{addDay ? ` — ${toLocalDateStr(addDay)}` : ""}
 								</DialogTitle>
 								<DialogCloseTrigger
-									className="bg-transparent border-none text-[17px] cursor-pointer text-text-3 p-1.5 rounded-[5px] transition-[all] duration-[var(--t)] ease-[var(--ease)] hover:bg-surface-3 hover:text-text"
+									className="bg-transparent border-none text-[17px] cursor-pointer text-text-3 p-1.5 rounded transition-[all] duration-[var(--t)] ease-[var(--ease)] hover:bg-surface-3 hover:text-text"
 									aria-label="Close"
 								>
 									✕
@@ -330,7 +330,7 @@ export function CalendarView({
 									onKeyDown={(e) => {
 										if (e.key === "Enter") submitAddRecord();
 									}}
-									className="w-full border border-border rounded-[5px] px-3 py-2 text-[14px] bg-surface text-text placeholder:text-text-3 outline-none focus:border-accent [font-family:var(--font-ui)]"
+									className="w-full border border-border rounded px-3 py-2 text-[14px] bg-surface text-text placeholder:text-text-3 outline-none focus:border-accent [font-family:var(--font-ui)]"
 								/>
 								<div className="flex justify-end gap-2">
 									<Button

@@ -520,7 +520,7 @@ function SingleBlockEditor({
 function DropIndicator({ active }: { active: boolean }) {
 	if (!active) return null;
 	return (
-		<div className="h-0.5 bg-accent rounded-[1px] my-0.5 shadow-[0_0_6px_var(--accent-glow)]" />
+		<div className="h-0.5 bg-accent rounded-sm my-0.5 shadow-[0_0_6px_var(--accent-glow)]" />
 	);
 }
 
@@ -591,7 +591,7 @@ function SortableBlock({
 		>
 			<DropIndicator active={showDropIndicator} />
 			<div
-				className={`group relative flex items-start gap-1 py-px rounded-[5px] transition-[background] duration-[var(--t)] ease-[var(--ease)] ${isDragging || isSortableDragging ? "shadow-[var(--shadow-lg)] bg-surface rounded scale-[1.012]" : ""}`}
+				className={`group relative flex items-start gap-1 py-px rounded transition-[background] duration-[var(--t)] ease-[var(--ease)] ${isDragging || isSortableDragging ? "shadow-[var(--shadow-lg)] bg-surface rounded scale-[1.012]" : ""}`}
 			>
 				{/* Gutter click target (AC#2): click left gutter to focus block at nearest caret position */}
 				{onGutterClick && (
@@ -607,7 +607,7 @@ function SortableBlock({
 				<div className="flex items-center gap-0 w-12 shrink-0 mt-0.5 opacity-0 transition-opacity duration-[var(--t)] ease-[var(--ease)] group-hover:opacity-100 pointer-events-none group-hover:pointer-events-auto relative z-20">
 					<button
 						type="button"
-						className="w-[22px] h-[22px] border-none bg-transparent text-text-3 cursor-pointer rounded-[5px] text-[18px] leading-none flex items-center justify-center p-0 transition-[background,color] duration-[var(--t)] ease-[var(--ease)] hover:bg-surface-3"
+						className="w-[22px] h-[22px] border-none bg-transparent text-text-3 cursor-pointer rounded text-[18px] leading-none flex items-center justify-center p-0 transition-[background,color] duration-[var(--t)] ease-[var(--ease)] hover:bg-surface-3"
 						title="Add block below"
 						onClick={(e) => {
 							e.stopPropagation();
@@ -617,7 +617,7 @@ function SortableBlock({
 						+
 					</button>
 					<div
-						className="flex items-center justify-center w-6 h-6 cursor-grab shrink-0 mt-0.5 rounded-[5px] transition-[background] duration-[var(--t)] ease-[var(--ease)] hover:bg-surface-3 active:cursor-grabbing"
+						className="flex items-center justify-center w-6 h-6 cursor-grab shrink-0 mt-0.5 rounded transition-[background] duration-[var(--t)] ease-[var(--ease)] hover:bg-surface-3 active:cursor-grabbing"
 						onMouseDown={(e) => {
 							e.stopPropagation();
 							handleDownPos.current = { x: e.clientX, y: e.clientY };
@@ -1505,7 +1505,7 @@ export function BlockEditor() {
 							</h1>
 						)}
 						<button
-							className="text-[20px] bg-transparent border-none cursor-pointer text-text-3 px-2 py-1 rounded-[5px] transition-[color,background] duration-[var(--t)] ease-[var(--ease)] hover:text-amber-400 hover:bg-[#FEF9EC]"
+							className="text-[20px] bg-transparent border-none cursor-pointer text-text-3 px-2 py-1 rounded transition-[color,background] duration-[var(--t)] ease-[var(--ease)] hover:text-star hover:bg-surface-3"
 							title={currentPage.isFavorite ? "Unfavorite" : "Add to favorites"}
 							onClick={() => toggleFavorite(currentPage.id)}
 						>
@@ -1737,7 +1737,7 @@ export function BlockEditor() {
 						{/* ── Empty state ── */}
 						{sortedBlocks.length === 0 && databases.length === 0 && (
 							<div
-								className="relative flex items-center justify-center min-h-[100px] text-center rounded-[var(--radius-md)] border-2 border-dashed border-border-mid transition-[border-color,background] duration-[var(--t)] ease-[var(--ease)] cursor-pointer hover:border-accent hover:bg-accent-dim max-[880px]:min-h-[80px]"
+								className="relative flex items-center justify-center min-h-[100px] text-center rounded border-2 border-dashed border-border-mid transition-[border-color,background] duration-[var(--t)] ease-[var(--ease)] cursor-pointer hover:border-accent hover:bg-accent-dim max-[880px]:min-h-[80px]"
 								onClick={async () => {
 									try {
 										const block = await createBlock({
@@ -1851,7 +1851,7 @@ export function BlockEditor() {
 									);
 									if (block)
 										return (
-											<div className="text-[13.5px] text-text-2 px-3 py-2 bg-surface-3 rounded-[5px] border border-border">
+											<div className="text-[13.5px] text-text-2 px-3 py-2 bg-surface-3 rounded border border-border">
 												{block.type}
 											</div>
 										);
@@ -1860,7 +1860,7 @@ export function BlockEditor() {
 									);
 									if (db)
 										return (
-											<div className="text-[13.5px] text-text-2 px-3 py-2 bg-surface-3 rounded-[5px] border border-border">
+											<div className="text-[13.5px] text-text-2 px-3 py-2 bg-surface-3 rounded border border-border">
 												Database: {db.name}
 											</div>
 										);

@@ -11,7 +11,7 @@ function highlightText(text: string, query: string): React.ReactNode {
 	return (
 		<>
 			{text.slice(0, idx)}
-			<mark className="bg-[#fef3c7] p-0 rounded-[2px]">
+			<mark className="bg-accent-mid p-0 rounded-sm">
 				{text.slice(idx, idx + query.length)}
 			</mark>
 			{text.slice(idx + query.length)}
@@ -127,7 +127,7 @@ export function SearchModal() {
 
 	return (
 		<div
-			className="fixed inset-0 z-[10000] flex items-start justify-center pt-[14vh] bg-[rgba(15,18,30,0.4)] backdrop-blur-[8px] [animation:fade-in_0.12s_var(--ease)]"
+			className="fixed inset-0 z-[10000] flex items-start justify-center pt-[14vh] bg-scrim backdrop-blur-[8px] [animation:fade-in_0.12s_var(--ease)]"
 			onClick={(e) => {
 				if (e.target === e.currentTarget) setIsOpen(false);
 			}}
@@ -155,7 +155,7 @@ export function SearchModal() {
 				</div>
 
 				{/* Results */}
-				<div className="overflow-y-auto max-h-[300px] p-1.5 [&::-webkit-scrollbar]:w-[4px] [&::-webkit-scrollbar-track]:bg-transparent [&::-webkit-scrollbar-thumb]:bg-surface-4 [&::-webkit-scrollbar-thumb]:rounded-[2px]">
+				<div className="overflow-y-auto max-h-[300px] p-1.5 [&::-webkit-scrollbar]:w-[4px] [&::-webkit-scrollbar-track]:bg-transparent [&::-webkit-scrollbar-thumb]:bg-surface-4 [&::-webkit-scrollbar-thumb]:rounded-sm">
 					{showRecent && (
 						<div>
 							<div className="px-2.5 py-1.5 text-[10.5px] font-semibold text-text-3 uppercase tracking-[0.07em]">

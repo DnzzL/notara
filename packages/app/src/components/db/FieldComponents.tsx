@@ -443,7 +443,9 @@ export function ColumnHeader({
 								</span>
 							)}
 						</div>
-						<div style={{ borderTop: "1px solid #f0f0f0", margin: "4px 0" }} />
+						<div
+							style={{ borderTop: "1px solid var(--border)", margin: "4px 0" }}
+						/>
 
 						{onSortAsc && (
 							<div
@@ -480,7 +482,10 @@ export function ColumnHeader({
 						)}
 						{(onSortAsc || onSortDesc || onFilter) && (
 							<div
-								style={{ borderTop: "1px solid #f0f0f0", margin: "4px 0" }}
+								style={{
+									borderTop: "1px solid var(--border)",
+									margin: "4px 0",
+								}}
 							/>
 						)}
 						{onOptions &&
@@ -725,7 +730,7 @@ export function OptionsEditor({
 					alignItems: "center",
 					gap: 6,
 					marginTop: 8,
-					borderTop: "1px solid #f0f0f0",
+					borderTop: "1px solid var(--border)",
 					paddingTop: 8,
 				}}
 			>
@@ -972,7 +977,7 @@ export function AddFieldPopover({
 									borderRadius: 4,
 									cursor: "pointer",
 									background:
-										type === ft.type ? "rgba(0,0,0,0.05)" : "transparent",
+										type === ft.type ? "var(--hover-ink)" : "transparent",
 									fontSize: 13,
 								}}
 								onClick={() => setType(ft.type)}
@@ -1041,7 +1046,7 @@ export function AddFieldPopover({
 											borderRadius: 4,
 											cursor: "pointer",
 											background:
-												type === ft.type ? "rgba(0,0,0,0.05)" : "transparent",
+												type === ft.type ? "var(--hover-ink)" : "transparent",
 											fontSize: 13,
 										}}
 										onClick={() => setType(ft.type)}
@@ -1077,7 +1082,7 @@ export function AddFieldPopover({
 						<div
 							style={{
 								marginBottom: 12,
-								borderTop: "1px solid #f0f0f0",
+								borderTop: "1px solid var(--border)",
 								paddingTop: 8,
 							}}
 						>
@@ -1170,7 +1175,7 @@ export function AddFieldPopover({
 						<div
 							style={{
 								marginBottom: 12,
-								borderTop: "1px solid #f0f0f0",
+								borderTop: "1px solid var(--border)",
 								paddingTop: 8,
 							}}
 						>
@@ -1216,7 +1221,7 @@ export function AddFieldPopover({
 						<div
 							style={{
 								marginBottom: 12,
-								borderTop: "1px solid #f0f0f0",
+								borderTop: "1px solid var(--border)",
 								paddingTop: 8,
 							}}
 						>
@@ -1262,7 +1267,7 @@ export function AddFieldPopover({
 					style={{
 						flexShrink: 0,
 						paddingTop: 8,
-						borderTop: "1px solid #f0f0f0",
+						borderTop: "1px solid var(--border)",
 						marginTop: 8,
 					}}
 				>

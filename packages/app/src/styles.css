@@ -32,7 +32,11 @@
   --color-accent-mid:  var(--accent-mid);
   --color-accent-glow: var(--accent-glow);
   --color-danger:      var(--danger);
+  --color-scrim:       var(--scrim);
+  --color-hover-ink:   var(--hover-ink);
+  --color-star:        var(--star);
   --color-danger-dim:  var(--danger-dim);
+  --color-danger-mid:  var(--danger-mid);
   --color-success:     var(--success);
   --color-warning:     var(--warning);
 }
@@ -76,9 +80,13 @@
   --accent-glow:  rgba(43,77,255,0.22);
 
   /* States */
+  --scrim:        rgba(15,18,30,0.40);  /* behind every modal, sheet and panel */
+  --hover-ink:    rgba(10,10,10,0.05);  /* the neutral hover wash on paper */
+  --star:         #D9A441;              /* favourite — a mark, not a warning */
   --success:      #16A34A;
   --danger:       #DC2626;
   --danger-dim:   rgba(220,38,38,0.08);
+  --danger-mid:   rgba(220,38,38,0.18);
   --warning:      #D97706;
 
   /* Shadows — flatter, Swiss prefers borders over glow */
@@ -1052,7 +1060,7 @@ select, input, textarea, button { font-family: var(--font-ui); }
     display: none;
     position: fixed;
     inset: 0;
-    background: rgba(0,0,0,0.35);
+    background: var(--scrim);
     z-index: 199;
   }
   .sidebar-backdrop.sidebar-backdrop--open {

@@ -128,7 +128,7 @@ export function ImportModal({ open, onClose }: ImportModalProps) {
 			unmountOnExit
 		>
 			<Portal>
-				<DialogBackdrop className="fixed inset-0 bg-[rgba(15,18,30,0.4)] backdrop-blur-[6px] z-[1000] [animation:fade-in_0.14s_var(--ease)]" />
+				<DialogBackdrop className="fixed inset-0 bg-scrim backdrop-blur-[6px] z-[1000] [animation:fade-in_0.14s_var(--ease)]" />
 				<DialogPositioner className="fixed inset-0 z-[1001] flex items-center justify-center p-6">
 					<DialogContent className="bg-surface border border-border-mid rounded-lg shadow-[var(--shadow-xl)] w-[480px] max-w-full overflow-hidden [animation:modal-pop_0.18s_var(--ease-spring)]">
 						<div className="flex items-center justify-between px-5 py-4 border-b border-border">
@@ -136,7 +136,7 @@ export function ImportModal({ open, onClose }: ImportModalProps) {
 								Import Notion export
 							</DialogTitle>
 							<DialogCloseTrigger
-								className="bg-transparent border-none text-[17px] cursor-pointer text-text-3 p-1.5 rounded-[5px] transition-[all] duration-[var(--t)] ease-[var(--ease)] disabled:opacity-35 disabled:cursor-default hover:bg-surface-3 hover:text-text"
+								className="bg-transparent border-none text-[17px] cursor-pointer text-text-3 p-1.5 rounded transition-[all] duration-[var(--t)] ease-[var(--ease)] disabled:opacity-35 disabled:cursor-default hover:bg-surface-3 hover:text-text"
 								disabled={status === "uploading"}
 								aria-label="Close"
 							>

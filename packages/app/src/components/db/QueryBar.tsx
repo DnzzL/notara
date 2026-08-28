@@ -131,7 +131,7 @@ export function FilterBar({
 		return (
 			<button
 				onClick={onAdd}
-				className="bg-transparent border-none cursor-pointer text-[12.5px] text-text-3 px-2 py-1 inline-flex items-center gap-1 rounded-[5px] transition-[background,color] duration-[var(--t)] ease-[var(--ease)] hover:bg-surface-3 hover:text-text-2"
+				className="bg-transparent border-none cursor-pointer text-[12.5px] text-text-3 px-2 py-1 inline-flex items-center gap-1 rounded transition-[background,color] duration-[var(--t)] ease-[var(--ease)] hover:bg-surface-3 hover:text-text-2"
 			>
 				<svg width="14" height="14" viewBox="0 0 16 16" fill="currentColor">
 					<path
@@ -239,7 +239,7 @@ export function FilterBar({
 			})}
 			<button
 				onClick={onAdd}
-				className="bg-transparent border-none cursor-pointer text-text-3 text-[12px] px-1.5 py-1 rounded-[5px] transition-[background] duration-[var(--t)] ease-[var(--ease)] hover:bg-surface-3"
+				className="bg-transparent border-none cursor-pointer text-text-3 text-[12px] px-1.5 py-1 rounded transition-[background] duration-[var(--t)] ease-[var(--ease)] hover:bg-surface-3"
 			>
 				+ Add filter
 			</button>
@@ -266,7 +266,7 @@ export function SortBar({
 		return (
 			<button
 				onClick={onAdd}
-				className="bg-transparent border-none cursor-pointer text-[12.5px] text-text-3 px-2 py-1 inline-flex items-center gap-1 rounded-[5px] transition-[background,color] duration-[var(--t)] ease-[var(--ease)] hover:bg-surface-3 hover:text-text-2"
+				className="bg-transparent border-none cursor-pointer text-[12.5px] text-text-3 px-2 py-1 inline-flex items-center gap-1 rounded transition-[background,color] duration-[var(--t)] ease-[var(--ease)] hover:bg-surface-3 hover:text-text-2"
 			>
 				<svg width="14" height="14" viewBox="0 0 16 16" fill="currentColor">
 					<path
@@ -352,7 +352,7 @@ export function SortBar({
 			))}
 			<button
 				onClick={onAdd}
-				className="bg-transparent border-none cursor-pointer text-text-3 text-[12px] px-1.5 py-1 rounded-[5px] transition-[background] duration-[var(--t)] ease-[var(--ease)] hover:bg-surface-3"
+				className="bg-transparent border-none cursor-pointer text-text-3 text-[12px] px-1.5 py-1 rounded transition-[background] duration-[var(--t)] ease-[var(--ease)] hover:bg-surface-3"
 			>
 				+ Add sort
 			</button>

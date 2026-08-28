@@ -193,7 +193,7 @@ export function Popover({
 				background: "var(--surface)",
 				border: "1px solid var(--border)",
 				borderRadius: 8,
-				boxShadow: "0 4px 20px rgba(0,0,0,0.15)",
+				boxShadow: "var(--shadow-lg)",
 				padding: 8,
 				maxHeight: "70vh",
 				overflow: "auto",
@@ -626,7 +626,7 @@ function PageChip({ pageId }: { pageId: string }) {
 	};
 	return (
 		<span
-			className="inline-flex items-center gap-1 bg-surface-3 border border-border rounded-[5px] px-2 py-0.5 text-[12.5px] cursor-pointer max-w-[200px] overflow-hidden text-ellipsis whitespace-nowrap text-text-2 transition-[background,color] duration-[var(--t)] ease-[var(--ease)] hover:bg-surface-4 hover:text-text"
+			className="inline-flex items-center gap-1 bg-surface-3 border border-border rounded px-2 py-0.5 text-[12.5px] cursor-pointer max-w-[200px] overflow-hidden text-ellipsis whitespace-nowrap text-text-2 transition-[background,color] duration-[var(--t)] ease-[var(--ease)] hover:bg-surface-4 hover:text-text"
 			onClick={onClick}
 			title={`${title} — ${navigator.platform.includes("Mac") ? "⌘" : "Ctrl"}-click to open`}
 		>
@@ -685,7 +685,7 @@ function RelationChip({
 
 	return (
 		<span
-			className="inline-block bg-accent-dim border border-[rgba(43,77,255,0.2)] text-accent-2 rounded-[5px] px-2 py-0.5 text-[12.5px] max-w-[200px] overflow-hidden text-ellipsis whitespace-nowrap cursor-pointer"
+			className="inline-block bg-accent-dim border border-[var(--accent-glow)] text-accent-2 rounded px-2 py-0.5 text-[12.5px] max-w-[200px] overflow-hidden text-ellipsis whitespace-nowrap cursor-pointer"
 			onClick={onClick}
 			title={`${title} — ${navigator.platform.includes("Mac") ? "⌘" : "Ctrl"}-click to open`}
 		>
@@ -720,7 +720,7 @@ export function PeopleChip({ userId }: { userId: string }) {
 
 	return (
 		<span
-			className="inline-flex items-center gap-[5px] bg-surface-3 border border-border rounded-[20px] py-px pl-[3px] pr-2 text-[12.5px] max-w-[200px] text-text-2"
+			className="inline-flex items-center gap-[5px] bg-surface-3 border border-border rounded-full py-px pl-[3px] pr-2 text-[12.5px] max-w-[200px] text-text-2"
 			title={name}
 		>
 			<span className="inline-flex items-center justify-center w-5 h-5 rounded-full bg-accent-dim text-accent-2 text-[10px] font-semibold shrink-0">
@@ -831,7 +831,7 @@ function SelectPopover({
 		<CellAnchoredPopover onClose={onCancel}>
 			<input
 				name="cell-select-search"
-				className="w-full px-2 py-[7px] border border-border rounded-[5px] text-[13px] outline-none box-border mb-1 bg-surface-2 text-text [font-family:var(--font-ui)] focus:border-accent"
+				className="w-full px-2 py-[7px] border border-border rounded text-[13px] outline-none box-border mb-1 bg-surface-2 text-text [font-family:var(--font-ui)] focus:border-accent"
 				placeholder="Search or create…"
 				value={query}
 				onChange={(e) => setQuery(e.target.value)}
@@ -844,10 +844,10 @@ function SelectPopover({
 						return (
 							<div
 								key="clear"
-								className="px-2 py-1.5 rounded-[5px] cursor-pointer flex items-center gap-2 text-text-2 hover:bg-surface-3 hover:text-text"
+								className="px-2 py-1.5 rounded cursor-pointer flex items-center gap-2 text-text-2 hover:bg-surface-3 hover:text-text"
 								onClick={clear}
 								style={{
-									borderBottom: "1px solid #f0f0f0",
+									borderBottom: "1px solid var(--border)",
 									marginBottom: 2,
 									background: isActive ? "var(--accent-mid)" : undefined,
 								}}
@@ -870,12 +870,12 @@ function SelectPopover({
 						return (
 							<div
 								key={opt}
-								className="px-2 py-1.5 rounded-[5px] cursor-pointer flex items-center gap-2 text-text-2 hover:bg-surface-3 hover:text-text"
+								className="px-2 py-1.5 rounded cursor-pointer flex items-center gap-2 text-text-2 hover:bg-surface-3 hover:text-text"
 								style={{
 									background: isActive
 										? "var(--accent-mid)"
 										: isSelected
-											? "rgba(0,0,0,0.05)"
+											? "var(--hover-ink)"
 											: undefined,
 								}}
 								onClick={() => choose(opt)}
@@ -902,7 +902,7 @@ function SelectPopover({
 						return (
 							<div
 								key="create"
-								className="px-2 py-1.5 rounded-[5px] cursor-pointer flex items-center gap-2 text-text-2 hover:bg-surface-3 hover:text-text text-accent hover:bg-accent-dim hover:text-accent"
+								className="px-2 py-1.5 rounded cursor-pointer flex items-center gap-2 text-text-2 hover:bg-surface-3 hover:text-text text-accent hover:bg-accent-dim hover:text-accent"
 								onClick={create}
 								style={{
 									background: isActive ? "var(--accent-mid)" : undefined,
@@ -1019,7 +1019,7 @@ export function RelationPicker({
 					{records.length > 0 && (
 						<input
 							name="cell-relation-search"
-							className="w-full px-2 py-[7px] border border-border rounded-[5px] text-[13px] outline-none box-border mb-1 bg-surface-2 text-text [font-family:var(--font-ui)] focus:border-accent"
+							className="w-full px-2 py-[7px] border border-border rounded text-[13px] outline-none box-border mb-1 bg-surface-2 text-text [font-family:var(--font-ui)] focus:border-accent"
 							placeholder="Search records…"
 							value={query}
 							onChange={(e) => setQuery(e.target.value)}
@@ -1055,7 +1055,7 @@ export function RelationPicker({
 										background: isActive
 											? "var(--accent-mid)"
 											: selected
-												? "rgba(0,0,0,0.05)"
+												? "var(--hover-ink)"
 												: "transparent",
 									}}
 									onClick={() => toggle(r.id)}
@@ -1111,7 +1111,7 @@ export function RelationPicker({
 							color: "var(--text-3)",
 							fontSize: 12,
 							cursor: "pointer",
-							borderTop: "1px solid #f0f0f0",
+							borderTop: "1px solid var(--border)",
 							marginTop: 4,
 							paddingTop: 4,
 						}}
@@ -1180,7 +1180,7 @@ function PeopleInlineAutocomplete({
 						background: isActive
 							? "var(--accent-mid)"
 							: selected
-								? "rgba(0,0,0,0.05)"
+								? "var(--hover-ink)"
 								: "transparent",
 					}}
 				>
@@ -1407,7 +1407,7 @@ function CellInlineMultiAutocomplete<T extends { id: string; title?: string }>({
 							background: "var(--surface)",
 							border: "1px solid var(--border)",
 							borderRadius: 8,
-							boxShadow: "0 4px 20px rgba(0,0,0,0.15)",
+							boxShadow: "var(--shadow-lg)",
 							padding: 8,
 							maxHeight: 260,
 							overflow: "auto",
@@ -1648,7 +1648,7 @@ export function InlineCellEditor({
 							background: isActive
 								? "var(--accent-mid)"
 								: selected
-									? "rgba(0,0,0,0.05)"
+									? "var(--hover-ink)"
 									: "transparent",
 						}}
 					>
@@ -1726,7 +1726,7 @@ export function InlineCellEditor({
 							background: isActive
 								? "var(--accent-mid)"
 								: selected
-									? "rgba(0,0,0,0.05)"
+									? "var(--hover-ink)"
 									: "transparent",
 						}}
 					>

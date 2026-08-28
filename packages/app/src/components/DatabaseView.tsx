@@ -224,7 +224,7 @@ function SortableRow({
 					</button>
 				</div>
 				<button
-					className="absolute top-1 right-1 bg-transparent border-none cursor-pointer text-text-3 text-[15px] px-1.5 py-0.5 rounded-[5px] transition-[all] duration-[var(--t)] ease-[var(--ease)] leading-none hover:text-danger hover:bg-danger-dim"
+					className="absolute top-1 right-1 bg-transparent border-none cursor-pointer text-text-3 text-[15px] px-1.5 py-0.5 rounded transition-[all] duration-[var(--t)] ease-[var(--ease)] leading-none hover:text-danger hover:bg-danger-dim"
 					style={{ opacity: hovered ? 1 : 0 }}
 					onClick={onDelete}
 					title="Delete record"
@@ -329,7 +329,7 @@ function TitleCell({
 			// Select-then-edit: the wrapping <td> focuses on first click; this opens
 			// the editor only once the cell is already focused (or on double-click).
 			<div
-				className="px-1.5 py-1 rounded-[5px] cursor-text min-h-[24px] text-text font-medium hover:bg-surface-3"
+				className="px-1.5 py-1 rounded cursor-text min-h-[24px] text-text font-medium hover:bg-surface-3"
 				onClick={() => {
 					if (isFocused) onEditingChange(true);
 				}}
@@ -342,7 +342,7 @@ function TitleCell({
 	return (
 		<input
 			name="record-title"
-			className="w-full border-[1.5px] border-accent rounded-[5px] px-1.5 py-[3px] text-[14px] font-medium outline-none bg-surface text-text [font-family:var(--font-ui)]"
+			className="w-full border-[1.5px] border-accent rounded px-1.5 py-[3px] text-[14px] font-medium outline-none bg-surface text-text [font-family:var(--font-ui)]"
 			value={value}
 			onChange={(e) => setValue(e.target.value)}
 			onBlur={async () => {
@@ -1155,12 +1155,12 @@ export function DatabaseView({
 						currentViewType={viewType as "table" | "board" | "calendar"}
 					/>
 					<div
-						className="inline-flex bg-sb border border-border rounded-[4px] p-0.5"
+						className="inline-flex bg-sb border border-border rounded p-0.5"
 						role="tablist"
 					>
 						<button
 							className={cn(
-								"bg-transparent border-none py-1 px-3 text-[12px] font-medium cursor-pointer rounded-[3px]",
+								"bg-transparent border-none py-1 px-3 text-[12px] font-medium cursor-pointer rounded-sm",
 								viewType === "table" ? "bg-accent text-white" : "text-text-3",
 							)}
 							onClick={() => changeViewType("table")}
@@ -1171,7 +1171,7 @@ export function DatabaseView({
 						</button>
 						<button
 							className={cn(
-								"bg-transparent border-none py-1 px-3 text-[12px] font-medium cursor-pointer rounded-[3px]",
+								"bg-transparent border-none py-1 px-3 text-[12px] font-medium cursor-pointer rounded-sm",
 								viewType === "board" ? "bg-accent text-white" : "text-text-3",
 							)}
 							onClick={() => changeViewType("board")}
@@ -1182,7 +1182,7 @@ export function DatabaseView({
 						</button>
 						<button
 							className={cn(
-								"bg-transparent border-none py-1 px-3 text-[12px] font-medium cursor-pointer rounded-[3px]",
+								"bg-transparent border-none py-1 px-3 text-[12px] font-medium cursor-pointer rounded-sm",
 								viewType === "calendar"
 									? "bg-accent text-white"
 									: "text-text-3",
@@ -1245,7 +1245,7 @@ export function DatabaseView({
 					>
 						{database.titleHidden && (
 							<button
-								className="bg-transparent border-none cursor-pointer text-[12.5px] text-text-3 px-2 py-1 inline-flex items-center gap-1 rounded-[5px] transition-[background,color] duration-[var(--t)] ease-[var(--ease)] hover:bg-surface-3 hover:text-text-2"
+								className="bg-transparent border-none cursor-pointer text-[12.5px] text-text-3 px-2 py-1 inline-flex items-center gap-1 rounded transition-[background,color] duration-[var(--t)] ease-[var(--ease)] hover:bg-surface-3 hover:text-text-2"
 								title="Show the title column"
 								onClick={async () => {
 									await api.updateDatabase({
@@ -1408,7 +1408,7 @@ export function DatabaseView({
 										<button
 											ref={addFieldBtnRef}
 											onClick={() => setShowAddField(true)}
-											className="bg-transparent border-none cursor-pointer text-[16px] text-text-3 px-2 py-0.5 rounded-[5px] transition-[all] duration-[var(--t)] ease-[var(--ease)] hover:text-text-2 hover:bg-surface-3"
+											className="bg-transparent border-none cursor-pointer text-[16px] text-text-3 px-2 py-0.5 rounded transition-[all] duration-[var(--t)] ease-[var(--ease)] hover:text-text-2 hover:bg-surface-3"
 											title="Add property"
 										>
 											+
@@ -1595,7 +1595,7 @@ export function DatabaseView({
 																			fieldId: field.id,
 																		});
 																}}
-																className="px-1.5 py-1 rounded-[5px] cursor-pointer min-h-[24px] transition-[background] duration-[var(--t)] ease-[var(--ease)] text-text-2 hover:bg-surface-3 hover:text-text"
+																className="px-1.5 py-1 rounded cursor-pointer min-h-[24px] transition-[background] duration-[var(--t)] ease-[var(--ease)] text-text-2 hover:bg-surface-3 hover:text-text"
 																style={
 																	isReadOnly ? { cursor: "default" } : undefined
 																}
@@ -1819,7 +1819,7 @@ export function DatabaseView({
 							alignItems: "center",
 							gap: 12,
 							fontSize: 13,
-							boxShadow: "0 4px 16px rgba(0,0,0,0.25)",
+							boxShadow: "0 4px 16px var(--shadow-xl)",
 							zIndex: 9999,
 						}}
 					>
@@ -1829,7 +1829,7 @@ export function DatabaseView({
 							style={{
 								background: "transparent",
 								color: "var(--danger)",
-								border: "1px solid rgba(255,107,107,0.4)",
+								border: "1px solid var(--danger-mid)",
 								borderRadius: 4,
 								padding: "3px 10px",
 								fontSize: 12,
@@ -1862,10 +1862,10 @@ export function DatabaseView({
 						<div
 							style={{
 								background: "var(--surface)",
-								border: "1px solid #ddd",
+								border: "1px solid var(--border-mid)",
 								borderRadius: 6,
 								padding: "8px 16px",
-								boxShadow: "0 4px 12px rgba(0,0,0,0.15)",
+								boxShadow: "0 4px 12px var(--shadow-lg)",
 								fontSize: 14,
 							}}
 						>

@@ -63,7 +63,7 @@ export function PageLinkBlock({ block, onUpdateBlock }: BlockRendererProps) {
 						visible.map((p) => (
 							<button
 								key={p.id}
-								className="flex items-center gap-2 px-2 py-[7px] border-none bg-transparent cursor-pointer rounded-[5px] text-[13px] text-text-2 text-left [font-family:var(--font-ui)] transition-[background,color] duration-[var(--t)] ease-[var(--ease)] hover:bg-surface-3 hover:text-text"
+								className="flex items-center gap-2 px-2 py-[7px] border-none bg-transparent cursor-pointer rounded text-[13px] text-text-2 text-left [font-family:var(--font-ui)] transition-[background,color] duration-[var(--t)] ease-[var(--ease)] hover:bg-surface-3 hover:text-text"
 								onClick={() => {
 									setPickerOpen(false);
 									onUpdateBlock(block.id, p.id);
@@ -91,7 +91,7 @@ export function PageLinkBlock({ block, onUpdateBlock }: BlockRendererProps) {
 	if (!page) {
 		return (
 			<div
-				className="inline-flex items-center gap-2 max-w-full my-[3px] px-3 py-1.5 rounded bg-[#FFF5F5] border border-[#FECACA] text-danger text-[13px]"
+				className="inline-flex items-center gap-2 max-w-full my-[3px] px-3 py-1.5 rounded bg-danger-dim border border-danger-mid text-danger text-[13px]"
 				data-block-id={block.id}
 			>
 				Page no longer exists

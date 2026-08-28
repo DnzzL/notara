@@ -347,11 +347,11 @@ export function BoardView({
 			<div
 				ref={setNodeRef}
 				style={style}
-				className="group min-w-[268px] max-w-[300px] bg-surface-2 border border-border rounded-[5px] px-2.5 py-3 flex flex-col max-h-[62vh] transition-[background,border-color] duration-[var(--t)] ease-[var(--ease)] relative"
+				className="group min-w-[268px] max-w-[300px] bg-surface-2 border border-border rounded px-2.5 py-3 flex flex-col max-h-[62vh] transition-[background,border-color] duration-[var(--t)] ease-[var(--ease)] relative"
 				data-column-id={colName}
 			>
 				<div
-					className="absolute top-2.5 right-2 opacity-0 transition-opacity duration-[var(--t)] ease-[var(--ease)] cursor-grab p-[3px] rounded-[3px] text-text-3 flex items-center touch-action-none group-hover:opacity-100 hover:bg-surface-3 hover:text-text-2 hover:opacity-100"
+					className="absolute top-2.5 right-2 opacity-0 transition-opacity duration-[var(--t)] ease-[var(--ease)] cursor-grab p-[3px] rounded-sm text-text-3 flex items-center touch-action-none group-hover:opacity-100 hover:bg-surface-3 hover:text-text-2 hover:opacity-100"
 					{...listeners}
 					{...attributes}
 					title="Drag to reorder column"
@@ -402,12 +402,12 @@ export function BoardView({
 			<div ref={setNodeRef} style={style}>
 				<div
 					className={cn(
-						"group bg-surface border border-border rounded py-2.5 px-3 cursor-pointer transition-[border-color,box-shadow] duration-[var(--t)] ease-[var(--ease)] relative hover:border-[rgba(43,77,255,0.25)] hover:shadow-sm",
+						"group bg-surface border border-border rounded py-2.5 px-3 cursor-pointer transition-[border-color,box-shadow] duration-[var(--t)] ease-[var(--ease)] relative hover:border-[var(--accent-glow)] hover:shadow-sm",
 						(isDragging || sd) && "opacity-30",
 					)}
 				>
 					<div
-						className="absolute top-2 left-1 opacity-0 transition-opacity duration-[var(--t)] ease-[var(--ease)] cursor-grab p-1 rounded-[3px] text-text-3 flex items-center touch-action-none group-hover:opacity-100 hover:bg-surface-3 hover:text-text-2"
+						className="absolute top-2 left-1 opacity-0 transition-opacity duration-[var(--t)] ease-[var(--ease)] cursor-grab p-1 rounded-sm text-text-3 flex items-center touch-action-none group-hover:opacity-100 hover:bg-surface-3 hover:text-text-2"
 						{...listeners}
 						{...attributes}
 					>
@@ -498,7 +498,7 @@ export function BoardView({
 					>
 						<button
 							className={cn(
-								"bg-transparent border-none py-1 px-3 text-[12px] font-medium cursor-pointer rounded-[6px]",
+								"bg-transparent border-none py-1 px-3 text-[12px] font-medium cursor-pointer rounded-lg",
 								currentView === "table" ? "bg-text text-bg" : "text-text-3",
 							)}
 							onClick={() => onChangeView("table")}
@@ -509,7 +509,7 @@ export function BoardView({
 						</button>
 						<button
 							className={cn(
-								"bg-transparent border-none py-1 px-3 text-[12px] font-medium cursor-pointer rounded-[6px]",
+								"bg-transparent border-none py-1 px-3 text-[12px] font-medium cursor-pointer rounded-lg",
 								currentView === "board" ? "bg-text text-bg" : "text-text-3",
 							)}
 							onClick={() => onChangeView("board")}
@@ -520,7 +520,7 @@ export function BoardView({
 						</button>
 						<button
 							className={cn(
-								"bg-transparent border-none py-1 px-3 text-[12px] font-medium cursor-pointer rounded-[6px]",
+								"bg-transparent border-none py-1 px-3 text-[12px] font-medium cursor-pointer rounded-lg",
 								currentView === "calendar" ? "bg-text text-bg" : "text-text-3",
 							)}
 							onClick={() => onChangeView("calendar")}
@@ -548,7 +548,7 @@ export function BoardView({
 							onChange={(e) =>
 								setBoardGroupBy(database.id, e.target.value || null)
 							}
-							className="border border-border rounded-[5px] px-2 py-[3px] text-[13px] bg-surface text-text cursor-pointer [font-family:var(--font-ui)]"
+							className="border border-border rounded px-2 py-[3px] text-[13px] bg-surface text-text cursor-pointer [font-family:var(--font-ui)]"
 						>
 							<option value="">None</option>
 							{fields.map((f: any) => (
@@ -564,7 +564,7 @@ export function BoardView({
 						ref={fieldsPickerRef}
 					>
 						<button
-							className="bg-transparent border-none cursor-pointer text-[12.5px] text-text-3 px-2 py-1 inline-flex items-center gap-1 rounded-[5px] transition-[background,color] duration-[var(--t)] ease-[var(--ease)] hover:bg-surface-3 hover:text-text-2"
+							className="bg-transparent border-none cursor-pointer text-[12.5px] text-text-3 px-2 py-1 inline-flex items-center gap-1 rounded transition-[background,color] duration-[var(--t)] ease-[var(--ease)] hover:bg-surface-3 hover:text-text-2"
 							onClick={() => setShowFieldsPicker((v) => !v)}
 						>
 							Fields
@@ -584,7 +584,7 @@ export function BoardView({
 										return (
 											<label
 												key={f.id}
-												className="flex items-center gap-2 py-[5px] cursor-pointer text-[13px] text-text rounded-[5px]"
+												className="flex items-center gap-2 py-[5px] cursor-pointer text-[13px] text-text rounded"
 											>
 												<input
 													type="checkbox"
@@ -662,7 +662,7 @@ export function BoardView({
 					items={displayOrder.map((c) => `column-${c}`)}
 					strategy={horizontalListSortingStrategy}
 				>
-					<div className="flex gap-3.5 pt-3 pb-5 overflow-x-auto min-h-[300px] [&::-webkit-scrollbar]:h-[5px] [&::-webkit-scrollbar-track]:bg-transparent [&::-webkit-scrollbar-thumb]:bg-surface-4 [&::-webkit-scrollbar-thumb]:rounded-[3px]">
+					<div className="flex gap-3.5 pt-3 pb-5 overflow-x-auto min-h-[300px] [&::-webkit-scrollbar]:h-[5px] [&::-webkit-scrollbar-track]:bg-transparent [&::-webkit-scrollbar-thumb]:bg-surface-4 [&::-webkit-scrollbar-thumb]:rounded-sm">
 						{displayOrder.map((colName) => (
 							<SortableColumn key={colName} colName={colName}>
 								<h3 className="text-[11px] text-text-3 mb-2.5 ml-0.5 font-bold tracking-[0.07em] uppercase flex items-center gap-1.5">
@@ -733,7 +733,7 @@ export function BoardView({
 					) : null}
 					{activeColumnName ? (
 						<div
-							className="min-w-[268px] max-w-[300px] bg-surface border-[1.5px] border-dashed border-border-mid rounded-[5px] px-2.5 py-3 shadow-[var(--shadow-xl)]"
+							className="min-w-[268px] max-w-[300px] bg-surface border-[1.5px] border-dashed border-border-mid rounded px-2.5 py-3 shadow-[var(--shadow-xl)]"
 							style={{ opacity: 0.8, pointerEvents: "none" }}
 						>
 							<h3 className="text-[11px] text-text-3 mb-2.5 ml-0.5 font-bold tracking-[0.07em] uppercase flex items-center gap-1.5">
@@ -776,9 +776,9 @@ function ColumnBody({
 		<div
 			ref={setNodeRef}
 			className={cn(
-				"flex flex-col gap-[7px] flex-1 overflow-y-auto min-h-[40px] py-0.5 [&::-webkit-scrollbar]:w-[3px] [&::-webkit-scrollbar-track]:bg-transparent [&::-webkit-scrollbar-thumb]:bg-surface-4 [&::-webkit-scrollbar-thumb]:rounded-[2px]",
+				"flex flex-col gap-[7px] flex-1 overflow-y-auto min-h-[40px] py-0.5 [&::-webkit-scrollbar]:w-[3px] [&::-webkit-scrollbar-track]:bg-transparent [&::-webkit-scrollbar-thumb]:bg-surface-4 [&::-webkit-scrollbar-thumb]:rounded-sm",
 				isOver &&
-					"bg-[rgba(43,77,255,0.06)] rounded outline-2 outline-dashed outline-border-mid -outline-offset-2",
+					"bg-[var(--accent-dim)] rounded outline-2 outline-dashed outline-border-mid -outline-offset-2",
 			)}
 			id={`col-${colName}`}
 		>
@@ -820,7 +820,7 @@ function AddBoardColumn({
 	if (!editing) {
 		return (
 			<div
-				className="min-w-[268px] max-w-[300px] bg-surface-2 border border-border rounded-[5px] px-2.5 py-3 flex flex-col max-h-[62vh] transition-[background,border-color] duration-[var(--t)] ease-[var(--ease)] relative"
+				className="min-w-[268px] max-w-[300px] bg-surface-2 border border-border rounded px-2.5 py-3 flex flex-col max-h-[62vh] transition-[background,border-color] duration-[var(--t)] ease-[var(--ease)] relative"
 				style={{
 					display: "flex",
 					alignItems: "flex-start",
@@ -841,7 +841,7 @@ function AddBoardColumn({
 	}
 	return (
 		<div
-			className="min-w-[268px] max-w-[300px] bg-surface-2 border border-border rounded-[5px] px-2.5 py-3 flex flex-col max-h-[62vh] transition-[background,border-color] duration-[var(--t)] ease-[var(--ease)] relative"
+			className="min-w-[268px] max-w-[300px] bg-surface-2 border border-border rounded px-2.5 py-3 flex flex-col max-h-[62vh] transition-[background,border-color] duration-[var(--t)] ease-[var(--ease)] relative"
 			style={{ padding: 8, minWidth: 220 }}
 		>
 			<input

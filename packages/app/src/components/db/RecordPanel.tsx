@@ -82,13 +82,13 @@ export function RecordPanel({
 
 	return (
 		<div
-			className="fixed inset-0 bg-[rgba(15,18,30,0.3)] backdrop-blur-[4px] z-[9000] flex justify-end [animation:fade-in_0.14s_var(--ease)]"
+			className="fixed inset-0 bg-scrim backdrop-blur-[4px] z-[9000] flex justify-end [animation:fade-in_0.14s_var(--ease)]"
 			onMouseDown={(e) => {
 				if (e.target === e.currentTarget) onClose();
 			}}
 		>
 			<aside
-				className="w-[min(520px,90vw)] h-full bg-surface border-l border-border-mid shadow-[var(--shadow-xl)] flex flex-col px-7 pb-7 pt-[18px] overflow-y-auto [animation:slide-from-right_0.18s_var(--ease-spring)] [&::-webkit-scrollbar]:w-[5px] [&::-webkit-scrollbar-track]:bg-transparent [&::-webkit-scrollbar-thumb]:bg-surface-4 [&::-webkit-scrollbar-thumb]:rounded-[3px]"
+				className="w-[min(520px,90vw)] h-full bg-surface border-l border-border-mid shadow-[var(--shadow-xl)] flex flex-col px-7 pb-7 pt-[18px] overflow-y-auto [animation:slide-from-right_0.18s_var(--ease-spring)] [&::-webkit-scrollbar]:w-[5px] [&::-webkit-scrollbar-track]:bg-transparent [&::-webkit-scrollbar-thumb]:bg-surface-4 [&::-webkit-scrollbar-thumb]:rounded-sm"
 				role="dialog"
 				aria-label="Record details"
 			>
@@ -163,7 +163,7 @@ export function RecordPanel({
 										/>
 									) : (
 										<div
-											className="px-[7px] py-1 rounded-[5px] cursor-pointer min-h-[24px] text-text-2 transition-[background,color] duration-[var(--t)] ease-[var(--ease)] hover:bg-surface-3 hover:text-text"
+											className="px-[7px] py-1 rounded cursor-pointer min-h-[24px] text-text-2 transition-[background,color] duration-[var(--t)] ease-[var(--ease)] hover:bg-surface-3 hover:text-text"
 											onClick={() => setEditingFieldId(field.id)}
 										>
 											<CellDisplay

@@ -55,7 +55,7 @@ export function PeopleBlock({ block, onUpdateBlock }: BlockRendererProps) {
 						return (
 							<span
 								key={uid}
-								className="inline-flex items-center gap-1.5 bg-surface-3 border border-border rounded-[20px] px-2 py-[2px] pl-[3px] text-[13px] cursor-default text-text-2 transition-[background] duration-[var(--t)] ease-[var(--ease)] hover:bg-surface-4"
+								className="inline-flex items-center gap-1.5 bg-surface-3 border border-border rounded-full px-2 py-[2px] pl-[3px] text-[13px] cursor-default text-text-2 transition-[background] duration-[var(--t)] ease-[var(--ease)] hover:bg-surface-4"
 								onClick={() => setPickerOpen(true)}
 								title="Click to edit"
 							>
@@ -79,7 +79,7 @@ export function PeopleBlock({ block, onUpdateBlock }: BlockRendererProps) {
 						);
 					})}
 					<button
-						className="bg-transparent border-[1.5px] border-dashed border-border-mid rounded-[20px] w-7 h-7 inline-flex items-center justify-center cursor-pointer text-text-3 text-[16px] transition-[border-color,color] duration-[var(--t)] ease-[var(--ease)] hover:border-accent hover:text-accent"
+						className="bg-transparent border-[1.5px] border-dashed border-border-mid rounded-full w-7 h-7 inline-flex items-center justify-center cursor-pointer text-text-3 text-[16px] transition-[border-color,color] duration-[var(--t)] ease-[var(--ease)] hover:border-accent hover:text-accent"
 						onClick={() => setPickerOpen(true)}
 					>
 						+

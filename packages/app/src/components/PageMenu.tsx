@@ -55,7 +55,7 @@ export function PageMenu({
 		<>
 			<div ref={ref} className="relative">
 				<button
-					className="text-[18px] bg-transparent border-none cursor-pointer text-text-3 px-2.5 py-1.5 rounded-[5px] transition-[background,color] duration-[var(--t)] ease-[var(--ease)] hover:bg-surface-3 hover:text-text-2"
+					className="text-[18px] bg-transparent border-none cursor-pointer text-text-3 px-2.5 py-1.5 rounded transition-[background,color] duration-[var(--t)] ease-[var(--ease)] hover:bg-surface-3 hover:text-text-2"
 					title="More actions"
 					onClick={() => setOpen((o) => !o)}
 				>

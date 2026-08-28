@@ -201,7 +201,7 @@ export function ViewSwitcher({
 		>
 			<button
 				onClick={() => setOpen((v) => !v)}
-				className="bg-transparent border-none cursor-pointer text-[12.5px] text-text px-2 py-1 inline-flex items-center gap-1 rounded-[5px] transition-[background,color] duration-[var(--t)] ease-[var(--ease)] hover:bg-surface-3 hover:text-text-2"
+				className="bg-transparent border-none cursor-pointer text-[12.5px] text-text px-2 py-1 inline-flex items-center gap-1 rounded transition-[background,color] duration-[var(--t)] ease-[var(--ease)] hover:bg-surface-3 hover:text-text-2"
 				title="Switch view"
 			>
 				<svg width="14" height="14" viewBox="0 0 16 16" fill="currentColor">
@@ -411,7 +411,7 @@ export function ViewSwitcher({
 									<button
 										title="Delete view"
 										onClick={() => handleDelete(view)}
-										className="bg-transparent border-none cursor-pointer text-text-3 px-1 py-0.5 text-[11px] rounded transition-[color] hover:text-red-500"
+										className="bg-transparent border-none cursor-pointer text-text-3 px-1 py-0.5 text-[11px] rounded transition-[color] hover:text-danger"
 									>
 										🗑️
 									</button>

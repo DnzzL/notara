@@ -58,7 +58,7 @@ export function WorkspaceSwitcher({
 		>
 			<div className="flex items-center gap-0.5">
 				<button
-					className="flex items-center gap-[9px] flex-1 min-w-0 bg-transparent border-none cursor-pointer px-2 py-1.5 rounded text-[13.5px] text-text-sb [font-family:var(--font-ui)] transition-[background] duration-[var(--t)] ease-[var(--ease)] hover:bg-[rgba(10,10,10,0.05)]"
+					className="flex items-center gap-[9px] flex-1 min-w-0 bg-transparent border-none cursor-pointer px-2 py-1.5 rounded text-[13.5px] text-text-sb [font-family:var(--font-ui)] transition-[background] duration-[var(--t)] ease-[var(--ease)] hover:bg-[var(--hover-ink)]"
 					onClick={() => setOpen(!open)}
 					title="Switch workspace"
 				>
@@ -72,7 +72,7 @@ export function WorkspaceSwitcher({
 				</button>
 				{onCollapse && (
 					<button
-						className="shrink-0 bg-transparent border-none cursor-pointer text-text-sb-3 text-[15px] w-7 h-7 flex items-center justify-center rounded transition-[color,background] duration-[var(--t)] ease-[var(--ease)] hover:bg-[rgba(10,10,10,0.05)] hover:text-text-sb"
+						className="shrink-0 bg-transparent border-none cursor-pointer text-text-sb-3 text-[15px] w-7 h-7 flex items-center justify-center rounded transition-[color,background] duration-[var(--t)] ease-[var(--ease)] hover:bg-[var(--hover-ink)] hover:text-text-sb"
 						onClick={onCollapse}
 						title="Collapse sidebar (⌘\\)"
 						aria-label="Collapse sidebar"

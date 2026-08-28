@@ -126,14 +126,14 @@ export function OnboardingTour({ startKey }: Props) {
 	return (
 		<Tour.Root tour={tour}>
 			<Tour.Backdrop
-				className="fixed inset-0 bg-black/35"
+				className="fixed inset-0 bg-scrim"
 				style={{ zIndex: 9990 }}
 			/>
 			<Tour.Spotlight
 				className="fixed pointer-events-none rounded-lg"
 				style={{
 					zIndex: 9991,
-					boxShadow: "0 0 0 2px var(--accent), 0 0 0 9999px rgba(0,0,0,0.35)",
+					boxShadow: "0 0 0 2px var(--accent), 0 0 0 9999px var(--scrim)",
 				}}
 			/>
 			<Tour.Positioner
@@ -150,7 +150,7 @@ export function OnboardingTour({ startKey }: Props) {
 
 					<div className="flex items-start justify-between gap-2 px-5 pt-5">
 						<Tour.Title className="text-[15px] font-semibold text-[var(--text)] leading-tight m-0" />
-						<Tour.CloseTrigger className="bg-transparent border-none cursor-pointer text-[var(--text-3)] p-1 -mt-0.5 -mr-1 rounded shrink-0 flex items-center justify-center hover:text-[var(--text)] hover:bg-black/5 transition-colors">
+						<Tour.CloseTrigger className="bg-transparent border-none cursor-pointer text-[var(--text-3)] p-1 -mt-0.5 -mr-1 rounded shrink-0 flex items-center justify-center hover:text-[var(--text)] hover:bg-surface-3 transition-colors">
 							<svg width="14" height="14" viewBox="0 0 14 14" fill="none">
 								<path
 									d="M1 1l12 12M13 1L1 13"
@@ -177,7 +177,7 @@ export function OnboardingTour({ startKey }: Props) {
 										className={
 											isPrimary
 												? "text-[13px] font-medium px-[14px] py-[7px] rounded-md border cursor-pointer whitespace-nowrap transition-colors bg-[var(--accent)] text-white border-[var(--accent)] hover:bg-[var(--accent-2)]"
-												: "text-[13px] font-medium px-[14px] py-[7px] rounded-md border cursor-pointer whitespace-nowrap transition-colors bg-white text-[var(--text)] border-[var(--border-mid)] hover:bg-black/[0.03]"
+												: "text-[13px] font-medium px-[14px] py-[7px] rounded-md border cursor-pointer whitespace-nowrap transition-colors bg-surface text-[var(--text)] border-[var(--border-mid)] hover:bg-surface-2"
 										}
 									>
 										{action.label}
