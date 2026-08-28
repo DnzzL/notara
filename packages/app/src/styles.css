@@ -1664,7 +1664,8 @@ select, input, textarea, button { font-family: var(--font-ui); }
     color: var(--text-3);
     min-width: 0;
   }
-  .db-toolbar-name > span { overflow: hidden; text-overflow: ellipsis; }
+  /* On its own full-width row there is no reason to clip: a long name wraps. */
+  .db-toolbar-name > span { overflow: visible; text-overflow: clip; white-space: normal; }
 
   .db-toolbar-controls {
     display: flex;

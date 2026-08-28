@@ -373,7 +373,8 @@ export function ViewSwitcher({
 												view.isDefault ? null : view.id,
 											);
 										}}
-										className="bg-transparent border-none cursor-pointer text-text-3 px-1 py-0.5 text-[11px] rounded transition-[color] hover:text-accent"
+										variant="ghost"
+										className="text-[11px] hover:text-accent"
 									>
 										{view.isDefault ? "★" : "☆"}
 									</IconButton>

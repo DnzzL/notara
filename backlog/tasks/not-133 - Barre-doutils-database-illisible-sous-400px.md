@@ -1,11 +1,11 @@
 ---
 id: NOT-133
 title: Barre d'outils database illisible sous 400px
-status: ready-for-agent
+status: done
 assignee:
   - '@claude'
 created_date: '2026-08-28 09:20'
-updated_date: '2026-08-28 09:22'
+updated_date: '2026-08-28 09:43'
 labels:
   - bug
 dependencies: []
@@ -23,6 +23,16 @@ Constaté sur iPhone 14 émulé avec le template Project Tracker.
 
 ## Acceptance Criteria
 <!-- AC:BEGIN -->
-- [ ] #1 La barre tient sur une ligne à 390px, ou se réorganise proprement
-- [ ] #2 Le nom de la database n'est plus tronqué
+- [x] #1 La barre tient sur une ligne à 390px, ou se réorganise proprement
+- [x] #2 Le nom de la database n'est plus tronqué
 <!-- AC:END -->
+
+## Final Summary
+
+<!-- SECTION:FINAL_SUMMARY:BEGIN -->
+La barre d'outils passe en deux rangées sous 880px : le nom de la base devient un en-tête mono capitales sur sa propre ligne, les contrôles une rangée unique en scroll horizontal.
+
+Implémenté en CSS seul, sans restructuration JSX : un wrapper .db-toolbar-controls en display:contents, donc invisible pour le layout desktop, qui devient le conteneur scrollable sous le breakpoint. Zéro risque de régression desktop.
+
+Vérifié sur iPhone 14 émulé : barre à 67px sur deux rangées, nom complet ('SPRINTS', 'TASKS'), contrôles scrollables.
+<!-- SECTION:FINAL_SUMMARY:END -->

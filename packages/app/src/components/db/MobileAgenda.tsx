@@ -31,6 +31,7 @@ export function MobileAgenda({
 	dateFields: any[];
 	dateField: any | null;
 	onPickDateField: (id: string) => void;
+	/** Properties shown beside a row's title. Keep it short — this is 390px. */
 	visibleFields: any[];
 	databases: any[];
 	allRecords: Record<string, any[]>;
@@ -43,6 +44,9 @@ export function MobileAgenda({
 
 	return (
 		<div className="db-ruler">
+			{/* Raw buttons on purpose, here and in the rows below: the strip is a
+			    styled set (`.db-strip-tab`) and the rows are full-width list rows.
+			    Neither is one of ui/Button's variants. */}
 			{dateFields.length > 1 && (
 				<div className="db-strip" role="tablist">
 					{dateFields.map((f: any) => (
@@ -92,7 +96,7 @@ export function MobileAgenda({
 						>
 							<span className="t">{record.title || "Untitled"}</span>
 							<span className="f">
-								{visibleFields.slice(0, 1).map((f: any) => {
+								{visibleFields.map((f: any) => {
 									const val = values[f.name];
 									if (!val && f.type !== "checkbox") return null;
 									return (

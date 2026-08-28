@@ -5,9 +5,12 @@ import { useEffect, useState } from "react";
  *
  * Almost all responsive behaviour in this app is CSS-only, and should stay
  * that way. This hook exists for the cases where narrow means a *different
- * component*, not a reflowed one: the database table becomes the field ruler,
- * which is a different interaction model and cannot be expressed as a media
- * query. Reach for CSS first; reach for this only when the markup differs.
+ * component*, not a reflowed one — three so far, all in the database views:
+ * the table becomes a field ruler, the board a group strip, the calendar an
+ * agenda. None of those is a media query away from its desktop form. The
+ * pickers in CellComponents.tsx use it too, to become sheets.
+ *
+ * Reach for CSS first; reach for this only when the markup differs.
  */
 const QUERY = "(max-width: 880px)";
 

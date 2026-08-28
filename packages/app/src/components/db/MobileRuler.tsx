@@ -1,5 +1,6 @@
 import { fieldTypeSpec } from "@notara/shared";
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useEffect, useState } from "react";
+import { useStripNavigation } from "../../lib/useStripNavigation.js";
 import { CellDisplay, InlineCellEditor } from "./CellComponents.js";
 
 /**
@@ -30,9 +31,6 @@ const TYPE_GLYPH: Record<string, string> = {
 	people: "☺",
 };
 
-/** Horizontal travel, in px, that counts as "next field" rather than a tap. */
-const SWIPE_THRESHOLD = 56;
-
 type Row = { record: any; values: Record<string, unknown> };
 
 export function MobileRuler({
@@ -52,36 +50,22 @@ export function MobileRuler({
 	onOpenRecord: (record: any) => void;
 	onNewRecord: () => void;
 }) {
-	const [idx, setIdx] = useState(0);
+	const {
+		index: idx,
+		select,
+		stripRef,
+		listProps,
+		onRowActivate,
+	} = useStripNavigation(fields.length);
 	const [editing, setEditing] = useState<{
 		recordId: string;
 		fieldId: string;
 	} | null>(null);
-	const stripRef = useRef<HTMLDivElement>(null);
-	const startX = useRef<number | null>(null);
 
 	const field = fields[idx];
 	// Read-only is a property of the field type (a formula computes itself),
 	// exactly as in the desktop table — not a property of the database.
 	const fieldReadOnly = field ? fieldTypeSpec(field.type).readOnly : true;
-
-	// A field can be deleted while it is the active one.
-	useEffect(() => {
-		if (idx > fields.length - 1) setIdx(Math.max(0, fields.length - 1));
-	}, [fields.length, idx]);
-
-	const step = useCallback(
-		(delta: number) =>
-			setIdx((c) => Math.min(fields.length - 1, Math.max(0, c + delta))),
-		[fields.length],
-	);
-
-	// Keep the active tab visible when the field changed by swipe, not by tap.
-	useEffect(() => {
-		stripRef.current
-			?.querySelectorAll<HTMLElement>(".db-strip-tab")
-			[idx]?.scrollIntoView({ inline: "center", block: "nearest" });
-	}, [idx]);
 
 	useEffect(() => {
 		if (!editing) return;
@@ -116,7 +100,7 @@ export function MobileRuler({
 						role="tab"
 						aria-selected={i === idx}
 						className={`db-strip-tab${i === idx ? " is-active" : ""}`}
-						onClick={() => setIdx(i)}
+						onClick={() => select(i)}
 					>
 						<span className="g">{TYPE_GLYPH[f.type] ?? "•"}</span>
 						{f.name}
@@ -142,19 +126,7 @@ export function MobileRuler({
 
 			{/* Swipe is an enhancement, not the only route: every field is also
 			    reachable by tapping the strip above, which is a real tablist. */}
-			<div
-				className="db-ruler-list"
-				onPointerDown={(e) => {
-					startX.current = e.clientX;
-				}}
-				onPointerUp={(e) => {
-					const from = startX.current;
-					startX.current = null;
-					if (from === null) return;
-					const dx = e.clientX - from;
-					if (Math.abs(dx) > SWIPE_THRESHOLD) step(dx < 0 ? 1 : -1);
-				}}
-			>
+			<div {...listProps}>
 				{rows.length === 0 && (
 					<div className="db-ruler-empty">
 						No records yet. Press New below to create one.
@@ -165,7 +137,7 @@ export function MobileRuler({
 						<button
 							type="button"
 							className="n"
-							onClick={() => onOpenRecord(record)}
+							onClick={onRowActivate(() => onOpenRecord(record))}
 						>
 							{record.title || "Untitled"}
 						</button>
@@ -173,11 +145,10 @@ export function MobileRuler({
 							type="button"
 							className="v"
 							disabled={fieldReadOnly}
-							onClick={() =>
-								!fieldReadOnly &&
-								field &&
-								setEditing({ recordId: record.id, fieldId: field.id })
-							}
+							onClick={onRowActivate(() => {
+								if (fieldReadOnly || !field) return;
+								setEditing({ recordId: record.id, fieldId: field.id });
+							})}
 						>
 							{field && (
 								<CellDisplay

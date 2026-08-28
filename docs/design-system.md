@@ -213,9 +213,9 @@ Reach for these before writing a class string. They exist because the same strin
 
 | Primitive | Covers | Why it exists |
 |---|---|---|
-| `Button` / `IconButton` | Every action | 4 variants × 3 sizes |
+| `Button` / `IconButton` | Every action | 4 variants × 3 sizes; forwards `ref` so popovers can anchor to it |
 | `Input` / `Select` | Every text/number/date/select field | **The one focus treatment.** The app had five |
-| `Tabs` | Mode toggles and pane navigation | Encodes the two active languages below |
+| `Tabs` | Mode toggles and pane navigation | Encodes the two active languages below. The view-type control lives in `db/viewTypes.ts` and is used by all three views |
 | `MenuItem` | Any dropdown or popover row | Was copy-pasted 8× in `WorkspaceSwitcher` alone |
 | `Badge` | A value that carries state or metadata | Defaults to a dot, not a pill |
 | `Field`, `Modal` | Form rows, modal shells | |
@@ -279,9 +279,24 @@ The database view is otherwise built from Tailwind utilities and inline styles; 
 
 The second ink rule, directly under the table. It carries two jobs at once — *where you are* (filters, sort, view type) and *what this is* (record count, field count) — so the surface needs one footer instead of two. Mono, 11px, tabular numerals, `--sb` panel.
 
-### Database on a narrow screen (`components/db/MobileRuler.tsx`)
+### Database on a narrow screen
 
-Below 880px the table is **replaced**, not reflowed: you navigate the field, not the row. A field strip (a real `tablist`) sits above a record list; swiping the list or tapping a tab changes which column is shown while the list stays put. Tapping a value raises a bottom sheet around the same `InlineCellEditor` the desktop table uses, so per-type behaviour has one implementation.
+Below 880px each view is **replaced**, not reflowed. All three share one navigation language — a horizontally scrollable strip of tabs (`.db-strip-*`), a mono caption stating where you are, then a list of `--row-touch` rows.
+
+| View | What you navigate | Component |
+|---|---|---|
+| Table | the **field**, not the row — the record list stays put while the column changes | `db/MobileRuler.tsx` |
+| Board | the **group**, not the column — one group's cards, full width | `db/MobileBoard.tsx` |
+| Calendar | nothing; it becomes an **agenda** — days in order, undated last | `db/MobileAgenda.tsx` |
+
+Tapping a value raises a bottom sheet around the same `InlineCellEditor` the desktop table uses, and every picker (`Popover`, `CellAnchoredPopover`, the relation autocomplete) becomes a `.db-popover-sheet`, so per-type behaviour has one implementation.
+
+Two rules that cost a bug each:
+
+- **Branch below the toolbar, never above it.** An early return that skips the view's own toolbar strands the user in a view with no way back.
+- **Don't keep a control whose scope the new layout doesn't have.** The calendar's month stepper is hidden in agenda mode: the agenda lists every record, so a month claim would be a lie.
+
+Agenda grouping is a pure function in `lib/agenda.ts` with its own test — ordering and the undated bucket are where an agenda quietly goes wrong.
 
 Rows are `--row-touch` (48px). Sheet inputs are 16px — anything smaller makes iOS Safari zoom the viewport on focus.
 

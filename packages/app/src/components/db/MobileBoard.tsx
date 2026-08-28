@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useStripNavigation } from "../../lib/useStripNavigation.js";
 import { CellDisplay } from "./CellComponents.js";
 
 /**
@@ -15,8 +15,6 @@ import { CellDisplay } from "./CellComponents.js";
  */
 
 type Row = { record: any; values: Record<string, unknown> };
-
-const SWIPE_THRESHOLD = 56;
 
 export function MobileBoard({
 	groupOrder,
@@ -39,34 +37,26 @@ export function MobileBoard({
 	onOpenRecord: (record: any) => void;
 	onNewRecord: (groupName: string) => void;
 }) {
-	const [idx, setIdx] = useState(0);
-	const stripRef = useRef<HTMLDivElement>(null);
-	const startX = useRef<number | null>(null);
+	const {
+		index: idx,
+		select,
+		stripRef,
+		listProps,
+		onRowActivate,
+	} = useStripNavigation(groupOrder.length);
 
 	const group = groupOrder[idx];
 	const rows = group ? (groups[group] ?? []) : [];
-
-	useEffect(() => {
-		if (idx > groupOrder.length - 1) setIdx(Math.max(0, groupOrder.length - 1));
-	}, [groupOrder.length, idx]);
-
-	const step = useCallback(
-		(delta: number) =>
-			setIdx((c) => Math.min(groupOrder.length - 1, Math.max(0, c + delta))),
-		[groupOrder.length],
-	);
-
-	useEffect(() => {
-		stripRef.current
-			?.querySelectorAll<HTMLElement>(".db-strip-tab")
-			[idx]?.scrollIntoView({ inline: "center", block: "nearest" });
-	}, [idx]);
 
 	if (groupOrder.length === 0)
 		return <div className="db-ruler-empty">No records yet.</div>;
 
 	return (
 		<div className="db-ruler">
+			{/* Raw buttons on purpose, here and in the rows below: the strip is a
+			    styled set (`.db-strip-tab`, with counts and an active rule) and the
+			    cards are full-width list rows. Neither is one of ui/Button's
+			    variants, and ui/Tabs cannot scroll horizontally or carry counts. */}
 			<div className="db-strip" ref={stripRef} role="tablist">
 				{groupOrder.map((name, i) => (
 					<button
@@ -75,7 +65,7 @@ export function MobileBoard({
 						role="tab"
 						aria-selected={i === idx}
 						className={`db-strip-tab${i === idx ? " is-active" : ""}`}
-						onClick={() => setIdx(i)}
+						onClick={() => select(i)}
 					>
 						{name}
 						<span className="db-strip-count">{groups[name]?.length ?? 0}</span>
@@ -102,19 +92,7 @@ export function MobileBoard({
 
 			{/* Swipe is an enhancement: every group is also reachable from the
 			    strip above, which is a real tablist. */}
-			<div
-				className="db-board-list"
-				onPointerDown={(e) => {
-					startX.current = e.clientX;
-				}}
-				onPointerUp={(e) => {
-					const from = startX.current;
-					startX.current = null;
-					if (from === null) return;
-					const dx = e.clientX - from;
-					if (Math.abs(dx) > SWIPE_THRESHOLD) step(dx < 0 ? 1 : -1);
-				}}
-			>
+			<div {...listProps}>
 				{rows.length === 0 && (
 					<div className="db-ruler-empty">Nothing in this group.</div>
 				)}
@@ -123,7 +101,7 @@ export function MobileBoard({
 						type="button"
 						key={record.id}
 						className="db-board-card"
-						onClick={() => onOpenRecord(record)}
+						onClick={onRowActivate(() => onOpenRecord(record))}
 					>
 						<span className="t">{record.title || "Untitled"}</span>
 						<span className="f">

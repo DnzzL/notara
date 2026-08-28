@@ -1476,7 +1476,8 @@ export function BlockEditor() {
 					<div className="flex items-center gap-2.5 mb-7">
 						<IconButton
 							variant="ghost"
-							className="text-[2.4em] w-auto h-auto aspect-auto px-2 py-1"
+							size="lg"
+							className="text-[2.4em]"
 							title="Change icon"
 							onClick={(e) => {
 								const rect = (

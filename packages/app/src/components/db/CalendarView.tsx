@@ -15,9 +15,7 @@ import { Button, IconButton } from "../ui/index.js";
 import { Tabs } from "../ui/Tabs.js";
 import { MobileAgenda } from "./MobileAgenda.js";
 import { ViewSwitcher } from "./ViewSwitcher.js";
-import { VIEW_TYPES } from "./viewTypes.js";
-
-type ViewType = "table" | "board" | "calendar";
+import { VIEW_TYPES, type ViewType } from "./viewTypes.js";
 
 const DAYS = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
 const MONTHS = [
@@ -194,8 +192,10 @@ export function CalendarView({
 					</div>
 
 					{/* A month grid at 390px gives 50px cells — a calendar you can see
-					    but not read. Narrow gets an agenda instead. The month nav
-					    above stays so the view is still leaveable.
+					    but not read. Narrow gets an agenda instead. The toolbar
+					    above stays, so the view is still leaveable; the month
+					    stepper does not, because an agenda lists every record and
+					    a month claim would be a lie.
 					    See components/db/MobileAgenda.tsx. */}
 					{isCompact ? (
 						<MobileAgenda
@@ -203,9 +203,9 @@ export function CalendarView({
 							dateFields={dateFields}
 							dateField={dateField}
 							onPickDateField={setDateFieldId}
-							visibleFields={fields.filter(
-								(f: any) => f.type !== "date" && f.id !== dateField?.id,
-							)}
+							visibleFields={fields
+								.filter((f: any) => f.type !== "date" && f.id !== dateField?.id)
+								.slice(0, 1)}
 							databases={databases}
 							allRecords={allRecords}
 							onOpenRecord={(r) => onOpenRecord?.(r)}
@@ -250,7 +250,7 @@ export function CalendarView({
 													className={cn(
 														"text-[12px] font-medium w-6 h-6 flex items-center justify-center rounded-full",
 														isToday
-															? "bg-text text-bg"
+															? "bg-accent text-white"
 															: isCurrentMonth
 																? "text-text"
 																: "text-text-3",
@@ -270,6 +270,8 @@ export function CalendarView({
 													+
 												</IconButton>
 											</div>
+											{/* Record chips: a truncated label in a 100px box,
+											    not one of ui/Button's variants. */}
 											<div className="flex flex-col gap-0.5">
 												{dayRecords.map((r: any) => (
 													<button

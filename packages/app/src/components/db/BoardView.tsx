@@ -39,6 +39,9 @@ import { FilterBar, makeDefaultFilter, SortBar } from "./QueryBar.js";
 import { ViewSwitcher } from "./ViewSwitcher.js";
 import { VIEW_TYPES } from "./viewTypes.js";
 
+/** The single column a board shows when it has no group-by field. */
+const UNGROUPED = "All";
+
 export function BoardView({
 	database,
 	fields,
@@ -128,8 +131,8 @@ export function BoardView({
 		const g: Record<string, typeof records> = {};
 		const order: string[] = [];
 		if (!groupField) {
-			g.All = records;
-			order.push("All");
+			g[UNGROUPED] = records;
+			order.push(UNGROUPED);
 		} else {
 			const fieldOptions: string[] = groupField.options || [];
 			for (const r of records) {
@@ -205,7 +208,7 @@ export function BoardView({
 				setActiveGroupValue(
 					groupField
 						? String(entry.values[groupField.name] || "Untitled")
-						: "All",
+						: UNGROUPED,
 				);
 			}
 		},
@@ -654,7 +657,7 @@ export function BoardView({
 						onOpenRecord={(r) => onOpenRecord?.(r)}
 						onNewRecord={async (groupName) => {
 							const record = await createDbRecord(database.id, "");
-							if (groupField && groupName !== "All")
+							if (groupField && groupName !== UNGROUPED)
 								await updateFieldValue(record.id, groupField.id, groupName);
 							await loadDbRecords(database.id);
 							onOpenRecord?.(record);
@@ -701,6 +704,8 @@ export function BoardView({
 										</ColumnBody>
 									</SortableContext>
 									<div style={{ padding: "8px 4px" }}>
+										{/* The dashed add-card affordance is a column footer, not a Button
+										    variant — the dashed border is what says "drop or add here". */}
 										<button
 											className="w-full bg-transparent border-[1.5px] border-dashed border-border-mid rounded py-[7px] px-3 text-[13px] text-text-3 cursor-pointer transition-[border-color,color] duration-[var(--t)] ease-[var(--ease)] hover:border-accent hover:text-accent"
 											onClick={async () => {
