@@ -93,6 +93,7 @@ function BacklinkItem({
 	return (
 		<button
 			className="hover:bg-surface-2 rounded-[5px] block w-full"
+			onClick={() => onNavigate(backlink.pageId)}
 			style={{
 				display: "block",
 				width: "100%",
