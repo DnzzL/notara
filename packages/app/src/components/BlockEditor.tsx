@@ -15,20 +15,12 @@ import {
 } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
 import { BlockLockedError } from "@notara/shared";
-import { Extension, InputRule } from "@tiptap/core";
-import HorizontalRule from "@tiptap/extension-horizontal-rule";
-import Image from "@tiptap/extension-image";
-import Link from "@tiptap/extension-link";
-import Placeholder from "@tiptap/extension-placeholder";
-import TaskItem from "@tiptap/extension-task-item";
-import TaskList from "@tiptap/extension-task-list";
 import {
 	BubbleMenu,
 	type Editor,
 	EditorContent,
 	useEditor,
 } from "@tiptap/react";
-import StarterKit from "@tiptap/starter-kit";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useSession } from "../auth-client.js";
 import {
@@ -61,19 +53,11 @@ import {
 	hasBlockRenderer,
 } from "./blocks/renderer-registry.js";
 import {
-	BLOCK_TYPE_CONFIG,
-	type BlockType,
 	blockTypeFromHtml,
 	SLASH_COMMANDS,
 	wrapInlineHTML,
 } from "./blockTypes.js";
-import { CalloutNode } from "./CalloutExtension.js";
 import { DatabaseView } from "./DatabaseView.js";
-import {
-	DetailsContent,
-	DetailsNode,
-	DetailsSummary,
-} from "./DetailsExtension.js";
 import { DragHandle } from "./DragHandle.js";
 import { EmojiPicker } from "./EmojiPicker.js";
 import {
@@ -82,10 +66,7 @@ import {
 	sharedExtensions,
 } from "./editorSchema.js";
 import { PageMenu } from "./PageMenu.js";
-import {
-	PageReferenceExtension,
-	PageReferenceNode,
-} from "./PageReferenceExtension.js";
+import { PageReferenceExtension } from "./PageReferenceExtension.js";
 import { createPageReferenceRender } from "./PageReferenceMenu.js";
 import { PresenceAvatars } from "./PresenceAvatars.js";
 import { SlashMenu } from "./SlashMenu.js";
