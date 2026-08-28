@@ -88,6 +88,20 @@ know.
   bypass it — a publicly shared page's attachments have to become publicly readable through
   the same resolution, not through a hole punched around it.
 
+## Amendment (NOT-42) — public page sharing
+
+Sharing landed, and it extends this check rather than bypasses it, as required above.
+
+A share token stands in for a session. It does not weaken the rule that an attachment is
+readable exactly when its page is; it supplies a different reader. What it adds is a
+narrowing, because a token grants **one page**: `GET /api/public/pages/:token/attachments/:fileName`
+serves a file only when that file's `page_id` is the page the token published. A token is
+therefore not a key to the workspace's uploads, and the authenticated
+`GET /attachments/:fileName` route is unchanged — a stranger still gets 401 there.
+
+The publisher's own access is re-checked on every read, so locking a page cuts its images
+as surely as it cuts its text. See `packages/server/src/handlers/public-page.ts`.
+
 ## Related
 
 - Supersedes the access posture left unstated by ADR-001, whose storage decisions stand.

@@ -439,6 +439,19 @@ export const AppRpc = RpcGroup.make(
 	}),
 	// Read direct grants on a page plus the inherited grants from the nearest
 	// locked ancestor (if any), along with a revision token.
+	// Public sharing is a capability, not a relation — see migration
+	// platform/005. The token is returned bare; the client builds the URL, so
+	// the server never has to know its own public origin.
+	Rpc.make("getPageShare", {
+		error: ApiError,
+		payload: { pageId: Schema.String },
+		success: Schema.NullOr(Schema.String),
+	}),
+	Rpc.make("setPageSharing", {
+		error: ApiError,
+		payload: { pageId: Schema.String, enabled: Schema.Boolean },
+		success: Schema.NullOr(Schema.String),
+	}),
 	Rpc.make("getPagePermissions", {
 		error: ApiError,
 		payload: { pageId: Schema.String },

@@ -29,6 +29,18 @@ export const securityHeaders: Record<string, string> = {
 		"default-src 'self'; script-src 'self' https://eu.i.posthog.com; style-src 'self' 'unsafe-inline'; connect-src 'self' https://eu.i.posthog.com wss:; img-src 'self' data: blob:; font-src 'self'; frame-ancestors 'self'; form-action 'self'",
 };
 
+/**
+ * Keep a page out of search results.
+ *
+ * A public share is a link someone chose to hand out, not a page they chose to
+ * publish to the web. Deliberately not configurable: an opt-in nobody finds is
+ * a setting that only ever surprises, and the surprise here is a private page
+ * turning up in a search result.
+ */
+export const NO_INDEX: Record<string, string> = {
+	"X-Robots-Tag": "noindex, nofollow, noarchive",
+};
+
 export const corsHeaders: Record<string, string> = {
 	"Access-Control-Allow-Origin": allowedOrigin,
 	"Access-Control-Allow-Methods": "GET, POST, PUT, DELETE, OPTIONS",
