@@ -1,4 +1,5 @@
 import { Fragment, useEffect, useRef } from "react";
+import { useMenuKeyboard } from "../lib/useMenuKeyboard.js";
 import { cn } from "./ui/cn.js";
 
 export type BlockMenuItem = {
@@ -26,6 +27,18 @@ export function BlockContextMenu({
 	const ref = useRef<HTMLDivElement>(null);
 	const mountedAt = useRef(performance.now());
 
+	const activate = (i: number) => {
+		const item = items[i];
+		if (!item || item.disabled) return;
+		item.onClick();
+		onClose();
+	};
+	const { itemProps } = useMenuKeyboard({
+		count: items.length,
+		onSelect: activate,
+		onClose,
+	});
+
 	useEffect(() => {
 		const onDown = (e: MouseEvent) => {
 			// Ignore mousedown events that happen within 150ms of mount
@@ -33,15 +46,8 @@ export function BlockContextMenu({
 			if (performance.now() - mountedAt.current < 150) return;
 			if (ref.current && !ref.current.contains(e.target as Node)) onClose();
 		};
-		const onKey = (e: KeyboardEvent) => {
-			if (e.key === "Escape") onClose();
-		};
 		document.addEventListener("mousedown", onDown);
-		document.addEventListener("keydown", onKey);
-		return () => {
-			document.removeEventListener("mousedown", onDown);
-			document.removeEventListener("keydown", onKey);
-		};
+		return () => document.removeEventListener("mousedown", onDown);
 	}, [onClose]);
 
 	// Clamp to viewport so the menu doesn't render off-screen.
@@ -64,19 +70,18 @@ export function BlockContextMenu({
 						<div role="separator" className="h-px bg-border my-1 -mx-1.5" />
 					)}
 					<button
+						{...itemProps(i)}
 						type="button"
 						role="menuitem"
 						className={cn(
 							"flex items-center gap-2.5 w-full px-2.5 py-2 border-none bg-transparent cursor-pointer text-left text-[13px] text-text-2 rounded-md transition-[background,color] duration-[var(--t)] ease-[var(--ease)] disabled:opacity-40 disabled:cursor-default disabled:pointer-events-none hover:bg-surface-3 hover:text-text",
 							item.danger &&
 								"text-danger hover:bg-danger-dim hover:text-danger",
+							"data-[active]:bg-surface-3 data-[active]:text-text",
+							item.danger && "data-[active]:bg-danger-dim",
 						)}
 						disabled={item.disabled}
-						onClick={() => {
-							if (item.disabled) return;
-							item.onClick();
-							onClose();
-						}}
+						onClick={() => activate(i)}
 						data-testid={`block-context-menu-${item.id}`}
 					>
 						{item.icon && (

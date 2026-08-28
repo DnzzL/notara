@@ -161,7 +161,7 @@ function WorkspaceLayout() {
 				<BlockEditor />
 			</div>
 
-			<SearchModal />
+			<SearchModal onNavigate={closeSidebar} />
 			<KeyboardShortcuts />
 			<OnboardingTour startKey={tourStartKey} />
 		</div>

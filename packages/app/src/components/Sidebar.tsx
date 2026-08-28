@@ -552,6 +552,7 @@ export function Sidebar({
 										(node: TreeNodeData, index: number) => (
 											<PageTreeNode
 												key={node.id}
+												onNavigate={onNavigate}
 												node={node}
 												indexPath={[index]}
 												pageMap={pageMap}
@@ -663,6 +664,8 @@ interface PageTreeNodeProps {
 	onIconClick: (pageId: string, coords: { top: number; left: number }) => void;
 	depth: number;
 	lockedPageIds: Set<string>;
+	/** Dismiss the mobile drawer. Inert on desktop. */
+	onNavigate?: () => void;
 }
 
 const INDENT_STEP = 12;
@@ -679,6 +682,7 @@ function PageTreeNode({
 	onIconClick,
 	depth,
 	lockedPageIds,
+	onNavigate,
 }: PageTreeNodeProps) {
 	const page = pageMap.get(node.id);
 	if (!page) return null;
@@ -735,7 +739,14 @@ function PageTreeNode({
 				<TreeView.Branch>
 					<TreeView.BranchControl
 						className={`group relative flex items-center gap-0.5 min-h-[28px] px-1 rounded-lg text-[13px] text-text-sb-2 cursor-pointer transition-[background,color] duration-[var(--t)] ease-[var(--ease)] hover:bg-[var(--hover-ink)] hover:text-text-sb${isHovered ? (isNestTarget ? " bg-accent-dim rounded-lg shadow-[0_0_0_2px_var(--accent-mid)]" : " bg-sb-2 rounded-lg") : ""}`}
-						onClick={(e: React.MouseEvent) => e.preventDefault()}
+						onClick={(e: React.MouseEvent) => {
+							e.preventDefault();
+							// Ark only fires onSelectionChange when the selection actually
+							// changes, so tapping the page you are already on left the
+							// mobile drawer open over the page it had just "navigated" to.
+							// Dismissing is a property of the tap, not of the change.
+							onNavigate?.();
+						}}
 					>
 						{dropZone === "before" && (
 							<div className="absolute left-1 right-1 top-0 h-0.5 bg-accent rounded z-[5] pointer-events-none" />
@@ -807,6 +818,7 @@ function PageTreeNode({
 							{node.children?.map((child, i) => (
 								<PageTreeNode
 									key={child.id}
+									onNavigate={onNavigate}
 									node={child}
 									indexPath={[...indexPath, i]}
 									pageMap={pageMap}

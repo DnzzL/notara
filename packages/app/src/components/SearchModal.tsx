@@ -1,6 +1,6 @@
-import type { SearchResult } from "@notara/shared";
 import { useEffect, useRef, useState } from "react";
 import { selectPageByIdWithCascade } from "../lib/page-loader.js";
+import { flattenSearchItems } from "../lib/search-navigation.js";
 import { usePageStore } from "../store.js";
 import { cn } from "./ui/cn.js";
 
@@ -19,7 +19,7 @@ function highlightText(text: string, query: string): React.ReactNode {
 	);
 }
 
-export function SearchModal() {
+export function SearchModal({ onNavigate }: { onNavigate?: () => void }) {
 	const globalSearch = usePageStore((s) => s.globalSearch);
 	const searchResults = usePageStore((s) => s.searchResults);
 	const recentPages = usePageStore((s) => s.recentPages);
@@ -92,38 +92,50 @@ export function SearchModal() {
 	const pageResults = searchResults.filter((r) => r.type === "page");
 	const blockResults = searchResults.filter((r) => r.type === "block");
 
-	const getFlatResults = (): SearchResult[] => {
-		if (!query.trim()) return [];
-		return [...pageResults, ...blockResults];
-	};
+	// One list for the arrow keys and the highlight. See lib/search-navigation.ts
+	// for why they must not be computed separately.
+	const flatItems = flattenSearchItems({
+		query,
+		recentPages,
+		pageResults,
+		blockResults,
+	});
 
-	const navigateToResult = (result: SearchResult) => {
-		selectPageByIdWithCascade(result.pageId);
+	const openItem = (item: { pageId: string }) => {
+		selectPageByIdWithCascade(item.pageId);
 		setIsOpen(false);
 		setQuery("");
+		// The palette can be opened from inside the mobile drawer; navigating
+		// away with the drawer still covering the page is the same bug the
+		// sidebar tree had.
+		onNavigate?.();
 	};
 
 	const handleKeyDown = (e: React.KeyboardEvent) => {
+		const last = flatItems.length - 1;
 		if (e.key === "ArrowDown") {
 			e.preventDefault();
-			setSelectedIndex((prev) =>
-				Math.min(prev + 1, getFlatResults().length - 1),
-			);
+			setSelectedIndex((prev) => (last < 0 ? 0 : Math.min(prev + 1, last)));
 		} else if (e.key === "ArrowUp") {
 			e.preventDefault();
 			setSelectedIndex((prev) => Math.max(prev - 1, 0));
+		} else if (e.key === "Home") {
+			e.preventDefault();
+			setSelectedIndex(0);
+		} else if (e.key === "End") {
+			e.preventDefault();
+			setSelectedIndex(Math.max(0, last));
 		} else if (e.key === "Enter") {
 			e.preventDefault();
-			const flat = getFlatResults();
-			if (flat[selectedIndex]) navigateToResult(flat[selectedIndex]);
+			const item = flatItems[selectedIndex];
+			if (item) openItem(item);
 		}
 	};
 
 	if (!isOpen) return null;
 
-	const flatResults = getFlatResults();
 	const showRecent = !query.trim() && recentPages.length > 0;
-	const hasResults = flatResults.length > 0;
+	const hasResults = flatItems.length > 0;
 
 	return (
 		<div
@@ -168,15 +180,7 @@ export function SearchModal() {
 										"flex items-center gap-2.5 px-2.5 py-2 cursor-pointer rounded transition-[background] duration-[var(--t)] ease-[var(--ease)] hover:bg-surface-3",
 										idx === selectedIndex && "bg-accent-dim",
 									)}
-									onClick={() =>
-										navigateToResult({
-											type: "page",
-											id: page.id,
-											title: page.title,
-											content: "",
-											pageId: page.id,
-										})
-									}
+									onClick={() => openItem({ pageId: page.id })}
 									onMouseEnter={() => setSelectedIndex(idx)}
 								>
 									<span className="text-[15px] shrink-0 w-[22px] text-center">
@@ -209,7 +213,7 @@ export function SearchModal() {
 												"flex items-center gap-2.5 px-2.5 py-2 cursor-pointer rounded transition-[background] duration-[var(--t)] ease-[var(--ease)] hover:bg-surface-3",
 												idx === selectedIndex && "bg-accent-dim",
 											)}
-											onClick={() => navigateToResult(result)}
+											onClick={() => openItem(result)}
 											onMouseEnter={() => setSelectedIndex(idx)}
 										>
 											<span className="text-[15px] shrink-0 w-[22px] text-center">
@@ -239,7 +243,7 @@ export function SearchModal() {
 													"flex items-center gap-2.5 px-2.5 py-2 cursor-pointer rounded transition-[background] duration-[var(--t)] ease-[var(--ease)] hover:bg-surface-3",
 													flatIdx === selectedIndex && "bg-accent-dim",
 												)}
-												onClick={() => navigateToResult(result)}
+												onClick={() => openItem(result)}
 												onMouseEnter={() => setSelectedIndex(flatIdx)}
 											>
 												<span className="text-[15px] shrink-0 w-[22px] text-center">
