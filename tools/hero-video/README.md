@@ -17,31 +17,52 @@ everything else follows from:
 
 So the video does both, in time.
 
-## What it has to prove
+## The story
 
-A hero for a Notion alternative is answering one objection: *is this actually as
-good?* The copy handles ownership and price; the video's only job is to make
-the product look real. It does that in the order a sceptic asks:
+Not a feature tour — a feature tour is a list, and a list does not make anyone
+believe anything. This is one believable minute of someone's Tuesday, where
+each step causes the next:
 
-| Beat | Question it answers |
+| Beat | What it proves |
 |---|---|
-| the workspace — sidebar, nested pages | Is this a real app? |
-| the page — headings, prose, a sub-page link, `Type '/' for commands` | Is the editor any good? |
-| the database — typed fields, relations, a status line | Are the databases real? |
-| the same records as a board | Is it more than one view? |
+| a tracker page links to a brief | pages link to pages |
+| follow the link | the app navigates, the sidebar follows |
+| the brief is a real page — Goal, Scope, Milestones | it is not a stub |
+| it knows who links to it — one backlink, pointing home | the graph is real, both ways |
+| back to the tracker via the sidebar | the tree kept its place |
+| the same records, as a board | one dataset, several views |
 
-Two reading windows, not one. The content column is **1035 CSS px** wide
-(measured from the DOM, not guessed): anything narrower clips headings, which
-reads as broken rather than cropped. `PAGE` holds the whole column for the
-editor beat; `DB` drops its right edge to buy back size on 13px table rows. The
-camera slides between them while the page scrolls, so the move and the content
-arrive together.
+The claim underneath is *everything is connected*, which is exactly what a
+screenshot cannot say.
 
-The last frame matches the first, so the loop has no seam.
+An earlier cut showed a table turning into a board and nothing else. That
+answers "does it have views", which nobody was asking. The objection a hero for
+a Notion alternative has to kill is *is this actually as good?* — and that is
+answered by watching someone move through it, not by watching a control change
+state.
 
-ffmpeg cannot do this well. Its `crop` filter evaluates width and height once at
-init, so an animated window needs `zoompan`, which resamples every frame and
-judders. Remotion animates the window in React and renders deterministically.
+### What could not be filmed
+
+Some interactions do not survive automation and were cut rather than filmed
+badly: the status picker in a table cell ignores synthetic events, the page
+chip inside a cell does not navigate (only the page-link *block* does), and
+markdown shortcuts work but the trailing empty block does not persist between
+steps. Probe every interaction before writing a storyboard around it.
+
+## The camera
+
+Two problems in one: this renders at **693x395** on the landing page. A frame
+wide enough to show the product puts the app's 13px text under 6px; a frame
+tight enough to read shows a fragment. So the camera moves — wide to establish,
+in to read, out to close the loop on the frame it opened with.
+
+`TIMELINE` in `src/Hero.tsx` is the whole choreography: keyframes of `{ t, shot }`,
+interpolated between, held where two keyframes share a shot. Every move lands
+*before* the thing it exists to show.
+
+The shots are windows over the source, not CSS scales of the whole frame. The
+content column measures **1035 CSS px** (from the DOM, not guessed); anything
+narrower clips headings, which reads as broken rather than cropped.
 
 ## Recording a new capture
 

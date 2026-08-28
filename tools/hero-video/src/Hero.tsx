@@ -11,98 +11,109 @@ import {
 /**
  * The landing-page hero.
  *
- * The problem this solves: the video is shown at 693x395 on the landing page.
- * A frame wide enough to show the product — sidebar, page, two databases — puts
- * the app's 13px body text under 6px on screen, and a frame tight enough to
- * read shows a fragment of a table and nothing that says "workspace".
+ * ## The story
  *
- * So it does both, in time. It opens on the whole product, pushes into the
- * database while the record list is on screen, holds through a switch to the
- * board, then pulls back out so the last frame matches the first and the loop
- * has no seam.
+ * Not a feature tour. One believable minute of someone's Tuesday, where each
+ * step causes the next:
  *
- * The move is a *window* over the source, not a CSS scale of the whole frame:
- * the capture is 2880x1640 (deviceScaleFactor 2), so even the tightest window
- * still oversamples the 693px slot rather than upscaling into it.
+ *   "Where's the spec for this?"   a tracker page links to a brief
+ *   → follow the link              the app navigates, the sidebar follows
+ *   → the brief is a real page     Goal, Scope, Milestones — not a stub
+ *   → it knows who links to it     one backlink, pointing home
+ *   → back to the tracker          via the sidebar, which kept its place
+ *   → the same records, as a board
+ *
+ * The point is that everything is connected — the thing a screenshot cannot
+ * say and a feature list does not make anyone believe.
+ *
+ * ## The camera
+ *
+ * This renders at 693x395 on the landing page. A frame wide enough to show the
+ * product puts the app's 13px text under 6px; a frame tight enough to read
+ * shows a fragment. So the camera moves: wide to establish, in to read, out to
+ * close the loop on the frame it opened with.
+ *
+ * It is a *window* over the source, not a CSS scale — the capture is 2880x1640
+ * (deviceScaleFactor 2), so even the tightest shot oversamples the 693px slot
+ * rather than upscaling into it.
  */
 
-/** Source capture, 2880x1640. */
 const SRC_W = 2880;
 const SRC_H = 1640;
 
-/** The whole product. */
-const WIDE = { x: 0, y: 0, w: SRC_W, h: SRC_H };
+type Shot = { x: number; y: number; w: number; h: number };
+
+/** The whole product: sidebar, page tree, page. Establishes and closes. */
+const WIDE: Shot = { x: 0, y: 0, w: SRC_W, h: SRC_H };
 
 /**
- * Two reading windows, because the two things worth reading want different
- * framings. The content column is 1035 CSS px wide (measured, not guessed):
- * anything narrower than that clips headings, which looks broken rather than
- * cropped.
- *
- * PAGE holds the whole column — headings, prose, the sub-page link — at 0.65x.
- * DB drops the column's right edge to buy back size on the table rows, which
- * are set in 13px and need it.
+ * The content column is 1035 CSS px wide — measured from the DOM, not guessed.
+ * Anything narrower clips headings, which reads as broken rather than cropped.
  */
-const PAGE = { x: 680, y: 60, w: 2140, h: 1219 };
-const DB = { x: 700, y: 560, w: 1720, h: 980 };
+const PAGE: Shot = { x: 680, y: 60, w: 2140, h: 1219 };
+
+/** The same column, further down, so the brief's body and its backlink footer
+ *  are in one frame. */
+const BRIEF: Shot = { x: 680, y: 400, w: 2140, h: 1219 };
+
+/** Tighter: the table is set in 13px and needs the size the column's right
+ *  edge was spending. */
+const DB: Shot = { x: 700, y: 560, w: 1720, h: 980 };
 
 /**
- * Beats in the trimmed capture, in seconds. The page scrolls from the top of
- * the document down to the databases, the view switches to a board and back,
- * then the page scrolls home.
+ * Camera keyframes, in seconds against the trimmed capture. Between two
+ * keyframes the shot is interpolated; two keyframes with the same shot are a
+ * hold. Every move lands *before* the thing it is there to show.
  */
-const BEATS = {
-	scrollDown: 2.5,
-	toBoard: 4.4,
-	toTable: 7.7,
-	scrollUp: 9.9,
-	end: 12.9,
-};
-
-type Window = { x: number; y: number; w: number; h: number };
+const TIMELINE: readonly { t: number; shot: Shot }[] = [
+	{ t: 0.0, shot: WIDE },
+	{ t: 1.0, shot: WIDE },
+	{ t: 2.2, shot: PAGE }, // in, while the link is still unclicked
+	{ t: 3.4, shot: PAGE }, // the click, and the redirect
+	{ t: 5.0, shot: BRIEF }, // drift down the brief to its backlink footer
+	{ t: 8.8, shot: BRIEF }, // the backlink expands here
+	{ t: 10.2, shot: PAGE }, // back on the tracker
+	{ t: 12.4, shot: DB }, // ride the scroll down to the databases
+	{ t: 17.6, shot: DB }, // table, board, table
+	{ t: 18.9, shot: WIDE }, // out
+	{ t: 19.9, shot: WIDE },
+];
 
 const EASE = Easing.bezier(0.32, 0, 0.16, 1);
 
-function lerpWindow(a: Window, b: Window, t: number): Window {
+function shotAt(t: number): Shot {
+	const last = TIMELINE.length - 1;
+	const first = TIMELINE[0];
+	const final = TIMELINE[last];
+	if (!first || !final) throw new Error("TIMELINE must not be empty");
+	if (t <= first.t) return first.shot;
+	if (t >= final.t) return final.shot;
+
+	let i = 0;
+	while (i < last && (TIMELINE[i + 1]?.t ?? Infinity) <= t) i++;
+	const a = TIMELINE[i];
+	const b = TIMELINE[i + 1];
+	if (!a || !b) return final.shot;
+
+	const p = interpolate(t, [a.t, b.t], [0, 1], {
+		extrapolateLeft: "clamp",
+		extrapolateRight: "clamp",
+		easing: EASE,
+	});
 	return {
-		x: a.x + (b.x - a.x) * t,
-		y: a.y + (b.y - a.y) * t,
-		w: a.w + (b.w - a.w) * t,
-		h: a.h + (b.h - a.h) * t,
+		x: a.shot.x + (b.shot.x - a.shot.x) * p,
+		y: a.shot.y + (b.shot.y - a.shot.y) * p,
+		w: a.shot.w + (b.shot.w - a.shot.w) * p,
+		h: a.shot.h + (b.shot.h - a.shot.h) * p,
 	};
 }
 
 export function Hero() {
 	const frame = useCurrentFrame();
 	const { fps, width } = useVideoConfig();
-	const t = frame / fps;
 
-	// Three moves, timed to the capture:
-	//   in    — from the whole product to the page, before anything scrolls
-	//   slide — from the page to the table, riding the scroll that reveals it
-	//   out   — back to the whole product, after the page comes home, so the
-	//           last frame matches the first and the loop has no seam
-	const zoomIn = interpolate(t, [0.9, 2.1], [0, 1], {
-		extrapolateLeft: "clamp",
-		extrapolateRight: "clamp",
-		easing: EASE,
-	});
-	const slide = interpolate(
-		t,
-		[BEATS.scrollDown + 0.4, BEATS.toBoard - 0.3],
-		[0, 1],
-		{ extrapolateLeft: "clamp", extrapolateRight: "clamp", easing: EASE },
-	);
-	const zoomOut = interpolate(
-		t,
-		[BEATS.scrollUp + 0.8, BEATS.end - 0.4],
-		[0, 1],
-		{ extrapolateLeft: "clamp", extrapolateRight: "clamp", easing: EASE },
-	);
-
-	const reading = lerpWindow(PAGE, DB, slide);
-	const win = lerpWindow(lerpWindow(WIDE, reading, zoomIn), WIDE, zoomOut);
-	const scale = width / win.w;
+	const shot = shotAt(frame / fps);
+	const scale = width / shot.w;
 
 	return (
 		<AbsoluteFill style={{ backgroundColor: "#FAFAF8", overflow: "hidden" }}>
@@ -111,20 +122,19 @@ export function Hero() {
 					position: "absolute",
 					width: SRC_W,
 					height: SRC_H,
-					transform: `scale(${scale}) translate(${-win.x}px, ${-win.y}px)`,
+					transform: `scale(${scale}) translate(${-shot.x}px, ${-shot.y}px)`,
 					transformOrigin: "top left",
 				}}
 			>
 				<OffthreadVideo
 					src={staticFile("capture.webm")}
 					style={{ width: SRC_W, height: SRC_H, display: "block" }}
-					// The capture is 10fps; let Remotion hold frames rather than
-					// blend them, so text edges stay crisp.
 					muted
 				/>
 			</div>
-			{/* A hairline keeps the video from bleeding into the page background
-			    on the landing, where it sits in a rounded 8px window. */}
+			{/* The landing page shows this in a rounded 8px window; a hairline keeps
+			    the paper background of the capture from bleeding into the paper
+			    background of the page. */}
 			<AbsoluteFill
 				style={{
 					boxShadow: "inset 0 0 0 1px rgba(10,10,10,0.10)",
