@@ -1,10 +1,10 @@
 ---
 id: NOT-42
 title: Public page-share capability + unauthenticated read endpoint
-status: ready-for-agent
+status: done
 assignee: []
 created_date: '2026-07-09 16:15'
-updated_date: '2026-08-28 06:51'
+updated_date: '2026-08-28 07:18'
 labels:
   - enhancement
 dependencies: []
