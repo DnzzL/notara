@@ -1170,7 +1170,7 @@ export function DatabaseView({
 								type="button"
 								className="db-toolbar-name-button"
 								onClick={() => setIsEditingName(true)}
-								title="Rename database"
+								title="Rename database — right-click for options"
 							>
 								{database.name || "Untitled"}
 							</button>

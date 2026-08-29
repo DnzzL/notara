@@ -23,6 +23,7 @@ import {
 } from "@tiptap/react";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useSession } from "../auth-client.js";
+import { shouldOpenBlockMenu } from "../lib/blockContextMenu.js";
 import {
 	setFocusedBlock,
 	startPresence,
@@ -589,6 +590,9 @@ function SortableBlock({
 			data-block-id={id}
 			onContextMenu={(e) => {
 				if (!onOpenMenu) return;
+				// A database's menu opens from its name only — see shouldOpenBlockMenu.
+				// The gutter handle still opens the same menu on desktop.
+				if (!shouldOpenBlockMenu(blockType, e.target as HTMLElement)) return;
 				e.preventDefault();
 				onOpenMenu(e.clientX, e.clientY);
 			}}
