@@ -13,7 +13,7 @@ import os from "node:os";
 import path from "node:path";
 import { SqliteClient } from "@effect/sql-sqlite-bun";
 import type { AuthError } from "@notara/shared";
-import { Effect, Exit, Layer } from "effect";
+import { Cause, Effect, Exit, Layer, Option } from "effect";
 import * as Pages from "../src/handlers/pages.js";
 import * as Permissions from "../src/handlers/permissions.js";
 import { PlatformDb, runPlatformMigrations } from "../src/platform-db.js";
@@ -116,7 +116,9 @@ const as = <A, E>(userId: string, effect: Effect.Effect<A, E, CurrentUser>) =>
 
 const refusal = <A, E>(exit: Exit.Exit<A, E>): AuthError | null =>
 	Exit.isFailure(exit)
-		? ((exit.cause as unknown as { error: AuthError }).error ?? null)
+		? Option.getOrNull(
+				Cause.findErrorOption(exit.cause) as Option.Option<AuthError>,
+			)
 		: null;
 
 const guarded = <E, R>(p: Effect.Effect<void, E, R>) =>

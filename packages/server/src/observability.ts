@@ -1,4 +1,4 @@
-import { Cause, HashMap, Layer, List, Logger, LogLevel } from "effect";
+import { Cause, Layer, Logger, type LogLevel, References } from "effect";
 import { PostHog } from "posthog-node";
 
 const posthogKey = process.env.POSTHOG_KEY?.trim();
@@ -120,18 +120,20 @@ export function track(
  * Production logger: one JSON object per log line, easy to grep/ship.
  * Development: the pretty default. Selected from NODE_ENV.
  */
-const jsonLogger = Logger.make(
-	({ logLevel, message, date, spans, annotations }) => {
-		const spanList = List.toArray(spans);
-		const annoEntries = HashMap.toEntries(annotations);
+const jsonLogger = Logger.make<unknown, void>(
+	({ logLevel, message, date, fiber }) => {
+		const spanList = fiber.getRef(References.CurrentLogSpans);
+		const annoEntries = Object.entries(
+			fiber.getRef(References.CurrentLogAnnotations),
+		);
 		const payload: Record<string, unknown> = {
 			ts: date.toISOString(),
-			level: logLevel.label,
+			level: logLevel,
 			msg: Array.isArray(message)
 				? message.map(String).join(" ")
 				: String(message),
 		};
-		if (spanList.length > 0) payload.spans = spanList.map((s) => s.label);
+		if (spanList.length > 0) payload.spans = spanList.map(([label]) => label);
 		if (annoEntries.length > 0) {
 			payload.annotations = Object.fromEntries(
 				annoEntries.map(([k, v]) => [k, String(v)]),
@@ -144,26 +146,27 @@ const jsonLogger = Logger.make(
 
 const isProd = (process.env.NODE_ENV ?? "production") === "production";
 
-const levelFromEnv = (fallback: "Info" | "Debug") => {
+const levelFromEnv = (fallback: "Info" | "Debug"): LogLevel.LogLevel => {
 	const raw = process.env.LOG_LEVEL;
 	switch (raw) {
 		case "All":
 		case "Trace":
 		case "Debug":
 		case "Info":
-		case "Warning":
 		case "Error":
 		case "Fatal":
 		case "None":
-			return LogLevel.fromLiteral(raw);
+			return raw;
+		case "Warning":
+			return "Warn";
 		default:
-			return LogLevel.fromLiteral(fallback);
+			return fallback;
 	}
 };
 
 export const LoggerLive = isProd
 	? Layer.mergeAll(
-			Logger.replace(Logger.defaultLogger, jsonLogger),
-			Logger.minimumLogLevel(levelFromEnv("Info")),
+			Logger.layer([jsonLogger, Logger.tracerLogger]),
+			Layer.succeed(References.MinimumLogLevel, levelFromEnv("Info")),
 		)
-	: Logger.minimumLogLevel(levelFromEnv("Debug"));
+	: Layer.succeed(References.MinimumLogLevel, levelFromEnv("Debug"));

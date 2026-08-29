@@ -1,5 +1,5 @@
 import { isApiError } from "@notara/shared";
-import { Effect, Layer } from "effect";
+import { Cause, Effect, Layer, Option } from "effect";
 import * as HttpServerRequest from "effect/unstable/http/HttpServerRequest";
 import * as HttpServerResponse from "effect/unstable/http/HttpServerResponse";
 import { type WorkspaceDb, WorkspaceDbLive } from "../db.js";
@@ -121,9 +121,10 @@ export const handle = <R>(
 			Effect.succeed(
 				apiError(
 					500,
-					cause._tag === "Fail"
-						? String((cause as any).error)
-						: "Internal server error",
+					Option.match(Cause.findErrorOption(cause), {
+						onSome: (error) => String(error),
+						onNone: () => "Internal server error",
+					}),
 				),
 			),
 		),

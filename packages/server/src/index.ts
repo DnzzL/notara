@@ -7,7 +7,7 @@ import { dirname } from "node:path";
 import { fileURLToPath } from "node:url";
 import { NodeHttpServer, NodeRuntime } from "@effect/platform-node";
 import { AppRpc, AuthError, ValidationError } from "@notara/shared";
-import { Effect, Layer } from "effect";
+import { Cause, Effect, Layer, Option } from "effect";
 import * as HttpRouter from "effect/unstable/http/HttpRouter";
 import * as HttpServerRequest from "effect/unstable/http/HttpServerRequest";
 import * as HttpServerResponse from "effect/unstable/http/HttpServerResponse";
@@ -702,12 +702,16 @@ const staticFilesRoute = Effect.gen(function* () {
 			Effect.catchCause((cause) => {
 				// 401 for a missing session, 403 for an unreadable page — neither may
 				// be flattened into a 500.
-				if (cause._tag === "Fail") return failureResponse(cause.error);
+				const failure = Cause.findErrorOption(cause);
+				if (Option.isSome(failure))
+					return Effect.succeed(failureResponse(failure.value));
 				reportCause(cause);
-				return HttpServerResponse.text("Not found", {
-					status: 404,
-					headers: corsHeaders,
-				});
+				return Effect.succeed(
+					HttpServerResponse.text("Not found", {
+						status: 404,
+						headers: corsHeaders,
+					}),
+				);
 			}),
 		),
 	);
@@ -805,6 +809,10 @@ const program = Effect.gen(function* () {
 });
 
 // Server program - combine migrations with server layer
-const main = program.pipe(Effect.provide([ServerLive, LoggerLive]));
+const main = program.pipe(
+	Effect.provide(Layer.mergeAll(ServerLive, LoggerLive)),
+);
 
-NodeRuntime.runMain(main);
+NodeRuntime.runMain(
+	main as unknown as import("effect/Effect").Effect<void, unknown, never>,
+);

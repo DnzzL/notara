@@ -8,7 +8,7 @@
  */
 import { describe, expect, test } from "bun:test";
 import { AuthError } from "@notara/shared";
-import { Effect, Exit, Layer } from "effect";
+import { Cause, Effect, Exit, Layer, Option } from "effect";
 import {
 	all,
 	any,
@@ -41,7 +41,9 @@ describe("policy", () => {
 		);
 		expect(Exit.isFailure(exit)).toBe(true);
 		const error = Exit.isFailure(exit)
-			? (exit.cause as unknown as { error: AuthError }).error
+			? Option.getOrNull(
+					Cause.findErrorOption(exit.cause) as Option.Option<AuthError>,
+				)
 			: null;
 		expect(error).toBeInstanceOf(AuthError);
 		expect(error?.status).toBe(403);
@@ -79,7 +81,9 @@ describe("policy", () => {
 		const check = fromCheck(() => Effect.fail(forbidden("locked ancestor")));
 		const exit = await run(Effect.succeed("done").pipe(withPolicy(check)));
 		const error = Exit.isFailure(exit)
-			? (exit.cause as unknown as { error: AuthError }).error
+			? Option.getOrNull(
+					Cause.findErrorOption(exit.cause) as Option.Option<AuthError>,
+				)
 			: null;
 		expect(error?.message).toBe("locked ancestor");
 	});
@@ -100,7 +104,9 @@ describe("all", () => {
 			),
 		);
 		const error = Exit.isFailure(exit)
-			? (exit.cause as unknown as { error: AuthError }).error
+			? Option.getOrNull(
+					Cause.findErrorOption(exit.cause) as Option.Option<AuthError>,
+				)
 			: null;
 		expect(error?.message).toBe("first");
 	});
@@ -137,7 +143,9 @@ describe("any", () => {
 			),
 		);
 		const error = Exit.isFailure(exit)
-			? (exit.cause as unknown as { error: AuthError }).error
+			? Option.getOrNull(
+					Cause.findErrorOption(exit.cause) as Option.Option<AuthError>,
+				)
 			: null;
 		expect(error?.message).toBe("no page grant");
 	});

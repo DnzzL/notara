@@ -9,7 +9,7 @@
  * built it.
  */
 import { describe, expect, test } from "bun:test";
-import { Cause, FiberId } from "effect";
+import { Cause } from "effect";
 import { causeToReport } from "../src/observability.js";
 
 describe("causeToReport", () => {
@@ -47,9 +47,7 @@ describe("causeToReport", () => {
 		// A cancelled request is not an incident; reporting it as one is noise.
 		// It also cannot be squashed — doing so throws, which would take down the
 		// error reporter on the one path least able to afford it.
-		const { context, error } = causeToReport(
-			Cause.interrupt(FiberId.runtime(1, 0)),
-		);
+		const { context, error } = causeToReport(Cause.interrupt(1));
 		expect(context.interrupted).toBe(true);
 		expect(error).toBeInstanceOf(Error);
 	});
