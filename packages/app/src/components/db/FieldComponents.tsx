@@ -226,7 +226,7 @@ export function ColumnHeader({
 	return (
 		<th
 			ref={dragRef as any}
-			className="relative px-2.5 py-1.5 align-middle border-r border-border last:border-r-none font-medium text-[11.5px] text-text-2 sticky top-0 z-[3] text-left hover:bg-surface-3"
+			className="group/th relative px-2.5 py-1.5 align-middle border-r border-border last:border-r-none font-medium text-[11.5px] text-text-2 sticky top-0 z-[3] text-left hover:bg-surface-3"
 			data-field-id={field.id}
 			style={{
 				minWidth: width || defaultW,
