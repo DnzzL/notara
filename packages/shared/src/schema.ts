@@ -255,13 +255,13 @@ export const AclRelation = Schema.Literals(["owner", "editor", "viewer"]);
  * (see `encodeSubject`/`decodeSubject` in @notara/shared).
  */
 export const Subject = Schema.Union([
-	Schema.Struct({ type: Schema.Literals(["user"]), id: Schema.String }),
+	Schema.Struct({ type: Schema.Literal("user"), id: Schema.String }),
 	Schema.Struct({
-		type: Schema.Literals(["workspace"]),
+		type: Schema.Literal("workspace"),
 		id: Schema.String,
-		relation: Schema.Literals(["member"]),
+		relation: Schema.Literal("member"),
 	}),
-	Schema.Struct({ type: Schema.Literals(["public"]) }),
+	Schema.Struct({ type: Schema.Literal("public") }),
 ]);
 export type Subject = Schema.Schema.Type<typeof Subject>;
 
