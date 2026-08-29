@@ -17,6 +17,14 @@ export default defineConfig(({ mode }) => {
 			react(),
 			VitePWA({
 				registerType: "autoUpdate",
+				// The plugin's injected registerSW.js registers once and never checks
+				// again, so an installed PWA kept serving the previous build after a
+				// deploy. src/lib/sw-update.ts does the registration instead, with an
+				// update check on every foreground and a reload when the new worker
+				// takes control. Plain `navigator.serviceWorker` on purpose — the
+				// `virtual:pwa-register` module would pull the workbox dependency
+				// chain back into the dev server (NOT-126).
+				injectRegister: null,
 				devOptions: {
 					// Off in dev. The plugin's own dependency chain (workbox → tempy →
 					// unique-string) fails to resolve under the dev server, and Vite

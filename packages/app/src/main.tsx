@@ -1,6 +1,7 @@
 import { RouterProvider } from "@tanstack/react-router";
 import { createRoot } from "react-dom/client";
 import { enableAnalyticsIfConsented } from "./consent.js";
+import { registerServiceWorker } from "./lib/sw-update.js";
 import { router } from "./router.js";
 import { toaster } from "./toaster.js";
 import "./styles.css";
@@ -8,6 +9,10 @@ import "./styles.css";
 // Analytics boots only if the user has previously accepted. Fresh visitors get
 // the banner first; PostHog stays uninitialised until they choose.
 enableAnalyticsIfConsented();
+
+// Registers the service worker and, unlike the plugin's injected one-liner,
+// keeps checking for a new build and reloads once it has taken over.
+registerServiceWorker();
 
 // Global unhandled rejection handler catches Errors from Zustand stores that
 // don't have individual error handling, surfacing them as toasts instead of
