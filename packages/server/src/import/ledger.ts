@@ -23,8 +23,9 @@
  * prune deleted any empty page it found — so a second import could rewrite or
  * delete the first one's work, or a page the user wrote by hand in between.
  */
-import { SqlClient } from "@effect/sql";
+
 import { Effect } from "effect";
+import { SqlClient } from "effect/unstable/sql";
 import { ulid } from "ulidx";
 
 export type ImportKind = "page" | "database" | "field" | "record";

@@ -5,9 +5,10 @@
  * reported as incidents — a 404 is an answer, not a bug. Anything else is an
  * unexpected failure: 500, generic body, reported to PostHog.
  */
-import * as HttpServerResponse from "@effect/platform/HttpServerResponse";
+
 import { type ApiError, isApiError } from "@notara/shared";
-import { type Cause, Effect } from "effect";
+import { Cause, Effect, Option } from "effect";
+import * as HttpServerResponse from "effect/unstable/http/HttpServerResponse";
 import { corsHeaders } from "./middleware.js";
 import { reportCause, reportError } from "./observability.js";
 
@@ -54,8 +55,9 @@ export const failureResponse = (error: unknown) => {
 export const causeResponse = (
 	cause: Cause.Cause<unknown>,
 ): Effect.Effect<HttpServerResponse.HttpServerResponse> => {
-	if (cause._tag === "Fail") {
-		return Effect.succeed(failureResponse((cause as { error: unknown }).error));
+	const failure = Cause.findErrorOption(cause);
+	if (Option.isSome(failure)) {
+		return Effect.succeed(failureResponse(failure.value));
 	}
 	reportCause(cause);
 	return Effect.gen(function* () {

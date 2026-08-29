@@ -31,8 +31,9 @@
  * or abstain. Having the third case in the type is what stops this from being
  * a while-loop with a comment.
  */
-import { SqlClient } from "@effect/sql";
+
 import { Effect } from "effect";
+import { SqlClient } from "effect/unstable/sql";
 
 export type Relation = "owner" | "editor" | "viewer";
 

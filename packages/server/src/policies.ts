@@ -13,9 +13,10 @@
  *
  * See ADR-008 for why there is no `domain:action` permission vocabulary here.
  */
-import type { SqlClient } from "@effect/sql";
+
 import { AuthError } from "@notara/shared";
 import { Effect } from "effect";
+import type { SqlClient } from "effect/unstable/sql";
 import * as Permissions from "./handlers/permissions.js";
 import * as Membership from "./membership.js";
 import type { PlatformDb } from "./platform-db.js";
@@ -85,7 +86,7 @@ const via =
 	): Policy<never, PlatformDb | SqlClient.SqlClient> =>
 		fromCheck((user) =>
 			check(user.userId, workspaceId, id, relation).pipe(
-				Effect.catchAll((error) =>
+				Effect.catch((error) =>
 					error instanceof AuthError ? Effect.fail(error) : Effect.die(error),
 				),
 			),

@@ -1,7 +1,7 @@
 import { Schema } from "effect";
 
 /** What an API key may do. See ADR-008 and NOT-124 for why there are two. */
-export const ApiKeyScope = Schema.Literal("read", "write");
+export const ApiKeyScope = Schema.Literals(["read", "write"]);
 export type ApiKeyScope = typeof ApiKeyScope.Type;
 
 // Use String for datetime fields since SQLite returns ISO strings
@@ -22,7 +22,7 @@ export class Page extends Schema.Class<Page>("Page")({
 export class Block extends Schema.Class<Block>("Block")({
 	id: Schema.String,
 	pageId: Schema.String,
-	type: Schema.Literal(
+	type: Schema.Literals([
 		"paragraph",
 		"heading1",
 		"heading2",
@@ -42,7 +42,7 @@ export class Block extends Schema.Class<Block>("Block")({
 		"callout",
 		"people",
 		"viewReference",
-	),
+	]),
 	content: Schema.String,
 	parentId: Schema.NullOr(Schema.String),
 	index: Schema.Number,
@@ -59,7 +59,7 @@ export class Database extends Schema.Class<Database>("Database")({
 	deletedAt: Schema.NullOr(Schema.String),
 }) {}
 
-export const DatabaseFieldType = Schema.Literal(
+export const DatabaseFieldType = Schema.Literals([
 	"text",
 	"number",
 	"select",
@@ -70,7 +70,7 @@ export const DatabaseFieldType = Schema.Literal(
 	"page",
 	"formula",
 	"people",
-);
+]);
 
 export class DatabaseField extends Schema.Class<DatabaseField>("DatabaseField")(
 	{
@@ -111,10 +111,10 @@ export class DatabaseView extends Schema.Class<DatabaseView>("DatabaseView")({
 	id: Schema.String,
 	databaseId: Schema.String,
 	name: Schema.String,
-	type: Schema.Literal("table", "board", "calendar"),
+	type: Schema.Literals(["table", "board", "calendar"]),
 	groupByFieldId: Schema.NullOr(Schema.String),
 	sortFieldId: Schema.NullOr(Schema.String),
-	sortOrder: Schema.Literal("asc", "desc"),
+	sortOrder: Schema.Literals(["asc", "desc"]),
 	config: Schema.String,
 	isDefault: Schema.Boolean,
 }) {}
@@ -130,7 +130,7 @@ export class Backlink extends Schema.Class<Backlink>("Backlink")({
 
 /** A unified search result from pages or blocks. */
 export class SearchResult extends Schema.Class<SearchResult>("SearchResult")({
-	type: Schema.Literal("page", "block"),
+	type: Schema.Literals(["page", "block"]),
 	id: Schema.String,
 	title: Schema.String,
 	content: Schema.String,
@@ -174,7 +174,7 @@ export class Workspace extends Schema.Class<Workspace>("Workspace")({
 	id: Schema.String,
 	name: Schema.String,
 	slug: Schema.String,
-	role: Schema.Literal("owner", "member"),
+	role: Schema.Literals(["owner", "member"]),
 	inviteToken: Schema.NullOr(Schema.String),
 	isDemo: Schema.Boolean,
 }) {}
@@ -185,7 +185,7 @@ export class WorkspaceMember extends Schema.Class<WorkspaceMember>(
 	userId: Schema.String,
 	name: Schema.String,
 	email: Schema.String,
-	role: Schema.Literal("owner", "member"),
+	role: Schema.Literals(["owner", "member"]),
 }) {}
 
 export class ApiKey extends Schema.Class<ApiKey>("ApiKey")({
@@ -242,7 +242,7 @@ export class TrashContents extends Schema.Class<TrashContents>("TrashContents")(
 	},
 ) {}
 
-export const AclRelation = Schema.Literal("owner", "editor", "viewer");
+export const AclRelation = Schema.Literals(["owner", "editor", "viewer"]);
 
 /**
  * Zanzibar-style subject. A grant always targets one of:
@@ -254,15 +254,15 @@ export const AclRelation = Schema.Literal("owner", "editor", "viewer");
  * it serialises to the canonical strings `user:<id>` / `workspace:<id>#member` / `public`
  * (see `encodeSubject`/`decodeSubject` in @notara/shared).
  */
-export const Subject = Schema.Union(
-	Schema.Struct({ type: Schema.Literal("user"), id: Schema.String }),
+export const Subject = Schema.Union([
+	Schema.Struct({ type: Schema.Literals(["user"]), id: Schema.String }),
 	Schema.Struct({
-		type: Schema.Literal("workspace"),
+		type: Schema.Literals(["workspace"]),
 		id: Schema.String,
-		relation: Schema.Literal("member"),
+		relation: Schema.Literals(["member"]),
 	}),
-	Schema.Struct({ type: Schema.Literal("public") }),
-);
+	Schema.Struct({ type: Schema.Literals(["public"]) }),
+]);
 export type Subject = Schema.Schema.Type<typeof Subject>;
 
 /** Per-resource monotonic revision token (zookie). */

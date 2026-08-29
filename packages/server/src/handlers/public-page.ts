@@ -26,8 +26,9 @@
  * it leaves the server. Doing it here rather than in the client is the point —
  * a client-side omission is a leak with a View Source.
  */
-import { SqlClient } from "@effect/sql";
+
 import { Effect } from "effect";
+import { SqlClient } from "effect/unstable/sql";
 import { WorkspaceDb } from "../db.js";
 import type { PlatformDb } from "../platform-db.js";
 import { attachmentIdFromFileName } from "./attachments.js";
@@ -136,7 +137,7 @@ export const resolvePublicPage = (
 			// getPage filters is_deleted, so a page in the bin resolves to nothing
 			// — a share does not have to be revoked before deleting.
 			const page = yield* Pages.getPage(share.pageId).pipe(
-				Effect.catchAll(() => Effect.succeed(null)),
+				Effect.catch(() => Effect.succeed(null)),
 			);
 			if (!page) return null;
 

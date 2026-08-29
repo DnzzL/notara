@@ -8,9 +8,9 @@ import { afterEach, beforeEach, describe, expect, test } from "bun:test";
 import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
-import type { SqlClient } from "@effect/sql";
 import { SqliteClient } from "@effect/sql-sqlite-bun";
 import { Effect } from "effect";
+import type { SqlClient } from "effect/unstable/sql";
 import { fieldKey, openLedger, recordKey } from "../src/import/ledger.js";
 
 let tmpDir: string;

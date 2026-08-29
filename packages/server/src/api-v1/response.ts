@@ -1,7 +1,7 @@
-import * as HttpServerRequest from "@effect/platform/HttpServerRequest";
-import * as HttpServerResponse from "@effect/platform/HttpServerResponse";
 import { isApiError } from "@notara/shared";
 import { Effect, Layer } from "effect";
+import * as HttpServerRequest from "effect/unstable/http/HttpServerRequest";
+import * as HttpServerResponse from "effect/unstable/http/HttpServerResponse";
 import { type WorkspaceDb, WorkspaceDbLive } from "../db.js";
 import { failureResponse } from "../http-error.js";
 import { corsHeaders } from "../middleware.js";
@@ -110,14 +110,14 @@ export const handle = <R>(
 	// The scope check runs before the handler, and before anything it might do.
 	// Here rather than per route: every v1 route already goes through handle, so
 	// a new one is covered the moment it is registered.
-	Effect.zipRight(enforceScope, handler).pipe(
-		Effect.catchAll((e) => {
+	Effect.andThen(enforceScope, handler).pipe(
+		Effect.catch((e) => {
 			if (e instanceof ApiError)
 				return Effect.succeed(apiError(e.status, e.message));
 			if (isApiError(e)) return Effect.succeed(failureResponse(e));
 			return Effect.succeed(apiError(500, String(e)));
 		}),
-		Effect.catchAllCause((cause) =>
+		Effect.catchCause((cause) =>
 			Effect.succeed(
 				apiError(
 					500,

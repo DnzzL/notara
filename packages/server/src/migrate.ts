@@ -4,6 +4,6 @@ import { runMigrations } from "./db.js";
 await Effect.runPromise(
 	runMigrations.pipe(
 		Effect.tap(() => Effect.log("Migrations complete")),
-		Effect.catchAllCause(Effect.logFatal),
+		Effect.catchCause(Effect.logFatal),
 	),
 );

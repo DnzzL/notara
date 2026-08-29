@@ -1,5 +1,5 @@
-import { Rpc, RpcGroup } from "@effect/rpc";
 import { Schema } from "effect";
+import { Rpc, RpcGroup } from "effect/unstable/rpc";
 import { ApiError } from "./errors.js";
 
 // ── Validation-only primitives ────────────────────────────────────────────────
@@ -7,20 +7,22 @@ import { ApiError } from "./errors.js";
 // reject obviously bad inputs without scattering checks across handlers. Decoded
 // values are still plain strings; the constraints only affect input acceptance.
 
-const TitleString = Schema.String.pipe(Schema.maxLength(500));
+const TitleString = Schema.String.pipe(Schema.check(Schema.isMaxLength(500)));
 const ShortName = Schema.String.pipe(
-	Schema.minLength(1),
-	Schema.maxLength(120),
+	Schema.check(Schema.isMinLength(1)),
+	Schema.check(Schema.isMaxLength(120)),
 );
 const Slug = Schema.String.pipe(
-	Schema.pattern(/^[a-z0-9](?:[a-z0-9-]{0,58}[a-z0-9])?$/),
+	Schema.check(Schema.isPattern(/^[a-z0-9](?:[a-z0-9-]{0,58}[a-z0-9])?$/)),
 );
 const Email = Schema.String.pipe(
-	Schema.pattern(/^[^\s@]+@[^\s@]+\.[^\s@]+$/),
-	Schema.maxLength(254),
+	Schema.check(Schema.isPattern(/^[^\s@]+@[^\s@]+\.[^\s@]+$/)),
+	Schema.check(Schema.isMaxLength(254)),
 );
-const SearchQuery = Schema.String.pipe(Schema.maxLength(500));
-const BlockContent = Schema.String.pipe(Schema.maxLength(1_048_576));
+const SearchQuery = Schema.String.pipe(Schema.check(Schema.isMaxLength(500)));
+const BlockContent = Schema.String.pipe(
+	Schema.check(Schema.isMaxLength(1_048_576)),
+);
 
 import {
 	AclRelation,
@@ -196,7 +198,7 @@ export const AppRpc = RpcGroup.make(
 		success: Schema.Array(
 			Schema.Struct({
 				record: DatabaseRecord,
-				values: Schema.Record({ key: Schema.String, value: Schema.Unknown }),
+				values: Schema.Record(Schema.String, Schema.Unknown),
 			}),
 		),
 	}),
@@ -205,7 +207,7 @@ export const AppRpc = RpcGroup.make(
 		payload: { recordId: Schema.String },
 		success: Schema.Struct({
 			record: DatabaseRecord,
-			values: Schema.Record({ key: Schema.String, value: Schema.Unknown }),
+			values: Schema.Record(Schema.String, Schema.Unknown),
 		}),
 	}),
 	Rpc.make("createRecord", {
@@ -237,7 +239,7 @@ export const AppRpc = RpcGroup.make(
 		payload: {
 			databaseId: Schema.String,
 			name: Schema.String,
-			type: Schema.Literal("table", "board", "calendar"),
+			type: Schema.Literals(["table", "board", "calendar"]),
 			groupByFieldId: Schema.NullOr(Schema.String),
 			config: Schema.optional(Schema.String),
 			isDefault: Schema.optional(Schema.Boolean),
@@ -249,7 +251,7 @@ export const AppRpc = RpcGroup.make(
 		payload: {
 			id: Schema.String,
 			name: Schema.optional(Schema.String),
-			type: Schema.optional(Schema.Literal("table", "board", "calendar")),
+			type: Schema.optional(Schema.Literals(["table", "board", "calendar"])),
 			groupByFieldId: Schema.optional(Schema.NullOr(Schema.String)),
 			config: Schema.optional(Schema.String),
 			isDefault: Schema.optional(Schema.Boolean),

@@ -11,8 +11,8 @@
  * asserted here rather than assumed.
  */
 import { describe, expect, test } from "bun:test";
-import * as HttpLayerRouter from "@effect/platform/HttpLayerRouter";
 import { type Context, Effect, Layer } from "effect";
+import * as HttpRouter from "effect/unstable/http/HttpRouter";
 import { registerV1Routes } from "../src/api-v1/routes.js";
 import { mutates } from "../src/api-v1/scope.js";
 
@@ -31,9 +31,9 @@ const registeredRoutes = (): Array<{ method: string; path: string }> => {
 		registerV1Routes.pipe(
 			Effect.provide(
 				Layer.succeed(
-					HttpLayerRouter.HttpRouter,
-					recorder as unknown as Context.Tag.Service<
-						typeof HttpLayerRouter.HttpRouter
+					HttpRouter.HttpRouter,
+					recorder as unknown as Context.Service.Shape<
+						typeof HttpRouter.HttpRouter
 					>,
 				),
 			),

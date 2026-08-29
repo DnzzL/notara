@@ -1,9 +1,9 @@
 import { copyFile, mkdir, readdir, readFile } from "node:fs/promises";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
-import { SqlClient } from "@effect/sql";
 import type { FieldType } from "@notara/shared";
 import { Effect } from "effect";
+import { SqlClient } from "effect/unstable/sql";
 import { ulid } from "ulidx";
 import {
 	fieldKey,

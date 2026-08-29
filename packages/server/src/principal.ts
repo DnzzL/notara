@@ -17,15 +17,16 @@
  * cookie would make the effective identity depend on browser state the caller
  * cannot see.
  */
-import { HttpServerRequest } from "@effect/platform";
+
 import { AuthError } from "@notara/shared";
-import { Effect, Layer } from "effect";
+import { type Context, Effect, Layer } from "effect";
+import { HttpServerRequest } from "effect/unstable/http";
 import { sha256 } from "./api-v1/auth.js";
 import { auth } from "./auth.js";
 import { PlatformDb } from "./platform-db.js";
 import { CurrentUser } from "./policy.js";
 
-export type Principal = CurrentUser["Type"];
+export type Principal = Context.Service.Shape<typeof CurrentUser>;
 
 type Resolved = Principal | null;
 

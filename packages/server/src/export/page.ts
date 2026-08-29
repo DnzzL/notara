@@ -1,6 +1,5 @@
 import { mkdir, writeFile } from "node:fs/promises";
 import * as path from "node:path";
-import { SqlClient } from "@effect/sql";
 import {
 	DatabaseCsvExport,
 	ExportAllResult,
@@ -8,6 +7,7 @@ import {
 	PageExport,
 } from "@notara/shared";
 import { Effect } from "effect";
+import { SqlClient } from "effect/unstable/sql";
 import {
 	blockFromRow,
 	dbFromRow,

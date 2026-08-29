@@ -10,16 +10,16 @@
  * how to authorize a listener and how to attach one to a view's subscriber set.
  */
 
-import * as HttpServerRequest from "@effect/platform/HttpServerRequest";
 import type { Context } from "effect";
 import { Effect, Layer } from "effect";
+import * as HttpServerRequest from "effect/unstable/http/HttpServerRequest";
 import type { WorkspaceDb } from "./db.js";
 import * as Permissions from "./handlers/permissions.js";
 import { PlatformDbLive } from "./platform-db.js";
 import { refuse, sseChannel } from "./sse-channel.js";
 import { resolveWorkspaceContext } from "./workspace-context.js";
 
-type WorkspaceDbService = Context.Tag.Service<WorkspaceDb>;
+type WorkspaceDbService = Context.Service.Shape<typeof WorkspaceDb>;
 
 export type ViewConfigEvent = {
 	type: "view.configChanged";
@@ -81,18 +81,18 @@ export function makeViewConfigStreamHandler(wdb: WorkspaceDbService) {
 
 			// EventSource cannot send headers, so the workspace arrives as a query
 			// param and is proven here rather than through withAuthedWorkspace.
-			const ctx = yield* Effect.either(
+			const ctx = yield* Effect.result(
 				resolveWorkspaceContext(workspaceId).pipe(
 					Effect.provide(PlatformDbLive),
 				),
 			);
-			if (ctx._tag === "Left") {
-				return yield* refuse(ctx.left.status, ctx.left.message);
+			if (ctx._tag === "Failure") {
+				return yield* refuse(ctx.failure.status, ctx.failure.message);
 			}
 
-			const allowed = yield* Effect.either(
+			const allowed = yield* Effect.result(
 				Permissions.checkViewPermission(
-					ctx.right.userId,
+					ctx.success.userId,
 					workspaceId,
 					viewId,
 					"viewer",
@@ -102,7 +102,7 @@ export function makeViewConfigStreamHandler(wdb: WorkspaceDbService) {
 					),
 				),
 			);
-			if (allowed._tag === "Left") return yield* refuse(403, "Forbidden");
+			if (allowed._tag === "Failure") return yield* refuse(403, "Forbidden");
 
 			return { databaseId, viewId };
 		}),

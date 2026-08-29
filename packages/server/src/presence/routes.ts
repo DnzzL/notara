@@ -1,7 +1,7 @@
-import * as HttpServerRequest from "@effect/platform/HttpServerRequest";
-import * as HttpServerResponse from "@effect/platform/HttpServerResponse";
 import type { Context } from "effect";
 import { Effect, Layer } from "effect";
+import * as HttpServerRequest from "effect/unstable/http/HttpServerRequest";
+import * as HttpServerResponse from "effect/unstable/http/HttpServerResponse";
 import { auth } from "../auth.js";
 import type { WorkspaceDb } from "../db.js";
 import * as Permissions from "../handlers/permissions.js";
@@ -9,7 +9,7 @@ import { PlatformDbLive } from "../platform-db.js";
 import { refuse, sseChannel } from "../sse-channel.js";
 import { presence } from "./index.js";
 
-type WorkspaceDbService = Context.Tag.Service<WorkspaceDb>;
+type WorkspaceDbService = Context.Service.Shape<typeof WorkspaceDb>;
 
 const corsBase = {
 	"Access-Control-Allow-Origin": process.env.BASE_URL ?? "*",
@@ -58,7 +58,7 @@ export const makeHeartbeatHandler = (wdb: WorkspaceDbService) =>
 		if (!workspaceId || !pageId)
 			return jsonResponse({ error: "Missing workspaceId or pageId" }, 400);
 
-		const permCheck = yield* Effect.either(
+		const permCheck = yield* Effect.result(
 			Permissions.checkPagePermission(
 				session.user.id,
 				workspaceId,
@@ -68,7 +68,7 @@ export const makeHeartbeatHandler = (wdb: WorkspaceDbService) =>
 				Effect.provide(Layer.merge(wdb.getLayer(workspaceId), PlatformDbLive)),
 			),
 		);
-		if (permCheck._tag === "Left")
+		if (permCheck._tag === "Failure")
 			return jsonResponse({ error: "Forbidden" }, 403);
 
 		presence.heartbeat({
@@ -87,8 +87,8 @@ export const makeHeartbeatHandler = (wdb: WorkspaceDbService) =>
 				.filter((p) => p.userId !== session.user.id),
 		});
 	}).pipe(
-		Effect.catchAllCause((cause) =>
-			Effect.zipRight(
+		Effect.catchCause((cause) =>
+			Effect.andThen(
 				Effect.logError("presence route failed", cause),
 				Effect.succeed(jsonResponse({ error: "Server error" }, 500)),
 			),
@@ -123,8 +123,8 @@ export const leaveHandler = Effect.gen(function* () {
 	presence.leave(workspaceId, pageId, session.user.id);
 	return jsonResponse({ ok: true });
 }).pipe(
-	Effect.catchAllCause((cause) =>
-		Effect.zipRight(
+	Effect.catchCause((cause) =>
+		Effect.andThen(
 			Effect.logError("presence route failed", cause),
 			Effect.succeed(jsonResponse({ error: "Server error" }, 500)),
 		),
@@ -151,7 +151,7 @@ export const makeStreamHandler = (wdb: WorkspaceDbService) =>
 			if (!workspaceId || !pageId)
 				return yield* refuse(400, "Missing query params");
 
-			const allowed = yield* Effect.either(
+			const allowed = yield* Effect.result(
 				Permissions.checkPagePermission(
 					session.user.id,
 					workspaceId,
@@ -163,7 +163,7 @@ export const makeStreamHandler = (wdb: WorkspaceDbService) =>
 					),
 				),
 			);
-			if (allowed._tag === "Left") return yield* refuse(403, "Forbidden");
+			if (allowed._tag === "Failure") return yield* refuse(403, "Forbidden");
 
 			return { workspaceId, pageId, userId: session.user.id };
 		}),

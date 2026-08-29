@@ -18,9 +18,10 @@
  * topic supplies only what actually differs — how to authorize, what to send
  * first, and how to subscribe.
  */
-import type * as HttpServerRequest from "@effect/platform/HttpServerRequest";
-import * as HttpServerResponse from "@effect/platform/HttpServerResponse";
-import { Effect, Stream } from "effect";
+
+import { Effect, Queue, Stream } from "effect";
+import type * as HttpServerRequest from "effect/unstable/http/HttpServerRequest";
+import * as HttpServerResponse from "effect/unstable/http/HttpServerResponse";
 import { allowedOrigin } from "./middleware.js";
 
 /** Any SSE payload. The tag becomes the event name in the wire frame. */
@@ -99,9 +100,9 @@ export type SseTopic<A> = {
  */
 export const sseChannel = <A>(topic: SseTopic<A>) =>
 	Effect.gen(function* () {
-		const context = yield* Effect.either(topic.authorize);
-		if (context._tag === "Left") {
-			return jsonError(context.left.status, context.left.message);
+		const context = yield* Effect.result(topic.authorize);
+		if (context._tag === "Failure") {
+			return jsonError(context.failure.status, context.failure.message);
 		}
 
 		const encoder = new TextEncoder();
@@ -110,28 +111,33 @@ export const sseChannel = <A>(topic: SseTopic<A>) =>
 				`event: ${event.type}\ndata: ${JSON.stringify(event)}\n\n`,
 			);
 
-		const stream = Stream.async<Uint8Array>((emit) => {
-			const send = (event: SseEvent) => emit.single(frame(event));
+		const stream = Stream.callback<Uint8Array>((queue) =>
+			Effect.gen(function* () {
+				const send = (event: SseEvent) =>
+					Queue.offerUnsafe(queue, frame(event));
 
-			const first = topic.initial?.(context.right);
-			if (first) send(first);
+				const first = topic.initial?.(context.success);
+				if (first) send(first);
 
-			const unsubscribe = topic.subscribe(context.right, send);
-			const keepAlive = setInterval(
-				() => emit.single(encoder.encode(": ping\n\n")),
-				KEEPALIVE_MS,
-			);
+				const unsubscribe = topic.subscribe(context.success, send);
+				const keepAlive = setInterval(
+					() => Queue.offerUnsafe(queue, encoder.encode(": ping\n\n")),
+					KEEPALIVE_MS,
+				);
 
-			return Effect.sync(() => {
-				clearInterval(keepAlive);
-				unsubscribe();
-			});
-		});
+				yield* Effect.addFinalizer(() =>
+					Effect.sync(() => {
+						clearInterval(keepAlive);
+						unsubscribe();
+					}),
+				);
+			}),
+		);
 
 		return HttpServerResponse.stream(stream, { headers: SSE_HEADERS });
 	}).pipe(
-		Effect.catchAllCause((cause) =>
-			Effect.zipRight(
+		Effect.catchCause((cause) =>
+			Effect.andThen(
 				Effect.logError(`${topic.name} stream failed`, cause),
 				Effect.succeed(jsonError(500, "Server error")),
 			),

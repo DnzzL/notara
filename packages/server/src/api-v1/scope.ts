@@ -16,8 +16,9 @@
  * today and nothing enforces it on its own, so `api-key-scopes.test.ts` asserts
  * it rather than trusting it.
  */
-import * as HttpServerRequest from "@effect/platform/HttpServerRequest";
+
 import { Effect } from "effect";
+import * as HttpServerRequest from "effect/unstable/http/HttpServerRequest";
 import { PlatformDb } from "../platform-db.js";
 import { ApiError, sha256 } from "./auth.js";
 

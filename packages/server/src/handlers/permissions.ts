@@ -1,4 +1,3 @@
-import { SqlClient } from "@effect/sql";
 import {
 	type AclEntry,
 	type ApiError,
@@ -11,6 +10,7 @@ import {
 	type Subject,
 } from "@notara/shared";
 import { Effect } from "effect";
+import { SqlClient } from "effect/unstable/sql";
 import * as Acl from "../acl.js";
 import * as Membership from "../membership.js";
 import type { PlatformDb } from "../platform-db.js";

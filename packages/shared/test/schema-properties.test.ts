@@ -197,8 +197,8 @@ describe("Schema rejects invalid block types", () => {
 					].includes(badType),
 				);
 				const bad = { ...input, type: badType };
-				const result = Schema.decodeUnknownEither(Block)(bad);
-				expect(result._tag).toBe("Left");
+				const result = Schema.decodeUnknownExit(Block)(bad);
+				expect(result._tag).toBe("Failure");
 			}),
 		);
 	});
@@ -210,8 +210,8 @@ describe("Schema rejects invalid view types", () => {
 			fc.property(dbViewArb, fc.string(), (input, badType) => {
 				fc.pre(!["table", "board", "calendar"].includes(badType));
 				const bad = { ...input, type: badType };
-				const result = Schema.decodeUnknownEither(DatabaseView)(bad);
-				expect(result._tag).toBe("Left");
+				const result = Schema.decodeUnknownExit(DatabaseView)(bad);
+				expect(result._tag).toBe("Failure");
 			}),
 		);
 	});
@@ -236,8 +236,8 @@ describe("Schema rejects invalid field types", () => {
 					].includes(badType),
 				);
 				const bad = { ...input, type: badType };
-				const result = Schema.decodeUnknownEither(DatabaseField)(bad);
-				expect(result._tag).toBe("Left");
+				const result = Schema.decodeUnknownExit(DatabaseField)(bad);
+				expect(result._tag).toBe("Failure");
 			}),
 		);
 	});

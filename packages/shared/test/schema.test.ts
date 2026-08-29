@@ -1,4 +1,4 @@
-import { Either, Schema } from "effect";
+import { Exit, Schema } from "effect";
 import { describe, expect, it } from "vitest";
 import {
 	Block,
@@ -48,8 +48,8 @@ describe("Page Schema", () => {
 			updatedAt: "2024-01-02T00:00:00.000Z",
 		};
 
-		const result = Schema.decodeUnknownEither(Page)(input);
-		expect(Either.isLeft(result)).toBe(true);
+		const result = Schema.decodeUnknownExit(Page)(input);
+		expect(Exit.isFailure(result)).toBe(true);
 	});
 
 	it("should fail decoding when isDeleted is wrong type", () => {
@@ -65,8 +65,8 @@ describe("Page Schema", () => {
 			updatedAt: "2024-01-02T00:00:00.000Z",
 		};
 
-		const result = Schema.decodeUnknownEither(Page)(input);
-		expect(Either.isLeft(result)).toBe(true);
+		const result = Schema.decodeUnknownExit(Page)(input);
+		expect(Exit.isFailure(result)).toBe(true);
 	});
 });
 
@@ -101,8 +101,8 @@ describe("Block Schema", () => {
 			index: 0,
 		};
 
-		const result = Schema.decodeUnknownEither(Block)(input);
-		expect(Either.isLeft(result)).toBe(true);
+		const result = Schema.decodeUnknownExit(Block)(input);
+		expect(Exit.isFailure(result)).toBe(true);
 	});
 });
 

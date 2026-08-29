@@ -2,9 +2,9 @@ import { afterAll, beforeAll, describe, expect, it } from "bun:test";
 import * as fs from "node:fs";
 import * as os from "node:os";
 import * as path from "node:path";
-import { SqlClient } from "@effect/sql";
 import { SqliteClient } from "@effect/sql-sqlite-bun";
 import { Effect } from "effect";
+import { SqlClient } from "effect/unstable/sql";
 import * as Pages from "./pages.js";
 
 const testDbPath = path.join(os.tmpdir(), `test-pages-${Date.now()}.db`);

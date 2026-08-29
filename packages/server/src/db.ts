@@ -2,10 +2,9 @@ import { Database } from "bun:sqlite";
 import fs from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
-import type { SqlClient as SqlClientType } from "@effect/sql";
 import { SqliteClient } from "@effect/sql-sqlite-bun";
-import { Context, Effect, Layer } from "effect";
-import type { ConfigError } from "effect/ConfigError";
+import { type Config, Context, Effect, Layer } from "effect";
+import type { SqlClient as SqlClientType } from "effect/unstable/sql";
 import { applyMigrations } from "./platform-db.js";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
@@ -32,12 +31,12 @@ const workspacesDir = process.env.DATA_DIR
 	? path.join(process.env.DATA_DIR, "workspaces")
 	: path.join(__dirname, "../../../.data", "workspaces");
 
-type WorkspaceLayer = Layer.Layer<SqlClientType.SqlClient, ConfigError>;
+type WorkspaceLayer = Layer.Layer<SqlClientType.SqlClient, Config.ConfigError>;
 
-export class WorkspaceDb extends Context.Tag("WorkspaceDb")<
+export class WorkspaceDb extends Context.Service<
 	WorkspaceDb,
 	{ getLayer: (workspaceId: string) => WorkspaceLayer }
->() {}
+>()("WorkspaceDb") {}
 
 const workspaceLayerCache = new Map<string, WorkspaceLayer>();
 

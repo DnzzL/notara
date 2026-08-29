@@ -8,7 +8,6 @@ import { describe, expect, test } from "bun:test";
 import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
-import type { SqlClient } from "@effect/sql";
 import { SqliteClient } from "@effect/sql-sqlite-bun";
 import {
 	ApiError,
@@ -19,6 +18,7 @@ import {
 	ValidationError,
 } from "@notara/shared";
 import { Cause, Effect, Exit, Option, Schema } from "effect";
+import type { SqlClient } from "effect/unstable/sql";
 import * as Pages from "../src/handlers/pages.js";
 import { failureResponse } from "../src/http-error.js";
 import { dieUnlessApiError } from "../src/rpc-handlers.js";
@@ -104,8 +104,8 @@ describe("dieUnlessApiError", () => {
 		);
 		expect(Exit.isFailure(exit)).toBe(true);
 		if (Exit.isFailure(exit)) {
-			expect(Cause.isDie(exit.cause)).toBe(true);
-			expect(Cause.failureOption(exit.cause)).toEqual(Option.none());
+			expect(Cause.hasDies(exit.cause)).toBe(true);
+			expect(Cause.findErrorOption(exit.cause)).toEqual(Option.none());
 		}
 	});
 });

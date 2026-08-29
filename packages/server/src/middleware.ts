@@ -1,4 +1,4 @@
-import * as HttpServerResponse from "@effect/platform/HttpServerResponse";
+import * as HttpServerResponse from "effect/unstable/http/HttpServerResponse";
 
 // ── CORS / Security ───────────────────────────────────────────────────────────
 
@@ -83,7 +83,7 @@ function checkRateLimit(key: string, limit: number): boolean {
 }
 
 function getIp(
-	req: import("@effect/platform/HttpServerRequest").HttpServerRequest,
+	req: import("effect/unstable/http/HttpServerRequest").HttpServerRequest,
 ): string {
 	const h = req.headers;
 	return (

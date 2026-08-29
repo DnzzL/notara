@@ -33,8 +33,8 @@ describe("causeToReport", () => {
 		expect(context.cause).toContain("boom");
 	});
 
-	test("both branches of a parallel failure survive in the context", () => {
-		const both = Cause.parallel(
+	test("both reasons of a combined cause survive in the context", () => {
+		const both = Cause.combine(
 			Cause.die(new Error("first")),
 			Cause.die(new Error("second")),
 		);

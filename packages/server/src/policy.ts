@@ -18,7 +18,7 @@
  *     This server runs on `@effect/rpc` plus a hand-rolled router, so
  *     `CurrentUser` is supplied by a Layer built from the request instead.
  *
- * ORDERING: attach the guard LAST in a pipe. Effect evaluates `zipRight`'s left
+ * ORDERING: attach the guard LAST in a pipe. Effect evaluates `andThen`'s left
  * side first, so a guard written last runs first — failing before the operation
  * does any work, and before the workspace layer is opened.
  *
@@ -39,10 +39,10 @@ import { Context, Effect } from "effect";
  * Everything else about what this caller may do is a question for a policy,
  * answered against stored relations rather than carried on the principal.
  */
-export class CurrentUser extends Context.Tag("CurrentUser")<
+export class CurrentUser extends Context.Service<
 	CurrentUser,
 	{ readonly userId: string; readonly email: string }
->() {}
+>()("CurrentUser") {}
 
 /**
  * A decision. Succeeds with void when access is granted, fails with `AuthError`
@@ -72,7 +72,9 @@ export const unauthorized = (message = "Unauthorized") =>
  */
 export const policy = <E, R>(
 	reason: string,
-	predicate: (user: CurrentUser["Type"]) => Effect.Effect<boolean, E, R>,
+	predicate: (
+		user: Context.Service.Shape<typeof CurrentUser>,
+	) => Effect.Effect<boolean, E, R>,
 ): Policy<E, R> =>
 	Effect.flatMap(CurrentUser, (user) =>
 		Effect.flatMap(predicate(user), (granted) =>
@@ -85,14 +87,16 @@ export const policy = <E, R>(
  * that carry their own refusal reasons rather than answering yes or no.
  */
 export const fromCheck = <E, R>(
-	check: (user: CurrentUser["Type"]) => Effect.Effect<void, AuthError | E, R>,
+	check: (
+		user: Context.Service.Shape<typeof CurrentUser>,
+	) => Effect.Effect<void, AuthError | E, R>,
 ): Policy<E, R> => Effect.flatMap(CurrentUser, check);
 
 /** Attach a policy to an operation. Write it last in the pipe; see ORDERING. */
 export const withPolicy =
 	<E, R>(p: Policy<E, R>) =>
 	<A, E2, R2>(self: Effect.Effect<A, E2, R2>) =>
-		Effect.zipRight(p, self);
+		Effect.andThen(p, self);
 
 /**
  * Every policy must pass. Sequential rather than concurrent: the checks hit

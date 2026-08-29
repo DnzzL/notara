@@ -18,10 +18,9 @@ if (!fs.existsSync(dataDir)) {
 	fs.mkdirSync(dataDir, { recursive: true });
 }
 
-export class PlatformDb extends Context.Tag("PlatformDb")<
-	PlatformDb,
-	Database
->() {}
+export class PlatformDb extends Context.Service<PlatformDb, Database>()(
+	"PlatformDb",
+) {}
 
 /**
  * Applies SQL migrations from `dir` to `db`, tracking applied files in a

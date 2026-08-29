@@ -5,15 +5,14 @@ import { createServer } from "node:http";
 import * as path from "node:path";
 import { dirname } from "node:path";
 import { fileURLToPath } from "node:url";
-import * as HttpLayerRouter from "@effect/platform/HttpLayerRouter";
-import * as HttpRouter from "@effect/platform/HttpRouter";
-import * as HttpServerRequest from "@effect/platform/HttpServerRequest";
-import * as HttpServerResponse from "@effect/platform/HttpServerResponse";
 import { NodeHttpServer, NodeRuntime } from "@effect/platform-node";
-import * as RpcSerialization from "@effect/rpc/RpcSerialization";
-import * as RpcServer from "@effect/rpc/RpcServer";
 import { AppRpc, AuthError, ValidationError } from "@notara/shared";
 import { Effect, Layer } from "effect";
+import * as HttpRouter from "effect/unstable/http/HttpRouter";
+import * as HttpServerRequest from "effect/unstable/http/HttpServerRequest";
+import * as HttpServerResponse from "effect/unstable/http/HttpServerResponse";
+import * as RpcSerialization from "effect/unstable/rpc/RpcSerialization";
+import * as RpcServer from "effect/unstable/rpc/RpcServer";
 import { registerV1Routes } from "./api-v1/routes.js";
 import { auth } from "./auth.js";
 import { startBackupScheduler } from "./backup-scheduler.js";
@@ -124,7 +123,7 @@ validateEnv();
 
 // Static file handler + import upload route as an Effect
 const staticFilesRoute = Effect.gen(function* () {
-	const router = yield* HttpLayerRouter.HttpRouter;
+	const router = yield* HttpRouter.HttpRouter;
 	const wdb = yield* WorkspaceDb;
 
 	/**
@@ -164,7 +163,7 @@ const staticFilesRoute = Effect.gen(function* () {
 				...corsHeaders,
 			},
 		});
-	}).pipe(Effect.catchAllCause(causeResponse));
+	}).pipe(Effect.catchCause(causeResponse));
 	// Auth mutation endpoints get a stricter rate limit (10 req/min per IP)
 	const authHandlerStrict = Effect.gen(function* () {
 		const req = yield* HttpServerRequest.HttpServerRequest;
@@ -275,7 +274,7 @@ const staticFilesRoute = Effect.gen(function* () {
 					"Cache-Control": "no-store",
 				},
 			});
-		}).pipe(withPlatformServices, Effect.catchAllCause(causeResponse)),
+		}).pipe(withPlatformServices, Effect.catchCause(causeResponse)),
 	);
 
 	// An image or PDF embedded in a shared page, reachable by the same token.
@@ -327,7 +326,7 @@ const staticFilesRoute = Effect.gen(function* () {
 					...NO_INDEX,
 				},
 			});
-		}).pipe(withPlatformServices, Effect.catchAllCause(causeResponse)),
+		}).pipe(withPlatformServices, Effect.catchCause(causeResponse)),
 	);
 
 	// Settings GET (admin only — the payload carries the S3 access key and secret)
@@ -364,7 +363,7 @@ const staticFilesRoute = Effect.gen(function* () {
 				return HttpServerResponse.text(JSON.stringify({ ok: true }), {
 					headers: { "Content-Type": "application/json", ...corsHeaders },
 				});
-			}).pipe(Effect.catchAllCause(causeResponse)),
+			}).pipe(Effect.catchCause(causeResponse)),
 		),
 	);
 
@@ -378,7 +377,7 @@ const staticFilesRoute = Effect.gen(function* () {
 				return HttpServerResponse.text(JSON.stringify(result), {
 					headers: { "Content-Type": "application/json", ...corsHeaders },
 				});
-			}).pipe(Effect.catchAllCause(causeResponse)),
+			}).pipe(Effect.catchCause(causeResponse)),
 		),
 	);
 
@@ -392,7 +391,7 @@ const staticFilesRoute = Effect.gen(function* () {
 				return HttpServerResponse.text(JSON.stringify(items), {
 					headers: { "Content-Type": "application/json", ...corsHeaders },
 				});
-			}).pipe(Effect.catchAllCause(causeResponse)),
+			}).pipe(Effect.catchCause(causeResponse)),
 		),
 	);
 
@@ -433,7 +432,7 @@ const staticFilesRoute = Effect.gen(function* () {
 				return HttpServerResponse.text(JSON.stringify(result), {
 					headers: { "Content-Type": "application/json", ...corsHeaders },
 				});
-			}).pipe(Effect.catchAllCause(causeResponse)),
+			}).pipe(Effect.catchCause(causeResponse)),
 		),
 	);
 
@@ -572,7 +571,7 @@ const staticFilesRoute = Effect.gen(function* () {
 					{ headers: { "Content-Type": "application/json", ...corsHeaders } },
 				);
 			}),
-		).pipe(withPlatformServices, Effect.catchAllCause(causeResponse)),
+		).pipe(withPlatformServices, Effect.catchCause(causeResponse)),
 	);
 
 	// File upload route. Client sends raw bytes; metadata travels in headers.
@@ -626,7 +625,7 @@ const staticFilesRoute = Effect.gen(function* () {
 				headers: { "Content-Type": "application/json", ...corsHeaders },
 			});
 		}),
-	).pipe(withPlatformServices, Effect.catchAllCause(causeResponse));
+	).pipe(withPlatformServices, Effect.catchCause(causeResponse));
 	yield* router.add(
 		"POST",
 		"/api/upload",
@@ -700,7 +699,7 @@ const staticFilesRoute = Effect.gen(function* () {
 			});
 		}).pipe(
 			withPlatformServices,
-			Effect.catchAllCause((cause) => {
+			Effect.catchCause((cause) => {
 				// 401 for a missing session, 403 for an unreadable page — neither may
 				// be flattened into a 500.
 				if (cause._tag === "Fail") return failureResponse(cause.error);
@@ -767,7 +766,7 @@ const StaticFilesLive = Layer.effectDiscard(staticFilesRoute);
 const ApiV1Live = Layer.effectDiscard(registerV1Routes);
 
 // Create RPC router layer
-const RpcRouterLive = RpcServer.layerHttpRouter({
+const RpcRouterLive = RpcServer.layerHttp({
 	group: AppRpc,
 	path: "/api",
 	protocol: "http",
@@ -783,7 +782,7 @@ const AppLive = Layer.mergeAll(RpcRouterLive, StaticFilesLive, ApiV1Live).pipe(
 );
 
 // Serve the app with HTTP server
-const ServerLive = HttpLayerRouter.serve(AppLive).pipe(
+const ServerLive = HttpRouter.serve(AppLive).pipe(
 	Layer.provide(
 		NodeHttpServer.layer(createServer, {
 			port: Number(process.env.PORT ?? 3000),
@@ -808,6 +807,4 @@ const program = Effect.gen(function* () {
 // Server program - combine migrations with server layer
 const main = program.pipe(Effect.provide([ServerLive, LoggerLive]));
 
-NodeRuntime.runMain(
-	main as unknown as import("effect/Effect").Effect<void, unknown, never>,
-);
+NodeRuntime.runMain(main);

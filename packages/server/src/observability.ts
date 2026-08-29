@@ -49,7 +49,7 @@ export function causeToReport(cause: Cause.Cause<unknown>): {
 } {
 	// Interruption first: squashing an interrupt-only cause throws, so reporting
 	// a cancelled request would crash the error reporter itself.
-	const interrupted = Cause.isInterruptedOnly(cause);
+	const interrupted = Cause.hasInterruptsOnly(cause);
 	return {
 		error: interrupted ? new Error("Interrupted") : Cause.squash(cause),
 		context: {

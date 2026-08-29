@@ -1,6 +1,6 @@
-import { SqlClient } from "@effect/sql";
 import { ConflictError, NotFoundError, ValidationError } from "@notara/shared";
 import { Effect } from "effect";
+import { SqlClient } from "effect/unstable/sql";
 import { ulid } from "ulidx";
 import { PAGE_COLS, pageFromRow } from "../mappers.js";
 

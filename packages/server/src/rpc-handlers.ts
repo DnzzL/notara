@@ -43,7 +43,7 @@ import {
 export const dieUnlessApiError = <A, E, R>(
 	self: Effect.Effect<A, E, R>,
 ): Effect.Effect<A, ApiError, R> =>
-	Effect.catchAll(self, (error) =>
+	Effect.catch(self, (error) =>
 		isApiError(error) ? Effect.fail(error) : Effect.die(error),
 	);
 
@@ -738,7 +738,7 @@ export const rpcHandlersLayer = AppRpc.toLayer({
 			});
 			// Seed "Getting Started" content; tolerate failures so a broken seed never blocks creation.
 			yield* Onboarding.seedStarterContent(ws.id).pipe(
-				Effect.catchAll((err) =>
+				Effect.catch((err) =>
 					Effect.logError("seedStarterContent failed", err),
 				),
 			);
@@ -760,7 +760,7 @@ export const rpcHandlersLayer = AppRpc.toLayer({
 			if (created) {
 				// Same tolerant seeding as createWorkspace: an unseeded demo is still usable.
 				yield* Onboarding.seedStarterContent(workspace.id).pipe(
-					Effect.catchAll((err) =>
+					Effect.catch((err) =>
 						Effect.logError("seedStarterContent failed", err),
 					),
 				);

@@ -14,7 +14,7 @@
 import { Schema } from "effect";
 
 /** What kind of thing was missing. Keeps NotFoundError messages uniform. */
-export const NotFoundResource = Schema.Literal(
+export const NotFoundResource = Schema.Literals([
 	"page",
 	"block",
 	"database",
@@ -23,12 +23,12 @@ export const NotFoundResource = Schema.Literal(
 	"view",
 	"workspace",
 	"template",
-);
+]);
 export type NotFoundResource = typeof NotFoundResource.Type;
 
 /** Not signed in (401) or signed in without access to the target (403). */
 export class AuthError extends Schema.TaggedError<AuthError>()("AuthError", {
-	status: Schema.Literal(401, 403),
+	status: Schema.Literals([401, 403]),
 	message: Schema.String,
 }) {}
 
@@ -68,13 +68,13 @@ export class BlockLockedError extends Schema.TaggedError<BlockLockedError>()(
 }
 
 /** Every typed failure the API can return. Declared on all RPC methods. */
-export const ApiError = Schema.Union(
+export const ApiError = Schema.Union([
 	AuthError,
 	NotFoundError,
 	ConflictError,
 	ValidationError,
 	BlockLockedError,
-);
+]);
 export type ApiError = typeof ApiError.Type;
 
 /** True for the failures that are part of the contract above. */
@@ -85,7 +85,6 @@ export const isApiError: (u: unknown) => u is ApiError = Schema.is(ApiError);
  * can decode a failure back into the classes above instead of reading fields
  * out of the JSON by hand.
  */
-export const ApiCause = Schema.Cause({
-	error: ApiError,
-	defect: Schema.Unknown,
-});
+export const ApiCause = Schema.toCodecJson(
+	Schema.Cause(ApiError, Schema.Unknown),
+);

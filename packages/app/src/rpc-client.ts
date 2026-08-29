@@ -35,7 +35,7 @@ const decodeCause = Schema.decodeUnknownOption(ApiCause);
  */
 const typedFailure = (cause: unknown): Option.Option<Error> =>
 	decodeCause(cause).pipe(
-		Option.flatMap(Cause.failureOption),
+		Option.flatMap(Cause.findErrorOption),
 		// The app layer already special-cases denial; keep that single type.
 		Option.map((error) =>
 			error._tag === "AuthError" && error.status === 403

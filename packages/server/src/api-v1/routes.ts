@@ -1,7 +1,6 @@
-import * as HttpLayerRouter from "@effect/platform/HttpLayerRouter";
-import * as HttpRouter from "@effect/platform/HttpRouter";
-import * as HttpServerResponse from "@effect/platform/HttpServerResponse";
 import { Effect } from "effect";
+import * as HttpRouter from "effect/unstable/http/HttpRouter";
+import * as HttpServerResponse from "effect/unstable/http/HttpServerResponse";
 import { WorkspaceDb } from "../db.js";
 import * as Blocks from "../handlers/blocks.js";
 import * as Databases from "../handlers/databases.js";
@@ -50,7 +49,7 @@ const requireBlockContent = (raw: unknown) =>
 // ── Route registration ────────────────────────────────────────────────────────
 
 export const registerV1Routes = Effect.gen(function* () {
-	const router = yield* HttpLayerRouter.HttpRouter;
+	const router = yield* HttpRouter.HttpRouter;
 
 	// ── OpenAPI spec + Swagger UI ─────────────────────────────────────────────
 
