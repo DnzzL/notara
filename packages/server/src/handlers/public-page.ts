@@ -188,6 +188,7 @@ export const resolvePublicPage = (
 		page: PublicPage;
 		blocks: PublicBlock[];
 		databases: Record<string, PublicDatabase>;
+		orphanDatabaseIds: string[];
 	} | null,
 	never,
 	PlatformDb | WorkspaceDb
@@ -220,22 +221,35 @@ export const resolvePublicPage = (
 			if (!page) return null;
 
 			const blocks = yield* Blocks.listBlocks(share.pageId);
-
-			// A database has no ACL of its own — it inherits its owning page's — so
-			// each one referenced here gets the same publisher recheck as the page
-			// itself, just one hop further. Denied or dangling ids fall through to
-			// redactBlocks' default blanking; nothing about the check is exposed.
-			const referencedDatabaseIds = [
-				...new Set(
-					(blocks as unknown as PublicBlock[])
-						.filter((b) => b.type === "database" && b.content)
-						.map((b) => b.content),
-				),
-			];
+			const blockReferencedDatabaseIds = new Set(
+				(blocks as unknown as PublicBlock[])
+					.filter((b) => b.type === "database" && b.content)
+					.map((b) => b.content),
+			);
 
 			const accessibleDatabaseIds = new Set<string>();
 			const databases: Record<string, PublicDatabase> = {};
-			for (const databaseId of referencedDatabaseIds) {
+
+			// A database created through the UI (rather than imported) is never
+			// pointed at by a block — the editor renders it as an "orphan", after
+			// the last block, ordered by its own sort_order. It still lives on this
+			// page (page_id = share.pageId), so it inherits the check already done
+			// above rather than needing one of its own.
+			const localDatabases = yield* Databases.listDatabases(share.pageId);
+			for (const db of localDatabases) {
+				accessibleDatabaseIds.add(db.id);
+				const fields = yield* Databases.listFields(db.id);
+				const recordsWithValues = yield* Databases.listRecordsWithValues(db.id);
+				databases[db.id] = buildPublicDatabase(fields, recordsWithValues);
+			}
+
+			// A block can also point at a database living on a DIFFERENT page (the
+			// only way that happens today: a Notion import). That one has no ACL
+			// of its own either, so it gets the same publisher recheck as the page
+			// itself, just one hop further. Denied or dangling ids fall through to
+			// redactBlocks' default blanking; nothing about the check is exposed.
+			for (const databaseId of blockReferencedDatabaseIds) {
+				if (accessibleDatabaseIds.has(databaseId)) continue;
 				const databasePageId = yield* getDatabasePageId(databaseId);
 				if (!databasePageId) continue;
 				const databaseReadable = yield* canAccessPage(
@@ -253,6 +267,10 @@ export const resolvePublicPage = (
 				databases[databaseId] = buildPublicDatabase(fields, recordsWithValues);
 			}
 
+			const orphanDatabaseIds = localDatabases
+				.map((db) => db.id)
+				.filter((id) => !blockReferencedDatabaseIds.has(id));
+
 			return {
 				page: publicView(page),
 				blocks: redactBlocks(
@@ -260,6 +278,7 @@ export const resolvePublicPage = (
 					accessibleDatabaseIds,
 				),
 				databases,
+				orphanDatabaseIds,
 			};
 		}).pipe(Effect.provide(layer), Effect.orDie);
 	});

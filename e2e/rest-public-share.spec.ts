@@ -45,8 +45,13 @@ test("a shared page is readable by a stranger, and stops being once revoked", as
 		blocks: Array<{ content: string }>;
 	};
 
-	// Exactly three keys: anything else added here is added for the whole internet.
-	expect(Object.keys(body).sort()).toEqual(["blocks", "databases", "page"]);
+	// Exactly four keys: anything else added here is added for the whole internet.
+	expect(Object.keys(body).sort()).toEqual([
+		"blocks",
+		"databases",
+		"orphanDatabaseIds",
+		"page",
+	]);
 	expect(body.page.id).toBe(pageId);
 	expect(body.page.title).toBe("Published");
 	// parentId names a page this token does not cover, so it must not travel.
@@ -262,6 +267,70 @@ test("a database block on a shared page renders as a table, with relation/page/p
 	// database itself is shown.
 	expect(publicDb?.records[0]?.values.Owner).toBeNull();
 	expect(JSON.stringify(body)).not.toContain(alice.userId);
+
+	await anon.dispose();
+});
+
+test("an orphan database (created via the UI, no block pointing at it) still renders on a shared page", async ({
+	alice,
+	soloWs,
+}) => {
+	// createDatabase never creates a matching block — the editor renders these
+	// as "orphans", after the last block. They still live directly on the
+	// shared page (page_id), so they inherit its access without a second check.
+	const { pageId } = await seedPage(alice, soloWs, "Has an orphan table", [
+		"Intro",
+	]);
+
+	const db = await alice.rpc<{ id: string }>(
+		"createDatabase",
+		{ pageId, name: "Chambres" },
+		soloWs.workspaceId,
+	);
+	const field = await alice.rpc<{ id: string }>(
+		"createField",
+		{
+			databaseId: db.id,
+			name: "Couchages",
+			type: "text",
+			options: null,
+			relationTargetDbId: null,
+		},
+		soloWs.workspaceId,
+	);
+	const record = await alice.rpc<{ id: string }>(
+		"createRecord",
+		{ databaseId: db.id, title: "Madeleine" },
+		soloWs.workspaceId,
+	);
+	await alice.rpc(
+		"updateFieldValue",
+		{ recordId: record.id, fieldId: field.id, value: "lit double" },
+		soloWs.workspaceId,
+	);
+	// No createBlock call: this database is never pointed at by a block.
+
+	const token = await alice.rpc<string>(
+		"setPageSharing",
+		{ pageId, enabled: true },
+		soloWs.workspaceId,
+	);
+
+	const anon = await anonymous();
+	const body = (await (await anon.get(publicUrl(token))).json()) as {
+		blocks: Array<{ type: string }>;
+		databases: Record<
+			string,
+			{ records: Array<{ values: Record<string, unknown> }> }
+		>;
+		orphanDatabaseIds: string[];
+	};
+
+	expect(body.blocks.some((b) => b.type === "database")).toBe(false);
+	expect(body.orphanDatabaseIds).toContain(db.id);
+	expect(body.databases[db.id]?.records[0]?.values.Couchages).toBe(
+		"lit double",
+	);
 
 	await anon.dispose();
 });

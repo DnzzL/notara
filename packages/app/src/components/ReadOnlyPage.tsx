@@ -48,6 +48,7 @@ export type PublicPageData = {
 	};
 	blocks: Array<{ id: string; type: string; content: string }>;
 	databases: Record<string, PublicDatabase>;
+	orphanDatabaseIds: string[];
 };
 
 /** Blocks the server serves blank because they reach outside this page. */
@@ -215,7 +216,7 @@ export function ReadOnlyPage({
 	data: PublicPageData;
 	token: string;
 }) {
-	const { page, blocks, databases } = data;
+	const { page, blocks, databases, orphanDatabaseIds } = data;
 
 	return (
 		<article className="max-w-[720px] mx-auto px-6 py-12">
@@ -238,6 +239,13 @@ export function ReadOnlyPage({
 					databases={databases}
 				/>
 			))}
+			{/* Databases created through the UI are never pointed at by a block —
+			    the editor renders these "orphans" after the last block, and this
+			    does the same. */}
+			{orphanDatabaseIds.map((id) => {
+				const database = databases[id];
+				return database ? <DatabaseTable key={id} database={database} /> : null;
+			})}
 		</article>
 	);
 }
