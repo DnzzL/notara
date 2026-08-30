@@ -131,7 +131,7 @@ test("a page restricted to the owner is invisible to a plain member", async ({
 
 	const visible = await bob.rpc<Array<{ id: string }>>(
 		"listPages",
-		{},
+		undefined,
 		sharedWs.workspaceId,
 	);
 	expect(visible.map((p) => p.id)).not.toContain(restricted.pageId);
@@ -256,7 +256,7 @@ test("an authenticated member can import a Notion export", async ({
 
 	const pages = await alice.rpc<Array<{ title: string }>>(
 		"listPages",
-		{},
+		undefined,
 		soloWs.workspaceId,
 	);
 	expect(pages.map((p) => p.title)).toContain("Imported Note");
@@ -293,7 +293,7 @@ test("importing the same export twice updates instead of cloning", async ({
 		(
 			await alice.rpc<Array<{ title: string }>>(
 				"listPages",
-				{},
+				undefined,
 				soloWs.workspaceId,
 			)
 		).filter((p) => p.title === title).length;
@@ -356,7 +356,7 @@ test("a second import leaves the first one's pages and hand-written pages alone"
 	const titles = (
 		await alice.rpc<Array<{ id: string; title: string }>>(
 			"listPages",
-			{},
+			undefined,
 			soloWs.workspaceId,
 		)
 	).map((p) => p.title);
