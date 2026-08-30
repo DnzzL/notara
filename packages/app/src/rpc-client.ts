@@ -70,7 +70,7 @@ export function getCurrentWorkspaceId(): string | null {
 
 async function rpcCall<T>(
 	method: string,
-	payload: Record<string, unknown>,
+	payload: Record<string, unknown> | null,
 ): Promise<T> {
 	const id = String(nextId++);
 	const headers: Record<string, string> = {
@@ -87,6 +87,9 @@ async function rpcCall<T>(
 			id,
 			tag: method,
 			payload,
+			// Effect 4's RPC envelope, not the HTTP headers above: required by
+			// RpcServer's request decoding even when empty.
+			headers: [],
 		}),
 	});
 

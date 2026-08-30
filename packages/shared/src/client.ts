@@ -41,7 +41,10 @@ export type TypedApiClient = {
  * compile-time errors on misspelled methods or wrong payloads.
  */
 export function createTypedApiClient(
-	fetchApi: (method: string, payload: Record<string, unknown>) => Promise<any>,
+	fetchApi: (
+		method: string,
+		payload: Record<string, unknown> | null,
+	) => Promise<any>,
 ): TypedApiClient {
 	const methodStubs: Record<string, (payload: any) => Promise<any>> = {};
 
@@ -49,8 +52,11 @@ export function createTypedApiClient(
 		const rpc = AppRpc.requests.get(tag)!;
 		const isVoidPayload = rpc.payloadSchema.ast === Schema.Void.ast;
 
+		// A void-payload RPC must send `null` on the wire, not `{}` — Effect's
+		// RPC JSON codec decodes an omitted payload as `Schema.Void`, whose
+		// encoded form is `null`; an empty object fails that decode.
 		methodStubs[tag] = isVoidPayload
-			? () => fetchApi(tag, {})
+			? () => fetchApi(tag, null)
 			: (payload: unknown) => fetchApi(tag, payload as Record<string, unknown>);
 	}
 
