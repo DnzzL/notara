@@ -1,4 +1,4 @@
-import type {
+import {
 	Block,
 	Database,
 	DatabaseField,
@@ -30,7 +30,7 @@ export const PAGE_COLS = `id, title, parent_id as "parentId", icon,
 
 export function pageFromRow(r: unknown): Page {
 	const row = r as Record<string, unknown>;
-	return {
+	return new Page({
 		id: row.id as string,
 		title: row.title as string,
 		parentId: (row.parentId as string | null) ?? null,
@@ -42,7 +42,7 @@ export function pageFromRow(r: unknown): Page {
 		createdAt: new Date(row.createdAt as string).toISOString(),
 		updatedAt: new Date(row.updatedAt as string).toISOString(),
 		deletedAt: (row.deletedAt as string | null) ?? null,
-	};
+	});
 }
 
 // ── Block ─────────────────────────────────────────────────────────────────────
@@ -52,14 +52,14 @@ export const BLOCK_COLS = `id, page_id as "pageId", type, content,
 
 export function blockFromRow(r: unknown): Block {
 	const row = r as Record<string, unknown>;
-	return {
+	return new Block({
 		id: row.id as string,
 		pageId: row.pageId as string,
 		type: row.type as Block["type"],
 		content: (row.content as string) ?? "",
 		parentId: (row.parentId as string | null) ?? null,
 		index: Number(row.index ?? 0),
-	};
+	});
 }
 
 // ── Database ─────────────────────────────────────────────────────────────────
@@ -71,7 +71,7 @@ export const DB_COLS = `id, page_id as "pageId", name,
 
 export function dbFromRow(r: unknown): Database {
 	const row = r as Record<string, unknown>;
-	return {
+	return new Database({
 		id: row.id as string,
 		pageId: row.pageId as string,
 		name: row.name as string,
@@ -80,7 +80,7 @@ export function dbFromRow(r: unknown): Database {
 		titleLabel: (row.titleLabel as string | null) ?? "Name",
 		titleHidden: (row.titleHidden as number) === 1,
 		deletedAt: (row.deletedAt as string | null) ?? null,
-	};
+	});
 }
 
 // ── DatabaseField ─────────────────────────────────────────────────────────────
@@ -91,7 +91,7 @@ export const FIELD_COLS = `id, database_id as "databaseId", name, type,
 
 export function fieldFromRow(r: unknown): DatabaseField {
 	const row = r as Record<string, unknown>;
-	return {
+	return new DatabaseField({
 		id: row.id as string,
 		databaseId: row.databaseId as string,
 		name: row.name as string,
@@ -100,7 +100,7 @@ export function fieldFromRow(r: unknown): DatabaseField {
 		relationTargetDbId: (row.relationTargetDbId as string | null) ?? null,
 		formula: (row.formula as string | null) ?? null,
 		sortOrder: Number(row.sortOrder ?? 0),
-	};
+	});
 }
 
 // ── DatabaseRecord ────────────────────────────────────────────────────────────
@@ -111,7 +111,7 @@ export const RECORD_COLS = `id, database_id as "databaseId", title, description,
 
 export function recordFromRow(r: unknown): DatabaseRecord {
 	const row = r as Record<string, unknown>;
-	return {
+	return new DatabaseRecord({
 		id: row.id as string,
 		databaseId: row.databaseId as string,
 		title: row.title as string,
@@ -120,19 +120,19 @@ export function recordFromRow(r: unknown): DatabaseRecord {
 		isDeleted: (row.isDeleted as number) === 1,
 		createdAt: new Date(row.createdAt as string).toISOString(),
 		deletedAt: (row.deletedAt as string | null) ?? null,
-	};
+	});
 }
 
 // ── RecordFieldValue ──────────────────────────────────────────────────────────
 
 export function valueFromRow(r: unknown): RecordFieldValue {
 	const row = r as Record<string, unknown>;
-	return {
+	return new RecordFieldValue({
 		id: row.id as string,
 		recordId: row.recordId as string,
 		fieldId: row.fieldId as string,
 		value: row.value as string,
-	};
+	});
 }
 
 // ── DatabaseView ──────────────────────────────────────────────────────────────
@@ -146,7 +146,7 @@ export const VIEW_COLS = `id, database_id as "databaseId", name, type,
 
 export function viewFromRow(r: unknown): DatabaseView {
 	const row = r as Record<string, unknown>;
-	return {
+	return new DatabaseView({
 		id: row.id as string,
 		databaseId: row.databaseId as string,
 		name: row.name as string,
@@ -156,5 +156,5 @@ export function viewFromRow(r: unknown): DatabaseView {
 		sortOrder: (row.sortOrder as "asc" | "desc") ?? "asc",
 		config: (row.config as string) ?? "{}",
 		isDefault: row.isDefault === true || row.isDefault === 1,
-	};
+	});
 }

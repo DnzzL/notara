@@ -1,4 +1,11 @@
-import { fieldTypeSpec, NotFoundError } from "@notara/shared";
+import {
+	fieldTypeSpec,
+	NotFoundError,
+	TrashContents,
+	TrashedDatabase,
+	TrashedPage,
+	TrashedRecord,
+} from "@notara/shared";
 import { Effect } from "effect";
 import { SqlClient } from "effect/unstable/sql";
 import { ulid } from "ulidx";
@@ -734,24 +741,33 @@ export const listTrash = Effect.gen(function* () {
     SELECT id, database_id as "databaseId", title, deleted_at as "deletedAt" FROM database_records
     WHERE is_deleted = 1 ORDER BY deleted_at DESC
   `;
-	return {
-		pages: pages.map((r: any) => ({
-			id: r.id as string,
-			title: r.title as string,
-			deletedAt: (r.deletedAt as string | null) ?? null,
-		})),
-		databases: databases.map((r: any) => ({
-			id: r.id as string,
-			name: r.name as string,
-			deletedAt: (r.deletedAt as string | null) ?? null,
-		})),
-		records: records.map((r: any) => ({
-			id: r.id as string,
-			databaseId: r.databaseId as string,
-			title: r.title as string,
-			deletedAt: (r.deletedAt as string | null) ?? null,
-		})),
-	};
+	return new TrashContents({
+		pages: pages.map(
+			(r: any) =>
+				new TrashedPage({
+					id: r.id as string,
+					title: r.title as string,
+					deletedAt: (r.deletedAt as string | null) ?? null,
+				}),
+		),
+		databases: databases.map(
+			(r: any) =>
+				new TrashedDatabase({
+					id: r.id as string,
+					name: r.name as string,
+					deletedAt: (r.deletedAt as string | null) ?? null,
+				}),
+		),
+		records: records.map(
+			(r: any) =>
+				new TrashedRecord({
+					id: r.id as string,
+					databaseId: r.databaseId as string,
+					title: r.title as string,
+					deletedAt: (r.deletedAt as string | null) ?? null,
+				}),
+		),
+	});
 });
 
 /** Lazily creates a full page for a database record.

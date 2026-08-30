@@ -1,5 +1,5 @@
 import {
-	type AclEntry,
+	AclEntry,
 	type ApiError,
 	AuthError,
 	ConflictError,
@@ -7,6 +7,7 @@ import {
 	encodeSubject,
 	NotFoundError,
 	type NotFoundResource,
+	PagePermissions,
 	type Subject,
 } from "@notara/shared";
 import { Effect } from "effect";
@@ -299,7 +300,8 @@ const decodeRows = (
 	const out: AclEntry[] = [];
 	for (const r of rows) {
 		const subject = decodeSubject(r.subject);
-		if (subject) out.push({ relation: r.relation as AclRelation, subject });
+		if (subject)
+			out.push(new AclEntry({ relation: r.relation as AclRelation, subject }));
 	}
 	return out;
 };
@@ -375,7 +377,12 @@ export const getPagePermissions = (pageId: string) =>
 			}
 		}
 		const revision = yield* readRevision(pageId);
-		return { direct, inheritedFromPageId, inherited, revision };
+		return new PagePermissions({
+			direct,
+			inheritedFromPageId,
+			inherited,
+			revision,
+		});
 	});
 
 const bumpRevision = (pageId: string) =>

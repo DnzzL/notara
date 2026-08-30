@@ -57,7 +57,7 @@ let rpcSeq = 1;
 async function rpcCall<T>(
 	api: APIRequestContext,
 	method: string,
-	payload: Record<string, unknown> = {},
+	payload: Record<string, unknown> | null = null,
 	workspaceId?: string,
 ): Promise<T> {
 	const id = String(rpcSeq++);
@@ -68,7 +68,9 @@ async function rpcCall<T>(
 
 	const res = await api.post("/api", {
 		headers,
-		data: { _tag: "Request", id, tag: method, payload },
+		// Effect 4's RPC envelope requires `headers` even when empty, and a
+		// void-payload call must send `null`, not `{}` — see rpc-client.ts.
+		data: { _tag: "Request", id, tag: method, payload, headers: [] },
 	});
 	if (!res.ok())
 		throw new Error(`RPC ${method} HTTP ${res.status()}: ${await res.text()}`);
