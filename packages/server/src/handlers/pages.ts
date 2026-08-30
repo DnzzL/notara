@@ -96,16 +96,55 @@ export const updatePage = (req: {
 		return pageFromRow(rows[0]);
 	});
 
+/** Ids of every live descendant of `id`, deepest last. */
+const liveDescendants = (id: string) =>
+	Effect.gen(function* () {
+		const sql = yield* SqlClient.SqlClient;
+		const found: string[] = [];
+		let frontier = [id];
+		while (frontier.length > 0) {
+			const rows = yield* sql.unsafe(
+				`SELECT id FROM pages WHERE is_deleted = 0 AND parent_id IN (${frontier.map(() => "?").join(",")})`,
+				frontier,
+			);
+			frontier = (rows as ReadonlyArray<{ id: string }>).map((r) => r.id);
+			found.push(...frontier);
+		}
+		return found;
+	});
+
+/**
+ * Trash a page and everything under it.
+ *
+ * The subtree has to come along, because it already does on screen: the sidebar
+ * builds its tree from parent_id, so a child of a deleted page renders nowhere.
+ * Marking only the one row left those descendants live but unreachable, absent
+ * from the trash, and — once the sweep purged the parent — pointing at a parent
+ * row that no longer existed. See migration 020.
+ *
+ * Descendants are stamped with this page's id rather than their own, so restore
+ * is one flat query and a page someone trashed deliberately beforehand (its
+ * `trashed_with` is NULL) is left where they put it.
+ */
 export const deletePage = (id: string) =>
 	Effect.gen(function* () {
 		const sql = yield* SqlClient.SqlClient;
 		const now = new Date().toISOString();
-		yield* sql`UPDATE pages SET is_deleted = 1, deleted_at = ${now}, updated_at = ${now} WHERE id = ${id}`;
+		const descendants = yield* liveDescendants(id);
+		yield* sql`UPDATE pages SET is_deleted = 1, deleted_at = ${now}, updated_at = ${now}, trashed_with = NULL WHERE id = ${id}`;
+		if (descendants.length > 0) {
+			yield* sql.unsafe(
+				`UPDATE pages SET is_deleted = 1, deleted_at = ?, updated_at = ?, trashed_with = ?
+         WHERE id IN (${descendants.map(() => "?").join(",")})`,
+				[now, now, id, ...descendants],
+			);
+		}
 	});
 
-/** Restore a trashed page. Returns `{ restored: false }` if the id was unknown
- *  or the page wasn't in the trash. Child databases/blocks were never touched
- *  by the soft-delete, so they reappear automatically. */
+/** Restore a trashed page, and whatever its deletion swept up with it. Returns
+ *  `{ restored: false }` if the id was unknown or the page wasn't in the trash.
+ *  Child databases/blocks were never touched by the soft-delete, so they
+ *  reappear automatically. */
 export const restorePage = (id: string) =>
 	Effect.gen(function* () {
 		const sql = yield* SqlClient.SqlClient;
@@ -115,7 +154,12 @@ export const restorePage = (id: string) =>
       WHERE id = ${id} AND is_deleted = 1
       RETURNING id
     `;
-		return { restored: rows.length > 0 };
+		if (rows.length === 0) return { restored: false };
+		yield* sql`
+      UPDATE pages SET is_deleted = 0, deleted_at = NULL, updated_at = ${now}, trashed_with = NULL
+      WHERE trashed_with = ${id}
+    `;
+		return { restored: true };
 	});
 
 export const searchPages = (query: string) =>

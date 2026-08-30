@@ -5,7 +5,8 @@ import { loadSettings } from "./handlers/settings.js";
 import { platformDb } from "./platform-db.js";
 
 // Once a day, permanently delete trashed items older than the retention window
-// from every workspace DB. Hard deletes cascade to children via FK. Runs
+// from every workspace DB. The purge deletes children explicitly — the FK
+// pragma is off in this codebase, so nothing cascades on its own. Runs
 // outside the Effect server runtime (like the backup scheduler), so it builds a
 // self-contained Effect and runs it with Effect.runPromise.
 

@@ -717,21 +717,32 @@ export const purgePage = (
 		yield* sql`DELETE FROM database_views WHERE database_id IN (SELECT id FROM databases WHERE page_id = ${id})`;
 		yield* sql`DELETE FROM databases WHERE page_id = ${id}`;
 		yield* sql`DELETE FROM blocks WHERE page_id = ${id}`;
+		// Child pages, before the parent row goes: they are found through it.
+		// Skipping them left rows whose parent_id pointed at nothing — and with
+		// the FK pragma off, the ON DELETE SET NULL that was supposed to catch
+		// that never fires. A page nobody could see and nobody could delete.
+		const childRows = yield* sql`SELECT id FROM pages WHERE parent_id = ${id}`;
 		yield* sql`DELETE FROM pages WHERE id = ${id}`;
-		// Recurse into backing pages (which may themselves host databases).
-		const pageIds = backingRows.map((r) => (r as { pageId: string }).pageId);
+		// Recurse into child pages, and into backing pages of this page's records
+		// (which may themselves host databases).
+		const pageIds = [
+			...childRows.map((r) => (r as { id: string }).id),
+			...backingRows.map((r) => (r as { pageId: string }).pageId),
+		];
 		yield* Effect.forEach(pageIds, (pid) => purgePage(pid), { discard: true });
 		return { purged: true };
 	});
 
 /** Trash contents for the current workspace: explicitly-deleted pages,
- *  databases, and records (children hidden via a deleted parent are NOT listed,
- *  since their own `deleted_at` is null). Newest first. */
+ *  databases, and records. Pages swept up by an ancestor's deletion carry that
+ *  ancestor's id in `trashed_with` and are left out — one delete should put one
+ *  entry in the trash, and restoring that entry brings the subtree back with
+ *  it. Newest first. */
 export const listTrash = Effect.gen(function* () {
 	const sql = yield* SqlClient.SqlClient;
 	const pages = yield* sql`
     SELECT id, title, deleted_at as "deletedAt" FROM pages
-    WHERE is_deleted = 1 ORDER BY deleted_at DESC
+    WHERE is_deleted = 1 AND trashed_with IS NULL ORDER BY deleted_at DESC
   `;
 	const databases = yield* sql`
     SELECT id, name, deleted_at as "deletedAt" FROM databases
