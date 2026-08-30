@@ -31,7 +31,10 @@ const setupDB = Effect.gen(function* () {
       is_favorite INTEGER NOT NULL DEFAULT 0,
       created_at TEXT NOT NULL DEFAULT (datetime('now')),
       updated_at TEXT NOT NULL DEFAULT (datetime('now')),
-      deleted_at TEXT
+      deleted_at TEXT,
+      -- Which page's deletion swept this one into the trash; NULL when it was
+      -- deleted in its own right. See migration 020.
+      trashed_with TEXT
     )
   `;
 	yield* sql`
