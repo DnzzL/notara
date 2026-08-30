@@ -45,8 +45,8 @@ test("a shared page is readable by a stranger, and stops being once revoked", as
 		blocks: Array<{ content: string }>;
 	};
 
-	// Exactly two keys: anything else added here is added for the whole internet.
-	expect(Object.keys(body).sort()).toEqual(["blocks", "page"]);
+	// Exactly three keys: anything else added here is added for the whole internet.
+	expect(Object.keys(body).sort()).toEqual(["blocks", "databases", "page"]);
 	expect(body.page.id).toBe(pageId);
 	expect(body.page.title).toBe("Published");
 	// parentId names a page this token does not cover, so it must not travel.
@@ -170,6 +170,98 @@ test("blocks that reach outside the shared page are served blank", async ({
 	expect(link).toBeTruthy();
 	expect(link?.content).toBe("");
 	expect(JSON.stringify(body)).not.toContain(secret.pageId);
+
+	await anon.dispose();
+});
+
+test("a database block on a shared page renders as a table, with relation/page/people cells blanked", async ({
+	alice,
+	soloWs,
+}) => {
+	// The one exception to "reaches outside the page, so it's blanked": a
+	// database has no ACL of its own, so it gets the same publisher recheck as
+	// the page — see public-page.ts. Cells that still name something outside
+	// the database (people, here) stay blanked regardless.
+	const { pageId } = await seedPage(alice, soloWs, "Has a table", ["Intro"]);
+
+	const db = await alice.rpc<{ id: string }>(
+		"createDatabase",
+		{ pageId, name: "Tasks" },
+		soloWs.workspaceId,
+	);
+	const textField = await alice.rpc<{ id: string }>(
+		"createField",
+		{
+			databaseId: db.id,
+			name: "Note",
+			type: "text",
+			options: null,
+			relationTargetDbId: null,
+		},
+		soloWs.workspaceId,
+	);
+	const peopleField = await alice.rpc<{ id: string }>(
+		"createField",
+		{
+			databaseId: db.id,
+			name: "Owner",
+			type: "people",
+			options: null,
+			relationTargetDbId: null,
+		},
+		soloWs.workspaceId,
+	);
+	const record = await alice.rpc<{ id: string }>(
+		"createRecord",
+		{ databaseId: db.id, title: "First row" },
+		soloWs.workspaceId,
+	);
+	await alice.rpc(
+		"updateFieldValue",
+		{ recordId: record.id, fieldId: textField.id, value: "Hello table" },
+		soloWs.workspaceId,
+	);
+	await alice.rpc(
+		"updateFieldValue",
+		{
+			recordId: record.id,
+			fieldId: peopleField.id,
+			value: JSON.stringify([alice.userId]),
+		},
+		soloWs.workspaceId,
+	);
+	await alice.rpc(
+		"createBlock",
+		{ pageId, type: "database", content: db.id, index: 1, parentId: null },
+		soloWs.workspaceId,
+	);
+
+	const token = await alice.rpc<string>(
+		"setPageSharing",
+		{ pageId, enabled: true },
+		soloWs.workspaceId,
+	);
+
+	const anon = await anonymous();
+	const body = (await (await anon.get(publicUrl(token))).json()) as {
+		blocks: Array<{ type: string; content: string }>;
+		databases: Record<
+			string,
+			{ records: Array<{ values: Record<string, unknown> }> }
+		>;
+	};
+
+	const dbBlock = body.blocks.find((b) => b.type === "database");
+	// The block keeps its content (the database id) instead of being blanked,
+	// since the publisher can still read the page this database lives on.
+	expect(dbBlock?.content).toBe(db.id);
+
+	const publicDb = body.databases[db.id];
+	expect(publicDb?.records[0]?.values.Note).toBe("Hello table");
+	// A people cell names a workspace member — blanked even though the
+	// database itself is shown.
+	expect(publicDb?.records[0]?.values.Owner).toBeNull();
+	expect(JSON.stringify(body)).not.toContain(alice.userId);
 
 	await anon.dispose();
 });

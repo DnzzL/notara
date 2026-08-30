@@ -8,7 +8,11 @@
  * that renders correctly.
  */
 import { describe, expect, test } from "bun:test";
-import { publicView, redactBlocks } from "../src/handlers/public-page.js";
+import {
+	buildPublicDatabase,
+	publicView,
+	redactBlocks,
+} from "../src/handlers/public-page.js";
 
 describe("redactBlocks", () => {
 	const block = (type: string, content: string) => ({
@@ -49,6 +53,60 @@ describe("redactBlocks", () => {
 		const input = [block("pageLink", '{"pageId":"secret"}')];
 		redactBlocks(input);
 		expect(input[0]?.content).toBe('{"pageId":"secret"}');
+	});
+
+	test("keeps a database block's content when its id is accessible", () => {
+		const [out] = redactBlocks([block("database", "d1")], new Set(["d1"]));
+		expect(out?.content).toBe("d1");
+	});
+
+	test("blanks a database block whose id is not in the accessible set", () => {
+		const [out] = redactBlocks(
+			[block("database", "d1")],
+			new Set(["some-other-db"]),
+		);
+		expect(out?.content).toBe("");
+	});
+});
+
+describe("buildPublicDatabase", () => {
+	const field = (name: string, type: string) => ({
+		id: `f-${name}`,
+		name,
+		type,
+		options: null,
+	});
+
+	test("blanks cells whose field type names something outside the database", () => {
+		const fields = [
+			field("Title", "text"),
+			field("Owner", "people"),
+			field("Related", "relation"),
+			field("Page", "page"),
+		];
+		const recordsWithValues = [
+			{
+				record: { id: "r1", title: "Row 1" },
+				values: {
+					Title: "Row 1",
+					Owner: ["user-1"],
+					Related: ["rec-2"],
+					Page: ["page-9"],
+				},
+			},
+		];
+
+		const out = buildPublicDatabase(fields, recordsWithValues);
+
+		expect(out.records[0]?.values).toEqual({
+			Title: "Row 1",
+			Owner: null,
+			Related: null,
+			Page: null,
+		});
+		expect(JSON.stringify(out)).not.toContain("user-1");
+		expect(JSON.stringify(out)).not.toContain("rec-2");
+		expect(JSON.stringify(out)).not.toContain("page-9");
 	});
 });
 

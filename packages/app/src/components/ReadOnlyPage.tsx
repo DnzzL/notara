@@ -15,13 +15,29 @@
  * six paragraphs.
  *
  * The server has already blanked blocks that point outside the shared page
- * (pageLink, database, viewReference, people). This file renders a muted
- * placeholder in their stead — it does not decide what to hide, it only says so
- * politely.
+ * (pageLink, viewReference, people, and any database the publisher can no
+ * longer read). This file renders a muted placeholder in their stead — it does
+ * not decide what to hide, it only says so politely. A database block whose
+ * content survived redaction is rendered as a read-only table instead, using
+ * the schema and rows the server already narrowed in `data.databases`.
  */
 import { EditorContent, useEditor } from "@tiptap/react";
 import { rewriteAttachmentUrls } from "../lib/publicAssets.js";
 import { blockContent, sharedExtensions } from "./editorSchema.js";
+
+export type PublicDatabase = {
+	fields: Array<{
+		id: string;
+		name: string;
+		type: string;
+		options: string[] | null;
+	}>;
+	records: Array<{
+		id: string;
+		title: string;
+		values: Record<string, unknown>;
+	}>;
+};
 
 export type PublicPageData = {
 	page: {
@@ -31,6 +47,7 @@ export type PublicPageData = {
 		coverUrl: string | null;
 	};
 	blocks: Array<{ id: string; type: string; content: string }>;
+	databases: Record<string, PublicDatabase>;
 };
 
 /** Blocks the server serves blank because they reach outside this page. */
@@ -40,6 +57,56 @@ const PLACEHOLDER_LABEL: Record<string, string> = {
 	viewReference: "View — not part of this shared page",
 	people: "People",
 };
+
+/** A cell value already narrowed by the server (redacted cells arrive as
+ *  `null`) — formatted for a plain read-only table. */
+function formatCellValue(value: unknown): string {
+	if (value === null || value === undefined) return "";
+	if (typeof value === "boolean") return value ? "✓" : "";
+	if (Array.isArray(value)) return value.join(", ");
+	return String(value);
+}
+
+function DatabaseTable({ database }: { database: PublicDatabase }) {
+	return (
+		<div className="my-2 overflow-x-auto">
+			<table className="w-full border-collapse text-[13.5px]">
+				<thead>
+					<tr>
+						<th className="text-left border-b border-border px-2 py-1.5 font-medium text-text-2">
+							Title
+						</th>
+						{database.fields.map((f) => (
+							<th
+								key={f.id}
+								className="text-left border-b border-border px-2 py-1.5 font-medium text-text-2"
+							>
+								{f.name}
+							</th>
+						))}
+					</tr>
+				</thead>
+				<tbody>
+					{database.records.map((r) => (
+						<tr key={r.id}>
+							<td className="border-b border-border px-2 py-1.5 text-text">
+								{r.title}
+							</td>
+							{database.fields.map((f) => (
+								<td
+									key={f.id}
+									className="border-b border-border px-2 py-1.5 text-text"
+								>
+									{formatCellValue(r.values[f.name])}
+								</td>
+							))}
+						</tr>
+					))}
+				</tbody>
+			</table>
+		</div>
+	);
+}
 
 function Placeholder({ label }: { label: string }) {
 	return (
@@ -53,13 +120,15 @@ function Placeholder({ label }: { label: string }) {
 function ReadOnlyBlock({
 	block,
 	token,
+	databases,
 }: {
 	block: { type: string; content: string };
 	token: string;
+	databases: Record<string, PublicDatabase>;
 }) {
 	// Hooks run for every block, so the editor is created even for types that
-	// render a placeholder. Cheap, and far better than the conditional hook the
-	// alternative would need.
+	// render a placeholder or a table. Cheap, and far better than the
+	// conditional hook the alternative would need.
 	const editor = useEditor(
 		{
 			editable: false,
@@ -68,6 +137,15 @@ function ReadOnlyBlock({
 		},
 		[block.content, block.type, token],
 	);
+
+	if (block.type === "database") {
+		const database = databases[block.content];
+		return database ? (
+			<DatabaseTable database={database} />
+		) : (
+			<Placeholder label={PLACEHOLDER_LABEL.database as string} />
+		);
+	}
 
 	const placeholder = PLACEHOLDER_LABEL[block.type];
 	if (placeholder) return <Placeholder label={placeholder} />;
@@ -137,7 +215,7 @@ export function ReadOnlyPage({
 	data: PublicPageData;
 	token: string;
 }) {
-	const { page, blocks } = data;
+	const { page, blocks, databases } = data;
 
 	return (
 		<article className="max-w-[720px] mx-auto px-6 py-12">
@@ -153,7 +231,12 @@ export function ReadOnlyPage({
 				{page.title}
 			</h1>
 			{blocks.map((block) => (
-				<ReadOnlyBlock key={block.id} block={block} token={token} />
+				<ReadOnlyBlock
+					key={block.id}
+					block={block}
+					token={token}
+					databases={databases}
+				/>
 			))}
 		</article>
 	);
