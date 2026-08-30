@@ -20,6 +20,7 @@ import {
 import { CSS } from "@dnd-kit/utilities";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { selectPageWithCascade } from "../lib/page-loader.js";
+import { useIsCompact } from "../lib/useIsCompact.js";
 import { api } from "../rpc-client.js";
 import { usePageStore } from "../store.js";
 import { EmojiPicker } from "./EmojiPicker.js";
@@ -134,6 +135,10 @@ export function Sidebar({
 	const [collapsed, setCollapsed] = useState<boolean>(
 		() => localStorage.getItem(SIDEBAR_COLLAPSED_KEY) === "1",
 	);
+	// On a phone the drawer *is* the collapsed state: the hamburger opens it and
+	// nothing else should sit beside the content. The desktop rail would leave a
+	// permanent strip next to the page.
+	const isCompact = useIsCompact();
 	useEffect(() => {
 		localStorage.setItem(SIDEBAR_WIDTH_KEY, String(width));
 	}, [width]);
@@ -415,7 +420,7 @@ export function Sidebar({
 		);
 	};
 
-	if (collapsed) {
+	if (collapsed && !isCompact) {
 		return (
 			<aside
 				className="w-6 shrink-0 bg-sb border-r border-border-sb flex flex-col items-center pt-3 gap-1"

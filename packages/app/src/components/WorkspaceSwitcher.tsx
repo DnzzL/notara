@@ -73,7 +73,7 @@ export function WorkspaceSwitcher({
 				</button>
 				{onCollapse && (
 					<button
-						className="shrink-0 bg-transparent border-none cursor-pointer text-text-sb-3 text-[15px] w-7 h-7 flex items-center justify-center rounded transition-[color,background] duration-[var(--t)] ease-[var(--ease)] hover:bg-[var(--hover-ink)] hover:text-text-sb"
+						className="shrink-0 bg-transparent border-none cursor-pointer text-text-sb-3 text-[15px] w-7 h-7 flex items-center justify-center rounded transition-[color,background] duration-[var(--t)] ease-[var(--ease)] hover:bg-[var(--hover-ink)] hover:text-text-sb max-[880px]:hidden"
 						onClick={onCollapse}
 						title="Collapse sidebar (⌘\\)"
 						aria-label="Collapse sidebar"

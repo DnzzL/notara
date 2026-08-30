@@ -55,6 +55,7 @@ function WorkspaceLayout() {
 	const { workspaceSlug } = useParams({ from: "/$workspaceSlug" });
 	const { workspace } = Route.useRouteContext();
 	const [sidebarOpen, setSidebarOpen] = useState(false);
+	const currentPage = usePageStore((s) => s.currentPage);
 	const [tourStartKey, setTourStartKey] = useState(0);
 	const closeSidebar = () => setSidebarOpen(false);
 
@@ -137,7 +138,7 @@ function WorkspaceLayout() {
 			>
 				{workspace.isDemo && <DemoBanner />}
 
-				{/* Mobile topbar */}
+				{/* Mobile topbar — sidebar chrome, so it reads as navigation. */}
 				<div className="mobile-topbar">
 					<button
 						className="mobile-menu-btn"
@@ -146,15 +147,11 @@ function WorkspaceLayout() {
 					>
 						<HamburgerIcon />
 					</button>
-					<span
-						style={{
-							fontSize: 14,
-							fontWeight: 600,
-							color: "var(--text)",
-							opacity: 0.7,
-						}}
-					>
-						Notara
+					<span className="mobile-topbar-title">
+						{currentPage?.icon && (
+							<span aria-hidden="true">{currentPage.icon}</span>
+						)}
+						{currentPage?.title || "Notara"}
 					</span>
 				</div>
 

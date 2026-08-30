@@ -604,7 +604,7 @@ function SortableBlock({
 				{/* Gutter click target (AC#2): click left gutter to focus block at nearest caret position */}
 				{onGutterClick && (
 					<div
-						className="absolute inset-y-0 left-0 w-[52px] z-10 cursor-text"
+						className="absolute inset-y-0 left-0 w-[52px] z-10 cursor-text max-[880px]:hidden"
 						onMouseDown={(e) => {
 							e.stopPropagation();
 							e.preventDefault();
@@ -612,7 +612,7 @@ function SortableBlock({
 						}}
 					/>
 				)}
-				<div className="flex items-center gap-0 w-12 shrink-0 mt-0.5 opacity-0 transition-opacity duration-[var(--t)] ease-[var(--ease)] group-hover:opacity-100 pointer-events-none group-hover:pointer-events-auto relative z-20">
+				<div className="flex items-center gap-0 w-12 shrink-0 mt-0.5 opacity-0 transition-opacity duration-[var(--t)] ease-[var(--ease)] group-hover:opacity-100 pointer-events-none group-hover:pointer-events-auto relative z-20 max-[880px]:hidden">
 					<IconButton
 						type="button"
 						variant="ghost"

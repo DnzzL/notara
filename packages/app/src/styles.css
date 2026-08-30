@@ -1067,30 +1067,48 @@ select, input, textarea, button { font-family: var(--font-ui); }
     display: block;
   }
 
-  /* Mobile topbar */
+  /* Mobile topbar — same chrome as the sidebar, so the hamburger reads as
+     part of the navigation rather than as a header of the page content. */
   .mobile-topbar {
     display: flex;
     align-items: center;
-    gap: 10px;
-    padding: 10px 16px;
-    background: var(--surface);
-    border-bottom: 1px solid var(--border);
+    gap: 8px;
+    height: 44px;
+    padding: 0 8px 0 6px;
+    background: var(--sb);
+    border-bottom: 1px solid var(--border-sb);
     flex-shrink: 0;
+  }
+  .mobile-topbar-title {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    min-width: 0;
+    overflow: hidden;
+    white-space: nowrap;
+    text-overflow: ellipsis;
+    font-family: var(--font-mono);
+    font-size: 11px;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    color: var(--text-sb-3);
   }
   .mobile-menu-btn {
     display: flex;
     align-items: center;
     justify-content: center;
-    width: 36px;
-    height: 36px;
+    width: 32px;
+    height: 32px;
     border: none;
     background: none;
     cursor: pointer;
-    border-radius: 4px;
-    color: var(--text-2);
+    border-radius: var(--radius-sm);
+    color: var(--text-sb-2);
     flex-shrink: 0;
+    transition: background var(--t) var(--ease), color var(--t) var(--ease);
   }
-  .mobile-menu-btn:hover { background: var(--surface-2); }
+  .mobile-menu-btn:hover,
+  .mobile-menu-btn:active { background: var(--sb-2); color: var(--text-sb); }
 
   /* ProseMirror content area needs top padding on mobile */
 
