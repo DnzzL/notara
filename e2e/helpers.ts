@@ -174,3 +174,33 @@ export async function gotoApp(page: Page) {
 		.locator("[data-sidebar]")
 		.waitFor({ state: "visible", timeout: 15000 });
 }
+
+/**
+ * Put the caret at the start of the nth block, and focus it.
+ *
+ * Neither `Home` nor `Meta+ArrowLeft` is dependable here: `Home` scrolls
+ * instead of moving the caret in a macOS contenteditable, and a block that
+ * re-renders between the click and the key press comes back with the caret at
+ * the end. Setting the selection directly is the only placement that holds,
+ * and getting it wrong is silent — Backspace deletes a character instead of
+ * merging two blocks.
+ */
+export async function caretToBlockStart(page: Page, index: number) {
+	await page.evaluate((i) => {
+		const el = document.querySelectorAll(".ProseMirror")[i] as HTMLElement;
+		el.focus();
+	}, index);
+	// ProseMirror restores its own stored selection when the element takes
+	// focus, so the range has to be set after that has happened — not in the
+	// same task.
+	await page.waitForTimeout(50);
+	await page.evaluate((i) => {
+		const el = document.querySelectorAll(".ProseMirror")[i] as HTMLElement;
+		const range = document.createRange();
+		range.setStart(el, 0);
+		range.collapse(true);
+		const sel = window.getSelection();
+		sel?.removeAllRanges();
+		sel?.addRange(range);
+	}, index);
+}

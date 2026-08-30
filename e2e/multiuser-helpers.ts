@@ -413,3 +413,37 @@ export const test = base.extend<TestFixtures, WorkerFixtures>({
 });
 
 export { expect } from "@playwright/test";
+
+/**
+ * Put the caret at a text offset inside the nth block.
+ *
+ * Key-based placement is not dependable here. `Home` scrolls instead of moving
+ * the caret on macOS, and `End` right after a click can land before the editor
+ * has settled — which turns "split at the end" into "split at the start" and
+ * makes a test look like a product bug. Addressing the text node is exact.
+ */
+export async function caretInBlock(
+	user: TestUser,
+	blockIndex: number,
+	text: string,
+	offset: number,
+): Promise<void> {
+	await blockEditor(user, blockIndex).click();
+	await user.page.waitForTimeout(50);
+	await user.page.evaluate(
+		({ i, t, o }) => {
+			const el = document.querySelectorAll(".ProseMirror")[i] as HTMLElement;
+			const walker = document.createTreeWalker(el, NodeFilter.SHOW_TEXT);
+			let node: Node | null = walker.nextNode();
+			while (node && node.textContent !== t) node = walker.nextNode();
+			if (!node) throw new Error(`no text node "${t}" in block ${i}`);
+			const range = document.createRange();
+			range.setStart(node, o);
+			range.collapse(true);
+			const sel = window.getSelection();
+			sel?.removeAllRanges();
+			sel?.addRange(range);
+		},
+		{ i: blockIndex, t: text, o: offset },
+	);
+}

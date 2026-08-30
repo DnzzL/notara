@@ -22,6 +22,7 @@ import {
 	useEditor,
 } from "@tiptap/react";
 import { useCallback, useEffect, useRef, useState } from "react";
+import { ulid } from "ulidx";
 import { useSession } from "../auth-client.js";
 import { shouldOpenBlockMenu } from "../lib/blockContextMenu.js";
 import {
@@ -128,9 +129,19 @@ function SingleBlockEditor({
 	const debounceRef = useRef<ReturnType<typeof setTimeout> | undefined>(
 		undefined,
 	);
-	const isPendingRef = useRef(false);
-	const contentRef = useRef(block.content);
-	contentRef.current = block.content;
+	/**
+	 * What the server is known to hold — NOT what the store holds.
+	 *
+	 * These parted company when the store started following the editor on every
+	 * keystroke: comparing against the store then said "no change" for text the
+	 * server had never seen, and the save was skipped. Everything looked right
+	 * locally and nothing was persisted.
+	 */
+	const savedContentRef = useRef(block.content);
+	// The editor's option callbacks below are bound at mount and never rebound,
+	// so anything they read about the block has to come through a ref.
+	const blockRef = useRef(block);
+	blockRef.current = block;
 
 	const lockedByUserId = usePresenceStore((s) => s.locks.get(block.id) ?? null);
 	const lockedByName = usePresenceStore(
@@ -140,11 +151,13 @@ function SingleBlockEditor({
 	const editor = useEditor({
 		extensions: [
 			...sharedExtensions(block.type),
+			// Configured once and never again: TipTap's `setOptions` fast path (the
+			// one `useEditor` takes with empty deps) does not rebuild the extension
+			// manager. Only the block's own id is safe to freeze here — everything
+			// positional is resolved live, inside the callbacks.
 			BlockNavigationExtension.configure({
-				blockIndex,
-				totalBlocks,
+				blockId: block.id,
 				callbacks,
-				blockType: block.type,
 			}),
 			PageReferenceExtension.configure({
 				items: async (query: string) => {
@@ -207,24 +220,34 @@ function SingleBlockEditor({
 		},
 		onUpdate: ({ editor: ed }) => {
 			detectSlashCommand(ed);
+			// Keep the store level with the editor on every keystroke. Everything
+			// structural — merge, split, the content-sync effect — reads the store,
+			// and letting it trail the debounce below is what made a Backspace
+			// right after typing merge a stale line.
+			useBlockStore
+				.getState()
+				.setLocalContent(
+					blockRef.current.id,
+					ed.getHTML(),
+					detectBlockTypeFromEditor(ed),
+				);
 			clearTimeout(debounceRef.current);
-			isPendingRef.current = true;
 			debounceRef.current = setTimeout(async () => {
 				const html = ed.getHTML();
 				const liveType = detectBlockTypeFromEditor(ed);
-				const typeChanged = liveType !== block.type;
+				const typeChanged = liveType !== blockRef.current.type;
 
 				// Single update call: persist content, and maybe the block type
 				// too (for markdown transforms like `- ` → bulletList so the
 				// Enter/Backspace label and behavior update promptly).
-				if (html !== contentRef.current || typeChanged) {
+				if (html !== savedContentRef.current || typeChanged) {
+					savedContentRef.current = html;
 					await callbacks.updateBlock?.(
-						block.id,
+						blockRef.current.id,
 						html,
 						typeChanged ? liveType : undefined,
 					);
 				}
-				isPendingRef.current = false;
 			}, 200);
 		},
 		onSelectionUpdate: ({ editor: ed }) => {
@@ -289,9 +312,15 @@ function SingleBlockEditor({
 			const detail = (e as CustomEvent).detail;
 			if (detail.blockId !== block.id || !editor) return;
 			editor.commands.setContent(detail.content, false);
-			const end = Math.max(1, editor.state.doc.content.size - 1);
-			editor.commands.setTextSelection(end);
-			editor.commands.focus();
+			// The caller persists the same HTML, so record it as saved rather than
+			// let the next keystroke re-send it.
+			savedContentRef.current = detail.content;
+			// Where the caret lands is the caller's to say: a merge wants it at the
+			// seam, a slash command at the end. This is also the only way to update
+			// a block that currently HAS the caret — the content-sync effect skips
+			// focused editors on purpose, which left a forward-delete showing the
+			// pre-merge line while the store held the merged one.
+			applyFocus(editor, detail.focus ?? { kind: "end" });
 		};
 		const handlerRemoteUpdate = (e: Event) => {
 			const detail = (e as CustomEvent).detail;
@@ -301,6 +330,8 @@ function SingleBlockEditor({
 			// emitUpdate=false so the debounced save callback doesn't fire
 			// (onUpdate would persist the remote content back to the server).
 			editor.commands.setContent(detail.content, false);
+			savedContentRef.current = detail.content;
+			useBlockStore.getState().setLocalContent(detail.blockId, detail.content);
 		};
 		window.addEventListener("block-strip-slash", handlerStripSlash);
 		window.addEventListener("block-set-content", handlerSetContent);
@@ -312,11 +343,17 @@ function SingleBlockEditor({
 		};
 	}, [block.id, editor]);
 
-	// Sync content when block changes externally (merge/split, or remote edit).
-	// Skip when this block is focused locally — the editor has newer content.
+	// Sync content when the block changes externally (merge/split, undo, or a
+	// remote edit). Skip only when this block is focused locally: the editor is
+	// then the one writing, and the store is level with it either way.
+	//
+	// There used to be a second guard here, skipping the sync while this block's
+	// debounced save was in flight — back when the store trailed the editor by
+	// the debounce and could hand back an older line. It also swallowed the
+	// merged text a Backspace had just written into this block, leaving the
+	// editor showing the pre-merge line and saving it back over the merge.
 	useEffect(() => {
 		if (!editor) return;
-		if (isPendingRef.current) return;
 		if (editor.isFocused) return;
 		const expected = blockContent(block);
 		const current = editor.getHTML();
@@ -341,7 +378,12 @@ function SingleBlockEditor({
 		};
 		tryConsume();
 		return subscribeFocus(tryConsume);
-	}, [block.id, editor]);
+		// `block.content` is a dependency because a focus request can arrive
+		// before the content it belongs to: a merge writes the joined text and
+		// asks for the caret at the seam in the same tick, and the guard above
+		// refuses to place a caret in an editor that is still showing the
+		// pre-merge line. Re-running once the content lands is what lets it in.
+	}, [block.id, block.content, editor]);
 
 	// Reflect remote lock: non-editable while another user holds the block.
 	useEffect(() => {
@@ -753,13 +795,15 @@ export function BlockEditor() {
 		query: string;
 		top: number;
 		left: number;
-		blockIndex: number;
+		/** Which block opened the menu. An id, because the reporting callback is
+		    frozen at editor mount and a position would be a render behind. */
+		blockId: string;
 	}>({
 		show: false,
 		query: "",
 		top: 0,
 		left: 0,
-		blockIndex: 0,
+		blockId: "",
 	});
 	const [newDbId, setNewDbId] = useState<string | null>(null);
 
@@ -805,27 +849,56 @@ export function BlockEditor() {
 	);
 
 	// ── Inter-block operations ────────────────────────────────────────
+	//
+	// Every one of these addresses its block by ID and resolves the neighbours
+	// from the live store, not from the `sortedBlocks` of the render that
+	// created it. Both properties are load-bearing: `useEditor` freezes the
+	// callbacks it was configured with at mount (see BlockNavigationExtension),
+	// so a closure over an index — or over a snapshot of the block list — keeps
+	// pointing at whatever sat there when the block was first rendered. That is
+	// how Enter came to rewrite a neighbour and Backspace to delete one.
+	//
+	// Reading `useBlockStore.getState()` also survives the `await` inside these
+	// functions, where a captured array would already be a render behind.
 
-	/** Move focus to target block, optionally preserving the caret's column. */
-	const navigateToBlock = useCallback(
-		(targetIndex: number, edge: "top" | "bottom", x?: number) => {
-			const targetBlock = sortedBlocks[targetIndex];
-			if (!targetBlock) return;
-			if (x != null) requestFocus(targetBlock.id, { kind: "column", x, edge });
-			else
-				requestFocus(targetBlock.id, {
-					kind: edge === "top" ? "start" : "end",
-				});
-		},
-		[sortedBlocks],
+	/** The block list as rendered, straight from the store. */
+	const liveBlocks = useCallback(
+		() =>
+			[...useBlockStore.getState().blocks].sort((a, b) => a.index - b.index),
+		[],
 	);
 
-	/** Merge current block with previous, preserving inline formatting. */
+	/** A block and its neighbours, by id. */
+	const neighbours = useCallback(
+		(blockId: string) => {
+			const list = liveBlocks();
+			const i = list.findIndex((b) => b.id === blockId);
+			if (i === -1) return null;
+			return { current: list[i], prev: list[i - 1], next: list[i + 1] };
+		},
+		[liveBlocks],
+	);
+
+	/** Move focus to the adjacent block, optionally preserving the caret column. */
+	const navigateFrom = useCallback(
+		(blockId: string, dir: "prev" | "next", x?: number) => {
+			const around = neighbours(blockId);
+			const target = dir === "prev" ? around?.prev : around?.next;
+			if (!target) return false;
+			const edge = dir === "prev" ? "bottom" : "top";
+			if (x != null) requestFocus(target.id, { kind: "column", x, edge });
+			else requestFocus(target.id, { kind: edge === "top" ? "start" : "end" });
+			return true;
+		},
+		[neighbours],
+	);
+
+	/** Merge a block with the one before it, preserving inline formatting. */
 	const mergeWithPrevious = useCallback(
-		async (blockIndex: number) => {
-			if (blockIndex <= 0) return;
-			const current = sortedBlocks[blockIndex];
-			const prev = sortedBlocks[blockIndex - 1];
+		(blockId: string) => {
+			const around = neighbours(blockId);
+			const current = around?.current;
+			const prev = around?.prev;
 			if (!current || !prev) return;
 
 			// Derive previous block's type from its content HTML, not the stored
@@ -848,61 +921,97 @@ export function BlockEditor() {
 			// Caret lands at the seam — the text length of prev's content.
 			const seam = stripHtml(prevInner).length;
 
-			await updateBlock(prev.id, mergedHtml);
-			await deleteBlock(current.id);
-			requestFocus(prev.id, { kind: "offset", offset: seam });
+			void updateBlock(prev.id, mergedHtml);
+			void deleteBlock(current.id);
+			// Pushed straight into the surviving editor rather than left to the
+			// content-sync effect: on a forward-delete that editor is the focused
+			// one, and the sync skips focused blocks.
+			window.dispatchEvent(
+				new CustomEvent("block-set-content", {
+					detail: {
+						blockId: prev.id,
+						content: mergedHtml,
+						focus: { kind: "offset", offset: seam },
+					},
+				}),
+			);
 		},
-		[sortedBlocks, updateBlock, deleteBlock],
+		[neighbours, updateBlock, deleteBlock],
 	);
 
-	/** Split the current block. beforeContent stays, afterContent becomes new block. */
+	/** Pull the block after `blockId` into it, caret held at the seam. */
+	const mergeWithNext = useCallback(
+		(blockId: string) => {
+			const next = neighbours(blockId)?.next;
+			if (!next) return false;
+			mergeWithPrevious(next.id);
+			return true;
+		},
+		[neighbours, mergeWithPrevious],
+	);
+
+	/** Split a block. beforeContent stays, afterContent becomes a new block below. */
 	const splitBlock = useCallback(
-		async (
-			blockIndex: number,
+		(
+			blockId: string,
 			beforeContent: string,
 			afterContent: string,
 			newBlockType?: string,
+			currentType?: string,
 		) => {
-			const current = sortedBlocks[blockIndex];
-			if (!current || !currentPage) return;
+			const current = neighbours(blockId)?.current;
+			const page = usePageStore.getState().currentPage;
+			if (!current || !page) return;
 
-			// Update current block with before content
+			// Persist the type alongside the content when a markdown transform has
+			// changed it (`- ` → bullet list) but the debounced save hasn't landed:
+			// the split truncates this editor, which cancels that save.
 			const finalBefore = beforeContent || defaultContentForType(current.type);
-			await updateBlock(current.id, finalBefore);
-
-			// Create new block with after content
 			const newType = newBlockType || "paragraph";
 			const finalAfter = afterContent || defaultContentForType(newType);
-			const newBlock = await createBlock({
-				pageId: currentPage.id,
+			// The new block's id is chosen here so the caret can be sent after it
+			// on this keystroke. Neither write is awaited: both stores update
+			// synchronously and reconcile with the server on their own. Awaiting
+			// them is what used to leave the caret in the old block long enough
+			// for the next characters to land there.
+			const newId = ulid();
+			requestFocus(newId, { kind: "start" });
+			void updateBlock(
+				current.id,
+				finalBefore,
+				currentType && currentType !== current.type ? currentType : undefined,
+			);
+			void createBlock({
+				id: newId,
+				pageId: page.id,
 				type: newType,
 				content: finalAfter,
 				index: current.index + 1,
 				parentId: null,
 			});
-
-			if (newBlock?.id) requestFocus(newBlock.id, { kind: "start" });
 		},
-		[sortedBlocks, currentPage, updateBlock, createBlock],
+		[neighbours, updateBlock, createBlock],
 	);
 
-	/** Insert a new empty paragraph after this block. */
+	/** Insert a new empty paragraph after a block. */
 	const insertBlockAfter = useCallback(
-		async (blockIndex: number) => {
-			const current = sortedBlocks[blockIndex];
-			if (!current || !currentPage) return;
+		(blockId: string) => {
+			const current = neighbours(blockId)?.current;
+			const page = usePageStore.getState().currentPage;
+			if (!current || !page) return;
 
-			const newBlock = await createBlock({
-				pageId: currentPage.id,
+			const newId = ulid();
+			requestFocus(newId, { kind: "start" });
+			void createBlock({
+				id: newId,
+				pageId: page.id,
 				type: "paragraph",
 				content: defaultContentForType("paragraph"),
 				index: current.index + 1,
 				parentId: null,
 			});
-
-			if (newBlock?.id) requestFocus(newBlock.id, { kind: "start" });
 		},
-		[sortedBlocks, currentPage, createBlock],
+		[neighbours, createBlock],
 	);
 
 	/** Update a block's content (for debounced saves). */
@@ -932,11 +1041,11 @@ export function BlockEditor() {
 
 	// ── Slash command handling ────────────────────────────────────────
 	const handleSlashCommand = useCallback(
-		async (command: string, blockIndex: number) => {
+		async (command: string, blockId: string) => {
 			if (!currentPage) return;
 			setSlashMenu((m) => ({ ...m, show: false }));
 
-			const currentBlock = sortedBlocks[blockIndex];
+			const currentBlock = neighbours(blockId)?.current;
 			if (!currentBlock) return;
 
 			// Remove the trailing `/query` from the block before applying the command.
@@ -1131,13 +1240,18 @@ export function BlockEditor() {
 		const [movedItem] = newItems.splice(oldIndex, 1);
 		newItems.splice(newIndex, 0, movedItem);
 
-		// Extract new order for blocks and databases separately
+		// Split by id prefix, not by type. Two different things carry
+		// `type: "database"` here: a real block that hosts an inline database,
+		// whose id is a block id, and an orphan database, whose id is prefixed
+		// `db-`. Filtering on the type dropped inline database blocks from the
+		// block order — so the reorder never assigned them an index and they
+		// drifted — while handing their block ids to reorderDatabases.
 		const newBlockOrder = newItems
-			.filter((item) => item.type !== "database")
+			.filter((item) => !item.id.startsWith("db-"))
 			.map((item) => item.id);
 		const newDbOrder = newItems
-			.filter((item) => item.type === "database")
-			.map((item) => item.id.replace("db-", ""));
+			.filter((item) => item.id.startsWith("db-"))
+			.map((item) => item.id.slice("db-".length));
 
 		// Persist both orders
 		await reorderBlocks(currentPage.id, newBlockOrder);
@@ -1579,9 +1693,7 @@ export function BlockEditor() {
 											isDragging={activeBlockId === block.id}
 											onDragStart={() => setActiveBlockId(block.id)}
 											onDragAbort={() => setActiveBlockId(null)}
-											onInsertBelow={() =>
-												insertBlockAfter(sortedBlocks.indexOf(block))
-											}
+											onInsertBelow={() => insertBlockAfter(block.id)}
 											onOpenMenu={(x, y) =>
 												setBlockMenu({ blockId: block.id, x, y })
 											}
@@ -1615,9 +1727,7 @@ export function BlockEditor() {
 											isDragging={activeBlockId === block.id}
 											onDragStart={() => setActiveBlockId(block.id)}
 											onDragAbort={() => setActiveBlockId(null)}
-											onInsertBelow={() =>
-												insertBlockAfter(sortedBlocks.indexOf(block))
-											}
+											onInsertBelow={() => insertBlockAfter(block.id)}
 											onOpenMenu={(x, y) =>
 												setBlockMenu({ blockId: block.id, x, y })
 											}
@@ -1641,12 +1751,16 @@ export function BlockEditor() {
 								}
 
 								// Standard TipTap-editable blocks.
+								// Bound by id, never by position: the editor freezes these at
+								// mount (see BlockNavigationExtension), so an index here goes
+								// stale the moment anything is inserted above.
 								const callbacks: BlockNavigationCallbacks = {
-									navigateToBlock,
-									mergeWithPrevious: () => mergeWithPrevious(blockIndex),
-									splitBlock: (before, after, newType) =>
-										splitBlock(blockIndex, before, after, newType),
-									insertBlockAfter: () => insertBlockAfter(blockIndex),
+									navigate: (dir, x) => navigateFrom(block.id, dir, x),
+									mergeWithPrevious: () => mergeWithPrevious(block.id),
+									mergeWithNext: () => mergeWithNext(block.id),
+									splitBlock: (before, after, newType, currentType) =>
+										splitBlock(block.id, before, after, newType, currentType),
+									insertBlockAfter: () => insertBlockAfter(block.id),
 									updateBlock: handleUpdateBlock,
 								};
 
@@ -1658,7 +1772,7 @@ export function BlockEditor() {
 										isDragging={activeBlockId === block.id}
 										onDragStart={() => setActiveBlockId(block.id)}
 										onDragAbort={() => setActiveBlockId(null)}
-										onInsertBelow={() => insertBlockAfter(blockIndex)}
+										onInsertBelow={() => insertBlockAfter(block.id)}
 										onOpenMenu={(x, y) =>
 											setBlockMenu({ blockId: block.id, x, y })
 										}
@@ -1683,7 +1797,7 @@ export function BlockEditor() {
 														query: data.query,
 														top: data.top,
 														left: data.left,
-														blockIndex: blockIndex,
+														blockId: block.id,
 													});
 												}
 											}}
@@ -1785,9 +1899,7 @@ export function BlockEditor() {
 								commands={slashCommands}
 								query={slashMenu.query}
 								position={{ top: slashMenu.top, left: slashMenu.left }}
-								onSelect={(cmd) =>
-									handleSlashCommand(cmd, slashMenu.blockIndex)
-								}
+								onSelect={(cmd) => handleSlashCommand(cmd, slashMenu.blockId)}
 								onClose={() => setSlashMenu((m) => ({ ...m, show: false }))}
 							/>
 						)}

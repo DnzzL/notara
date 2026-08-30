@@ -56,18 +56,26 @@ export const listBlocks = (pageId: string) =>
 			.pipe(Effect.map((rows) => rows.map(blockFromRow)));
 	});
 
+/**
+ * A caller-supplied block id is honoured only if it is a well-formed ULID.
+ * Anything else gets a fresh one rather than an error: the id is a convenience
+ * for the client (see the RPC payload), not a field worth failing a write over.
+ */
+const ULID_RE = /^[0-9A-HJKMNP-TV-Z]{26}$/;
+
 export const createBlock = (req: {
 	pageId: string;
 	type: string;
 	content: string;
 	index: number;
 	parentId: string | null;
+	id?: string | undefined;
 }) =>
 	Effect.gen(function* () {
 		const sql = yield* SqlClient.SqlClient;
 		return yield* sql.withTransaction(
 			Effect.gen(function* () {
-				const id = ulid();
+				const id = req.id && ULID_RE.test(req.id) ? req.id : ulid();
 				// Shift later blocks down so the new block lands at exactly req.index
 				// without colliding.
 				yield* sql`

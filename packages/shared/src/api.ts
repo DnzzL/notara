@@ -122,6 +122,17 @@ export const AppRpc = RpcGroup.make(
 			content: BlockContent,
 			index: Schema.Number,
 			parentId: Schema.NullOr(Schema.String),
+			/**
+			 * The block's id, chosen by the caller.
+			 *
+			 * The editor needs the new block to exist — and to be focusable — on
+			 * the keystroke, not a round-trip later: while it waited, the caret
+			 * stayed in the old block and the next characters typed landed there.
+			 * Naming the block up front is what lets the client render it
+			 * immediately and reconcile afterwards. Omit it and the server
+			 * assigns one, as before.
+			 */
+			id: Schema.optional(Schema.String),
 		},
 		success: Block,
 	}),
