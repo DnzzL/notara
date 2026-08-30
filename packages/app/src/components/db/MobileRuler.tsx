@@ -1,5 +1,11 @@
 import { fieldTypeSpec } from "@notara/shared";
-import { useEffect, useId, useState } from "react";
+import { useEffect, useId, useMemo, useState } from "react";
+import {
+	AGG_LABEL,
+	type AggType,
+	aggregate,
+	supportsNumericAggregation,
+} from "../../lib/aggregate.js";
 import { useStripNavigation } from "../../lib/useStripNavigation.js";
 import { CellDisplay, InlineCellEditor } from "./CellComponents.js";
 import { Strip } from "./Strip.js";
@@ -42,6 +48,8 @@ export function MobileRuler({
 	onEdit,
 	onOpenRecord,
 	onNewRecord,
+	footerAggs,
+	onFooterAggChange,
 }: {
 	fields: any[];
 	rows: Row[];
@@ -50,6 +58,8 @@ export function MobileRuler({
 	onEdit: (recordId: string, fieldId: string, value: string) => void;
 	onOpenRecord: (record: any) => void;
 	onNewRecord: () => void;
+	footerAggs: Record<string, AggType>;
+	onFooterAggChange: (key: string, agg: AggType) => void;
 }) {
 	const {
 		index: idx,
@@ -68,6 +78,19 @@ export function MobileRuler({
 	// Read-only is a property of the field type (a formula computes itself),
 	// exactly as in the desktop table — not a property of the database.
 	const fieldReadOnly = field ? fieldTypeSpec(field.type).readOnly : true;
+
+	// Same summary as the desktop table's column footer, one field at a time —
+	// keyed by field.id so the choice is shared with the desktop tfoot.
+	const footerAgg = field ? (footerAggs[field.id] ?? "none") : "none";
+	const footerNumeric = field ? supportsNumericAggregation(field.type) : false;
+	const footerResult = useMemo(
+		() => (field ? aggregate(rows, field, footerAgg) : null),
+		[rows, field, footerAgg],
+	);
+	const footerFormatted =
+		typeof footerResult === "number"
+			? footerResult.toLocaleString(undefined, { maximumFractionDigits: 2 })
+			: "";
 
 	useEffect(() => {
 		if (!editing) return;
@@ -166,6 +189,37 @@ export function MobileRuler({
 					</div>
 				))}
 			</div>
+
+			{field && (
+				<div className="db-ruler-footer">
+					{footerAgg === "none" ? (
+						<span className="calc">Calculate</span>
+					) : (
+						<span className="result">
+							<span className="label">{AGG_LABEL[footerAgg]}</span>
+							{footerFormatted}
+						</span>
+					)}
+					<select
+						name="mobile-column-summary"
+						value={footerAgg}
+						onChange={(e) =>
+							onFooterAggChange(field.id, e.target.value as AggType)
+						}
+						title="Summary"
+						aria-label={`Summary for ${field.name}`}
+					>
+						<option value="none">Calculate</option>
+						<option value="count">Count all</option>
+						<option value="filled">Count values</option>
+						<option value="empty">Count empty</option>
+						{footerNumeric && <option value="sum">Sum</option>}
+						{footerNumeric && <option value="avg">Average</option>}
+						{footerNumeric && <option value="min">Min</option>}
+						{footerNumeric && <option value="max">Max</option>}
+					</select>
+				</div>
+			)}
 
 			{editing && editRow && editField && (
 				<>

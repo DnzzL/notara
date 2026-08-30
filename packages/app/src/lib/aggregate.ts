@@ -18,6 +18,17 @@ export type AggType =
 	| "min"
 	| "max";
 
+export const AGG_LABEL: Record<AggType, string> = {
+	none: "Calculate",
+	count: "Count",
+	filled: "Filled",
+	empty: "Empty",
+	sum: "Sum",
+	avg: "Average",
+	min: "Min",
+	max: "Max",
+};
+
 export type AggregableField = {
 	name: string;
 	type: string;

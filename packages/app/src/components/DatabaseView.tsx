@@ -17,6 +17,7 @@ import { CSS } from "@dnd-kit/utilities";
 import { fieldTypeSpec } from "@notara/shared";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
+	AGG_LABEL,
 	type AggType,
 	aggregate,
 	supportsNumericAggregation,
@@ -60,17 +61,6 @@ const COL_WIDTHS_STORAGE_KEY_PREFIX = "db-col-widths:";
 const TITLE_COL = "__title__";
 
 // ── Column Footer (summary aggregations, à la Notion) ───────────────────────
-
-const AGG_LABEL: Record<AggType, string> = {
-	none: "Calculate",
-	count: "Count",
-	filled: "Filled",
-	empty: "Empty",
-	sum: "Sum",
-	avg: "Average",
-	min: "Min",
-	max: "Max",
-};
 
 /** Number-capable field types get the numeric aggregations (sum/avg/min/max). */
 function ColumnFooter({
@@ -1256,6 +1246,8 @@ export function DatabaseView({
 						onEdit={handleCellEdit}
 						onOpenRecord={handleOpenRecord}
 						onNewRecord={handleNewRecord}
+						footerAggs={footerAggs}
+						onFooterAggChange={setFooterAgg}
 					/>
 				) : (
 					<div
