@@ -20,6 +20,7 @@ import {
 	type FieldType as SharedFieldType,
 } from "@notara/shared";
 import { useEffect, useRef, useState } from "react";
+import { useMenuKeyboard } from "../../lib/useMenuKeyboard.js";
 import { api } from "../../rpc-client.js";
 import { usePageStore } from "../../stores/pageStore.js";
 import { Button } from "../ui/index.js";
@@ -111,6 +112,19 @@ export function ColumnHeader({
 		setEditing(false);
 		setChangingType(false);
 	};
+
+	const { itemProps: typeItemProps } = useMenuKeyboard({
+		count: FIELD_TYPES.length,
+		onSelect: (i) => {
+			const ft = FIELD_TYPES[i];
+			if (ft && onChangeType) {
+				onChangeType(ft.type);
+				handleMenuClose();
+			}
+		},
+		onClose: handleMenuClose,
+		enabled: changingType && !!onChangeType,
+	});
 
 	if (isTitle) {
 		const defaultW = getDefaultWidthForType("text");
@@ -397,10 +411,11 @@ export function ColumnHeader({
 						>
 							CHANGE TYPE TO
 						</div>
-						{FIELD_TYPES.map((ft) => (
+						{FIELD_TYPES.map((ft, i) => (
 							<div
 								key={ft.type}
-								className={`px-2.5 py-1.5 rounded-lg cursor-pointer text-[13px] text-text-2 flex items-center gap-1.5 transition-[background,color] duration-[var(--t)] ease-[var(--ease)] hover:bg-surface-3 hover:text-text ${ft.type === field.type ? "bg-accent-dim text-accent" : ""}`}
+								{...typeItemProps(i)}
+								className={`px-2.5 py-1.5 rounded-lg cursor-pointer text-[13px] text-text-2 flex items-center gap-1.5 transition-[background,color] duration-[var(--t)] ease-[var(--ease)] hover:bg-surface-3 hover:text-text data-[active]:bg-surface-3 data-[active]:text-text ${ft.type === field.type ? "bg-accent-dim text-accent" : ""}`}
 								onClick={() => {
 									onChangeType(ft.type);
 									handleMenuClose();

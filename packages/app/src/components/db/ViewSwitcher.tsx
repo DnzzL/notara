@@ -1,5 +1,6 @@
 import type { DatabaseView } from "@notara/shared";
 import { useCallback, useEffect, useRef, useState } from "react";
+import { useMenuKeyboard } from "../../lib/useMenuKeyboard.js";
 import {
 	selectActiveViewId,
 	selectBoardGroupBy,
@@ -194,6 +195,25 @@ export function ViewSwitcher({
 		[databaseId, activeViewId, deleteView, switchView],
 	);
 
+	// Keyboard nav is disabled while renaming or saving-as, since those states
+	// hand focus to a text input whose own arrow-key/Escape handling would
+	// otherwise conflict with the menu's.
+	const showSaveReset = isDirtyEffective && !!activeView;
+	const menuActions: Array<() => void> = [
+		() => handleSelect(null),
+		...dbViews.map((v) => () => handleSelect(v)),
+		...(showSaveReset ? [handleSave, handleReset] : []),
+		() => setSavingAs(true),
+	];
+	const saveResetOffset = 1 + dbViews.length;
+	const saveAsIndex = menuActions.length - 1;
+	const { itemProps } = useMenuKeyboard({
+		count: menuActions.length,
+		onSelect: (i) => menuActions[i]?.(),
+		onClose: () => setOpen(false),
+		enabled: open && !renamingId && !savingAs,
+	});
+
 	return (
 		<div
 			ref={dropdownRef}
@@ -252,9 +272,10 @@ export function ViewSwitcher({
 				>
 					{/* 'All' default view */}
 					<MenuItem
+						{...itemProps(0)}
 						onClick={() => handleSelect(null)}
 						active={!activeView}
-						className="rounded-none"
+						className="rounded-none data-[active]:bg-surface-3"
 					>
 						<svg
 							width="14"
@@ -282,7 +303,7 @@ export function ViewSwitcher({
 					)}
 
 					{/* Saved views */}
-					{dbViews.map((view) => (
+					{dbViews.map((view, viewIndex) => (
 						<div
 							key={view.id}
 							className="flex items-center group"
@@ -319,9 +340,10 @@ export function ViewSwitcher({
 								/>
 							) : (
 								<MenuItem
+									{...itemProps(1 + viewIndex)}
 									onClick={() => handleSelect(view)}
 									active={activeViewId === view.id}
-									className="rounded-none"
+									className="rounded-none data-[active]:bg-surface-3"
 								>
 									<svg
 										width="14"
@@ -411,9 +433,13 @@ export function ViewSwitcher({
 					/>
 
 					{/* Save / Reset (visible when dirty and a saved view is active) */}
-					{isDirtyEffective && activeView && (
+					{showSaveReset && (
 						<>
-							<MenuItem onClick={handleSave} className="rounded-none">
+							<MenuItem
+								{...itemProps(saveResetOffset)}
+								onClick={handleSave}
+								className="rounded-none data-[active]:bg-surface-3"
+							>
 								<svg
 									width="14"
 									height="14"
@@ -431,7 +457,11 @@ export function ViewSwitcher({
 								</svg>
 								<span>Save</span>
 							</MenuItem>
-							<MenuItem onClick={handleReset} className="rounded-none">
+							<MenuItem
+								{...itemProps(saveResetOffset + 1)}
+								onClick={handleReset}
+								className="rounded-none data-[active]:bg-surface-3"
+							>
 								<svg
 									width="14"
 									height="14"
@@ -498,8 +528,9 @@ export function ViewSwitcher({
 						</div>
 					) : (
 						<MenuItem
+							{...itemProps(saveAsIndex)}
 							onClick={() => setSavingAs(true)}
-							className="rounded-none"
+							className="rounded-none data-[active]:bg-surface-3"
 						>
 							<svg
 								width="14"

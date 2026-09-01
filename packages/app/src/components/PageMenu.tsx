@@ -1,10 +1,11 @@
 import { useEffect, useRef, useState } from "react";
+import { useMenuKeyboard } from "../lib/useMenuKeyboard.js";
 import { api } from "../rpc-client.js";
 import { SharePageModal } from "./SharePageModal.js";
 
 /** Shared dropdown menu-item style (matches WorkspaceSwitcher). */
 const MENU_ITEM =
-	"flex items-center gap-2 w-full px-2.5 py-[7px] bg-transparent border-none cursor-pointer text-[13px] text-text-2 text-left rounded-lg [font-family:var(--font-ui)] transition-[background,color] duration-[var(--t)] ease-[var(--ease)] hover:bg-surface-3 hover:text-text";
+	"flex items-center gap-2 w-full px-2.5 py-[7px] bg-transparent border-none cursor-pointer text-[13px] text-text-2 text-left rounded-lg [font-family:var(--font-ui)] transition-[background,color] duration-[var(--t)] ease-[var(--ease)] hover:bg-surface-3 hover:text-text data-[active]:bg-surface-3 data-[active]:text-text";
 
 function download(filename: string, content: string, mime: string) {
 	const blob = new Blob([content], { type: mime });
@@ -51,6 +52,33 @@ export function PageMenu({
 		setOpen(false);
 	};
 
+	const items = [
+		...(workspaceId
+			? [
+					{
+						id: "share",
+						label: "Share…",
+						onClick: () => {
+							setShareOpen(true);
+							setOpen(false);
+						},
+					},
+				]
+			: []),
+		{ id: "export-md", label: "Export as Markdown", onClick: exportMarkdown },
+		{
+			id: "export-full-md",
+			label: "Export with databases",
+			onClick: exportFullMarkdown,
+		},
+	];
+	const { itemProps } = useMenuKeyboard({
+		count: items.length,
+		onSelect: (i) => items[i]?.onClick(),
+		onClose: () => setOpen(false),
+		enabled: open,
+	});
+
 	return (
 		<>
 			<div ref={ref} className="relative">
@@ -63,23 +91,16 @@ export function PageMenu({
 				</button>
 				{open && (
 					<div className="absolute right-0 top-[calc(100%+5px)] bg-surface border border-border-mid rounded shadow-[var(--shadow-lg)] min-w-[200px] z-[100] p-1">
-						{workspaceId && (
+						{items.map((item, i) => (
 							<button
+								key={item.id}
+								{...itemProps(i)}
 								className={MENU_ITEM}
-								onClick={() => {
-									setShareOpen(true);
-									setOpen(false);
-								}}
+								onClick={item.onClick}
 							>
-								Share…
+								{item.label}
 							</button>
-						)}
-						<button className={MENU_ITEM} onClick={exportMarkdown}>
-							Export as Markdown
-						</button>
-						<button className={MENU_ITEM} onClick={exportFullMarkdown}>
-							Export with databases
-						</button>
+						))}
 					</div>
 				)}
 			</div>
