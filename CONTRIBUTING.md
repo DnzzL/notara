@@ -86,6 +86,38 @@ A stale `node_modules` can hold two copies of a package whose types augment each
 so the augmentation lands on one copy and your code is typed against the other. That was
 NOT-100.
 
+### Visual regression baselines are Linux-only
+
+`e2e/visual-regression.spec.ts` compares screenshots against baselines in
+`e2e/visual-regression.spec.ts-snapshots/`. Playwright names baselines by
+platform (`*-linux.png`, `*-darwin.png`, …), and font rendering differs enough
+between them that a macOS-taken screenshot never matches on Linux CI. **Linux
+is the canonical platform** — CI runs `ubuntu-latest`, so only `*-linux.png`
+baselines belong in the repo.
+
+**Treat this suite as CI-only.** Don't run it locally against the committed
+baselines expecting a meaningful pass/fail — on macOS or Windows it will
+always report a diff, not because your change broke anything but because the
+platform doesn't match. Local runs are only useful with `--update-snapshots`,
+to preview what a baseline would look like, never to validate one.
+
+To regenerate a baseline, run it on Linux — not on your Mac:
+
+```bash
+bunx playwright test --grep "Visual regression" --update-snapshots
+```
+
+The way to do that without owning a Linux box: push a branch and run
+`gh workflow run ci.yml --ref <branch>` after temporarily adding a
+`workflow_dispatch:` trigger and a job that runs the command above with
+`actions/upload-artifact@v4` on `e2e/visual-regression.spec.ts-snapshots/`
+(`ubuntu-latest`, same as the `e2e` job). Download the artifact's
+`*-linux.png` files into `e2e/visual-regression.spec.ts-snapshots/`, delete
+the temporary job, and commit. Docker with a Linux container works too if you
+already have it running, but the throwaway CI job needs nothing installed.
+Don't commit a `*-darwin.png` or `*-win32.png` baseline — CI will just fail
+on it.
+
 ## Security
 
 **Never** report a security vulnerability in a public issue. Email
