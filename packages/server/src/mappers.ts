@@ -87,7 +87,7 @@ export function dbFromRow(r: unknown): Database {
 
 export const FIELD_COLS = `id, database_id as "databaseId", name, type,
   options, relation_target_db_id as "relationTargetDbId",
-  formula, sort_order as "sortOrder"`;
+  formula, sort_order as "sortOrder", sync_linked_row as "syncLinkedRow"`;
 
 export function fieldFromRow(r: unknown): DatabaseField {
 	const row = r as Record<string, unknown>;
@@ -100,6 +100,7 @@ export function fieldFromRow(r: unknown): DatabaseField {
 		relationTargetDbId: (row.relationTargetDbId as string | null) ?? null,
 		formula: (row.formula as string | null) ?? null,
 		sortOrder: Number(row.sortOrder ?? 0),
+		syncLinkedRow: (row.syncLinkedRow as number) === 1,
 	});
 }
 

@@ -1,0 +1,11 @@
+-- Opt-in 1:1 row sync between a master database and a satellite database.
+--
+-- The flag lives on the satellite's relation field (the field whose
+-- relation_target_db_id points at the master). When set, creating a record
+-- in the master forces a linked, empty record into the satellite, with its
+-- relation cell pre-filled to the new master record.
+--
+-- 1:1 only: a field with this flag on is expected to hold exactly one
+-- related record per row. Many-to-many relations (e.g. Tables.Membres)
+-- should not turn this on.
+ALTER TABLE database_fields ADD COLUMN sync_linked_row INTEGER NOT NULL DEFAULT 0;
