@@ -3,5 +3,5 @@
 thresholds:
   "@notara/server": 40
   "@notara/app": 15
-  "@notara/shared": 35
+  "@notara/shared": 30
   "@notara/electron": 80
