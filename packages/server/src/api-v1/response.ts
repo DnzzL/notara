@@ -80,6 +80,17 @@ export const optionalField = (body: unknown, field: string): string | null => {
 	return typeof value === "string" ? value : null;
 };
 
+/** Parse an optional boolean field from a parsed JSON body; absent (rather
+ *  than false) when the field isn't a boolean, so callers can tell "leave
+ *  unchanged" apart from "set to false". */
+export const optionalBooleanField = (
+	body: unknown,
+	field: string,
+): boolean | undefined => {
+	const value = (body as Record<string, unknown>)?.[field];
+	return typeof value === "boolean" ? value : undefined;
+};
+
 /** Parse query string from current request URL. */
 export const queryParam = (name: string) =>
 	Effect.gen(function* () {

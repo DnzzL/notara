@@ -82,6 +82,9 @@ export class DatabaseField extends Schema.Class<DatabaseField>("DatabaseField")(
 		relationTargetDbId: Schema.NullOr(Schema.String),
 		formula: Schema.NullOr(Schema.String),
 		sortOrder: Schema.Number,
+		// 1:1 sync flag on a relation field pointing at a master database — see
+		// migration 021. Meaningless outside a relation field.
+		syncLinkedRow: Schema.Boolean,
 	},
 ) {}
 

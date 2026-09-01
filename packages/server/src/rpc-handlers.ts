@@ -369,6 +369,7 @@ export const rpcHandlersLayer = AppRpc.toLayer({
 					options: req.options ? [...req.options] : null,
 					relationTargetDbId: req.relationTargetDbId,
 					formula: req.formula ?? null,
+					syncLinkedRow: req.syncLinkedRow,
 				});
 			}),
 		).pipe(dieUnlessApiError),
@@ -533,6 +534,7 @@ export const rpcHandlersLayer = AppRpc.toLayer({
 								: null,
 					relationTargetDbId: req.relationTargetDbId,
 					formula: req.formula,
+					syncLinkedRow: req.syncLinkedRow,
 				});
 			}),
 		).pipe(dieUnlessApiError),

@@ -157,11 +157,18 @@ export const createField = (req: {
 	options: string[] | null;
 	relationTargetDbId: string | null;
 	formula?: string | null;
+	syncLinkedRow?: boolean;
 }) =>
 	Effect.gen(function* () {
 		const sql = yield* SqlClient.SqlClient;
 		const id = ulid();
 		const options = req.options ? JSON.stringify(req.options) : null;
+		// Meaningless outside a relation field pointing somewhere — never persist
+		// it as on for anything else.
+		const syncLinkedRow =
+			req.syncLinkedRow && req.type === "relation" && req.relationTargetDbId
+				? 1
+				: 0;
 		// Place new fields after existing ones (highest sort_order + 1).
 		const maxRows = yield* sql`
     SELECT COALESCE(MAX(sort_order), 0) as "maxOrder"
@@ -169,8 +176,8 @@ export const createField = (req: {
   `;
 		const nextOrder = Number((maxRows[0] as any)?.maxOrder ?? 0) + 1;
 		const rows = yield* sql`
-    INSERT INTO database_fields (id, database_id, name, type, options, relation_target_db_id, formula, sort_order)
-    VALUES (${id}, ${req.databaseId}, ${req.name}, ${req.type}, ${options}, ${req.relationTargetDbId}, ${req.formula ?? null}, ${nextOrder})
+    INSERT INTO database_fields (id, database_id, name, type, options, relation_target_db_id, formula, sort_order, sync_linked_row)
+    VALUES (${id}, ${req.databaseId}, ${req.name}, ${req.type}, ${options}, ${req.relationTargetDbId}, ${req.formula ?? null}, ${nextOrder}, ${syncLinkedRow})
     RETURNING ${sql.unsafe(FIELD_COLS)}
   `;
 		return fieldFromRow(rows[0]);
@@ -261,14 +268,60 @@ export const getRecordWithValues = (recordId: string) =>
 export const createRecord = (req: { databaseId: string; title: string }) =>
 	Effect.gen(function* () {
 		const sql = yield* SqlClient.SqlClient;
-		const id = ulid();
-		const now = new Date().toISOString();
-		const rows = yield* sql`
-      INSERT INTO database_records (id, database_id, title, created_at)
-      VALUES (${id}, ${req.databaseId}, ${req.title}, ${now})
-      RETURNING ${sql.unsafe(RECORD_COLS)}
+		// Transacted: a master record must never exist without its forced
+		// satellite rows, or row counts (the feature's whole point) drift.
+		return yield* sql.withTransaction(
+			Effect.gen(function* () {
+				const id = ulid();
+				const now = new Date().toISOString();
+				const rows = yield* sql`
+        INSERT INTO database_records (id, database_id, title, created_at)
+        VALUES (${id}, ${req.databaseId}, ${req.title}, ${now})
+        RETURNING ${sql.unsafe(RECORD_COLS)}
+      `;
+				const record = recordFromRow(rows[0]);
+				yield* syncLinkedChildRows(record);
+				return record;
+			}),
+		);
+	});
+
+/**
+ * Opt-in 1:1 sync (migration 021): a satellite's relation field can be
+ * flagged so every master record forces a linked, empty satellite record
+ * into existence, with the relation cell pre-filled to the new master.
+ *
+ * Only create-time sync lands here. Backfill for pre-existing masters,
+ * cascade delete/restore, and title-follows-rename are follow-up work.
+ */
+const syncLinkedChildRows = (masterRecord: {
+	id: string;
+	databaseId: string;
+}) =>
+	Effect.gen(function* () {
+		const sql = yield* SqlClient.SqlClient;
+		const syncFields = yield* sql`
+      SELECT id, database_id as "databaseId"
+      FROM database_fields
+      WHERE relation_target_db_id = ${masterRecord.databaseId} AND sync_linked_row = 1
     `;
-		return recordFromRow(rows[0]);
+		for (const field of syncFields as unknown as Array<{
+			id: string;
+			databaseId: string;
+		}>) {
+			const now = new Date().toISOString();
+			const childId = ulid();
+			yield* sql`
+        INSERT INTO database_records (id, database_id, title, created_at)
+        VALUES (${childId}, ${field.databaseId}, '', ${now})
+      `;
+			const valueId = ulid();
+			const value = fieldTypeSpec("relation").encode([masterRecord.id]);
+			yield* sql`
+        INSERT INTO record_field_values (id, record_id, field_id, value)
+        VALUES (${valueId}, ${childId}, ${field.id}, ${value})
+      `;
+		}
 	});
 
 export const updateFieldValue = (req: {
@@ -341,12 +394,14 @@ export const updateField = (req: {
 	options?: string[] | null;
 	relationTargetDbId?: string | null;
 	formula?: string | null;
+	syncLinkedRow?: boolean;
 }) =>
 	Effect.gen(function* () {
 		const sql = yield* SqlClient.SqlClient;
 
 		const existing = yield* sql`
-      SELECT name, type, options, relation_target_db_id as "relationTargetDbId", formula
+      SELECT name, type, options, relation_target_db_id as "relationTargetDbId", formula,
+             sync_linked_row as "syncLinkedRow"
       FROM database_fields WHERE id = ${req.id}
     `;
 		if (existing.length === 0)
@@ -367,6 +422,16 @@ export const updateField = (req: {
 				: req.relationTargetDbId;
 		const newFormula =
 			req.formula === undefined ? current.formula : req.formula;
+		const syncLinkedRowRequested =
+			req.syncLinkedRow === undefined
+				? current.syncLinkedRow === 1
+				: req.syncLinkedRow;
+		// Meaningless outside a relation field pointing somewhere — never persist
+		// it as on for anything else.
+		const newSyncLinkedRow =
+			syncLinkedRowRequested && newType === "relation" && newRelationTargetDbId
+				? 1
+				: 0;
 
 		// When the type changes, migrate existing cell values into the new type's
 		// storage format (e.g. select "Thomas" -> multiSelect ["Thomas"]) so the
@@ -392,7 +457,8 @@ export const updateField = (req: {
 		const rows = yield* sql`
       UPDATE database_fields
       SET name = ${newName}, type = ${newType}, options = ${newOptions},
-          relation_target_db_id = ${newRelationTargetDbId}, formula = ${newFormula}
+          relation_target_db_id = ${newRelationTargetDbId}, formula = ${newFormula},
+          sync_linked_row = ${newSyncLinkedRow}
       WHERE id = ${req.id}
       RETURNING ${sql.unsafe(FIELD_COLS)}
     `;

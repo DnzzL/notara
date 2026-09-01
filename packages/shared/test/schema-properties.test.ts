@@ -99,6 +99,7 @@ const dbFieldArb = fc.record({
 	relationTargetDbId: fc.oneof(fc.constant(null), ulidArb),
 	formula: fc.oneof(fc.constant(null), fc.string({ maxLength: 200 })),
 	sortOrder: fc.integer(),
+	syncLinkedRow: fc.boolean(),
 });
 
 // ── Property: serialize → deserialize is identity ──────────────────────

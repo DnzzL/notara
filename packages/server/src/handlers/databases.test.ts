@@ -71,7 +71,8 @@ const setupDB = Effect.gen(function* () {
       options TEXT,
       relation_target_db_id TEXT,
       formula TEXT,
-      sort_order INTEGER NOT NULL DEFAULT 0
+      sort_order INTEGER NOT NULL DEFAULT 0,
+      sync_linked_row INTEGER NOT NULL DEFAULT 0
     )
   `;
 	yield* sql`
@@ -405,5 +406,80 @@ describe("default view (one per database)", () => {
 		);
 		expect(db1Defaults.map((v) => v.id)).toEqual([b.id]);
 		expect(db2Defaults.map((v) => v.id)).toEqual([other.id]);
+	});
+});
+
+describe("sync_linked_row — 1:1 satellite sync on create", () => {
+	beforeEach(seed);
+
+	it("creates a linked satellite record when the master gets a new record", async () => {
+		const { satellite, field, master } = await testRun(
+			Effect.gen(function* () {
+				const satellite = yield* Databases.createDatabase({
+					pageId: "host-page",
+					name: "Repas",
+				});
+				const field = yield* Databases.createField({
+					databaseId: satellite.id,
+					name: "Membre",
+					type: "relation",
+					options: null,
+					relationTargetDbId: "db1",
+					syncLinkedRow: true,
+				});
+				const master = yield* Databases.createRecord({
+					databaseId: "db1",
+					title: "Alice",
+				});
+				return { satellite, field, master };
+			}),
+		);
+
+		const satelliteRecords = await testRun(Databases.listRecords(satellite.id));
+		expect(satelliteRecords.length).toBe(1);
+		expect(satelliteRecords[0].title).toBe("");
+
+		const { values } = await testRun(
+			Databases.getRecordWithValues(satelliteRecords[0].id),
+		);
+		expect(values[field.name]).toEqual([master.id]);
+	});
+
+	it("does not create a satellite record when the flag is off", async () => {
+		const satellite = await testRun(
+			Effect.gen(function* () {
+				const satellite = yield* Databases.createDatabase({
+					pageId: "host-page",
+					name: "Logistique",
+				});
+				yield* Databases.createField({
+					databaseId: satellite.id,
+					name: "Membre",
+					type: "relation",
+					options: null,
+					relationTargetDbId: "db1",
+					syncLinkedRow: false,
+				});
+				yield* Databases.createRecord({ databaseId: "db1", title: "Bob" });
+				return satellite;
+			}),
+		);
+
+		const satelliteRecords = await testRun(Databases.listRecords(satellite.id));
+		expect(satelliteRecords.length).toBe(0);
+	});
+
+	it("ignores the flag on a non-relation field", async () => {
+		const field = await testRun(
+			Databases.createField({
+				databaseId: "db1",
+				name: "Notes",
+				type: "text",
+				options: null,
+				relationTargetDbId: null,
+				syncLinkedRow: true,
+			}),
+		);
+		expect(field.syncLinkedRow).toBe(false);
 	});
 });
