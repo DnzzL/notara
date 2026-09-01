@@ -86,6 +86,28 @@ A stale `node_modules` can hold two copies of a package whose types augment each
 so the augmentation lands on one copy and your code is typed against the other. That was
 NOT-100.
 
+### Visual regression baselines are Linux-only
+
+`e2e/visual-regression.spec.ts` compares screenshots against baselines in
+`e2e/visual-regression.spec.ts-snapshots/`. Playwright names baselines by
+platform (`*-linux.png`, `*-darwin.png`, …), and font rendering differs enough
+between them that a macOS-taken screenshot never matches on Linux CI. **Linux
+is the canonical platform** — CI runs `ubuntu-latest`, so only `*-linux.png`
+baselines belong in the repo.
+
+If you change UI covered by this spec, regenerate the baselines on Linux —
+not on your Mac:
+
+```bash
+bunx playwright test --grep "Visual regression" --update-snapshots
+```
+
+If you're on macOS or Windows, run that inside a Linux environment (Docker,
+a VM, or a throwaway `workflow_dispatch` CI job) and pull the resulting
+`*-linux.png` files back into `e2e/visual-regression.spec.ts-snapshots/`.
+Don't commit a `*-darwin.png` or `*-win32.png` baseline — CI will just fail
+on it.
+
 ## Security
 
 **Never** report a security vulnerability in a public issue. Email

@@ -4,7 +4,6 @@ on:
   pull_request:
   push:
     branches: [main]
-  workflow_dispatch:
 
 # One run per ref: a new push supersedes the in-flight run instead of queueing another.
 concurrency:
@@ -60,14 +59,8 @@ jobs:
       - name: install browsers
         run: bunx playwright install --with-deps chromium
 
-      # Visual regression is excluded, not forgotten. Screenshot baselines are
-      # per-platform, and the ones committed here were taken on macOS — Linux
-      # renders text differently enough that every one of them fails. Making
-      # Linux the canonical platform is the right answer and is NOT-128; until
-      # then, running them here would mean a permanently red job, which trains
-      # everyone to ignore it.
       - name: e2e
-        run: bunx playwright test --grep-invert "Visual regression"
+        run: bunx playwright test
         env:
           # The server refuses to start without it, and it need not be the real
           # one: nothing here outlives the job.
@@ -80,31 +73,3 @@ jobs:
           name: playwright-report
           path: playwright-report/
           retention-days: 7
-
-  # Temporary, manual-only job to generate Linux visual-regression baselines.
-  # Delete once NOT-128 lands the baselines and re-enables the e2e job's
-  # visual regression suite.
-  gen-visual-baselines:
-    if: github.event_name == 'workflow_dispatch'
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v6
-      - uses: oven-sh/setup-bun@v2
-
-      - run: bun install --frozen-lockfile --ignore-scripts
-      - run: bun run apply-patches
-      - run: bun run --filter @notara/shared build
-
-      - name: install browsers
-        run: bunx playwright install --with-deps chromium
-
-      - name: generate baselines
-        run: bunx playwright test --grep "Visual regression" --update-snapshots
-        env:
-          BETTER_AUTH_SECRET: ci-secret-for-ephemeral-e2e-runs-only
-
-      - uses: actions/upload-artifact@v4
-        with:
-          name: visual-regression-snapshots
-          path: e2e/visual-regression.spec.ts-snapshots/
-          retention-days: 3
