@@ -95,16 +95,26 @@ between them that a macOS-taken screenshot never matches on Linux CI. **Linux
 is the canonical platform** — CI runs `ubuntu-latest`, so only `*-linux.png`
 baselines belong in the repo.
 
-If you change UI covered by this spec, regenerate the baselines on Linux —
-not on your Mac:
+**Treat this suite as CI-only.** Don't run it locally against the committed
+baselines expecting a meaningful pass/fail — on macOS or Windows it will
+always report a diff, not because your change broke anything but because the
+platform doesn't match. Local runs are only useful with `--update-snapshots`,
+to preview what a baseline would look like, never to validate one.
+
+To regenerate a baseline, run it on Linux — not on your Mac:
 
 ```bash
 bunx playwright test --grep "Visual regression" --update-snapshots
 ```
 
-If you're on macOS or Windows, run that inside a Linux environment (Docker,
-a VM, or a throwaway `workflow_dispatch` CI job) and pull the resulting
-`*-linux.png` files back into `e2e/visual-regression.spec.ts-snapshots/`.
+The way to do that without owning a Linux box: push a branch and run
+`gh workflow run ci.yml --ref <branch>` after temporarily adding a
+`workflow_dispatch:` trigger and a job that runs the command above with
+`actions/upload-artifact@v4` on `e2e/visual-regression.spec.ts-snapshots/`
+(`ubuntu-latest`, same as the `e2e` job). Download the artifact's
+`*-linux.png` files into `e2e/visual-regression.spec.ts-snapshots/`, delete
+the temporary job, and commit. Docker with a Linux container works too if you
+already have it running, but the throwaway CI job needs nothing installed.
 Don't commit a `*-darwin.png` or `*-win32.png` baseline — CI will just fail
 on it.
 
