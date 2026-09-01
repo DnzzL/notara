@@ -4,6 +4,7 @@ on:
   pull_request:
   push:
     branches: [main]
+  workflow_dispatch:
 
 # One run per ref: a new push supersedes the in-flight run instead of queueing another.
 concurrency:
@@ -79,3 +80,31 @@ jobs:
           name: playwright-report
           path: playwright-report/
           retention-days: 7
+
+  # Temporary, manual-only job to generate Linux visual-regression baselines.
+  # Delete once NOT-128 lands the baselines and re-enables the e2e job's
+  # visual regression suite.
+  gen-visual-baselines:
+    if: github.event_name == 'workflow_dispatch'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+      - uses: oven-sh/setup-bun@v2
+
+      - run: bun install --frozen-lockfile --ignore-scripts
+      - run: bun run apply-patches
+      - run: bun run --filter @notara/shared build
+
+      - name: install browsers
+        run: bunx playwright install --with-deps chromium
+
+      - name: generate baselines
+        run: bunx playwright test --grep "Visual regression" --update-snapshots
+        env:
+          BETTER_AUTH_SECRET: ci-secret-for-ephemeral-e2e-runs-only
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: visual-regression-snapshots
+          path: e2e/visual-regression.spec.ts-snapshots/
+          retention-days: 3
