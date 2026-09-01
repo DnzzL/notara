@@ -24,9 +24,11 @@ echo "📊 Running tests with coverage for $PACKAGE (threshold: ${THRESHOLD}%)..
 # Run tests and capture coverage
 (cd "$WORK_DIR" && "$@" --coverage) 2>&1 | tee "$COVERAGE_DIR/output.txt"
 
-# Parse the average statement coverage of src/ files
-COVERAGE=$(grep -E "^\s+src/" "$COVERAGE_DIR/output.txt" |
-  awk -F'|' '{gsub(/^[[:space:]]+|[[:space:]]+$/, "", $2); if($2!="" && $2!~/^[0-9]/) next; sum+=$2; count++} END {if(count>0) printf "%.1f", sum/count; else print "0"}')
+# Parse the average statement coverage of per-file rows in the coverage table
+# (e.g. "src/foo.ts" for bun test, or "foo.ts" for vitest's coverage table),
+# skipping the "All files" summary row.
+COVERAGE=$( (grep -E "^\s+\S+\.(ts|tsx|js|jsx)\s*\|" "$COVERAGE_DIR/output.txt" | grep -v "All files" |
+  awk -F'|' '{gsub(/^[[:space:]]+|[[:space:]]+$/, "", $2); if($2!="" && $2!~/^[0-9]/) next; sum+=$2; count++} END {if(count>0) printf "%.1f", sum/count; else print "0"}') || echo "0")
 
 echo ""
 echo "📈 $PACKAGE average statement coverage: ${COVERAGE}%"
