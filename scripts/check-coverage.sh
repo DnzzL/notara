@@ -24,9 +24,19 @@ echo "📊 Running tests with coverage for $PACKAGE (threshold: ${THRESHOLD}%)..
 # Run tests and capture coverage
 (cd "$WORK_DIR" && "$@" --coverage) 2>&1 | tee "$COVERAGE_DIR/output.txt"
 
-# Parse the average statement coverage of src/ files
-COVERAGE=$(grep -E "^\s+src/" "$COVERAGE_DIR/output.txt" |
-  awk -F'|' '{gsub(/^[[:space:]]+|[[:space:]]+$/, "", $2); if($2!="" && $2!~/^[0-9]/) next; sum+=$2; count++} END {if(count>0) printf "%.1f", sum/count; else print "0"}')
+# Parse the average statement coverage of this package's own src/ rows in the
+# coverage table (bun test prefixes them "src/foo.ts"). vitest's table (used
+# by @notara/shared) has no src/ prefix at all, so fall back to matching any
+# file row — excluding "../" rows, which are another package's bundled output
+# pulled in as a dependency (e.g. "../shared/dist/foo.js" inside server/app's
+# own table) and must not dilute this package's score.
+COVERAGE=$( (
+  ROWS=$(grep -E "^\s+src/\S+\.(ts|tsx|js|jsx)\s*\|" "$COVERAGE_DIR/output.txt")
+  if [ -z "$ROWS" ]; then
+    ROWS=$(grep -E "^\s+\S+\.(ts|tsx|js|jsx)\s*\|" "$COVERAGE_DIR/output.txt" | grep -v "All files" | grep -v "^\s*\.\./")
+  fi
+  echo "$ROWS" | awk -F'|' '{gsub(/^[[:space:]]+|[[:space:]]+$/, "", $2); if($2!="" && $2!~/^[0-9]/) next; sum+=$2; count++} END {if(count>0) printf "%.1f", sum/count; else print "0"}'
+) || echo "0")
 
 echo ""
 echo "📈 $PACKAGE average statement coverage: ${COVERAGE}%"

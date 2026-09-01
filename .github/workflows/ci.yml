@@ -36,8 +36,17 @@ jobs:
       - name: effect error channels
         run: bash scripts/check-effect-errors.sh
 
-      - name: test
-        run: bun run test
+      # electron is excluded: its only test reads main.js as text rather than
+      # importing it, so bun never instruments it and coverage is always 0%
+      # regardless of test quality. Tracked as a follow-up.
+      - name: test + coverage floor (server)
+        run: bash scripts/check-coverage.sh "@notara/server" packages/server bun test
+      - name: test + coverage floor (app)
+        run: bash scripts/check-coverage.sh "@notara/app" packages/app bun test
+      - name: test + coverage floor (shared)
+        run: bash scripts/check-coverage.sh "@notara/shared" packages/shared bunx vitest run
+      - name: test (electron)
+        run: bun run --filter @notara/electron test
 
   # A test suite nobody runs is worse than no suite: it looks like coverage on
   # the dashboard while protecting nothing. This one was in that state — the
