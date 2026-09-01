@@ -117,6 +117,7 @@ describe("DatabaseField Schema", () => {
 			relationTargetDbId: null,
 			formula: null,
 			sortOrder: 0,
+			syncLinkedRow: false,
 		};
 
 		const decoded = Schema.decodeSync(DatabaseField)(input);
@@ -137,6 +138,7 @@ describe("DatabaseField Schema", () => {
 			relationTargetDbId: null,
 			formula: null,
 			sortOrder: 0,
+			syncLinkedRow: false,
 		};
 
 		const decoded = Schema.decodeSync(DatabaseField)(input);
