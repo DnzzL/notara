@@ -437,7 +437,7 @@ describe("sync_linked_row — 1:1 satellite sync on create", () => {
 
 		const satelliteRecords = await testRun(Databases.listRecords(satellite.id));
 		expect(satelliteRecords.length).toBe(1);
-		expect(satelliteRecords[0].title).toBe("Alice");
+		expect(satelliteRecords[0].title).toBe("");
 
 		const { values } = await testRun(
 			Databases.getRecordWithValues(satelliteRecords[0].id),
@@ -467,5 +467,19 @@ describe("sync_linked_row — 1:1 satellite sync on create", () => {
 
 		const satelliteRecords = await testRun(Databases.listRecords(satellite.id));
 		expect(satelliteRecords.length).toBe(0);
+	});
+
+	it("ignores the flag on a non-relation field", async () => {
+		const field = await testRun(
+			Databases.createField({
+				databaseId: "db1",
+				name: "Notes",
+				type: "text",
+				options: null,
+				relationTargetDbId: null,
+				syncLinkedRow: true,
+			}),
+		);
+		expect(field.syncLinkedRow).toBe(false);
 	});
 });

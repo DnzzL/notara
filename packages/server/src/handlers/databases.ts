@@ -163,7 +163,12 @@ export const createField = (req: {
 		const sql = yield* SqlClient.SqlClient;
 		const id = ulid();
 		const options = req.options ? JSON.stringify(req.options) : null;
-		const syncLinkedRow = req.syncLinkedRow ? 1 : 0;
+		// Meaningless outside a relation field pointing somewhere — never persist
+		// it as on for anything else.
+		const syncLinkedRow =
+			req.syncLinkedRow && req.type === "relation" && req.relationTargetDbId
+				? 1
+				: 0;
 		// Place new fields after existing ones (highest sort_order + 1).
 		const maxRows = yield* sql`
     SELECT COALESCE(MAX(sort_order), 0) as "maxOrder"
@@ -263,23 +268,28 @@ export const getRecordWithValues = (recordId: string) =>
 export const createRecord = (req: { databaseId: string; title: string }) =>
 	Effect.gen(function* () {
 		const sql = yield* SqlClient.SqlClient;
-		const id = ulid();
-		const now = new Date().toISOString();
-		const rows = yield* sql`
-      INSERT INTO database_records (id, database_id, title, created_at)
-      VALUES (${id}, ${req.databaseId}, ${req.title}, ${now})
-      RETURNING ${sql.unsafe(RECORD_COLS)}
-    `;
-		const record = recordFromRow(rows[0]);
-		yield* syncLinkedChildRows(record);
-		return record;
+		// Transacted: a master record must never exist without its forced
+		// satellite rows, or row counts (the feature's whole point) drift.
+		return yield* sql.withTransaction(
+			Effect.gen(function* () {
+				const id = ulid();
+				const now = new Date().toISOString();
+				const rows = yield* sql`
+        INSERT INTO database_records (id, database_id, title, created_at)
+        VALUES (${id}, ${req.databaseId}, ${req.title}, ${now})
+        RETURNING ${sql.unsafe(RECORD_COLS)}
+      `;
+				const record = recordFromRow(rows[0]);
+				yield* syncLinkedChildRows(record);
+				return record;
+			}),
+		);
 	});
 
 /**
  * Opt-in 1:1 sync (migration 021): a satellite's relation field can be
  * flagged so every master record forces a linked, empty satellite record
- * into existence, with the relation cell pre-filled and the title mirroring
- * the master's at creation time.
+ * into existence, with the relation cell pre-filled to the new master.
  *
  * Only create-time sync lands here. Backfill for pre-existing masters,
  * cascade delete/restore, and title-follows-rename are follow-up work.
@@ -287,7 +297,6 @@ export const createRecord = (req: { databaseId: string; title: string }) =>
 const syncLinkedChildRows = (masterRecord: {
 	id: string;
 	databaseId: string;
-	title: string;
 }) =>
 	Effect.gen(function* () {
 		const sql = yield* SqlClient.SqlClient;
@@ -304,7 +313,7 @@ const syncLinkedChildRows = (masterRecord: {
 			const childId = ulid();
 			yield* sql`
         INSERT INTO database_records (id, database_id, title, created_at)
-        VALUES (${childId}, ${field.databaseId}, ${masterRecord.title}, ${now})
+        VALUES (${childId}, ${field.databaseId}, '', ${now})
       `;
 			const valueId = ulid();
 			const value = fieldTypeSpec("relation").encode([masterRecord.id]);
@@ -413,12 +422,16 @@ export const updateField = (req: {
 				: req.relationTargetDbId;
 		const newFormula =
 			req.formula === undefined ? current.formula : req.formula;
-		const newSyncLinkedRow =
+		const syncLinkedRowRequested =
 			req.syncLinkedRow === undefined
-				? current.syncLinkedRow
-				: req.syncLinkedRow
-					? 1
-					: 0;
+				? current.syncLinkedRow === 1
+				: req.syncLinkedRow;
+		// Meaningless outside a relation field pointing somewhere — never persist
+		// it as on for anything else.
+		const newSyncLinkedRow =
+			syncLinkedRowRequested && newType === "relation" && newRelationTargetDbId
+				? 1
+				: 0;
 
 		// When the type changes, migrate existing cell values into the new type's
 		// storage format (e.g. select "Thomas" -> multiSelect ["Thomas"]) so the

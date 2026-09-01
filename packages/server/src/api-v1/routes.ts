@@ -15,6 +15,7 @@ import {
 	handle,
 	noContent,
 	ok,
+	optionalBooleanField,
 	optionalField,
 	parseBody,
 	queryParam,
@@ -699,10 +700,7 @@ export const registerV1Routes = Effect.gen(function* () {
 						options: Array.isArray(b.options) ? (b.options as string[]) : null,
 						relationTargetDbId: optionalField(body, "relationTargetDbId"),
 						formula: optionalField(body, "formula"),
-						syncLinkedRow:
-							typeof b.syncLinkedRow === "boolean"
-								? b.syncLinkedRow
-								: undefined,
+						syncLinkedRow: optionalBooleanField(body, "syncLinkedRow"),
 					}),
 				);
 				return created(field);
@@ -750,10 +748,7 @@ export const registerV1Routes = Effect.gen(function* () {
 								? (b.relationTargetDbId as string | null)
 								: undefined,
 						formula: "formula" in b ? (b.formula as string | null) : undefined,
-						syncLinkedRow:
-							typeof b.syncLinkedRow === "boolean"
-								? b.syncLinkedRow
-								: undefined,
+						syncLinkedRow: optionalBooleanField(body, "syncLinkedRow"),
 					}),
 				).pipe(
 					Effect.mapError(
