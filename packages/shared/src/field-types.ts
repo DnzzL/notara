@@ -155,7 +155,11 @@ const SPECS: Record<FieldType, FieldTypeSpec> = {
 		basic: true,
 		defaultWidth: 90,
 		readOnly: false,
-		decode: (raw) => (raw ? Number(raw) : null),
+		decode: (raw) => {
+			if (!raw) return null;
+			const n = Number(raw);
+			return Number.isNaN(n) ? null : n;
+		},
 		encode: encodeString,
 		compare: compareNumbers,
 		operators: [
