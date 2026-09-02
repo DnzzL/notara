@@ -55,8 +55,9 @@ style rather than reformatting adjacent code.
 ### Installing does not run code
 
 `bun install` in this repo executes nothing. There is no `postinstall`, and
-`trustedDependencies` in `bunfig.toml` is empty, so Bun declines to run dependency
-lifecycle scripts too.
+`bunfig.toml` sets `ignoreScripts = true`, so Bun skips every dependency lifecycle
+script — including for packages on Bun's own built-in default-trust list (an empty
+`trustedDependencies` alone does not stop those; `ignoreScripts` does).
 
 That is deliberate. A postinstall script is arbitrary code running with your credentials
 and your network, triggered by a transitive version bump nobody read — the shape most
