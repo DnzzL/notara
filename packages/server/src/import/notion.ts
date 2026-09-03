@@ -83,17 +83,17 @@ export function markdownToBlocks(md: string): ParsedBlock[] {
 	const blocks: ParsedBlock[] = [];
 	let skipFirstH1 = true;
 	let inCode = false;
-	let codeContent = "";
+	let codeLines: string[] = [];
 	let codeType = "code";
 
 	for (const line of lines) {
 		if (inCode) {
 			if (line.startsWith("```")) {
-				blocks.push({ type: codeType, content: codeContent });
+				blocks.push({ type: codeType, content: codeLines.join("\n") });
 				inCode = false;
-				codeContent = "";
+				codeLines = [];
 			} else {
-				codeContent += `${line}\n`;
+				codeLines.push(line);
 			}
 			continue;
 		}
@@ -116,9 +116,14 @@ export function markdownToBlocks(md: string): ParsedBlock[] {
 			blocks.push({ type: "todo", content: line.slice(6) });
 		} else if (line.startsWith("- ")) {
 			blocks.push({ type: "bulletList", content: line.slice(2) });
+		} else if (/^\d+\.\s/.test(line)) {
+			blocks.push({
+				type: "numberedList",
+				content: line.slice(line.indexOf(" ") + 1),
+			});
 		} else if (line.startsWith("```")) {
 			inCode = true;
-			codeContent = "";
+			codeLines = [];
 			const lang = line.slice(3).trim();
 			codeType = lang ? `code-${lang}` : "code";
 		} else if (line.startsWith("> ")) {
@@ -161,8 +166,8 @@ export function markdownToBlocks(md: string): ParsedBlock[] {
 		}
 	}
 
-	if (inCode && codeContent) {
-		blocks.push({ type: codeType, content: codeContent });
+	if (inCode && codeLines.length > 0) {
+		blocks.push({ type: codeType, content: codeLines.join("\n") });
 	}
 
 	return blocks;
