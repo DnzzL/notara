@@ -59,7 +59,10 @@ const setupDB = Effect.gen(function* () {
       is_deleted INTEGER NOT NULL DEFAULT 0,
       created_at TEXT NOT NULL DEFAULT (datetime('now')),
       deleted_at TEXT,
-      page_id TEXT REFERENCES pages(id)
+      page_id TEXT REFERENCES pages(id),
+      -- Which master record's deletion swept this satellite row into the
+      -- trash; NULL when it was deleted in its own right. See migration 022.
+      trashed_with TEXT
     )
   `;
 	yield* sql`
@@ -481,5 +484,173 @@ describe("sync_linked_row — 1:1 satellite sync on create", () => {
 			}),
 		);
 		expect(field.syncLinkedRow).toBe(false);
+	});
+});
+
+/** Create a satellite database with a synced relation field pointing at db1. */
+const makeSatellite = () =>
+	Effect.gen(function* () {
+		const satellite = yield* Databases.createDatabase({
+			pageId: "host-page",
+			name: "Repas",
+		});
+		const field = yield* Databases.createField({
+			databaseId: satellite.id,
+			name: "Membre",
+			type: "relation",
+			options: null,
+			relationTargetDbId: "db1",
+			syncLinkedRow: true,
+		});
+		return { satellite, field };
+	});
+
+describe("backfillSyncLinkedRows", () => {
+	beforeEach(seed);
+
+	it("creates a satellite row for a master that predates the flag", async () => {
+		// rec1 was inserted directly by seed(), before any sync field existed.
+		const { satellite, field } = await testRun(makeSatellite());
+
+		const result = await testRun(Databases.backfillSyncLinkedRows);
+		expect(result.created).toBe(1);
+
+		const satelliteRecords = await testRun(Databases.listRecords(satellite.id));
+		expect(satelliteRecords.length).toBe(1);
+		expect(satelliteRecords[0].title).toBe("");
+		const { values } = await testRun(
+			Databases.getRecordWithValues(satelliteRecords[0].id),
+		);
+		expect(values[field.name]).toEqual(["rec1"]);
+	});
+
+	it("is idempotent — running twice does not duplicate satellite rows", async () => {
+		await testRun(makeSatellite());
+
+		const first = await testRun(Databases.backfillSyncLinkedRows);
+		const second = await testRun(Databases.backfillSyncLinkedRows);
+		expect(first.created).toBe(1);
+		expect(second.created).toBe(0);
+	});
+
+	it("skips masters that already have a live linked satellite row", async () => {
+		const { satellite } = await testRun(makeSatellite());
+		// Master gets its satellite at create time via a second record.
+		await testRun(Databases.createRecord({ databaseId: "db1", title: "Bob" }));
+
+		const result = await testRun(Databases.backfillSyncLinkedRows);
+		// Only rec1 (pre-existing) is missing one; Bob already got one on create.
+		expect(result.created).toBe(1);
+		const satelliteRecords = await testRun(Databases.listRecords(satellite.id));
+		expect(satelliteRecords.length).toBe(2);
+	});
+});
+
+describe("cascade trash/restore for linked satellite rows", () => {
+	beforeEach(seed);
+
+	it("trashes the linked satellite row when its master is trashed", async () => {
+		const { satellite } = await testRun(makeSatellite());
+		await testRun(Databases.backfillSyncLinkedRows);
+		const satelliteRecords = await testRun(Databases.listRecords(satellite.id));
+		const satelliteId = satelliteRecords[0].id;
+
+		await testRun(Databases.deleteRecord("rec1"));
+
+		expect(
+			await rowCount("database_records", `id = 'rec1' AND is_deleted = 1`),
+		).toBe(1);
+		expect(
+			await rowCount(
+				"database_records",
+				`id = '${satelliteId}' AND is_deleted = 1 AND trashed_with = 'rec1'`,
+			),
+		).toBe(1);
+		// Cascaded rows don't get their own trash entry.
+		const trash = await testRun(Databases.listTrash);
+		expect(trash.records.map((r) => r.id)).toContain("rec1");
+		expect(trash.records.map((r) => r.id)).not.toContain(satelliteId);
+	});
+
+	it("restores the linked satellite row when its master is restored", async () => {
+		const { satellite } = await testRun(makeSatellite());
+		await testRun(Databases.backfillSyncLinkedRows);
+		const satelliteId = (await testRun(Databases.listRecords(satellite.id)))[0]
+			.id;
+
+		await testRun(Databases.deleteRecord("rec1"));
+		await testRun(Databases.restoreRecord("rec1"));
+
+		expect(
+			await rowCount("database_records", `id = 'rec1' AND is_deleted = 0`),
+		).toBe(1);
+		expect(
+			await rowCount(
+				"database_records",
+				`id = '${satelliteId}' AND is_deleted = 0 AND trashed_with IS NULL`,
+			),
+		).toBe(1);
+	});
+
+	it("leaves an independently-trashed satellite row alone when the master is restored", async () => {
+		const { satellite } = await testRun(makeSatellite());
+		await testRun(Databases.backfillSyncLinkedRows);
+		const satelliteId = (await testRun(Databases.listRecords(satellite.id)))[0]
+			.id;
+
+		// Satellite trashed on its own, before the master.
+		await testRun(Databases.deleteRecord(satelliteId));
+		await testRun(Databases.deleteRecord("rec1"));
+		await testRun(Databases.restoreRecord("rec1"));
+
+		// Independently-deleted row stays trashed, and keeps its own trash entry.
+		expect(
+			await rowCount(
+				"database_records",
+				`id = '${satelliteId}' AND is_deleted = 1`,
+			),
+		).toBe(1);
+		const trash = await testRun(Databases.listTrash);
+		expect(trash.records.map((r) => r.id)).toContain(satelliteId);
+	});
+
+	it("purges the linked satellite row when its master is purged", async () => {
+		const { satellite } = await testRun(makeSatellite());
+		await testRun(Databases.backfillSyncLinkedRows);
+		const satelliteId = (await testRun(Databases.listRecords(satellite.id)))[0]
+			.id;
+
+		await testRun(Databases.deleteRecord("rec1"));
+		await testRun(Databases.purgeRecord("rec1"));
+
+		expect(await rowCount("database_records", `id = 'rec1'`)).toBe(0);
+		expect(await rowCount("database_records", `id = '${satelliteId}'`)).toBe(0);
+	});
+});
+
+describe("title-follows-rename for linked satellite rows", () => {
+	beforeEach(seed);
+
+	it("propagates a master's new title to its linked satellite row", async () => {
+		const { satellite } = await testRun(makeSatellite());
+		await testRun(Databases.backfillSyncLinkedRows);
+		const satelliteId = (await testRun(Databases.listRecords(satellite.id)))[0]
+			.id;
+
+		await testRun(Databases.updateRecord({ id: "rec1", title: "Renamed" }));
+
+		const satelliteRecords = await testRun(Databases.listRecords(satellite.id));
+		const rec = satelliteRecords.find((r) => r.id === satelliteId);
+		expect(rec?.title).toBe("Renamed");
+	});
+
+	it("does not touch the satellite row when only the description changes", async () => {
+		const { satellite } = await testRun(makeSatellite());
+		await testRun(Databases.backfillSyncLinkedRows);
+
+		await testRun(Databases.updateRecord({ id: "rec1", description: "notes" }));
+
+		const satelliteRecords = await testRun(Databases.listRecords(satellite.id));
+		expect(satelliteRecords[0].title).toBe("");
 	});
 });

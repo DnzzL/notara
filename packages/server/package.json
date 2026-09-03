@@ -6,6 +6,7 @@
 		"dev": "bun --watch src/index.ts",
 		"build": "tsc",
 		"db:migrate": "bun src/migrate.ts",
+		"db:backfill-sync-linked-rows": "bun src/backfill-sync-linked-rows.ts",
 		"test": "bun test"
 	},
 	"dependencies": {

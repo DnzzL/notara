@@ -290,9 +290,6 @@ export const createRecord = (req: { databaseId: string; title: string }) =>
  * Opt-in 1:1 sync (migration 021): a satellite's relation field can be
  * flagged so every master record forces a linked, empty satellite record
  * into existence, with the relation cell pre-filled to the new master.
- *
- * Only create-time sync lands here. Backfill for pre-existing masters,
- * cascade delete/restore, and title-follows-rename are follow-up work.
  */
 const syncLinkedChildRows = (masterRecord: {
 	id: string;
@@ -309,17 +306,134 @@ const syncLinkedChildRows = (masterRecord: {
 			id: string;
 			databaseId: string;
 		}>) {
-			const now = new Date().toISOString();
-			const childId = ulid();
+			yield* insertLinkedChildRow(field, masterRecord.id);
+		}
+	});
+
+/** Force one empty satellite record for `masterId`, relation cell pre-filled. */
+const insertLinkedChildRow = (
+	field: { id: string; databaseId: string },
+	masterId: string,
+) =>
+	Effect.gen(function* () {
+		const sql = yield* SqlClient.SqlClient;
+		const now = new Date().toISOString();
+		const childId = ulid();
+		yield* sql`
+      INSERT INTO database_records (id, database_id, title, created_at)
+      VALUES (${childId}, ${field.databaseId}, '', ${now})
+    `;
+		const valueId = ulid();
+		const value = fieldTypeSpec("relation").encode([masterId]);
+		yield* sql`
+      INSERT INTO record_field_values (id, record_id, field_id, value)
+      VALUES (${valueId}, ${childId}, ${field.id}, ${value})
+    `;
+	});
+
+/**
+ * Backfill missing satellite rows for masters that predate `sync_linked_row`
+ * being turned on: for every synced relation field, force a satellite record
+ * into existence for each live master that doesn't already have a live one
+ * linked to it. Idempotent — safe to run repeatedly.
+ */
+export const backfillSyncLinkedRows = Effect.gen(function* () {
+	const sql = yield* SqlClient.SqlClient;
+	const syncFields = yield* sql`
+    SELECT id, database_id as "databaseId", relation_target_db_id as "masterDbId"
+    FROM database_fields WHERE sync_linked_row = 1
+  `;
+	let created = 0;
+	for (const field of syncFields as unknown as Array<{
+		id: string;
+		databaseId: string;
+		masterDbId: string;
+	}>) {
+		const linkedRows = yield* sql`
+      SELECT rfv.value FROM record_field_values rfv
+      JOIN database_records r ON r.id = rfv.record_id AND r.is_deleted = 0
+      WHERE rfv.field_id = ${field.id}
+    `;
+		const linkedMasterIds = new Set<string>();
+		for (const row of linkedRows as unknown as Array<{ value: string }>) {
+			for (const id of fieldTypeSpec("relation").decode(
+				row.value,
+			) as string[]) {
+				linkedMasterIds.add(id);
+			}
+		}
+		const masters = yield* sql`
+      SELECT id FROM database_records WHERE database_id = ${field.masterDbId} AND is_deleted = 0
+    `;
+		for (const master of masters as unknown as Array<{ id: string }>) {
+			if (linkedMasterIds.has(master.id)) continue;
+			yield* insertLinkedChildRow(field, master.id);
+			created++;
+		}
+	}
+	return { created };
+});
+
+/**
+ * Propagate a master's new title to its linked satellite rows (opt-in sync,
+ * migration 021) — kept in step on every rename, not just at creation.
+ */
+const syncLinkedChildTitles = (masterId: string, title: string) =>
+	Effect.gen(function* () {
+		const sql = yield* SqlClient.SqlClient;
+		const masterRows = yield* sql`
+      SELECT database_id as "databaseId" FROM database_records WHERE id = ${masterId}
+    `;
+		const databaseId = (masterRows[0] as { databaseId: string } | undefined)
+			?.databaseId;
+		if (!databaseId) return;
+		const syncFields = yield* sql`
+      SELECT id, database_id as "databaseId"
+      FROM database_fields
+      WHERE relation_target_db_id = ${databaseId} AND sync_linked_row = 1
+    `;
+		for (const field of syncFields as unknown as Array<{
+			id: string;
+			databaseId: string;
+		}>) {
+			const value = fieldTypeSpec("relation").encode([masterId]);
 			yield* sql`
-        INSERT INTO database_records (id, database_id, title, created_at)
-        VALUES (${childId}, ${field.databaseId}, '', ${now})
+        UPDATE database_records SET title = ${title}
+        WHERE database_id = ${field.databaseId} AND is_deleted = 0 AND id IN (
+          SELECT record_id FROM record_field_values WHERE field_id = ${field.id} AND value = ${value}
+        )
       `;
-			const valueId = ulid();
-			const value = fieldTypeSpec("relation").encode([masterRecord.id]);
+		}
+	});
+
+/**
+ * Trash every live satellite row linked to `masterId` via a synced relation
+ * field, stamping `trashed_with` (migration 022) so restore knows to bring
+ * them back and the trash listing doesn't show them separately. A satellite
+ * already trashed on its own (independent decision) is left alone.
+ */
+const cascadeTrashLinkedRows = (
+	masterDatabaseId: string,
+	masterId: string,
+	now: string,
+) =>
+	Effect.gen(function* () {
+		const sql = yield* SqlClient.SqlClient;
+		const syncFields = yield* sql`
+      SELECT id, database_id as "databaseId"
+      FROM database_fields
+      WHERE relation_target_db_id = ${masterDatabaseId} AND sync_linked_row = 1
+    `;
+		for (const field of syncFields as unknown as Array<{
+			id: string;
+			databaseId: string;
+		}>) {
+			const value = fieldTypeSpec("relation").encode([masterId]);
 			yield* sql`
-        INSERT INTO record_field_values (id, record_id, field_id, value)
-        VALUES (${valueId}, ${childId}, ${field.id}, ${value})
+        UPDATE database_records SET is_deleted = 1, deleted_at = ${now}, trashed_with = ${masterId}
+        WHERE database_id = ${field.databaseId} AND is_deleted = 0 AND id IN (
+          SELECT record_id FROM record_field_values WHERE field_id = ${field.id} AND value = ${value}
+        )
       `;
 		}
 	});
@@ -367,15 +481,17 @@ export const deleteRecord = (id: string) =>
 		const sql = yield* SqlClient.SqlClient;
 		const now = new Date().toISOString();
 		const recRows =
-			yield* sql`SELECT page_id as "pageId" FROM database_records WHERE id = ${id}`;
+			yield* sql`SELECT database_id as "databaseId", page_id as "pageId" FROM database_records WHERE id = ${id}`;
 		yield* sql`UPDATE database_records SET is_deleted = 1, deleted_at = ${now} WHERE id = ${id}`;
 		// A row and its lazily-created backing page are one entity: trash them together
 		// so the page stops appearing as a ghost in the sidebar tree.
-		const pageId = (recRows[0] as { pageId: string | null } | undefined)
-			?.pageId;
-		if (pageId) {
-			yield* sql`UPDATE pages SET is_deleted = 1, deleted_at = ${now}, updated_at = ${now} WHERE id = ${pageId}`;
+		const rec = recRows[0] as
+			| { databaseId: string; pageId: string | null }
+			| undefined;
+		if (rec?.pageId) {
+			yield* sql`UPDATE pages SET is_deleted = 1, deleted_at = ${now}, updated_at = ${now} WHERE id = ${rec.pageId}`;
 		}
+		if (rec) yield* cascadeTrashLinkedRows(rec.databaseId, id, now);
 	});
 
 export const listViews = (databaseId: string) =>
@@ -503,6 +619,9 @@ export const updateRecord = (req: {
 			`UPDATE database_records SET ${sets.join(", ")} WHERE id = ?`,
 			params,
 		);
+		if (req.title !== undefined) {
+			yield* syncLinkedChildTitles(req.id, req.title);
+		}
 		return { updated: true };
 	});
 
@@ -719,12 +838,18 @@ export const restoreRecord = (id: string) =>
       WHERE id = ${id} AND is_deleted = 1
       RETURNING id, page_id as "pageId"
     `;
+		if (rows.length === 0) return { restored: false };
 		// Restore the backing page alongside the row (mirror of deleteRecord).
-		const pageId = (rows[0] as { pageId: string | null } | undefined)?.pageId;
+		const pageId = (rows[0] as { pageId: string | null }).pageId;
 		if (pageId) {
 			yield* sql`UPDATE pages SET is_deleted = 0, deleted_at = NULL, updated_at = ${now} WHERE id = ${pageId}`;
 		}
-		return { restored: rows.length > 0 };
+		// Bring back whatever this row's trashing swept up with it (migration 022).
+		yield* sql`
+      UPDATE database_records SET is_deleted = 0, deleted_at = NULL, trashed_with = NULL
+      WHERE trashed_with = ${id}
+    `;
+		return { restored: true };
 	});
 
 // NOTE on cascade: SQLite foreign keys are NOT enforced on these connections
@@ -733,17 +858,26 @@ export const restoreRecord = (id: string) =>
 // explicitly, inside a transaction. Order is irrelevant with FKs off, but we go
 // leaf-to-root for clarity.
 
-/** Permanently delete a record and its field values. */
-export const purgeRecord = (id: string) =>
+/** Permanently delete a record, its field values, and whatever its trashing
+ *  swept up with it (satellite rows carrying its id in `trashed_with`). */
+export const purgeRecord = (
+	id: string,
+): Effect.Effect<{ purged: true }, any, SqlClient.SqlClient> =>
 	Effect.gen(function* () {
 		const sql = yield* SqlClient.SqlClient;
 		const recRows =
 			yield* sql`SELECT page_id as "pageId" FROM database_records WHERE id = ${id}`;
+		const linkedRows =
+			yield* sql`SELECT id FROM database_records WHERE trashed_with = ${id}`;
 		yield* sql`DELETE FROM record_field_values WHERE record_id = ${id}`;
 		yield* sql`DELETE FROM database_records WHERE id = ${id}`;
 		const pageId = (recRows[0] as { pageId: string | null } | undefined)
 			?.pageId;
 		if (pageId) yield* purgePage(pageId);
+		const linkedIds = linkedRows.map((r) => (r as { id: string }).id);
+		yield* Effect.forEach(linkedIds, (rid) => purgeRecord(rid), {
+			discard: true,
+		});
 		return { purged: true };
 	});
 
@@ -816,7 +950,7 @@ export const listTrash = Effect.gen(function* () {
   `;
 	const records = yield* sql`
     SELECT id, database_id as "databaseId", title, deleted_at as "deletedAt" FROM database_records
-    WHERE is_deleted = 1 ORDER BY deleted_at DESC
+    WHERE is_deleted = 1 AND trashed_with IS NULL ORDER BY deleted_at DESC
   `;
 	return new TrashContents({
 		pages: pages.map(
