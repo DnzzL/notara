@@ -53,6 +53,14 @@ describe("markdownToBlocks", () => {
 		expect(blocks[1].content).toBe("const x = 1;\nconsole.log(x);");
 	});
 
+	test("converts single-line code blocks without a trailing newline", () => {
+		const md = "```\nconst x = 1;\n```";
+		const blocks = markdownToBlocks(md);
+		expect(blocks).toHaveLength(1);
+		expect(blocks[0].type).toBe("code");
+		expect(blocks[0].content).toBe("const x = 1;");
+	});
+
 	test("converts numbered lists", () => {
 		const md = "1. First item\n2. Second item\n10. Tenth item";
 		const blocks = markdownToBlocks(md);
