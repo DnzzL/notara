@@ -25,6 +25,7 @@
 	"devDependencies": {
 		"@types/bun": "^1.2.0",
 		"@types/nodemailer": "^8.0.0",
+		"fast-check": "^4.9.0",
 		"typescript": "^7.0.2"
 	}
 }
