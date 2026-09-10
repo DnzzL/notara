@@ -4,7 +4,7 @@ title: A pure blockDocument behind the editor
 status: ready-for-agent
 assignee: []
 created_date: '2026-08-26 11:13'
-updated_date: '2026-08-26 11:14'
+updated_date: '2026-09-01 17:20'
 labels:
   - enhancement
 dependencies:
@@ -42,7 +42,7 @@ Related: NOT-96 (mid-item Enter duplicating text) lives in this code and should 
 
 ## Acceptance Criteria
 <!-- AC:BEGIN -->
-- [ ] #1 Split, merge and insert are pure functions returning operations and a focus request, with no DOM and no editor instance involved
+- [x] #1 Split, merge and insert are pure functions returning operations and a focus request, with no DOM and no editor instance involved
 - [ ] #2 The navigation extension only maps keys to intents; the ordering invariant is enforced by the document module, not by a comment
 - [ ] #3 The three global window events and the module-global focus singleton are gone, replaced by a per-page session
 - [ ] #4 The block list has one writer; remote updates reconcile through the same path as local edits, with the conflict rule stated
@@ -50,3 +50,13 @@ Related: NOT-96 (mid-item Enter duplicating text) lives in this code and should 
 - [ ] #6 NOT-96 has a regression test at the document-module level
 - [ ] #7 The editor and multiuser live-sync E2E specs pass unchanged
 <!-- AC:END -->
+
+## Implementation Notes
+
+<!-- SECTION:NOTES:BEGIN -->
+Landed one slice: pure split/merge/insertAfter extracted to packages/app/src/lib/blockDocument.ts (mergeBlocks, splitBlock, insertBlockAfter), each returning a plain operation + focus request, no editor instance involved. BlockEditor.tsx's callbacks now call these and apply the returned operations via store actions/requestFocus/window event, byte-for-byte equivalent to the removed inline logic (verified in code review). Tests in packages/app/test/blockDocument.test.ts import the real module.
+
+Caveat on AC #1: mergeBlocks still calls extractInlineHTML, which uses DOMParser -- so it's editor-instance-free but not literally DOM-free. Kept as-is to avoid a second, divergent inline-HTML-extraction implementation; flagged rather than silently accepted.
+
+Not touched in this slice (remaining AC #2-7): the extension-as-key-mapper, the per-page focus session replacing the 3 window events + focus singleton, the single block-list writer/reconciliation path, migrating the two tests that copy implementation, the NOT-96 regression test at the module level, and e2e verification. Follow-up filed on the fleet backlog.
+<!-- SECTION:NOTES:END -->

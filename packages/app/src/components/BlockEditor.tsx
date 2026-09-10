@@ -26,6 +26,11 @@ import { ulid } from "ulidx";
 import { useSession } from "../auth-client.js";
 import { shouldOpenBlockMenu } from "../lib/blockContextMenu.js";
 import {
+	insertBlockAfter as computeInsertBlockAfter,
+	splitBlock as computeSplitBlock,
+	mergeBlocks,
+} from "../lib/blockDocument.js";
+import {
 	setFocusedBlock,
 	startPresence,
 	stopPresence,
@@ -45,7 +50,6 @@ import {
 import {
 	applyFocus,
 	consumeFocus,
-	extractInlineHTML,
 	requestFocus,
 	subscribeFocus,
 } from "./blockEditing.js";
@@ -54,11 +58,7 @@ import {
 	getBlockRenderer,
 	hasBlockRenderer,
 } from "./blocks/renderer-registry.js";
-import {
-	blockTypeFromHtml,
-	SLASH_COMMANDS,
-	wrapInlineHTML,
-} from "./blockTypes.js";
+import { SLASH_COMMANDS } from "./blockTypes.js";
 import { DatabaseView } from "./DatabaseView.js";
 import { DragHandle } from "./DragHandle.js";
 import { EmojiPicker } from "./EmojiPicker.js";
@@ -901,37 +901,19 @@ export function BlockEditor() {
 			const prev = around?.prev;
 			if (!current || !prev) return;
 
-			// Derive previous block's type from its content HTML, not the stored
-			// type, to avoid the 500ms debounce race (a markdown transform may
-			// have changed the content without yet persisting the type).
-			const prevHtml = prev.content || defaultContentForType(prev.type);
-			const prevType = blockTypeFromHtml(prevHtml);
+			const op = mergeBlocks(prev, current);
 
-			// Concatenate inline content (marks intact), then re-wrap in prev's tag.
-			const prevInner = extractInlineHTML(prevHtml);
-			const currentInner = extractInlineHTML(
-				current.content || defaultContentForType(current.type),
-			);
-			const mergedInner = prevInner + currentInner;
-
-			// Preserve the previous block's type, derived from content. The wrapping
-			// is blockTypes' to know — this used to be a second, divergent copy.
-			const mergedHtml = wrapInlineHTML(prevType, mergedInner);
-
-			// Caret lands at the seam — the text length of prev's content.
-			const seam = stripHtml(prevInner).length;
-
-			void updateBlock(prev.id, mergedHtml);
-			void deleteBlock(current.id);
+			void updateBlock(op.updateBlock.id, op.updateBlock.content);
+			void deleteBlock(op.deleteBlockId);
 			// Pushed straight into the surviving editor rather than left to the
 			// content-sync effect: on a forward-delete that editor is the focused
 			// one, and the sync skips focused blocks.
 			window.dispatchEvent(
 				new CustomEvent("block-set-content", {
 					detail: {
-						blockId: prev.id,
-						content: mergedHtml,
-						focus: { kind: "offset", offset: seam },
+						blockId: op.focus.blockId,
+						content: op.updateBlock.content,
+						focus: { kind: "offset", offset: op.focus.offset },
 					},
 				}),
 			);
@@ -963,32 +945,28 @@ export function BlockEditor() {
 			const page = usePageStore.getState().currentPage;
 			if (!current || !page) return;
 
-			// Persist the type alongside the content when a markdown transform has
-			// changed it (`- ` → bullet list) but the debounced save hasn't landed:
-			// the split truncates this editor, which cancels that save.
-			const finalBefore = beforeContent || defaultContentForType(current.type);
-			const newType = newBlockType || "paragraph";
-			const finalAfter = afterContent || defaultContentForType(newType);
 			// The new block's id is chosen here so the caret can be sent after it
 			// on this keystroke. Neither write is awaited: both stores update
 			// synchronously and reconcile with the server on their own. Awaiting
 			// them is what used to leave the caret in the old block long enough
 			// for the next characters to land there.
 			const newId = ulid();
-			requestFocus(newId, { kind: "start" });
-			void updateBlock(
-				current.id,
-				finalBefore,
-				currentType && currentType !== current.type ? currentType : undefined,
+			const op = computeSplitBlock(
+				current,
+				beforeContent,
+				afterContent,
+				newId,
+				newBlockType,
+				currentType,
 			);
-			void createBlock({
-				id: newId,
-				pageId: page.id,
-				type: newType,
-				content: finalAfter,
-				index: current.index + 1,
-				parentId: null,
-			});
+
+			requestFocus(op.focus.blockId, { kind: "start" });
+			void updateBlock(
+				op.updateBlock.id,
+				op.updateBlock.content,
+				op.updateBlock.type,
+			);
+			void createBlock({ ...op.insertBlock, pageId: page.id });
 		},
 		[neighbours, updateBlock, createBlock],
 	);
@@ -1001,15 +979,9 @@ export function BlockEditor() {
 			if (!current || !page) return;
 
 			const newId = ulid();
-			requestFocus(newId, { kind: "start" });
-			void createBlock({
-				id: newId,
-				pageId: page.id,
-				type: "paragraph",
-				content: defaultContentForType("paragraph"),
-				index: current.index + 1,
-				parentId: null,
-			});
+			const op = computeInsertBlockAfter(current, newId);
+			requestFocus(op.focus.blockId, { kind: "start" });
+			void createBlock({ ...op.insertBlock, pageId: page.id });
 		},
 		[neighbours, createBlock],
 	);
