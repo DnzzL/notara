@@ -15,6 +15,6 @@ if [ -z "$staged_files" ]; then
     exit 0
 fi
 
-bunx @biomejs/biome check --write --unsafe --staged
+bunx @biomejs/biome check --write --unsafe --staged --no-errors-on-unmatched
 
 echo "$staged_files" | xargs -r git add

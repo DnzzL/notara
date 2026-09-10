@@ -1,9 +1,10 @@
 ---
 id: NOT-128
 title: 'Visual regression baselines are macOS-only, so CI cannot run them'
-status: ready-for-agent
+status: done
 assignee: []
 created_date: '2026-08-27 15:45'
+updated_date: '2026-09-01 18:27'
 labels:
   - enhancement
 dependencies: []
@@ -25,7 +26,13 @@ The consequence to accept with it: developers can no longer run visual regressio
 
 ## Acceptance Criteria
 <!-- AC:BEGIN -->
-- [ ] #1 The four baselines are Linux and committed
-- [ ] #2 The CI e2e job runs visual regression rather than excluding it
-- [ ] #3 CONTRIBUTING says how to regenerate a baseline, so nobody re-commits a macOS one
+- [x] #1 The four baselines are Linux and committed
+- [x] #2 The CI e2e job runs visual regression rather than excluding it
+- [x] #3 CONTRIBUTING says how to regenerate a baseline, so nobody re-commits a macOS one
 <!-- AC:END -->
+
+## Implementation Notes
+
+<!-- SECTION:NOTES:BEGIN -->
+Generated Linux baselines via a throwaway CI workflow_dispatch job (ubuntu-latest), committed *-linux.png, deleted *-darwin.png. Re-enabled visual regression in the e2e CI job. CONTRIBUTING.md documents the CI-only policy and the regeneration procedure. PR #21: https://github.com/DnzzL/notara/pull/21 — both check and e2e jobs (incl. visual regression) green.
+<!-- SECTION:NOTES:END -->

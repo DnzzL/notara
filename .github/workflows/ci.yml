@@ -59,14 +59,8 @@ jobs:
       - name: install browsers
         run: bunx playwright install --with-deps chromium
 
-      # Visual regression is excluded, not forgotten. Screenshot baselines are
-      # per-platform, and the ones committed here were taken on macOS — Linux
-      # renders text differently enough that every one of them fails. Making
-      # Linux the canonical platform is the right answer and is NOT-128; until
-      # then, running them here would mean a permanently red job, which trains
-      # everyone to ignore it.
       - name: e2e
-        run: bunx playwright test --grep-invert "Visual regression"
+        run: bunx playwright test
         env:
           # The server refuses to start without it, and it need not be the real
           # one: nothing here outlives the job.
