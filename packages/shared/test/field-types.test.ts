@@ -109,6 +109,11 @@ describe("decode and encode round-trip every stored representation", () => {
 		expect(spec.decode("42")).toBe(42);
 		expect(spec.decode("")).toBe(null);
 	});
+
+	it("decodes unparseable number raw to null, not NaN", () => {
+		const spec = fieldTypeSpec("number");
+		expect(spec.decode("abc")).toBe(null);
+	});
 });
 
 describe("compare", () => {
