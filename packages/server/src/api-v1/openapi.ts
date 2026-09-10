@@ -1,6 +1,7 @@
 // ── Inline OpenAPI 3.0.3 spec ─────────────────────────────────────────────────
 // This is a plain TypeScript object — no code generation, full type clarity.
 import { FIELD_TYPE_SPECS } from "@notara/shared";
+import { pageOperations, pagesOpenApiPaths } from "./operations.js";
 
 const BLOCK_TYPES = [
 	"paragraph",
@@ -550,79 +551,10 @@ blank. If you have blocks created that way, rewrite them as HTML.
 		},
 
 		// ── Pages ───────────────────────────────────────────────────────────────
-		"/workspaces/{workspaceId}/pages": {
-			parameters: [wsParam],
-			get: {
-				tags: ["Pages"],
-				summary: "List all pages",
-				operationId: "listPages",
-				responses: {
-					200: jsonResponse("All non-deleted pages", {
-						type: "array",
-						items: ref("Page"),
-					}),
-					...errors,
-				},
-			},
-			post: {
-				tags: ["Pages"],
-				summary: "Create a page",
-				operationId: "createPage",
-				requestBody: jsonBody(ref("PageCreate")),
-				responses: {
-					201: jsonResponse("Created page", ref("Page")),
-					...errors,
-				},
-			},
-		},
-
-		"/workspaces/{workspaceId}/pages/{pageId}": {
-			parameters: [wsParam, pageParam],
-			get: {
-				tags: ["Pages"],
-				summary: "Get a page",
-				operationId: "getPage",
-				responses: {
-					200: jsonResponse("Page", ref("Page")),
-					...errors,
-				},
-			},
-			patch: {
-				tags: ["Pages"],
-				summary: "Update a page",
-				operationId: "updatePage",
-				requestBody: jsonBody(ref("PageUpdate")),
-				responses: {
-					200: jsonResponse("Updated page", ref("Page")),
-					...errors,
-				},
-			},
-			delete: {
-				tags: ["Pages"],
-				summary: "Delete a page",
-				description:
-					"Moves the page to trash by default. Pass `?permanent=true` to purge it permanently along with its blocks, databases and records.",
-				operationId: "deletePage",
-				parameters: [permanentQuery],
-				responses: {
-					204: { description: "Page deleted" },
-					...errors,
-				},
-			},
-		},
-
-		"/workspaces/{workspaceId}/pages/{pageId}/restore": {
-			parameters: [wsParam, pageParam],
-			post: {
-				tags: ["Pages"],
-				summary: "Restore a trashed page",
-				operationId: "restorePage",
-				responses: {
-					200: jsonResponse("Restore result", ref("RestoreResult")),
-					...errors,
-				},
-			},
-		},
+		// Derived from the operation table in api-v1/operations.ts — the REST
+		// router is registered from the same list, so route and document cannot
+		// drift apart for these six operations. See NOT-122.
+		...pagesOpenApiPaths(pageOperations, wsParam, pageParam),
 
 		// ── Blocks ──────────────────────────────────────────────────────────────
 		"/workspaces/{workspaceId}/pages/{pageId}/blocks": {
