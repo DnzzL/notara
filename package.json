@@ -55,7 +55,7 @@
     "@tiptap/extension-text-style": "2.11.0"
   },
   "simple-git-hooks": {
-    "pre-commit": "bunx @biomejs/biome check --write --unsafe packages/ e2e/ && git add -u",
+    "pre-commit": "bash scripts/pre-commit-lint-staged.sh",
     "pre-push": "bunx @biomejs/biome ci packages/ e2e/ && bash scripts/check-effect-errors.sh && bun run quickcheck"
   },
   "devDependencies": {
