@@ -1,6 +1,7 @@
 import emojiData from "emojibase-data/en/data.json" with { type: "json" };
 import messages from "emojibase-data/en/messages.json" with { type: "json" };
 import { useEffect, useRef, useState } from "react";
+import { useMenuKeyboard } from "../lib/useMenuKeyboard.js";
 
 interface EmojiEntry {
 	label: string;
@@ -57,18 +58,11 @@ export function EmojiPicker({ open, anchor, onClose, onSelect }: Props) {
 		const handleClick = (e: MouseEvent) => {
 			if (ref.current && !ref.current.contains(e.target as Node)) onClose();
 		};
-		const handleKey = (e: KeyboardEvent) => {
-			if (e.key === "Escape") onClose();
-		};
 		window.addEventListener("mousedown", handleClick);
-		window.addEventListener("keydown", handleKey);
 		return () => {
 			window.removeEventListener("mousedown", handleClick);
-			window.removeEventListener("keydown", handleKey);
 		};
 	}, [open, onClose]);
-
-	if (!open || !anchor) return null;
 
 	const q = query.toLowerCase().trim();
 	const filtered = q
@@ -78,6 +72,21 @@ export function EmojiPicker({ open, anchor, onClose, onSelect }: Props) {
 					(e.tags ?? []).some((t) => t.toLowerCase().includes(q)),
 			)
 		: null;
+	const flat = filtered ?? CATEGORIES.flatMap((cat) => cat.emoji);
+
+	const { itemProps } = useMenuKeyboard({
+		count: flat.length,
+		onSelect: (i) => {
+			const e = flat[i];
+			if (!e) return;
+			onSelect(e.emoji);
+			onClose();
+		},
+		onClose,
+		enabled: open,
+	});
+
+	if (!open || !anchor) return null;
 
 	return (
 		<div
@@ -116,10 +125,11 @@ export function EmojiPicker({ open, anchor, onClose, onSelect }: Props) {
 				{filtered ? (
 					filtered.length > 0 ? (
 						<div className="grid grid-cols-8 gap-0.5 p-2">
-							{filtered.map((e) => (
+							{filtered.map((e, i) => (
 								<button
 									key={e.hexcode}
-									className={EMOJI_BTN}
+									{...itemProps(i)}
+									className={`${EMOJI_BTN} data-[active]:bg-surface-3`}
 									onClick={() => {
 										onSelect(e.emoji);
 										onClose();
@@ -137,28 +147,36 @@ export function EmojiPicker({ open, anchor, onClose, onSelect }: Props) {
 					)
 				) : (
 					<div className="p-2">
-						{CATEGORIES.map((cat) => (
-							<div key={cat.name} className="mb-1">
-								<div className="text-[10px] font-semibold uppercase tracking-[0.08em] text-text-3 px-1 py-1.5">
-									{cat.name}
-								</div>
-								<div className="grid grid-cols-8 gap-0.5">
-									{cat.emoji.map((e) => (
-										<button
-											key={e.hexcode}
-											className={EMOJI_BTN}
-											onClick={() => {
-												onSelect(e.emoji);
-												onClose();
-											}}
-											title={e.label}
-										>
-											{e.emoji}
-										</button>
-									))}
-								</div>
-							</div>
-						))}
+						{(() => {
+							let offset = 0;
+							return CATEGORIES.map((cat) => {
+								const catOffset = offset;
+								offset += cat.emoji.length;
+								return (
+									<div key={cat.name} className="mb-1">
+										<div className="text-[10px] font-semibold uppercase tracking-[0.08em] text-text-3 px-1 py-1.5">
+											{cat.name}
+										</div>
+										<div className="grid grid-cols-8 gap-0.5">
+											{cat.emoji.map((e, i) => (
+												<button
+													key={e.hexcode}
+													{...itemProps(catOffset + i)}
+													className={`${EMOJI_BTN} data-[active]:bg-surface-3`}
+													onClick={() => {
+														onSelect(e.emoji);
+														onClose();
+													}}
+													title={e.label}
+												>
+													{e.emoji}
+												</button>
+											))}
+										</div>
+									</div>
+								);
+							});
+						})()}
 					</div>
 				)}
 			</div>

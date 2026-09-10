@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { useMenuKeyboard } from "../lib/useMenuKeyboard.js";
 import { api } from "../rpc-client.js";
 import { Modal } from "./ui/index.js";
 
@@ -24,6 +25,13 @@ export function TemplatePicker({ onClose, onSelect }: Props) {
 			.catch(() => {});
 	}, []);
 
+	const count = 1 + templates.length;
+	const { itemProps } = useMenuKeyboard({
+		count,
+		onSelect: (i) => onSelect(i === 0 ? null : templates[i - 1].id),
+		onClose,
+	});
+
 	return (
 		<Modal
 			title="New page"
@@ -33,7 +41,8 @@ export function TemplatePicker({ onClose, onSelect }: Props) {
 			ariaLabel="Choose a template"
 		>
 			<button
-				className="flex items-center gap-3 w-full px-3 py-2.5 rounded border border-border bg-surface-2 cursor-pointer text-left transition-[background,border-color] duration-[var(--t)] ease-[var(--ease)] hover:bg-surface-3 focus-visible:outline-2 focus-visible:outline-accent focus-visible:outline-offset-2"
+				{...itemProps(0)}
+				className="flex items-center gap-3 w-full px-3 py-2.5 rounded border border-border bg-surface-2 cursor-pointer text-left transition-[background,border-color] duration-[var(--t)] ease-[var(--ease)] hover:bg-surface-3 data-[active]:bg-surface-3 focus-visible:outline-2 focus-visible:outline-accent focus-visible:outline-offset-2"
 				onClick={() => onSelect(null)}
 			>
 				<span className="text-[22px] shrink-0 w-8 text-center">📄</span>
@@ -53,10 +62,11 @@ export function TemplatePicker({ onClose, onSelect }: Props) {
 						Start from a template
 					</div>
 					<div className="flex flex-col gap-1">
-						{templates.map((t) => (
+						{templates.map((t, i) => (
 							<button
 								key={t.id}
-								className="flex items-center gap-3 w-full px-3 py-2.5 rounded border border-transparent bg-transparent cursor-pointer text-left transition-[background,border-color] duration-[var(--t)] ease-[var(--ease)] hover:bg-surface-2 hover:border-border focus-visible:outline-2 focus-visible:outline-accent focus-visible:outline-offset-2"
+								{...itemProps(i + 1)}
+								className="flex items-center gap-3 w-full px-3 py-2.5 rounded border border-transparent bg-transparent cursor-pointer text-left transition-[background,border-color] duration-[var(--t)] ease-[var(--ease)] hover:bg-surface-2 hover:border-border data-[active]:bg-surface-2 data-[active]:border-border focus-visible:outline-2 focus-visible:outline-accent focus-visible:outline-offset-2"
 								onClick={() => onSelect(t.id)}
 							>
 								<span className="text-[22px] shrink-0 w-8 text-center">
