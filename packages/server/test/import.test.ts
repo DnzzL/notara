@@ -50,7 +50,27 @@ describe("markdownToBlocks", () => {
 		const blocks = markdownToBlocks(md);
 		expect(blocks).toHaveLength(3);
 		expect(blocks[1].type).toBe("code");
-		expect(blocks[1].content).toBe("const x = 1;\nconsole.log(x);\n");
+		expect(blocks[1].content).toBe("const x = 1;\nconsole.log(x);");
+	});
+
+	test("converts single-line code blocks without a trailing newline", () => {
+		const md = "```\nconst x = 1;\n```";
+		const blocks = markdownToBlocks(md);
+		expect(blocks).toHaveLength(1);
+		expect(blocks[0].type).toBe("code");
+		expect(blocks[0].content).toBe("const x = 1;");
+	});
+
+	test("converts numbered lists", () => {
+		const md = "1. First item\n2. Second item\n10. Tenth item";
+		const blocks = markdownToBlocks(md);
+		expect(blocks).toHaveLength(3);
+		expect(blocks[0].type).toBe("numberedList");
+		expect(blocks[0].content).toBe("First item");
+		expect(blocks[1].type).toBe("numberedList");
+		expect(blocks[1].content).toBe("Second item");
+		expect(blocks[2].type).toBe("numberedList");
+		expect(blocks[2].content).toBe("Tenth item");
 	});
 
 	test("converts blockquotes", () => {
