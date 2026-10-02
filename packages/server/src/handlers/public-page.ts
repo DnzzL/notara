@@ -36,7 +36,7 @@
  */
 
 import { Effect } from "effect";
-import { SqlClient } from "effect/unstable/sql";
+import { SqlClient } from "effect/sql";
 import { WorkspaceDb } from "../db.js";
 import type { PlatformDb } from "../platform-db.js";
 import { attachmentIdFromFileName } from "./attachments.js";

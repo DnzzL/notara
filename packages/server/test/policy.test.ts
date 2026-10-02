@@ -51,7 +51,7 @@ describe("policy", () => {
 	});
 
 	test("the guard runs before the operation, not after it", async () => {
-		// The reason to write the guard last in the pipe: zipRight evaluates its
+		// The reason to write the guard last in the pipe: andThen evaluates its
 		// left side first, so nothing expensive or destructive happens on a
 		// request that was never allowed.
 		let ran = false;

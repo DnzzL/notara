@@ -28,7 +28,7 @@
 		"@tiptap/suggestion": "^3.23.4",
 		"better-auth": "^1.6.11",
 		"class-variance-authority": "^0.7.1",
-		"effect": "4.0.0-rc.112",
+		"effect": "4.0.0",
 		"emojibase-data": "^17.0.0",
 		"posthog-js": "^1.190.0",
 		"react": "^19.0.0",

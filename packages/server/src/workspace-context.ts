@@ -1,6 +1,6 @@
 import { AuthError } from "@notara/shared";
 import { Effect } from "effect";
-import { HttpServerRequest } from "effect/unstable/http";
+import { HttpServerRequest } from "effect/http";
 import { auth } from "./auth.js";
 import { WorkspaceDb } from "./db.js";
 import * as Membership from "./membership.js";

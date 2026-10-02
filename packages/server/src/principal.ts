@@ -20,7 +20,7 @@
 
 import { AuthError } from "@notara/shared";
 import { type Context, Effect, Layer } from "effect";
-import { HttpServerRequest } from "effect/unstable/http";
+import { HttpServerRequest } from "effect/http";
 import { sha256 } from "./api-v1/auth.js";
 import { auth } from "./auth.js";
 import { PlatformDb } from "./platform-db.js";

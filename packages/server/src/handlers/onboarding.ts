@@ -1,5 +1,5 @@
 import { Effect } from "effect";
-import { SqlClient } from "effect/unstable/sql";
+import { SqlClient } from "effect/sql";
 import { ulid } from "ulidx";
 import { WorkspaceDb } from "../db.js";
 

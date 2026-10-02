@@ -14,8 +14,8 @@
  *     with an ordering, stored as tuples. A second permission language would
  *     recreate exactly the duplication this module exists to remove.
  *
- *   - `HttpApiMiddleware.Tag`, which belongs to `@effect/platform`'s HttpApi.
- *     This server runs on `@effect/rpc` plus a hand-rolled router, so
+ *   - `HttpApiMiddleware.Tag`, which lives in Effect's `http-api` module.
+ *     This server runs on `effect/rpc` plus a hand-rolled router, so
  *     `CurrentUser` is supplied by a Layer built from the request instead.
  *
  * ORDERING: attach the guard LAST in a pipe. Effect evaluates `andThen`'s left

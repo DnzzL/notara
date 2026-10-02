@@ -5,7 +5,7 @@ import os from "node:os";
 import path from "node:path";
 import { SqliteClient } from "@effect/sql-sqlite-bun";
 import { Effect } from "effect";
-import { SqlClient } from "effect/unstable/sql";
+import { SqlClient } from "effect/sql";
 import * as Blocks from "../src/handlers/blocks.js";
 import * as Databases from "../src/handlers/databases.js";
 import * as Pages from "../src/handlers/pages.js";

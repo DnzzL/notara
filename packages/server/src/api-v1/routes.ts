@@ -1,6 +1,6 @@
 import { Effect } from "effect";
-import * as HttpRouter from "effect/unstable/http/HttpRouter";
-import * as HttpServerResponse from "effect/unstable/http/HttpServerResponse";
+import * as HttpRouter from "effect/http/HttpRouter";
+import * as HttpServerResponse from "effect/http/HttpServerResponse";
 import { WorkspaceDb } from "../db.js";
 import * as Workspaces from "../handlers/workspaces.js";
 import { resolveApiUser } from "./auth.js";

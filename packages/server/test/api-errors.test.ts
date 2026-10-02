@@ -18,7 +18,7 @@ import {
 	ValidationError,
 } from "@notara/shared";
 import { Cause, Effect, Exit, Option, Schema } from "effect";
-import type { SqlClient } from "effect/unstable/sql";
+import type { SqlClient } from "effect/sql";
 import * as Pages from "../src/handlers/pages.js";
 import { failureResponse } from "../src/http-error.js";
 import { dieUnlessApiError } from "../src/rpc-handlers.js";

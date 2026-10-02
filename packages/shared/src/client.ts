@@ -1,5 +1,5 @@
 import { Schema } from "effect";
-import type { RpcGroup } from "effect/unstable/rpc";
+import type { RpcGroup } from "effect/rpc";
 import { AppRpc } from "./api.js";
 
 // ── Derive typed client interface from AppRpc schema ──────────────────────

@@ -7,16 +7,15 @@ COPY packages/server/package.json ./packages/server/
 COPY packages/app/package.json ./packages/app/
 COPY packages/electron/package.json ./packages/electron/
 
-# The root package.json has a `postinstall: bash scripts/patch-msgpackr.sh`
-# hook that patches a missing @effect/platform export; `bun run apply-patches`
-# below runs it explicitly, so the scripts have to be here.
+# `bun run apply-patches` below runs scripts/patch-msgpackr.sh. That script patches
+# @effect/platform, which Effect 4 folded into `effect` (ADR-011), so on a fresh
+# install it finds nothing — kept until it is retired along with the CI step.
 COPY scripts/ ./scripts/
 
 # Install deps
-# --ignore-scripts: the root postinstall runs `npx simple-git-hooks`, which needs a
-# .git dir this context does not have, and simple-git-hooks' own postinstall aborts
-# under the bun version in this image. Neither belongs in an image build; the
-# msgpackr patch does, so it is applied explicitly.
+# --ignore-scripts: simple-git-hooks' postinstall registers git hooks and aborts
+# without a .git dir in this context, and no dependency lifecycle script belongs in
+# an image build. The deliberate patch step is re-run explicitly below.
 RUN rm -f bun.lock && bun install --ignore-scripts
 RUN bun run apply-patches
 
