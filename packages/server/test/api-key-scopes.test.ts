@@ -12,7 +12,7 @@
  */
 import { describe, expect, test } from "bun:test";
 import { type Context, Effect, Layer } from "effect";
-import * as HttpRouter from "effect/unstable/http/HttpRouter";
+import * as HttpRouter from "effect/http/HttpRouter";
 import { registerV1Routes } from "../src/api-v1/routes.js";
 import { mutates } from "../src/api-v1/scope.js";
 

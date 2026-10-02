@@ -4,7 +4,7 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { SqliteClient } from "@effect/sql-sqlite-bun";
 import { type Config, Context, Effect, Layer } from "effect";
-import type { SqlClient as SqlClientType } from "effect/unstable/sql";
+import type { SqlClient as SqlClientType } from "effect/sql";
 import { applyMigrations } from "./platform-db.js";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));

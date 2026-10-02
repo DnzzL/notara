@@ -16,7 +16,7 @@
 
 import { AuthError } from "@notara/shared";
 import { Effect } from "effect";
-import type { SqlClient } from "effect/unstable/sql";
+import type { SqlClient } from "effect/sql";
 import * as Permissions from "./handlers/permissions.js";
 import * as Membership from "./membership.js";
 import type { PlatformDb } from "./platform-db.js";

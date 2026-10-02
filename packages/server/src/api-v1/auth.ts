@@ -1,6 +1,6 @@
 import { createHash, randomBytes } from "node:crypto";
 import { Data, Effect } from "effect";
-import * as HttpServerRequest from "effect/unstable/http/HttpServerRequest";
+import * as HttpServerRequest from "effect/http/HttpServerRequest";
 import { auth } from "../auth.js";
 import * as Membership from "../membership.js";
 import { PlatformDb } from "../platform-db.js";

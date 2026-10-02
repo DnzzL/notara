@@ -25,7 +25,7 @@
  */
 
 import { Effect } from "effect";
-import { SqlClient } from "effect/unstable/sql";
+import { SqlClient } from "effect/sql";
 import { ulid } from "ulidx";
 
 export type ImportKind = "page" | "database" | "field" | "record";

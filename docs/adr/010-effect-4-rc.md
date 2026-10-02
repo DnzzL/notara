@@ -1,6 +1,6 @@
 # ADR-010: Migrate to Effect 4 RC, Freeze `packages/cli` on Effect 3
 
-**Status:** Accepted
+**Status:** Superseded by ADR-011 (2026-10-01)
 **Date:** 2026-08-29
 **Scope:** The Effect dependency across the monorepo. Records why one package didn't move.
 

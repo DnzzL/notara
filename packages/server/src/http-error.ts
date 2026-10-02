@@ -8,7 +8,7 @@
 
 import { type ApiError, isApiError } from "@notara/shared";
 import { Cause, Effect, Option } from "effect";
-import * as HttpServerResponse from "effect/unstable/http/HttpServerResponse";
+import * as HttpServerResponse from "effect/http/HttpServerResponse";
 import { corsHeaders } from "./middleware.js";
 import { reportCause, reportError } from "./observability.js";
 

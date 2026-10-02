@@ -1,6 +1,6 @@
 import { Effect } from "effect";
-import * as HttpRouter from "effect/unstable/http/HttpRouter";
-import type * as HttpServerResponse from "effect/unstable/http/HttpServerResponse";
+import * as HttpRouter from "effect/http/HttpRouter";
+import type * as HttpServerResponse from "effect/http/HttpServerResponse";
 import { WorkspaceDb } from "../db.js";
 import * as Blocks from "../handlers/blocks.js";
 import * as Databases from "../handlers/databases.js";

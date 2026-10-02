@@ -68,9 +68,10 @@ The two things installing used to do are now one deliberate command:
 bun run setup
 ```
 
-It patches `@effect/platform`'s MsgPack export (an upstream bug that breaks `@effect/rpc`)
-and registers the git hooks. Run it once after cloning, and again after a dependency
-bump if the patch is undone.
+It runs `scripts/patch-msgpackr.sh` and registers the git hooks. The patch used to
+fix `@effect/platform`'s MsgPack export (an upstream bug that broke `@effect/rpc`);
+since Effect 4 folded that package into `effect` (ADR-011), there is nothing left to
+patch on a fresh install and the script is a no-op. Run `setup` once after cloning.
 
 **Do not add an entry to `trustedDependencies` without writing down why beside it**, and
 do not reintroduce a root `postinstall` — the convenience is not worth the surface.

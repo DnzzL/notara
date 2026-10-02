@@ -1,7 +1,7 @@
 import { isApiError } from "@notara/shared";
 import { Cause, Effect, Layer, Option } from "effect";
-import * as HttpServerRequest from "effect/unstable/http/HttpServerRequest";
-import * as HttpServerResponse from "effect/unstable/http/HttpServerResponse";
+import * as HttpServerRequest from "effect/http/HttpServerRequest";
+import * as HttpServerResponse from "effect/http/HttpServerResponse";
 import { type WorkspaceDb, WorkspaceDbLive } from "../db.js";
 import { failureResponse } from "../http-error.js";
 import { corsHeaders } from "../middleware.js";

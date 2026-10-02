@@ -10,7 +10,7 @@ import os from "node:os";
 import path from "node:path";
 import { SqliteClient } from "@effect/sql-sqlite-bun";
 import { Effect } from "effect";
-import type { SqlClient } from "effect/unstable/sql";
+import type { SqlClient } from "effect/sql";
 import { fieldKey, openLedger, recordKey } from "../src/import/ledger.js";
 
 let tmpDir: string;

@@ -7,6 +7,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- **Effect 4.0.0 (LTS) across the workspace.** `shared`, `server` and `app` moved off
+  the `4.0.0-rc.112` release candidate onto the supported 4.0 line (bug fixes until
+  September 2029), and `packages/cli` off Effect 3 onto `effect/cli`, which now ships
+  in the core package — one Effect version everywhere instead of two majors and an
+  RC. See ADR-011.
+
 ## [0.1.4] - 2026-08-26
 
 A hardening release. Most of it is defects that were already in your instance —

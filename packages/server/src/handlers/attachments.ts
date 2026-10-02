@@ -23,7 +23,7 @@
 
 import type { ApiError } from "@notara/shared";
 import { Effect } from "effect";
-import { SqlClient } from "effect/unstable/sql";
+import { SqlClient } from "effect/sql";
 import { WorkspaceDb } from "../db.js";
 import * as Membership from "../membership.js";
 import type { PlatformDb } from "../platform-db.js";

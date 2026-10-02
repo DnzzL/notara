@@ -18,7 +18,7 @@
  */
 
 import { Effect } from "effect";
-import * as HttpServerRequest from "effect/unstable/http/HttpServerRequest";
+import * as HttpServerRequest from "effect/http/HttpServerRequest";
 import { PlatformDb } from "../platform-db.js";
 import { ApiError, sha256 } from "./auth.js";
 

@@ -1,6 +1,6 @@
-import * as HttpClient from "@effect/platform/HttpClient";
-import * as HttpClientRequest from "@effect/platform/HttpClientRequest";
 import { Data, Effect } from "effect";
+import * as HttpClient from "effect/http/HttpClient";
+import * as HttpClientRequest from "effect/http/HttpClientRequest";
 
 /** A user-facing error: anything that should be printed as a clean message,
  *  not a stack trace (auth problems, HTTP 4xx/5xx, network failures). */
@@ -25,7 +25,7 @@ const ctor: Record<
 	POST: HttpClientRequest.post,
 	PUT: HttpClientRequest.put,
 	PATCH: HttpClientRequest.patch,
-	DELETE: HttpClientRequest.del,
+	DELETE: HttpClientRequest.delete,
 };
 
 /** A workspace id is required for everything except `workspaces list`. */
@@ -99,7 +99,7 @@ export const request = (
 
 		return text ? JSON.parse(text) : null;
 	}).pipe(
-		Effect.catchAll((e) =>
+		Effect.catch((e) =>
 			e instanceof NotaraError
 				? Effect.fail(e)
 				: Effect.fail(

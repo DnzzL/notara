@@ -12,7 +12,7 @@
 
 import type { Context } from "effect";
 import { Effect, Layer } from "effect";
-import * as HttpServerRequest from "effect/unstable/http/HttpServerRequest";
+import * as HttpServerRequest from "effect/http/HttpServerRequest";
 import type { WorkspaceDb } from "./db.js";
 import * as Permissions from "./handlers/permissions.js";
 import { PlatformDbLive } from "./platform-db.js";
