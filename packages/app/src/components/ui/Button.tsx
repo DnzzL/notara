@@ -6,7 +6,7 @@ export type ButtonVariant = "ghost" | "secondary" | "primary" | "danger";
 export type ButtonSize = "sm" | "md" | "lg";
 
 const button = cva(
-	"inline-flex items-center gap-1.5 font-semibold border rounded-sm cursor-pointer leading-none whitespace-nowrap tracking-[0.005em] transition-[background,color,border-color,box-shadow] duration-[var(--t)] ease-[var(--ease)] disabled:opacity-50 disabled:cursor-not-allowed disabled:pointer-events-none",
+	"inline-flex items-center gap-1.5 font-semibold border rounded-sm cursor-pointer leading-none whitespace-nowrap tracking-[0.005em] transition-[background,color,border-color,box-shadow] duration-[var(--t)] ease-[var(--ease)] disabled:opacity-50 disabled:cursor-not-allowed disabled:pointer-events-none pointer-coarse:min-h-11",
 	{
 		variants: {
 			variant: {
@@ -25,7 +25,7 @@ const button = cva(
 				lg: "py-2.5 px-5 text-sm",
 			},
 			icon: {
-				true: "justify-center aspect-square p-0",
+				true: "justify-center aspect-square p-0 pointer-coarse:min-w-11",
 				false: "",
 			},
 		},

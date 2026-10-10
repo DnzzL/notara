@@ -163,7 +163,7 @@ export function RecordPanel({
 										/>
 									) : (
 										<div
-											className="px-[7px] py-1 rounded cursor-pointer min-h-[24px] text-text-2 transition-[background,color] duration-[var(--t)] ease-[var(--ease)] hover:bg-surface-3 hover:text-text"
+											className="px-[7px] py-1 rounded cursor-pointer min-h-[24px] pointer-coarse:min-h-11 pointer-coarse:flex pointer-coarse:items-center pointer-coarse:bg-surface-2 text-text-2 transition-[background,color] duration-[var(--t)] ease-[var(--ease)] hover:bg-surface-3 hover:text-text"
 											onClick={() => setEditingFieldId(field.id)}
 										>
 											<CellDisplay

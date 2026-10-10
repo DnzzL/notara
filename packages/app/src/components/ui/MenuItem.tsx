@@ -15,7 +15,7 @@ import { cn } from "./cn.js";
  * toggling the mode of what you are already looking at. See ui/Tabs.tsx.
  */
 const menuItem = cva(
-	"flex items-center gap-2 w-full text-left cursor-pointer bg-transparent border-none [font-family:var(--font-ui)] rounded transition-[background,color] duration-[var(--t)] ease-[var(--ease)] disabled:opacity-50 disabled:cursor-not-allowed",
+	"flex items-center gap-2 w-full text-left cursor-pointer bg-transparent border-none [font-family:var(--font-ui)] rounded transition-[background,color] duration-[var(--t)] ease-[var(--ease)] disabled:opacity-50 disabled:cursor-not-allowed pointer-coarse:min-h-11",
 	{
 		variants: {
 			tone: {

@@ -1032,6 +1032,7 @@ select, input, textarea, button { font-family: var(--font-ui); }
   .lp-sheet-right { border-top: 2px solid var(--text); }
   .landing-nav-links .landing-nav-link { display: none; } /* hide text nav on mobile */
   .landing-nav-buy { display: flex; } /* show buy button on mobile */
+  .landing-nav-cta, .landing-nav-buy { padding: 0 14px; white-space: nowrap; }
   .landing-footer-inner { flex-direction: column; gap: 12px; text-align: center; }
   .landing-headline { font-size: clamp(44px, 15vw, 64px); }
 
@@ -1051,10 +1052,11 @@ select, input, textarea, button { font-family: var(--font-ui); }
     min-width: 0 !important;
     transform: translateX(-100%);
     transition: transform 0.22s var(--ease);
-    box-shadow: var(--shadow-xl);
   }
+  /* Shadow only when open: on the closed drawer it bleeds into the page. */
   .sidebar.sidebar--open {
     transform: translateX(0);
+    box-shadow: var(--shadow-xl);
   }
   .sidebar-backdrop {
     display: none;
@@ -1097,8 +1099,8 @@ select, input, textarea, button { font-family: var(--font-ui); }
     display: flex;
     align-items: center;
     justify-content: center;
-    width: 32px;
-    height: 32px;
+    width: 44px;
+    height: 44px;
     border: none;
     background: none;
     cursor: pointer;
@@ -1127,6 +1129,10 @@ select, input, textarea, button { font-family: var(--font-ui); }
   /* Auth pages */
   .auth-card { padding: 28px 20px; }
 
+  /* < 16px makes iOS Safari zoom the viewport on focus. Unlayered, so it
+     outranks the text-[12px] utilities on Input/Select. */
+  input, select, textarea { font-size: 16px; }
+
   /* Increase tap targets */
   .sb-item, .sb-action-btn, .sb-icon-btn { min-height: 44px; }
 
@@ -1147,7 +1153,7 @@ select, input, textarea, button { font-family: var(--font-ui); }
   position: fixed;
   bottom: 24px;
   right: 20px;
-  z-index: 1000;
+  z-index: 60; /* above page content, below the drawer scrim and the consent banner */
   width: 52px;
   height: 52px;
   border-radius: 50%;
@@ -1692,7 +1698,7 @@ select, input, textarea, button { font-family: var(--font-ui); }
    Desktop: one row, the database name a mono kicker at the right end.
    Narrow:  the name is that kicker on its own line — it answers "which
             database is this?", the one thing on the bar you cannot infer from
-            anything else — and the controls become a single scrollable row.
+            anything else — and the controls wrap underneath.
 
    `db-toolbar-controls` is display:contents on desktop, so the flex layout is
    exactly what it was before the shell existed. */
@@ -1744,19 +1750,17 @@ select, input, textarea, button { font-family: var(--font-ui); }
   /* On its own full-width row there is nothing to clip against. */
   .db-toolbar-name-button { white-space: normal; text-align: left; }
 
+  /* Wraps, never scrolls: a scroll container clips its absolutely positioned
+     children (the view menu) and hides an open filter off to the right. */
   .db-toolbar-controls {
     display: flex;
     align-items: center;
     gap: 6px;
     flex: 1 1 100%;
     min-width: 0;
-    flex-wrap: nowrap;
-    overflow-x: auto;
-    scrollbar-width: none;
-    padding-bottom: 2px;
+    flex-wrap: wrap;
   }
-  .db-toolbar-controls::-webkit-scrollbar { display: none; }
-  .db-toolbar-controls > * { flex-shrink: 0; }
+  .db-toolbar-controls > * { max-width: 100%; }
 }
 
 /* ── Board on a narrow screen: one group at a time ────────────────────────── */

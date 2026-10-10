@@ -743,7 +743,7 @@ function PageTreeNode({
 			>
 				<TreeView.Branch>
 					<TreeView.BranchControl
-						className={`group relative flex items-center gap-0.5 min-h-[28px] px-1 rounded-lg text-[13px] text-text-sb-2 cursor-pointer transition-[background,color] duration-[var(--t)] ease-[var(--ease)] hover:bg-[var(--hover-ink)] hover:text-text-sb${isHovered ? (isNestTarget ? " bg-accent-dim rounded-lg shadow-[0_0_0_2px_var(--accent-mid)]" : " bg-sb-2 rounded-lg") : ""}`}
+						className={`group relative flex items-center gap-0.5 min-h-[28px] pointer-coarse:min-h-[44px] px-1 rounded-lg text-[13px] text-text-sb-2 cursor-pointer transition-[background,color] duration-[var(--t)] ease-[var(--ease)] hover:bg-[var(--hover-ink)] hover:text-text-sb${isHovered ? (isNestTarget ? " bg-accent-dim rounded-lg shadow-[0_0_0_2px_var(--accent-mid)]" : " bg-sb-2 rounded-lg") : ""}`}
 						onClick={(e: React.MouseEvent) => {
 							e.preventDefault();
 							// Ark only fires onSelectionChange when the selection actually
@@ -865,7 +865,7 @@ function PageActionMenu({
 		<Menu.Root lazyMount unmountOnExit>
 			<Menu.Trigger asChild>
 				<button
-					className="bg-transparent border-none cursor-pointer text-text-sb-3 px-1 py-px text-[14px] leading-none rounded ml-auto opacity-0 transition-opacity duration-[var(--t)] ease-[var(--ease)] shrink-0 group-hover:opacity-100 focus:opacity-100 data-[state=open]:opacity-100 hover:bg-sb-3 hover:text-text-sb"
+					className="bg-transparent border-none cursor-pointer text-text-sb-3 px-1 py-px pointer-coarse:px-3 pointer-coarse:py-2.5 text-[14px] leading-none rounded ml-auto opacity-0 pointer-coarse:opacity-100 transition-opacity duration-[var(--t)] ease-[var(--ease)] shrink-0 group-hover:opacity-100 focus:opacity-100 data-[state=open]:opacity-100 hover:bg-sb-3 hover:text-text-sb"
 					onClick={(e) => e.stopPropagation()}
 					title="More actions"
 				>

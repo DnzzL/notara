@@ -157,7 +157,7 @@ export function FilterBar({
 				return (
 					<div
 						key={`${filter.fieldId}-${idx}`}
-						className="flex gap-1 items-center bg-surface-2 rounded py-1 px-2 border border-border"
+						className="flex flex-wrap gap-1 items-center bg-surface-2 rounded py-1 px-2 border border-border"
 					>
 						<Select
 							name="filter-field"
@@ -259,7 +259,7 @@ export function SortBar({
 			{sorts.map((sort, idx) => (
 				<div
 					key={`${sort.fieldId}-${idx}`}
-					className="flex gap-1 items-center bg-surface-2 rounded py-1 px-2 border border-border"
+					className="flex flex-wrap gap-1 items-center bg-surface-2 rounded py-1 px-2 border border-border"
 				>
 					<Select
 						name="sort-field"

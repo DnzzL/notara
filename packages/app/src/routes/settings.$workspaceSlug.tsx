@@ -227,7 +227,7 @@ function WorkspaceSettingsPage() {
 												placeholder="colleague@example.com"
 												value={inviteEmail}
 												onChange={(e) => setInviteEmail(e.target.value)}
-												className="flex-1 px-2.5 py-[7px] border border-border rounded-lg text-[12px] [font-family:var(--font-mono)] bg-surface-2 text-text outline-none"
+												className="flex-1 min-w-0 px-2.5 py-[7px] border border-border rounded-lg text-[12px] [font-family:var(--font-mono)] bg-surface-2 text-text outline-none"
 											/>
 											<Button
 												type="submit"
@@ -251,7 +251,7 @@ function WorkspaceSettingsPage() {
 													readOnly
 													name="invite-link"
 													value={inviteUrl}
-													className="flex-1 px-2.5 py-[7px] border border-border rounded-lg text-[12px] [font-family:var(--font-mono)] bg-surface-2 text-text outline-none"
+													className="flex-1 min-w-0 px-2.5 py-[7px] border border-border rounded-lg text-[12px] [font-family:var(--font-mono)] bg-surface-2 text-text outline-none"
 												/>
 												<Button
 													variant="secondary"

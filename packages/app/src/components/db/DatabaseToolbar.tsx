@@ -11,8 +11,8 @@ import type { ReactNode } from "react";
  * Desktop: one row, name pushed to the right end.
  * Narrow:  the name is a mono kicker on its own line — it answers "which
  *          database is this?", which is the one thing on the bar you cannot
- *          infer from anything else — and the controls become a single
- *          scrollable row underneath.
+ *          infer from anything else — and the controls wrap underneath.
+ *          Not a scroll row: that clips the view menu and hides open filters.
  *
  * `db-toolbar-controls` is `display: contents` on desktop, so it is invisible
  * to the flex layout there and only becomes a box below the breakpoint.
