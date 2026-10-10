@@ -1582,7 +1582,7 @@ export function BlockEditor() {
 							<input
 								type="text"
 								name="page-title"
-								className="[font-family:var(--font-title)] text-[2.4em] font-bold mb-7 border-2 border-accent rounded-lg outline-none w-full px-2 py-1 text-text bg-surface-2 tracking-[-0.025em] leading-[1.22]"
+								className="[font-family:var(--font-title)] text-[2.4em] font-bold border-2 border-accent rounded-lg outline-none w-full px-2 py-1 text-text bg-surface-2 tracking-[-0.025em] leading-[1.22]"
 								value={titleValue}
 								onChange={(e) => setTitleValue(e.target.value)}
 								onBlur={handleTitleSave}
@@ -1591,7 +1591,7 @@ export function BlockEditor() {
 							/>
 						) : (
 							<h1
-								className="[font-family:var(--font-title)] text-[2.4em] font-bold mb-7 border-none outline-none w-full text-text bg-transparent tracking-[-0.025em] leading-[1.22] placeholder:text-text-3 hover:bg-[rgba(0,0,0,0.015)] hover:rounded"
+								className="[font-family:var(--font-title)] text-[2.4em] font-bold border-none outline-none w-full text-text bg-transparent tracking-[-0.025em] leading-[1.22] placeholder:text-text-3 hover:bg-[rgba(0,0,0,0.015)] hover:rounded"
 								onClick={() => {
 									setIsEditingTitle(true);
 									setTitleValue(currentPage.title || "");

@@ -127,7 +127,7 @@
 /* ── Reset ─────────────────────────────────────────────────────────── */
 /* MUST live in @layer base. Unlayered rules outrank @layer utilities in the
    CSS cascade, so an unlayered `* { padding:0 }` would silently zero out every
-   Tailwind p-*/m-* utility. Keeping the reset in `base` lets utilities win,
+   Tailwind p-* and m-* utility. Keeping the reset in `base` lets utilities win,
    while unlayered component styles below still override utilities as needed. */
 @layer base {
   *, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
@@ -274,8 +274,8 @@ body {
 /* ── Editor content nodes (rendered inside .ProseMirror; not inlineable) ── */
 /* Task list */
 .editor .ProseMirror ul.task-list { list-style: none; padding-left: 0; margin: 0; }
-/* Bullet / numbered lists: drop the UA-default block margin (no Preflight reset). */
-.editor .ProseMirror ul:not(.task-list), .editor .ProseMirror ol { margin: 0; }
+/* Bullet / numbered lists: no block margin; indent matches the numbered list. */
+.editor .ProseMirror ul:not(.task-list), .editor .ProseMirror ol { margin: 0; padding-left: 1.5em; }
 
 /* ── Block-list visual continuity (AC#2) — collapse gap between consecutive same-type list blocks ── */
 [data-block-type="bulletList"] + [data-block-type="bulletList"] .group,
@@ -823,6 +823,7 @@ select, input, textarea, button { font-family: var(--font-ui); }
   font-family: var(--font-mono);
   font-size: 10px;
   letter-spacing: 0.06em;
+  white-space: nowrap;
   color: #fff;
   background: var(--accent);
   padding: 2px 7px;
