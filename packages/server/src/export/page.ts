@@ -8,6 +8,7 @@ import {
 } from "@notara/shared";
 import { Effect } from "effect";
 import { SqlClient } from "effect/sql";
+import { listBlocks } from "../handlers/blocks.js";
 import {
 	blockFromRow,
 	DB_COLS,
@@ -17,13 +18,17 @@ import {
 	RECORD_COLS,
 	recordFromRow,
 } from "../mappers.js";
+import { htmlToMarkdown, todoItems } from "./html-markdown.js";
 
 // ── Block to Markdown conversion ─────────────────────────────────────────────
 
 /**
- * Convert a block type and content to Markdown format.
+ * Convert a block type and content to Markdown format. Text-bearing blocks
+ * hold the editor's HTML; content written as plain text keeps the older,
+ * per-type rendering below.
  */
 export function blockToMarkdown(type: string, content: string): string {
+	if (/^\s*<[a-zA-Z]/.test(content)) return htmlToMarkdown(content);
 	switch (type) {
 		case "heading1":
 			return `# ${content}`;
@@ -70,6 +75,26 @@ export function blockToMarkdown(type: string, content: string): string {
 		default:
 			return content;
 	}
+}
+
+// ── Record as markdown ───────────────────────────────────────────────────────
+
+/**
+ * The body of a record's page as markdown, and its acceptance criteria: the
+ * to-do items on that page, in order. A record never opened as a page has
+ * neither.
+ */
+export function recordAsMarkdown(pageId: string | null) {
+	return Effect.gen(function* () {
+		if (!pageId) return { body: "", criteria: [] };
+		const blocks = yield* listBlocks(pageId);
+		return {
+			body: blocks.map((b) => blockToMarkdown(b.type, b.content)).join("\n\n"),
+			criteria: blocks
+				.filter((b) => b.type === "todo")
+				.flatMap((b) => todoItems(b.content)),
+		};
+	});
 }
 
 // ── CSV escaping ─────────────────────────────────────────────────────────────

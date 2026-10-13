@@ -2,6 +2,7 @@ import { Effect } from "effect";
 import * as HttpRouter from "effect/http/HttpRouter";
 import type * as HttpServerResponse from "effect/http/HttpServerResponse";
 import { WorkspaceDb } from "../db.js";
+import { recordAsMarkdown } from "../export/page.js";
 import * as Blocks from "../handlers/blocks.js";
 import * as Comments from "../handlers/comments.js";
 import * as Databases from "../handlers/databases.js";
@@ -980,6 +981,46 @@ export const recordOperations: readonly Operation[] = [
 			requestBody: jsonBody("RecordCreate"),
 			responses: {
 				201: jsonResponse("Created record", jsonSchema("DatabaseRecord")),
+				...errorResponses,
+			},
+		},
+	},
+	{
+		method: "GET",
+		path: "/api/v1/workspaces/:workspaceId/databases/:dbId/records/:recordId",
+		operationId: "getRecord",
+		tag: "Databases",
+		pathParams: [dbParam, recordParam],
+		checkPermission: (ctx) =>
+			Effect.gen(function* () {
+				const dbId = yield* requireParam(ctx.params, "dbId");
+				yield* Permissions.checkDatabasePermission(
+					ctx.userId,
+					ctx.workspaceId,
+					dbId,
+					"viewer",
+				);
+			}),
+		run: (ctx) =>
+			Effect.gen(function* () {
+				const dbId = yield* requireParam(ctx.params, "dbId");
+				const recordId = yield* requireParam(ctx.params, "recordId");
+				const { record, values } = yield* Databases.getRecordWithValues(
+					recordId,
+				).pipe(Effect.mapError(() => notFound("Record", recordId)));
+				// The permission check was on dbId: a record of another database
+				// is not this route's to show.
+				if (record.databaseId !== dbId)
+					return yield* Effect.fail(notFound("Record", recordId));
+				const { body, criteria } = yield* recordAsMarkdown(record.pageId);
+				return ok({ ...record, fields: values, body, criteria });
+			}),
+		openapi: {
+			summary: "Get a record: field values, body as markdown, criteria",
+			description:
+				"`body` is the record's page rendered as markdown (empty when the record was never opened as a page); `criteria` are the to-do items on that page, in order.",
+			responses: {
+				200: jsonResponse("Record", jsonSchema("RecordDocument")),
 				...errorResponses,
 			},
 		},

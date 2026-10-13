@@ -311,6 +311,35 @@ const schemas = {
 		},
 	},
 
+	RecordDocument: {
+		allOf: [
+			{ $ref: "#/components/schemas/DatabaseRecord" },
+			{
+				type: "object",
+				required: ["body", "criteria"],
+				properties: {
+					body: {
+						type: "string",
+						description:
+							"The record's page as markdown; empty when it has none",
+					},
+					criteria: {
+						type: "array",
+						description: "To-do items on the record's page, in order",
+						items: {
+							type: "object",
+							required: ["text", "checked"],
+							properties: {
+								text: { type: "string", description: "Markdown" },
+								checked: { type: "boolean" },
+							},
+						},
+					},
+				},
+			},
+		],
+	},
+
 	RecordCreate: {
 		type: "object",
 		required: ["title"],

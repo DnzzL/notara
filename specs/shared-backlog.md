@@ -29,16 +29,16 @@ role mapping stored in Notara.
 - **Inbox** = one entry per mention, and per comment on a record where the user is in a
   `people` field. Read/unread per user; badge pushed over the existing SSE channel.
 
-## Seams to confirm
+## Seams (shipped unless noted)
 
 REST `/api/v1` additions, the contract a runner's adapter depends on:
 
-| Operation | Shape (draft) | Serves |
+| Operation | Shape | Serves |
 |---|---|---|
-| List records, filtered | `GET /databases/:id/records?field=<fieldId>&value=<v>` (repeatable, AND) | `List` |
-| Get record as markdown | `GET /records/:idOrShortId?format=markdown` → title, field values, body markdown, criteria `[{text, checked}]` | `Get` |
+| List records, filtered | `GET /databases/:id/records?field=<id or name>&value=<v>` (repeatable, AND) | `List` |
+| Get record | `GET /databases/:dbId/records/:idOrShortId` → record, field values, `body` markdown, `criteria` `[{text, checked}]` | `Get` |
 | List comments | `GET /pages/:id/comments` | thread in the briefing |
-| Add comment | `POST /pages/:id/comments {body}` → `{id, author, keyName, createdAt}` | `Comment` |
+| Add comment | `POST /pages/:id/comments {body}` → `Comment` (`authorId`, `keyName`, …) | `Comment` |
 | Write criteria | to-do blocks via the existing blocks API | `CriterionWriter` |
 | Close / phase / assign | existing `PUT` record field value | `Close`, `Phaser`, `Assigner` |
 
