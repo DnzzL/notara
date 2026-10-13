@@ -1204,6 +1204,23 @@ export const registerOperations = (
 						Effect.gen(function* () {
 							if (op.checkPermission)
 								yield* op.checkPermission({ userId, workspaceId, params });
+							// The permission check above is on the database: a record or
+							// field of another one is not this route's to touch.
+							const { dbId, recordId, fieldId } = params;
+							if (dbId)
+								yield* Databases.requireInDatabase(dbId, {
+									recordId,
+									fieldId,
+								}).pipe(
+									Effect.catchTag("NotFoundError", (e) =>
+										Effect.fail(
+											new ApiError({
+												status: 404,
+												message: `${e.resource} ${e.id} not found`,
+											}),
+										),
+									),
+								);
 							return yield* op.run({ userId, workspaceId, role, params });
 						}),
 						wdb.getLayer(workspaceId),
