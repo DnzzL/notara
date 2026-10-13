@@ -3,6 +3,7 @@ import * as HttpRouter from "effect/http/HttpRouter";
 import type * as HttpServerResponse from "effect/http/HttpServerResponse";
 import { WorkspaceDb } from "../db.js";
 import * as Blocks from "../handlers/blocks.js";
+import * as Comments from "../handlers/comments.js";
 import * as Databases from "../handlers/databases.js";
 import * as Pages from "../handlers/pages.js";
 import * as Permissions from "../handlers/permissions.js";
@@ -41,6 +42,8 @@ export interface OperationContext {
 	readonly userId: string;
 	readonly workspaceId: string;
 	readonly role: "owner" | "member";
+	/** The API key the caller came through; null for a session. */
+	readonly keyName: string | null;
 	readonly params: RouteParams;
 }
 
@@ -1095,6 +1098,77 @@ export const recordOperations: readonly Operation[] = [
 	},
 ];
 
+// ── Comments ───────────────────────────────────────────────────────────────────
+
+const pageViewer = (
+	ctx: Pick<OperationContext, "userId" | "workspaceId" | "params">,
+) =>
+	Effect.gen(function* () {
+		const pageId = yield* requireParam(ctx.params, "pageId");
+		yield* Permissions.checkPagePermission(
+			ctx.userId,
+			ctx.workspaceId,
+			pageId,
+			"viewer",
+		);
+	});
+
+export const commentOperations: readonly Operation[] = [
+	{
+		method: "GET",
+		path: "/api/v1/workspaces/:workspaceId/pages/:pageId/comments",
+		operationId: "listComments",
+		tag: "Comments",
+		pathParams: [pageParam],
+		checkPermission: pageViewer,
+		run: (ctx) =>
+			Effect.gen(function* () {
+				const pageId = yield* requireParam(ctx.params, "pageId");
+				return ok(yield* Comments.listComments(pageId));
+			}),
+		openapi: {
+			summary: "List a page's comments, oldest first",
+			responses: {
+				200: jsonResponse("Comments", {
+					type: "array",
+					items: jsonSchema("Comment"),
+				}),
+				...errorResponses,
+			},
+		},
+	},
+	{
+		method: "POST",
+		path: "/api/v1/workspaces/:workspaceId/pages/:pageId/comments",
+		operationId: "addComment",
+		tag: "Comments",
+		pathParams: [pageParam],
+		checkPermission: pageViewer,
+		run: (ctx) =>
+			Effect.gen(function* () {
+				const pageId = yield* requireParam(ctx.params, "pageId");
+				const body = yield* requireField(yield* parseBody, "body");
+				const comment = yield* Comments.addComment({
+					pageId,
+					authorId: ctx.userId,
+					body,
+					keyName: ctx.keyName,
+				});
+				return created(comment);
+			}),
+		openapi: {
+			summary: "Comment on a page",
+			description:
+				"The comment is authored by the key's user and names the key. A read key cannot comment.",
+			requestBody: jsonBody("CommentCreate"),
+			responses: {
+				201: jsonResponse("Created comment", jsonSchema("Comment")),
+				...errorResponses,
+			},
+		},
+	},
+];
+
 // ── Search + Trash ─────────────────────────────────────────────────────────────
 
 export const searchOperations: readonly Operation[] = [
@@ -1183,6 +1257,7 @@ export const restOperations: readonly Operation[] = [
 	...databaseOperations,
 	...fieldOperations,
 	...recordOperations,
+	...commentOperations,
 	...searchOperations,
 	...trashOperations,
 ];
@@ -1197,45 +1272,49 @@ export const registerOperations = (
 	operations: readonly Operation[],
 ) =>
 	Effect.forEach(operations, (op) =>
-		router.add(
-			op.method,
-			op.path,
-			handle(
-				Effect.gen(function* () {
-					const { userId } = yield* resolveApiUser;
-					const routeParams = yield* HttpRouter.params;
-					const workspaceId = yield* requireParam(routeParams, "workspaceId");
-					const role = yield* requireWorkspaceMember(workspaceId, userId);
-					const wdb = yield* WorkspaceDb;
-					return yield* Effect.provide(
-						Effect.gen(function* () {
-							// A record route names its record by id or by short id
-							// (`NOT-12`); every operation below sees the id.
-							const { dbId, recordId } = routeParams;
-							const params =
-								dbId && recordId
-									? {
-											...routeParams,
-											recordId: yield* Databases.resolveRecordId(
-												dbId,
-												recordId,
-											).pipe(
-												Effect.catchTag("NotFoundError", () =>
-													Effect.fail(notFound("Record", recordId)),
-												),
-											),
-										}
-									: routeParams;
-							if (op.checkPermission)
-								yield* op.checkPermission({ userId, workspaceId, params });
-							return yield* op.run({ userId, workspaceId, role, params });
-						}),
-						wdb.getLayer(workspaceId),
-					);
-				}),
-			),
-		),
+		router.add(op.method, op.path, handle(operationHandler(op))),
 	);
+
+/**
+ * What a matched route runs for `op`, before `handle` maps its failures:
+ * caller, membership, record reference, permission check, then the operation.
+ */
+export const operationHandler = (op: Operation) =>
+	Effect.gen(function* () {
+		const { userId, keyName } = yield* resolveApiUser;
+		const routeParams = yield* HttpRouter.params;
+		const workspaceId = yield* requireParam(routeParams, "workspaceId");
+		const role = yield* requireWorkspaceMember(workspaceId, userId);
+		const wdb = yield* WorkspaceDb;
+		return yield* Effect.provide(
+			Effect.gen(function* () {
+				// A record route names its record by id or by short id
+				// (`NOT-12`); every operation below sees the id.
+				const { dbId, recordId } = routeParams;
+				const params =
+					dbId && recordId
+						? {
+								...routeParams,
+								recordId: yield* Databases.resolveRecordId(dbId, recordId).pipe(
+									Effect.catchTag("NotFoundError", () =>
+										Effect.fail(notFound("Record", recordId)),
+									),
+								),
+							}
+						: routeParams;
+				if (op.checkPermission)
+					yield* op.checkPermission({ userId, workspaceId, params });
+				return yield* op.run({
+					userId,
+					workspaceId,
+					role,
+					keyName,
+					params,
+				});
+			}),
+			wdb.getLayer(workspaceId),
+		);
+	});
 
 /**
  * The OpenAPI `paths` fragment for every operation in `operations`, grouped by

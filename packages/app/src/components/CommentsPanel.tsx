@@ -102,6 +102,7 @@ export function CommentsPanel() {
 							<span className="font-medium text-text-2">
 								{names[c.authorId] ?? "Someone"}
 							</span>
+							{c.keyName && <span>via {c.keyName}</span>}
 							<time dateTime={c.createdAt}>
 								{new Date(c.createdAt).toLocaleString()}
 							</time>

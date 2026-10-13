@@ -110,6 +110,8 @@ export class Comment extends Schema.Class<Comment>("Comment")({
 	body: Schema.String,
 	createdAt: Schema.String,
 	updatedAt: Schema.NullOr(Schema.String),
+	/** Name of the API key it was written through; null when written in the app. */
+	keyName: Schema.NullOr(Schema.String),
 }) {}
 
 export class RecordFieldValue extends Schema.Class<RecordFieldValue>(

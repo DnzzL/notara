@@ -13,6 +13,7 @@ import type { SqlClient } from "effect/sql";
 import * as Comments from "../src/handlers/comments.js";
 import * as Databases from "../src/handlers/databases.js";
 import * as Pages from "../src/handlers/pages.js";
+import { restWorkspace, WORKSPACE } from "./rest-harness.js";
 
 const migrationsDir = path.join(
 	import.meta.dirname || __dirname,
@@ -144,5 +145,72 @@ describe("comments", () => {
 			Comments.deleteComment({ id: c.id, authorId: "ann" }),
 		);
 		expect(err._tag).toBe("NotFoundError");
+	});
+});
+
+const P = (pageId: string) =>
+	`/api/v1/workspaces/${WORKSPACE}/pages/${pageId}/comments`;
+
+describe("comments over REST", () => {
+	test("a key comments as its user, and the comment names the key", async () => {
+		using api = restWorkspace();
+		const page = await api.run(
+			Pages.createPage({ title: "P", parentId: null }),
+		);
+		const posted = await api.call("POST", P(page.id), {
+			key: "write",
+			body: { body: "Blocked: which locale?" },
+		});
+		expect(posted.status).toBe(201);
+		expect(posted.json).toMatchObject({ authorId: "ann", keyName: "docket" });
+
+		const listed = await api.call("GET", P(page.id), { key: "read" });
+		expect(listed.status).toBe(200);
+		expect(listed.json.map((c: { body: string }) => c.body)).toEqual([
+			"Blocked: which locale?",
+		]);
+	});
+
+	test("a read key cannot comment", async () => {
+		using api = restWorkspace();
+		const page = await api.run(
+			Pages.createPage({ title: "P", parentId: null }),
+		);
+		const res = await api.call("POST", P(page.id), {
+			key: "read",
+			body: { body: "hi" },
+		});
+		expect(res.status).toBe(403);
+	});
+
+	test("a key from outside the workspace neither reads nor comments", async () => {
+		using api = restWorkspace();
+		const page = await api.run(
+			Pages.createPage({ title: "P", parentId: null }),
+		);
+		const read = await api.call("GET", P(page.id), { key: "eve" });
+		const write = await api.call("POST", P(page.id), {
+			key: "eve",
+			body: { body: "hi" },
+		});
+		expect([read.status, write.status]).toEqual([403, 403]);
+	});
+
+	test("a body that is not a string is refused with 422", async () => {
+		using api = restWorkspace();
+		const page = await api.run(
+			Pages.createPage({ title: "P", parentId: null }),
+		);
+		const res = await api.call("POST", P(page.id), { key: "write", body: {} });
+		expect(res.status).toBe(422);
+	});
+
+	test("a comment written in the app names no key", async () => {
+		using ws = workspace();
+		const page = await newPage(ws);
+		const c = await ws.run(
+			Comments.addComment({ pageId: page.id, authorId: "ann", body: "hi" }),
+		);
+		expect(c.keyName).toBeNull();
 	});
 });

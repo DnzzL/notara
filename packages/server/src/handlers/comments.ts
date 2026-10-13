@@ -5,7 +5,7 @@ import { ulid } from "ulidx";
 import { forbidden } from "../policy.js";
 
 const COLS = `id, page_id as "pageId", author_id as "authorId", body,
-  created_at as "createdAt", updated_at as "updatedAt"`;
+  created_at as "createdAt", updated_at as "updatedAt", key_name as "keyName"`;
 
 const fromRow = (r: unknown) => new Comment(r as Comment);
 
@@ -54,13 +54,15 @@ export const addComment = (req: {
 	pageId: string;
 	authorId: string;
 	body: string;
+	/** The API key it comes through, when it does. */
+	keyName?: string | null;
 }) =>
 	Effect.gen(function* () {
 		const sql = yield* SqlClient.SqlClient;
 		const body = yield* requireBody(req.body);
 		const rows = yield* sql`
-      INSERT INTO comments (id, page_id, author_id, body, created_at)
-      VALUES (${ulid()}, ${req.pageId}, ${req.authorId}, ${body}, ${new Date().toISOString()})
+      INSERT INTO comments (id, page_id, author_id, body, created_at, key_name)
+      VALUES (${ulid()}, ${req.pageId}, ${req.authorId}, ${body}, ${new Date().toISOString()}, ${req.keyName ?? null})
       RETURNING ${sql.unsafe(COLS)}
     `;
 		return fromRow(rows[0]);

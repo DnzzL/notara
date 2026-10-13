@@ -113,7 +113,8 @@ const setupDB = Effect.gen(function* () {
       author_id TEXT NOT NULL,
       body TEXT NOT NULL,
       created_at TEXT NOT NULL,
-      updated_at TEXT
+      updated_at TEXT,
+      key_name TEXT
     )
   `;
 	yield* sql`

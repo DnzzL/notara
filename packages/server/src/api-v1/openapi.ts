@@ -271,6 +271,46 @@ const schemas = {
 		},
 	},
 
+	Comment: {
+		type: "object",
+		required: [
+			"id",
+			"pageId",
+			"authorId",
+			"body",
+			"createdAt",
+			"updatedAt",
+			"keyName",
+		],
+		properties: {
+			id: { type: "string" },
+			pageId: { type: "string" },
+			authorId: { type: "string", description: "User id of the author" },
+			body: { type: "string", description: "Markdown, as written" },
+			createdAt: { type: "string", format: "date-time" },
+			updatedAt: { type: "string", format: "date-time", nullable: true },
+			keyName: {
+				type: "string",
+				nullable: true,
+				example: "docket",
+				description:
+					"Name of the API key it was written through; null when written in the app",
+			},
+		},
+	},
+
+	CommentCreate: {
+		type: "object",
+		required: ["body"],
+		properties: {
+			body: {
+				type: "string",
+				maxLength: 10000,
+				example: "Blocked: which locale should the dates use?",
+			},
+		},
+	},
+
 	RecordCreate: {
 		type: "object",
 		required: ["title"],
@@ -481,6 +521,10 @@ blank. If you have blocks created that way, rewrite them as HTML.
 			name: "Databases",
 			description:
 				"Create and edit inline databases, their fields, and records",
+		},
+		{
+			name: "Comments",
+			description: "Read and write the comment thread under a page",
 		},
 		{ name: "Search", description: "Full-text search across pages and blocks" },
 		{ name: "Trash", description: "Soft-deleted items; restore or purge them" },
