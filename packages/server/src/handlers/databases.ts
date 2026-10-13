@@ -350,6 +350,34 @@ export const getRecordWithValues = (recordId: string) =>
 	});
 
 /**
+ * Give record `recordId` the short number `n`, for an import that keeps the
+ * numbers its source had — the one writer of a chosen number. The database's
+ * counter moves past `n`, so the next record created follows on.
+ */
+export const setShortNumber = (recordId: string, n: number) =>
+	Effect.gen(function* () {
+		const sql = yield* SqlClient.SqlClient;
+		const [record] = yield* sql<{ databaseId: string }>`
+      SELECT database_id as "databaseId" FROM database_records WHERE id = ${recordId}
+    `;
+		if (!record)
+			return yield* new NotFoundError({ resource: "record", id: recordId });
+		const taken = yield* sql`
+      SELECT 1 FROM database_records
+      WHERE database_id = ${record.databaseId} AND short_number = ${n} AND id != ${recordId}
+    `;
+		if (taken.length > 0)
+			return yield* new ConflictError({
+				message: `Number ${n} is already used in this database`,
+			});
+		yield* sql`UPDATE database_records SET short_number = ${n} WHERE id = ${recordId}`;
+		yield* sql`
+      UPDATE databases SET next_short_number = MAX(next_short_number, ${n + 1})
+      WHERE id = ${record.databaseId}
+    `;
+	});
+
+/**
  * The record id a REST `:recordId` names: `PREFIX-n` (any case) is looked up
  * in `databaseId`, trashed records included so they can be restored; anything
  * else is taken as an id and passed through.

@@ -1,0 +1,4 @@
+project_name: "fixture"
+statuses: ["needs-triage", "ready-for-agent", "done"]
+labels: ["bug", "enhancement"]
+task_prefix: "NOT"
