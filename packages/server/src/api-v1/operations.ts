@@ -1,6 +1,7 @@
 import { Effect } from "effect";
 import * as HttpRouter from "effect/http/HttpRouter";
 import type * as HttpServerResponse from "effect/http/HttpServerResponse";
+import { SqlClient } from "effect/sql";
 import { WorkspaceDb } from "../db.js";
 import { recordAsMarkdown, tickCriterion } from "../export/page.js";
 import * as Blocks from "../handlers/blocks.js";
@@ -9,6 +10,11 @@ import * as Databases from "../handlers/databases.js";
 import * as Pages from "../handlers/pages.js";
 import * as Permissions from "../handlers/permissions.js";
 import * as Search from "../handlers/search.js";
+import {
+	editorBlock,
+	markdownAsEditorBlocks,
+	todo,
+} from "../import/editor-blocks.js";
 import { ApiError, requireWorkspaceMember, resolveApiUser } from "./auth.js";
 import {
 	created,
@@ -208,6 +214,60 @@ const recordOf = (ctx: Pick<OperationContext, "params">) =>
 			return yield* Effect.fail(notFound("Record", recordId));
 		return record;
 	});
+
+/** A record as GET returns it: fields, body as markdown, criteria. */
+const recordDocument = (recordId: string) =>
+	Effect.gen(function* () {
+		const { record, values } = yield* Databases.getRecordWithValues(recordId);
+		const { body, criteria } = yield* recordAsMarkdown(record.pageId);
+		return { ...record, fields: values, body, criteria };
+	});
+
+/** A refused write as the 422 REST answers with. */
+const unwritable = Effect.mapError((e: unknown) =>
+	e instanceof Error && "_tag" in e && e._tag === "ValidationError"
+		? new ApiError({ status: 422, message: e.message })
+		: e,
+);
+
+/** `fields` from a write body: an object of field id or name → value. */
+const fieldsOf = (b: Record<string, unknown>) =>
+	b.fields === undefined
+		? Effect.succeed({})
+		: typeof b.fields === "object" &&
+				b.fields !== null &&
+				!Array.isArray(b.fields)
+			? Effect.succeed(b.fields as Record<string, unknown>)
+			: Effect.fail(
+					new ApiError({
+						status: 422,
+						message:
+							'Field "fields" must be an object of field name or id to value',
+					}),
+				);
+
+/** `criteria` from a create body: strings, or `{text, checked}`. */
+const criteriaOf = (b: Record<string, unknown>) => {
+	const raw = b.criteria ?? [];
+	const items = Array.isArray(raw)
+		? raw.map((c) =>
+				typeof c === "string"
+					? { text: c, checked: false }
+					: typeof c === "object" && c !== null && typeof c.text === "string"
+						? { text: c.text as string, checked: c.checked === true }
+						: null,
+			)
+		: null;
+	return items?.every((c) => c !== null)
+		? Effect.succeed(items as Array<{ text: string; checked: boolean }>)
+		: Effect.fail(
+				new ApiError({
+					status: 422,
+					message:
+						'Field "criteria" must be a list of strings or {"text", "checked"}',
+				}),
+			);
+};
 
 // ── Pages ──────────────────────────────────────────────────────────────────────
 
@@ -1003,18 +1063,52 @@ export const recordOperations: readonly Operation[] = [
 			Effect.gen(function* () {
 				const dbId = yield* requireParam(ctx.params, "dbId");
 				const body = yield* parseBody;
+				const b = body as Record<string, unknown>;
 				const title = yield* requireField(body, "title");
-				const record = yield* Databases.createRecord({
-					databaseId: dbId,
-					title,
-				});
-				return created(record);
+				const markdown = typeof b.body === "string" ? b.body : "";
+				const criteria = yield* criteriaOf(b);
+				const writes = yield* Databases.fieldWrites(
+					dbId,
+					yield* fieldsOf(b),
+				).pipe(unwritable);
+				const sql = yield* SqlClient.SqlClient;
+				const record = yield* sql.withTransaction(
+					Effect.gen(function* () {
+						const record = yield* Databases.createRecord({
+							databaseId: dbId,
+							title,
+						});
+						for (const w of writes)
+							yield* Databases.updateFieldValue({ recordId: record.id, ...w });
+						const blocks = [
+							...markdownAsEditorBlocks(markdown),
+							...(criteria.length > 0
+								? [editorBlock("heading2", "Acceptance Criteria")]
+								: []),
+							...criteria.map((c) => todo(c.text, c.checked)),
+						];
+						if (blocks.length > 0) {
+							const { pageId } = yield* Databases.openRecordAsPage(record.id);
+							for (const [index, block] of blocks.entries())
+								yield* Blocks.createBlock({
+									pageId,
+									...block,
+									index,
+									parentId: null,
+								});
+						}
+						return record;
+					}),
+				);
+				return created(yield* recordDocument(record.id));
 			}),
 		openapi: {
-			summary: "Create a record (row)",
+			summary: "Create a record, with its fields, body and criteria",
+			description:
+				"Only `title` is required. `fields` names each field by id or name; every value is checked against its field (a select takes one of its options, a number a number, …) before anything is written, and a 422 names the first that is not. `body` is markdown; `criteria` become to-dos under an Acceptance Criteria heading.",
 			requestBody: jsonBody("RecordCreate"),
 			responses: {
-				201: jsonResponse("Created record", jsonSchema("DatabaseRecord")),
+				201: jsonResponse("Created record", jsonSchema("RecordDocument")),
 				...errorResponses,
 			},
 		},
@@ -1037,17 +1131,10 @@ export const recordOperations: readonly Operation[] = [
 			}),
 		run: (ctx) =>
 			Effect.gen(function* () {
-				const dbId = yield* requireParam(ctx.params, "dbId");
-				const recordId = yield* requireParam(ctx.params, "recordId");
-				const { record, values } = yield* Databases.getRecordWithValues(
-					recordId,
-				).pipe(Effect.mapError(() => notFound("Record", recordId)));
 				// The permission check was on dbId: a record of another database
 				// is not this route's to show.
-				if (record.databaseId !== dbId)
-					return yield* Effect.fail(notFound("Record", recordId));
-				const { body, criteria } = yield* recordAsMarkdown(record.pageId);
-				return ok({ ...record, fields: values, body, criteria });
+				const record = yield* recordOf(ctx);
+				return ok(yield* recordDocument(record.id));
 			}),
 		openapi: {
 			summary: "Get a record: field values, body as markdown, criteria",
@@ -1077,22 +1164,35 @@ export const recordOperations: readonly Operation[] = [
 			}),
 		run: (ctx) =>
 			Effect.gen(function* () {
-				const recordId = yield* requireParam(ctx.params, "recordId");
+				const record = yield* recordOf(ctx);
 				const body = yield* parseBody;
 				const b = body as Record<string, unknown>;
-				const result = yield* Databases.updateRecord({
-					id: recordId,
-					title: typeof b.title === "string" ? b.title : undefined,
-					description:
-						typeof b.description === "string" ? b.description : undefined,
-				});
-				return ok(result);
+				const writes = yield* Databases.fieldWrites(
+					record.databaseId,
+					yield* fieldsOf(b),
+				).pipe(unwritable);
+				const sql = yield* SqlClient.SqlClient;
+				yield* sql.withTransaction(
+					Effect.gen(function* () {
+						yield* Databases.updateRecord({
+							id: record.id,
+							title: typeof b.title === "string" ? b.title : undefined,
+							description:
+								typeof b.description === "string" ? b.description : undefined,
+						});
+						for (const w of writes)
+							yield* Databases.updateFieldValue({ recordId: record.id, ...w });
+					}),
+				);
+				return ok(yield* recordDocument(record.id));
 			}),
 		openapi: {
-			summary: "Update a record's title or description",
+			summary: "Update a record's title, description or fields",
+			description:
+				"`fields` names each field by id or name; fields left out keep their values. Every value is checked before anything is written; a 422 names the first that is not valid.",
 			requestBody: jsonBody("RecordUpdate"),
 			responses: {
-				200: jsonResponse("Updated record", jsonSchema("DatabaseRecord")),
+				200: jsonResponse("Updated record", jsonSchema("RecordDocument")),
 				...errorResponses,
 			},
 		},

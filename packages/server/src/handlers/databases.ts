@@ -453,6 +453,75 @@ export const updateFieldValue = (req: {
 		}
 	});
 
+/** Why `value` cannot go in a field of this type and options; null when it can. */
+const invalidValue = (
+	field: { type: string; options: readonly string[] | null },
+	value: unknown,
+): string | null => {
+	const list =
+		Array.isArray(value) && value.every((v) => typeof v === "string");
+	switch (field.type) {
+		case "formula":
+			return "is computed and cannot be written";
+		case "number":
+			return typeof value === "number" && Number.isFinite(value)
+				? null
+				: "takes a number";
+		case "checkbox":
+			return typeof value === "boolean" ? null : "takes true or false";
+		case "date":
+			return typeof value === "string" && !Number.isNaN(Date.parse(value))
+				? null
+				: "takes a date like 2026-10-13";
+		case "select": {
+			if (typeof value !== "string") return "takes one option, as a string";
+			const unknown = value !== "" && !field.options?.includes(value);
+			return unknown ? `has no option "${value}"` : null;
+		}
+		case "multiSelect": {
+			if (!list) return "takes a list of options";
+			const unknown = value.find((v) => !field.options?.includes(v));
+			return unknown === undefined ? null : `has no option "${unknown}"`;
+		}
+		case "people":
+		case "relation":
+		case "page":
+			return list ? null : "takes a list of ids";
+		default:
+			return typeof value === "string" ? null : "takes a string";
+	}
+};
+
+/**
+ * `input` (field id or name → value) as stored cells of database `databaseId`,
+ * every one checked before any is written: an unknown field or a value its
+ * field cannot take fails the lot with a ValidationError naming it.
+ */
+export const fieldWrites = (
+	databaseId: string,
+	input: Readonly<Record<string, unknown>>,
+) =>
+	Effect.gen(function* () {
+		const fields = yield* listFields(databaseId);
+		const writes: Array<{ fieldId: string; value: string }> = [];
+		for (const [ref, value] of Object.entries(input)) {
+			const field =
+				fields.find((f) => f.id === ref) ?? fields.find((f) => f.name === ref);
+			if (!field)
+				return yield* new ValidationError({ message: `No field "${ref}"` });
+			const why = invalidValue(field, value);
+			if (why)
+				return yield* new ValidationError({
+					message: `Field "${field.name}" ${why}`,
+				});
+			writes.push({
+				fieldId: field.id,
+				value: fieldTypeSpec(field.type).encode(value),
+			});
+		}
+		return writes;
+	});
+
 export const deleteRecord = (id: string) =>
 	Effect.gen(function* () {
 		const sql = yield* SqlClient.SqlClient;

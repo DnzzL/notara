@@ -22,7 +22,7 @@ import * as Blocks from "../handlers/blocks.js";
 import * as Comments from "../handlers/comments.js";
 import * as Databases from "../handlers/databases.js";
 import * as Pages from "../handlers/pages.js";
-import { markdownToBlocks } from "./notion.js";
+import { editorBlock, markdownAsEditorBlocks, todo } from "./editor-blocks.js";
 
 const SOURCE = "backlog.md";
 
@@ -128,48 +128,9 @@ const readTasks = (dir: string, archived: boolean) =>
 		return { tasks, unreadable };
 	});
 
-const escapeHtml = (s: string) =>
-	s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
-
-/** A parsed markdown block as the editor stores it: escaped text in its HTML. */
-const editorBlock = (type: string, text: string) => {
-	const t = escapeHtml(text);
-	switch (type) {
-		case "heading1":
-		case "heading2":
-		case "heading3":
-			return { type, content: `<h${type.at(-1)}>${t}</h${type.at(-1)}>` };
-		case "bulletList":
-			return { type, content: `<ul><li><p>${t}</p></li></ul>` };
-		case "numberedList":
-			return { type, content: `<ol><li><p>${t}</p></li></ol>` };
-		case "code":
-			return { type, content: `<pre><code>${t}</code></pre>` };
-		case "blockquote":
-			return { type, content: `<blockquote><p>${t}</p></blockquote>` };
-		case "divider":
-			return { type, content: "" };
-		default:
-			return { type: "paragraph", content: `<p>${t}</p>` };
-	}
-};
-
-const todo = (text: string, checked: boolean) => ({
-	type: "todo",
-	content: `<ul data-type="taskList"><li data-type="taskItem" data-checked="${checked}"><p>${escapeHtml(text)}</p></li></ul>`,
-});
-
 /** The record's page: provenance, description, criteria, then the other sections. */
 const bodyBlocks = (task: Task) => {
-	const md = (text: string) =>
-		markdownToBlocks(text).map((b) =>
-			b.type === "todo"
-				? todo(
-						b.content.replace(/^\[[ xX]\]\s*/, ""),
-						/^\[[xX]\]/.test(b.content),
-					)
-				: editorBlock(b.type, b.content),
-		);
+	const md = markdownAsEditorBlocks;
 	const notes = [
 		...(task.number === null
 			? [

@@ -74,15 +74,20 @@ async function copyAssetToAttachments(absPath: string): Promise<string | null> {
 export interface ParsedBlock {
 	type: string;
 	content: string;
+	/** A to-do's tick; absent on other blocks. */
+	checked?: boolean;
 }
 
 /**
  * Parse Notion exported Markdown into block objects.
  */
-export function markdownToBlocks(md: string): ParsedBlock[] {
+export function markdownToBlocks(
+	md: string,
+	// A Notion export repeats the page title as its first `# ` heading.
+	{ skipFirstH1 = true } = {},
+): ParsedBlock[] {
 	const lines = md.split("\n");
 	const blocks: ParsedBlock[] = [];
-	let skipFirstH1 = true;
 	let inCode = false;
 	let codeLines: string[] = [];
 	let codeType = "code";
@@ -114,7 +119,11 @@ export function markdownToBlocks(md: string): ParsedBlock[] {
 			line.startsWith("- [x] ") ||
 			line.startsWith("- [X] ")
 		) {
-			blocks.push({ type: "todo", content: line.slice(6) });
+			blocks.push({
+				type: "todo",
+				content: line.slice(6),
+				checked: line[3] !== " ",
+			});
 		} else if (line.startsWith("- ")) {
 			blocks.push({ type: "bulletList", content: line.slice(2) });
 		} else if (/^\d+\.\s/.test(line)) {

@@ -61,7 +61,9 @@ describe("Block tree round-trips through the export/import pipeline", () => {
 						markdown += `${blockToMarkdown(block.type, block.content)}\n\n`;
 					}
 
-					const parsed = markdownToBlocks(markdown);
+					const parsed = markdownToBlocks(markdown).map(
+						({ type, content }) => ({ type, content }),
+					);
 
 					expect(parsed).toEqual(blocks);
 				},

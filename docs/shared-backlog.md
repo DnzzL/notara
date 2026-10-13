@@ -31,9 +31,9 @@ Interactive docs: `GET /api/docs`.
 | Read one card in full | `GET /databases/<dbId>/records/NOT-12` → fields, `body` (its page as markdown), `criteria` (`[{id, text, checked}]`) |
 | Read its thread | `GET /databases/<dbId>/records/NOT-12/comments` |
 | Ask a human, report, hand over | `POST /databases/<dbId>/records/NOT-12/comments` with `{"body": "@ann which locale?"}` |
-| Move it, assign it, close it | `PUT /databases/<dbId>/records/NOT-12/fields/<fieldId>` with `{"value": "done"}` |
+| Move it, assign it, close it | `PATCH /databases/<dbId>/records/NOT-12` with `{"fields": {"Status": "done"}}` — fields by name or id, a value its field cannot take is refused with 422 and nothing is written |
 | Tick a criterion | `PUT /databases/<dbId>/records/NOT-12/criteria/<criterionId>` with `{"checked": true}` |
-| File follow-up work | `POST /databases/<dbId>/records` with `{"title": "…"}`, then set its fields |
+| File follow-up work | `POST /databases/<dbId>/records` with `{"title": "…", "fields": {…}, "body": "markdown", "criteria": ["…"]}` |
 
 ```bash
 curl "https://notes.example.com/api/v1/workspaces/$WS/databases/$DB/records?field=Status&value=ready-for-agent" \

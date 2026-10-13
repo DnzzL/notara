@@ -40,7 +40,8 @@ REST `/api/v1` additions, the contract a runner's adapter depends on:
 | List comments | `GET /databases/:dbId/records/:idOrShortId/comments` (also `/pages/:id/comments`) | thread in the briefing |
 | Add comment | `POST /databases/:dbId/records/:idOrShortId/comments {body}` → `Comment` (`authorId`, `keyName`, …); opens the record's page if needed | `Comment` |
 | Tick criterion | `PUT /databases/:dbId/records/:idOrShortId/criteria/:criterionId {checked}` → `{id, text, checked}`; id = `<blockId>:<n>` | `CriterionWriter` |
-| Close / phase / assign | existing `PUT` record field value | `Close`, `Phaser`, `Assigner` |
+| Close / phase / assign | `PATCH /databases/:dbId/records/:idOrShortId {fields: {nameOrId: value}}` → record document; all values checked before any is written (422) | `Close`, `Phaser`, `Assigner` |
+| Create card | `POST /databases/:dbId/records {title, fields?, body? (markdown), criteria?}` → record document | follow-up work |
 
 Schema additions: `comments`, `inbox_entries`, member `handle`, database `short_prefix` +
 counter, record `short_number`.
@@ -95,7 +96,7 @@ point at the runner's CLI; Backlog.md is retired.
   entry does not name the key that wrote it (NOT-168).
 - `not done` — a criterion ticked over REST reaches an open editor only on reload.
 - `fragile` — a criterion id (`<blockId>:<n>`) shifts if its to-do block is restructured.
-- `not done` — fields are written one call each by id: NOT-161.
+- `fragile` — a people, relation or page value is checked for shape only, not that its ids exist.
 - `not done` — HTML artifacts on cards (ADR-013): NOT-162, NOT-163; `llms.txt`: NOT-164.
 - `untouched` — the runner-side adapter (outside this repo) and the cut-over from
   Backlog.md: NOT-157.

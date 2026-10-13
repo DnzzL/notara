@@ -360,11 +360,42 @@ const schemas = {
 		properties: { checked: { type: "boolean" } },
 	},
 
+	FieldValues: {
+		type: "object",
+		description:
+			"Field id or name → value: a string for text, select and date; a number; true/false; a list of strings for multiSelect, people, relation and page",
+		additionalProperties: true,
+		example: { Status: "ready-for-agent", Labels: ["bug"], Estimate: 3 },
+	},
+
 	RecordCreate: {
 		type: "object",
 		required: ["title"],
 		properties: {
 			title: { type: "string", example: "Fix the login bug" },
+			fields: { $ref: "#/components/schemas/FieldValues" },
+			body: {
+				type: "string",
+				description: "Markdown",
+				example: "Users typing **creme** find nothing.",
+			},
+			criteria: {
+				type: "array",
+				items: {
+					oneOf: [
+						{ type: "string" },
+						{
+							type: "object",
+							required: ["text"],
+							properties: {
+								text: { type: "string" },
+								checked: { type: "boolean" },
+							},
+						},
+					],
+				},
+				example: ["Match with or without accents"],
+			},
 		},
 	},
 
@@ -373,6 +404,7 @@ const schemas = {
 		properties: {
 			title: { type: "string", example: "Updated title" },
 			description: { type: "string", example: "More detail" },
+			fields: { $ref: "#/components/schemas/FieldValues" },
 		},
 	},
 
