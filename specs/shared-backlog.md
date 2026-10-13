@@ -97,6 +97,6 @@ point at the runner's CLI; Backlog.md is retired.
 - `not done` — a criterion ticked over REST reaches an open editor only on reload.
 - `fragile` — a criterion id (`<blockId>:<n>`) shifts if its to-do block is restructured.
 - `fragile` — a people, relation or page value is checked for shape only, not that its ids exist.
-- `not done` — HTML artifacts on cards (ADR-013): NOT-162, NOT-163; `llms.txt`: NOT-164.
+- `not done` — HTML artifacts on cards (ADR-013): NOT-162, NOT-163.
 - `untouched` — the runner-side adapter (outside this repo) and the cut-over from
   Backlog.md: NOT-157.

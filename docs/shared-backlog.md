@@ -23,7 +23,7 @@ it is done stay with the tool that runs the agents.
 
 Create a key in the sidebar → **API keys** (a **read** key can only read). Every call takes
 `Authorization: Bearer ntr_…`; paths are relative to `/api/v1/workspaces/<workspaceId>`.
-Interactive docs: `GET /api/docs`.
+Interactive docs: `GET /api/docs`. An agent arriving cold can read `GET /llms.txt`: this cycle, in one page.
 
 | To | Call |
 |---|---|
