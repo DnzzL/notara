@@ -5,6 +5,7 @@ import type { FieldType } from "@notara/shared";
 import { Effect } from "effect";
 import { SqlClient } from "effect/sql";
 import { ulid } from "ulidx";
+import { allocatePrefix } from "../handlers/databases.js";
 import {
 	fieldKey,
 	type ImportLedger,
@@ -1142,9 +1143,10 @@ function importCsvDatabase(
 		// Notion used (e.g. "Project", "Task"). Without this the user's column
 		// names from Notion would be lost on every import.
 		if (dbCreated) {
+			const prefix = yield* allocatePrefix(dbName);
 			yield* sql`
-      INSERT INTO databases (id, page_id, name, title_label, title_hidden)
-      VALUES (${dbId}, ${parentId}, ${dbName}, ${titleHeader}, 0)
+      INSERT INTO databases (id, page_id, name, title_label, title_hidden, short_prefix)
+      VALUES (${dbId}, ${parentId}, ${dbName}, ${titleHeader}, 0, ${prefix})
     `;
 		} else {
 			yield* sql`

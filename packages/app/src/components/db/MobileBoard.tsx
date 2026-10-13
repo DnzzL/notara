@@ -1,6 +1,7 @@
 import { useId } from "react";
 import { useStripNavigation } from "../../lib/useStripNavigation.js";
 import { CellDisplay } from "./CellComponents.js";
+import { ShortId } from "./ShortId.js";
 import { Strip } from "./Strip.js";
 
 /**
@@ -103,7 +104,10 @@ export function MobileBoard({
 						className="db-board-card"
 						onClick={onRowActivate(() => onOpenRecord(record))}
 					>
-						<span className="t">{record.title || "Untitled"}</span>
+						<span className="t">
+							<ShortId id={record.shortId} />
+							{record.title || "Untitled"}
+						</span>
 						<span className="f">
 							{visibleFields.map((f: any) => {
 								// An empty property is not information. The desktop card

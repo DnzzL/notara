@@ -81,6 +81,10 @@ eighteen places — see NOT-113 through NOT-117, which is the work to make it on
 does, that page *is* the record's detail view, not a separate document beside it. Creating a
 standalone page alongside a record produces duplicates.
 
+**Short id** — a record's human name, `PREFIX-n` (`NOT-12`): the database's *prefix*, unique
+in the workspace, and a number the database hands out once and never again. Accepted by
+REST wherever a record id is. Renaming a prefix breaks the short ids written with the old one.
+
 **Record field value** — one cell, stored as a string. Every field type encodes into and
 decodes out of that string; multi-value types use JSON.
 

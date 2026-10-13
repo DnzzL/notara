@@ -10,9 +10,11 @@ import { Effect } from "effect";
 import { SqlClient } from "effect/sql";
 import {
 	blockFromRow,
+	DB_COLS,
 	dbFromRow,
 	fieldFromRow,
 	pageFromRow,
+	RECORD_COLS,
 	recordFromRow,
 } from "../mappers.js";
 
@@ -190,7 +192,7 @@ export function exportPageFull(pageId: string) {
 
 		// Find inline databases on this page
 		const dbRows = yield* sql`
-      SELECT id, page_id as "pageId", name, is_deleted as "isDeleted", sort_order as "sortOrder"
+      SELECT ${sql.unsafe(DB_COLS)}
       FROM databases WHERE page_id = ${pageId} AND is_deleted = 0
       ORDER BY sort_order ASC
     `;
@@ -225,7 +227,7 @@ export function exportDatabaseAsCsv(dbId: string) {
 
 		// Fetch database
 		const dbRows = yield* sql`
-      SELECT id, page_id as "pageId", name, is_deleted as "isDeleted", sort_order as "sortOrder"
+      SELECT ${sql.unsafe(DB_COLS)}
       FROM databases WHERE id = ${dbId} AND is_deleted = 0
     `;
 		if (dbRows.length === 0) {
@@ -243,8 +245,7 @@ export function exportDatabaseAsCsv(dbId: string) {
 
 		// Fetch records
 		const recordRows = yield* sql`
-      SELECT id, database_id as "databaseId", title,
-             is_deleted as "isDeleted", created_at as "createdAt"
+      SELECT ${sql.unsafe(RECORD_COLS)}
       FROM database_records WHERE database_id = ${dbId} AND is_deleted = 0
       ORDER BY sort_order ASC
     `;
@@ -345,7 +346,7 @@ export function exportAllToDirectory(outputDir: string) {
 
 		// Export all databases as separate CSV files (including those in pages)
 		const allDbRows = yield* sql`
-      SELECT id, page_id as "pageId", name, is_deleted as "isDeleted", sort_order as "sortOrder"
+      SELECT ${sql.unsafe(DB_COLS)}
       FROM databases WHERE is_deleted = 0
       ORDER BY sort_order ASC
     `;

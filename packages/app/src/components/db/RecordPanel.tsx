@@ -4,6 +4,7 @@ import { api } from "../../rpc-client.js";
 import { usePageStore } from "../../stores/pageStore.js";
 import { Button, IconButton } from "../ui/index.js";
 import { CellDisplay, InlineCellEditor } from "./CellComponents.js";
+import { ShortId } from "./ShortId.js";
 
 export function RecordPanel({
 	databaseId,
@@ -20,6 +21,7 @@ export function RecordPanel({
 		id: string;
 		title: string;
 		description: string;
+		shortId: string;
 		pageId?: string | null;
 	};
 	values: Record<string, unknown>;
@@ -92,7 +94,8 @@ export function RecordPanel({
 				role="dialog"
 				aria-label="Record details"
 			>
-				<header className="flex justify-end mb-0.5">
+				<header className="flex justify-between items-center mb-0.5">
+					<ShortId id={record.shortId} />
 					<IconButton
 						variant="ghost"
 						size="sm"

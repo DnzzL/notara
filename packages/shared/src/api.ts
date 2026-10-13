@@ -12,6 +12,9 @@ const ShortName = Schema.String.pipe(
 	Schema.check(Schema.isMinLength(1)),
 	Schema.check(Schema.isMaxLength(120)),
 );
+// Bounds only; the format (letters then letters/digits) is checked by the
+// handler, which REST reaches without this schema.
+const ShortPrefix = Schema.String.pipe(Schema.check(Schema.isMaxLength(6)));
 const Slug = Schema.String.pipe(
 	Schema.check(Schema.isPattern(/^[a-z0-9](?:[a-z0-9-]{0,58}[a-z0-9])?$/)),
 );
@@ -327,6 +330,7 @@ export const AppRpc = RpcGroup.make(
 			id: Schema.String,
 			titleLabel: Schema.optional(Schema.String),
 			titleHidden: Schema.optional(Schema.Boolean),
+			shortPrefix: Schema.optional(ShortPrefix),
 		},
 		success: Database,
 	}),

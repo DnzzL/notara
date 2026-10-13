@@ -143,6 +143,11 @@ const schemas = {
 			titleLabel: { type: "string", example: "Name" },
 			titleHidden: { type: "boolean" },
 			deletedAt: { type: "string", format: "date-time", nullable: true },
+			shortPrefix: {
+				type: "string",
+				example: "NOT",
+				description: "Prefix of the database's short record ids",
+			},
 		},
 	},
 
@@ -169,6 +174,12 @@ const schemas = {
 				description: "Label of the built-in title column",
 			},
 			titleHidden: { type: "boolean", description: "Hide the title column" },
+			shortPrefix: {
+				type: "string",
+				example: "NOT",
+				description:
+					"2 to 6 letters or digits, starting with a letter; unique in the workspace. Renaming it breaks the old short ids.",
+			},
 		},
 	},
 
@@ -233,6 +244,12 @@ const schemas = {
 		required: ["id", "databaseId", "title"],
 		properties: {
 			id: { type: "string" },
+			shortId: {
+				type: "string",
+				example: "NOT-12",
+				description:
+					"Database prefix and a number never reused; accepted wherever a recordId is",
+			},
 			databaseId: { type: "string" },
 			title: { type: "string", example: "Fix the login bug" },
 			description: { type: "string", nullable: true },

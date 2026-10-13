@@ -37,6 +37,7 @@ import { CellDisplay, SelectPill } from "./CellComponents.js";
 import { DatabaseToolbar } from "./DatabaseToolbar.js";
 import { MobileBoard } from "./MobileBoard.js";
 import { FilterBar, makeDefaultFilter, SortBar } from "./QueryBar.js";
+import { ShortId } from "./ShortId.js";
 import { ViewSwitcher } from "./ViewSwitcher.js";
 import { VIEW_TYPES } from "./viewTypes.js";
 
@@ -447,6 +448,7 @@ export function BoardView({
 							hasPage ? "pl-5 pr-[22px]" : "pl-5",
 						)}
 					>
+						<ShortId id={record.record.shortId} />
 						{record.record.title}
 					</span>
 					<div

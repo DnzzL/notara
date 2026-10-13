@@ -57,6 +57,8 @@ export class Database extends Schema.Class<Database>("Database")({
 	titleLabel: Schema.String,
 	titleHidden: Schema.Boolean,
 	deletedAt: Schema.NullOr(Schema.String),
+	/** Prefix of the database's short record ids: `NOT` in `NOT-12`. */
+	shortPrefix: Schema.String,
 }) {}
 
 export const DatabaseFieldType = Schema.Literals([
@@ -96,6 +98,8 @@ export class DatabaseRecord extends Schema.Class<DatabaseRecord>(
 	isDeleted: Schema.Boolean,
 	createdAt: Schema.String,
 	deletedAt: Schema.NullOr(Schema.String),
+	/** `PREFIX-n`: the database's prefix and a number never reused. */
+	shortId: Schema.String,
 }) {}
 
 export class RecordFieldValue extends Schema.Class<RecordFieldValue>(

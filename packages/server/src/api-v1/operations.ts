@@ -154,7 +154,7 @@ export const recordParam = {
 	in: "path" as const,
 	required: true,
 	schema: { type: "string" },
-	description: "Record ID",
+	description: "Record ID or short id (`NOT-12`)",
 };
 
 const permanentQuery = {
@@ -619,8 +619,14 @@ export const databaseOperations: readonly Operation[] = [
 							typeof b.titleLabel === "string" ? b.titleLabel : undefined,
 						titleHidden:
 							"titleHidden" in b ? Boolean(b.titleHidden) : undefined,
+						shortPrefix:
+							typeof b.shortPrefix === "string" ? b.shortPrefix : undefined,
 					});
-				}).pipe(Effect.mapError(() => notFound("Database", dbId)));
+				}).pipe(
+					Effect.catchTag("NotFoundError", () =>
+						Effect.fail(notFound("Database", dbId)),
+					),
+				);
 				return ok(db);
 			}),
 		openapi: {
@@ -884,6 +890,7 @@ export const recordOperations: readonly Operation[] = [
 					raw as Array<{ record: any; values: Record<string, unknown> }>
 				).map(({ record, values }) => ({
 					id: record.id,
+					shortId: record.shortId,
 					databaseId: record.databaseId,
 					title: record.title,
 					description: record.description ?? null,
@@ -1196,12 +1203,29 @@ export const registerOperations = (
 			handle(
 				Effect.gen(function* () {
 					const { userId } = yield* resolveApiUser;
-					const params = yield* HttpRouter.params;
-					const workspaceId = yield* requireParam(params, "workspaceId");
+					const routeParams = yield* HttpRouter.params;
+					const workspaceId = yield* requireParam(routeParams, "workspaceId");
 					const role = yield* requireWorkspaceMember(workspaceId, userId);
 					const wdb = yield* WorkspaceDb;
 					return yield* Effect.provide(
 						Effect.gen(function* () {
+							// A record route names its record by id or by short id
+							// (`NOT-12`); every operation below sees the id.
+							const { dbId, recordId } = routeParams;
+							const params =
+								dbId && recordId
+									? {
+											...routeParams,
+											recordId: yield* Databases.resolveRecordId(
+												dbId,
+												recordId,
+											).pipe(
+												Effect.catchTag("NotFoundError", () =>
+													Effect.fail(notFound("Record", recordId)),
+												),
+											),
+										}
+									: routeParams;
 							if (op.checkPermission)
 								yield* op.checkPermission({ userId, workspaceId, params });
 							return yield* op.run({ userId, workspaceId, role, params });

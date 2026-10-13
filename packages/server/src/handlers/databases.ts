@@ -1,10 +1,12 @@
 import {
+	ConflictError,
 	fieldTypeSpec,
 	NotFoundError,
 	TrashContents,
 	TrashedDatabase,
 	TrashedPage,
 	TrashedRecord,
+	ValidationError,
 } from "@notara/shared";
 import { Effect } from "effect";
 import { SqlClient } from "effect/sql";
@@ -113,13 +115,39 @@ export const getDatabase = (id: string) =>
 		return dbFromRow(rows[0]);
 	});
 
+/**
+ * The short-id prefix a new database named `name` gets: the first three
+ * letters of the name, uppercased and stripped of accents, with a numeric
+ * suffix when another database of the workspace already holds it. A name with
+ * fewer than two letters falls back to `DB`. Letters only, as in migration 021,
+ * so a base never equals another base plus its suffix.
+ */
+export const allocatePrefix = (name: string) =>
+	Effect.gen(function* () {
+		const sql = yield* SqlClient.SqlClient;
+		const letters = name
+			.normalize("NFD")
+			.replace(/[^A-Za-z]/g, "")
+			.toUpperCase();
+		const base = letters.length >= 2 ? letters.slice(0, 3) : "DB";
+		const rows = yield* sql<{ p: string }>`
+      SELECT short_prefix AS p FROM databases WHERE short_prefix LIKE ${`${base}%`}
+    `;
+		const taken = new Set(rows.map((r) => r.p));
+		if (!taken.has(base)) return base;
+		let n = 2;
+		while (taken.has(`${base}${n}`)) n++;
+		return `${base}${n}`;
+	});
+
 export const createDatabase = (req: { pageId: string; name: string }) =>
 	Effect.gen(function* () {
 		const sql = yield* SqlClient.SqlClient;
 		const id = ulid();
+		const prefix = yield* allocatePrefix(req.name);
 		const rows = yield* sql`
-      INSERT INTO databases (id, page_id, name)
-      VALUES (${id}, ${req.pageId}, ${req.name})
+      INSERT INTO databases (id, page_id, name, short_prefix)
+      VALUES (${id}, ${req.pageId}, ${req.name}, ${prefix})
       RETURNING ${sql.unsafe(DB_COLS)}
     `;
 
@@ -258,15 +286,40 @@ export const getRecordWithValues = (recordId: string) =>
 		return { record, values };
 	});
 
+/**
+ * The record id a REST `:recordId` names: `PREFIX-n` (any case) is looked up
+ * in `databaseId`, trashed records included so they can be restored; anything
+ * else is taken as an id and passed through.
+ */
+export const resolveRecordId = (databaseId: string, ref: string) =>
+	Effect.gen(function* () {
+		const match = /^([A-Za-z][A-Za-z0-9]{1,5})-(\d+)$/.exec(ref);
+		if (!match) return ref;
+		const sql = yield* SqlClient.SqlClient;
+		const rows = yield* sql<{ id: string }>`
+      SELECT r.id FROM database_records r
+      JOIN databases d ON d.id = r.database_id
+      WHERE d.id = ${databaseId} AND d.short_prefix = ${match[1].toUpperCase()}
+        AND r.short_number = ${Number(match[2])}
+    `;
+		if (rows.length === 0)
+			return yield* new NotFoundError({ resource: "record", id: ref });
+		return rows[0].id;
+	});
+
 export const createRecord = (req: { databaseId: string; title: string }) =>
 	Effect.gen(function* () {
 		const sql = yield* SqlClient.SqlClient;
 		const id = ulid();
 		const now = new Date().toISOString();
-		const rows = yield* sql`
+		yield* sql`
       INSERT INTO database_records (id, database_id, title, created_at)
       VALUES (${id}, ${req.databaseId}, ${req.title}, ${now})
-      RETURNING ${sql.unsafe(RECORD_COLS)}
+    `;
+		// Re-read rather than RETURNING: the short number is set by a trigger,
+		// after the row RETURNING would report.
+		const rows = yield* sql`
+      SELECT ${sql.unsafe(RECORD_COLS)} FROM database_records WHERE id = ${id}
     `;
 		return recordFromRow(rows[0]);
 	});
@@ -482,11 +535,29 @@ export const updateDatabase = (req: {
 	id: string;
 	titleLabel?: string;
 	titleHidden?: boolean;
+	shortPrefix?: string;
 }) =>
 	Effect.gen(function* () {
 		const sql = yield* SqlClient.SqlClient;
 		const sets: string[] = [];
 		const params: unknown[] = [];
+		if (req.shortPrefix !== undefined) {
+			const prefix = req.shortPrefix.toUpperCase();
+			if (!/^[A-Z][A-Z0-9]{1,5}$/.test(prefix))
+				return yield* new ValidationError({
+					message:
+						"A prefix is 2 to 6 letters or digits and starts with a letter",
+				});
+			const holders = yield* sql`
+        SELECT id FROM databases WHERE short_prefix = ${prefix} AND id != ${req.id}
+      `;
+			if (holders.length > 0)
+				return yield* new ConflictError({
+					message: `Prefix ${prefix} is already used by another database`,
+				});
+			sets.push("short_prefix = ?");
+			params.push(prefix);
+		}
 		if (req.titleLabel !== undefined) {
 			sets.push("title_label = ?");
 			params.push(req.titleLabel);
