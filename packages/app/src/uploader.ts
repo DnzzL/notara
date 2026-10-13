@@ -9,6 +9,8 @@ export interface UploadResult {
 	fileUrl: string;
 	mimeType: string;
 	size: number;
+	/** For an artifact: the external hosts it references, which it cannot reach. */
+	blockedHosts: string[];
 }
 
 export async function uploadFile(

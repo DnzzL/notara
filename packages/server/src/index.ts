@@ -694,10 +694,18 @@ const staticFilesRoute = Effect.gen(function* () {
 			}
 
 			const content = fs.readFileSync(filePath);
+			const { artifact } = attachment;
+			const headers = {
+				...corsHeaders,
+				...Attachments.attachmentHeaders(fileName, { artifact }),
+			};
 
-			return HttpServerResponse.uint8Array(new Uint8Array(content), {
-				headers: { ...corsHeaders, ...Attachments.attachmentHeaders(fileName) },
-			});
+			return artifact
+				? HttpServerResponse.text(
+						Attachments.withBaseTarget(content.toString("utf-8")),
+						{ headers },
+					)
+				: HttpServerResponse.uint8Array(new Uint8Array(content), { headers });
 		}).pipe(
 			withPlatformServices,
 			Effect.catchCause((cause) => {

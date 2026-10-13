@@ -61,6 +61,7 @@ export function hasBlockRenderer(type: string): boolean {
 
 // ── Import and register all built-in renderers ──────────────────────────────
 
+import { ArtifactBlock } from "./artifact-block.js";
 import { DividerBlock } from "./divider-block.js";
 import { FileBlock } from "./file-block.js";
 import { ImageBlock } from "./image-block.js";
@@ -72,5 +73,6 @@ registerBlockRenderer("divider", DividerBlock);
 registerBlockRenderer("image", ImageBlock);
 registerBlockRenderer("pdf", PdfBlock);
 registerBlockRenderer("file", FileBlock);
+registerBlockRenderer("artifact", ArtifactBlock);
 registerBlockRenderer("people", PeopleBlock);
 registerBlockRenderer("viewReference", ViewReferenceBlock);

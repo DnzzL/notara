@@ -68,6 +68,14 @@ export function blockToMarkdown(type: string, content: string): string {
 				return `[file](${content})`;
 			}
 		}
+		case "artifact": {
+			try {
+				const data = JSON.parse(content);
+				return `[Artifact: ${data.fileName || "artifact"}](${data.src})`;
+			} catch {
+				return `[Artifact](${content})`;
+			}
+		}
 		case "toggle":
 			return `<details><summary>${content}</summary></details>`;
 		case "callout":

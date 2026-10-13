@@ -770,7 +770,13 @@ export function BlockEditor() {
 			setUploading(true);
 			try {
 				for (const file of list) {
-					await apiUploadFile(currentPage.id, file);
+					const { blockedHosts } = await apiUploadFile(currentPage.id, file);
+					if (blockedHosts?.length)
+						toaster.create({
+							title: `${file.name} runs isolated`,
+							description: `It cannot load from ${blockedHosts.join(", ")}. Inline those resources for it to work fully.`,
+							type: "warning",
+						});
 				}
 				await loadBlocks(currentPage.id);
 			} catch (err) {
