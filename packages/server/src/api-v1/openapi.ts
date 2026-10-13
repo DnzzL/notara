@@ -333,18 +333,31 @@ const schemas = {
 					criteria: {
 						type: "array",
 						description: "To-do items on the record's page, in order",
-						items: {
-							type: "object",
-							required: ["text", "checked"],
-							properties: {
-								text: { type: "string", description: "Markdown" },
-								checked: { type: "boolean" },
-							},
-						},
+						items: { $ref: "#/components/schemas/Criterion" },
 					},
 				},
 			},
 		],
+	},
+
+	Criterion: {
+		type: "object",
+		required: ["id", "text", "checked"],
+		properties: {
+			id: {
+				type: "string",
+				description:
+					"Names the criterion for Tick a criterion; holds while its to-do block is not restructured",
+			},
+			text: { type: "string", description: "Markdown" },
+			checked: { type: "boolean" },
+		},
+	},
+
+	CriterionUpdate: {
+		type: "object",
+		required: ["checked"],
+		properties: { checked: { type: "boolean" } },
 	},
 
 	RecordCreate: {

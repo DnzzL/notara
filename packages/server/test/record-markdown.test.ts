@@ -141,7 +141,7 @@ describe("editor HTML as markdown", () => {
 			}),
 		);
 		const res = await api.call("GET", url(db.id, "NOT-1"), { key: "read" });
-		expect(res.json.criteria).toEqual([
+		expect(res.json.criteria).toMatchObject([
 			{ text: "parent", checked: false },
 			{ text: "child", checked: true },
 		]);
@@ -173,4 +173,139 @@ test("a record of another database is a 404 here", async () => {
 	);
 	const res = await api.call("GET", url(other.id, rec.id), { key: "read" });
 	expect(res.status).toBe(404);
+});
+
+describe("ticking a criterion over REST", () => {
+	const tick = (
+		api: ReturnType<typeof restWorkspace>,
+		dbId: string,
+		criterionId: string,
+		body: unknown,
+		key = "write",
+	) =>
+		api.call("PUT", `${url(dbId, "NOT-1")}/criteria/${criterionId}`, {
+			key,
+			body,
+		});
+
+	test("each criterion has an id, and ticking it by id shows in the card", async () => {
+		using api = restWorkspace();
+		const { db } = await card(api, true);
+		const before = await api.call("GET", url(db.id, "NOT-1"), { key: "read" });
+		const [, second] = before.json.criteria;
+		expect(typeof second.id).toBe("string");
+
+		const res = await tick(api, db.id, second.id, { checked: true });
+		expect(res.status).toBe(200);
+		expect(res.json).toEqual({
+			id: second.id,
+			text: "Match with or without accents",
+			checked: true,
+		});
+
+		const after = await api.call("GET", url(db.id, "NOT-1"), { key: "read" });
+		expect(
+			after.json.criteria.map((c: { checked: boolean }) => c.checked),
+		).toEqual([true, true]);
+		expect(after.json.body).toContain("- [x] Match with or without accents");
+	});
+
+	test("ids stay the same once a criterion is ticked", async () => {
+		using api = restWorkspace();
+		const { db } = await card(api, true);
+		const before = await api.call("GET", url(db.id, "NOT-1"), { key: "read" });
+		await tick(api, db.id, before.json.criteria[0].id, { checked: false });
+		const after = await api.call("GET", url(db.id, "NOT-1"), { key: "read" });
+		expect(after.json.criteria.map((c: { id: string }) => c.id)).toEqual(
+			before.json.criteria.map((c: { id: string }) => c.id),
+		);
+		expect(after.json.criteria[0].checked).toBe(false);
+	});
+
+	test("ticking a nested criterion leaves its parent alone", async () => {
+		using api = restWorkspace();
+		const { db } = await api.run(
+			Effect.gen(function* () {
+				const page = yield* Pages.createPage({ title: "P", parentId: null });
+				const db = yield* Databases.createDatabase({
+					pageId: page.id,
+					name: "Notara",
+				});
+				const rec = yield* Databases.createRecord({
+					databaseId: db.id,
+					title: "t",
+				});
+				const { pageId } = yield* Databases.openRecordAsPage(rec.id);
+				yield* Blocks.createBlock({
+					pageId,
+					type: "todo",
+					content:
+						'<ul data-type="taskList"><li data-checked="false"><label><input type="checkbox"><span></span></label><div><p>parent</p><ul data-type="taskList"><li data-checked="false"><label><input type="checkbox"><span></span></label><div><p>child</p></div></li></ul></div></li></ul>',
+					index: 0,
+					parentId: null,
+				});
+				return { db };
+			}),
+		);
+		const before = await api.call("GET", url(db.id, "NOT-1"), { key: "read" });
+		await tick(api, db.id, before.json.criteria[1].id, { checked: true });
+		const after = await api.call("GET", url(db.id, "NOT-1"), { key: "read" });
+		expect(after.json.body).toBe("- [ ] parent\n  - [x] child");
+	});
+
+	test("a criterion that is not on this card is a 404", async () => {
+		using api = restWorkspace();
+		const { db } = await card(api, true);
+		const before = await api.call("GET", url(db.id, "NOT-1"), { key: "read" });
+		const [blockId] = before.json.criteria[0].id.split(":");
+		const statuses = [];
+		for (const id of [`${blockId}:7`, "nope", "01ABC:0"])
+			statuses.push((await tick(api, db.id, id, { checked: true })).status);
+		expect(statuses).toEqual([404, 404, 404]);
+	});
+
+	test("checked must be a boolean", async () => {
+		using api = restWorkspace();
+		const { db } = await card(api, true);
+		const before = await api.call("GET", url(db.id, "NOT-1"), { key: "read" });
+		const res = await tick(api, db.id, before.json.criteria[0].id, {
+			checked: "yes",
+		});
+		expect(res.status).toBe(422);
+	});
+
+	test("a card of another database is not this route's to tick", async () => {
+		using api = restWorkspace();
+		const { db, rec } = await card(api, true);
+		const before = await api.call("GET", url(db.id, "NOT-1"), { key: "read" });
+		const other = await api.run(
+			Effect.gen(function* () {
+				const page = yield* Pages.createPage({ title: "Q", parentId: null });
+				return yield* Databases.createDatabase({
+					pageId: page.id,
+					name: "Other",
+				});
+			}),
+		);
+		const res = await api.call(
+			"PUT",
+			`${url(other.id, rec.id)}/criteria/${before.json.criteria[1].id}`,
+			{ key: "write", body: { checked: true } },
+		);
+		expect(res.status).toBe(404);
+	});
+
+	test("a read key cannot tick", async () => {
+		using api = restWorkspace();
+		const { db } = await card(api, true);
+		const before = await api.call("GET", url(db.id, "NOT-1"), { key: "read" });
+		const res = await tick(
+			api,
+			db.id,
+			before.json.criteria[0].id,
+			{ checked: false },
+			"read",
+		);
+		expect(res.status).toBe(403);
+	});
 });

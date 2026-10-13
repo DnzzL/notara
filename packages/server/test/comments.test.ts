@@ -3,6 +3,7 @@
  * included, where only the author edits or deletes what they wrote.
  */
 import { describe, expect, test } from "bun:test";
+import { Effect } from "effect";
 import * as Comments from "../src/handlers/comments.js";
 import * as Databases from "../src/handlers/databases.js";
 import * as Pages from "../src/handlers/pages.js";
@@ -330,5 +331,97 @@ describe("comments over REST", () => {
 			}),
 		);
 		expect(c.keyName).toBeNull();
+	});
+});
+
+/** A card nobody has opened yet: no page, so nowhere for a page comment to go. */
+const unopenedCard = (api: ReturnType<typeof restWorkspace>) =>
+	api.run(
+		Effect.gen(function* () {
+			const page = yield* Pages.createPage({ title: "P", parentId: null });
+			const db = yield* Databases.createDatabase({
+				pageId: page.id,
+				name: "Notara",
+			});
+			const rec = yield* Databases.createRecord({
+				databaseId: db.id,
+				title: "Search ignores accents",
+			});
+			return { db, rec };
+		}),
+	);
+
+const R = (dbId: string, recordId: string) =>
+	`/api/v1/workspaces/${WORKSPACE}/databases/${dbId}/records/${recordId}/comments`;
+
+describe("a card's thread over REST", () => {
+	test("a key comments on a card nobody opened, by its short id", async () => {
+		using api = restWorkspace();
+		const { db } = await unopenedCard(api);
+		const posted = await api.call("POST", R(db.id, "NOT-1"), {
+			key: "write",
+			body: { body: "@bob blocked on the locale" },
+		});
+		expect(posted.status).toBe(201);
+		expect(posted.json).toMatchObject({
+			authorId: "ann",
+			keyName: "docket",
+			mentions: ["bob"],
+		});
+
+		const listed = await api.call("GET", R(db.id, "NOT-1"), { key: "read" });
+		expect(listed.json.map((c: { body: string }) => c.body)).toEqual([
+			"@bob blocked on the locale",
+		]);
+	});
+
+	test("the thread is the one the card's page shows", async () => {
+		using api = restWorkspace();
+		const { db, rec } = await unopenedCard(api);
+		await api.call("POST", R(db.id, rec.id), {
+			key: "write",
+			body: { body: "hi" },
+		});
+		const { pageId } = await api.run(Databases.openRecordAsPage(rec.id));
+		const onPage = await api.call("GET", P(pageId), { key: "read" });
+		expect(onPage.json.map((c: { body: string }) => c.body)).toEqual(["hi"]);
+	});
+
+	test("a card nobody opened has an empty thread", async () => {
+		using api = restWorkspace();
+		const { db } = await unopenedCard(api);
+		const listed = await api.call("GET", R(db.id, "NOT-1"), { key: "read" });
+		expect([listed.status, listed.json]).toEqual([200, []]);
+	});
+
+	test("a read key cannot comment on a card", async () => {
+		using api = restWorkspace();
+		const { db } = await unopenedCard(api);
+		const res = await api.call("POST", R(db.id, "NOT-1"), {
+			key: "read",
+			body: { body: "hi" },
+		});
+		expect(res.status).toBe(403);
+	});
+
+	test("a key from outside the workspace neither reads nor comments", async () => {
+		using api = restWorkspace();
+		const { db } = await unopenedCard(api);
+		const read = await api.call("GET", R(db.id, "NOT-1"), { key: "eve" });
+		const write = await api.call("POST", R(db.id, "NOT-1"), {
+			key: "eve",
+			body: { body: "hi" },
+		});
+		expect([read.status, write.status]).toEqual([403, 403]);
+	});
+
+	test("an unknown card is a 404", async () => {
+		using api = restWorkspace();
+		const { db } = await unopenedCard(api);
+		const res = await api.call("POST", R(db.id, "NOT-9"), {
+			key: "write",
+			body: { body: "hi" },
+		});
+		expect(res.status).toBe(404);
 	});
 });

@@ -36,10 +36,10 @@ REST `/api/v1` additions, the contract a runner's adapter depends on:
 | Operation | Shape | Serves |
 |---|---|---|
 | List records, filtered | `GET /databases/:id/records?field=<id or name>&value=<v>` (repeatable, AND) | `List` |
-| Get record | `GET /databases/:dbId/records/:idOrShortId` → record, field values, `body` markdown, `criteria` `[{text, checked}]` | `Get` |
-| List comments | `GET /pages/:id/comments` | thread in the briefing |
-| Add comment | `POST /pages/:id/comments {body}` → `Comment` (`authorId`, `keyName`, …) | `Comment` |
-| Write criteria | to-do blocks via the existing blocks API | `CriterionWriter` |
+| Get record | `GET /databases/:dbId/records/:idOrShortId` → record, field values, `body` markdown, `criteria` `[{id, text, checked}]` | `Get` |
+| List comments | `GET /databases/:dbId/records/:idOrShortId/comments` (also `/pages/:id/comments`) | thread in the briefing |
+| Add comment | `POST /databases/:dbId/records/:idOrShortId/comments {body}` → `Comment` (`authorId`, `keyName`, …); opens the record's page if needed | `Comment` |
+| Tick criterion | `PUT /databases/:dbId/records/:idOrShortId/criteria/:criterionId {checked}` → `{id, text, checked}`; id = `<blockId>:<n>` | `CriterionWriter` |
 | Close / phase / assign | existing `PUT` record field value | `Close`, `Phaser`, `Assigner` |
 
 Schema additions: `comments`, `inbox_entries`, member `handle`, database `short_prefix` +
@@ -84,15 +84,18 @@ point at the runner's CLI; Backlog.md is retired.
 
 - `not done` — a full page opened from a record shows nothing of its record (short id,
   fields): NOT-158.
-- `not done` — `@` completion in the comment box only, not while editing a comment;
-  comments render as plain text, not markdown.
+- `not done` — `@` completion in the comment box only, not while editing a comment.
 - `fragile` — trashing or restoring a page hides or shows its inbox entries but does not
   push a new unread count; the badge corrects on the next event or reload.
 - `fragile` — a member removed from a workspace keeps their mention rows on old comments;
   the inbox ignores them (no access), nothing else reads them yet.
-- `not tested` — no browser run of the comment panel, inbox or settings UI.
-- `not done` — an agent cannot comment on a card never opened as a page, cannot tick one
-  criterion, and writes fields one call each by id: NOT-159, NOT-160, NOT-161.
+- `not tested` — no browser run of the settings UI.
+- `not done` — a comment posted elsewhere shows on an open page only after reload (NOT-165);
+  record pages flood the sidebar (NOT-166); comments render as plain text (NOT-167); an inbox
+  entry does not name the key that wrote it (NOT-168).
+- `not done` — a criterion ticked over REST reaches an open editor only on reload.
+- `fragile` — a criterion id (`<blockId>:<n>`) shifts if its to-do block is restructured.
+- `not done` — fields are written one call each by id: NOT-161.
 - `not done` — HTML artifacts on cards (ADR-013): NOT-162, NOT-163; `llms.txt`: NOT-164.
 - `untouched` — the runner-side adapter (outside this repo) and the cut-over from
   Backlog.md: NOT-157.

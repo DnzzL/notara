@@ -2,7 +2,7 @@ import { Effect } from "effect";
 import * as HttpRouter from "effect/http/HttpRouter";
 import type * as HttpServerResponse from "effect/http/HttpServerResponse";
 import { WorkspaceDb } from "../db.js";
-import { recordAsMarkdown } from "../export/page.js";
+import { recordAsMarkdown, tickCriterion } from "../export/page.js";
 import * as Blocks from "../handlers/blocks.js";
 import * as Comments from "../handlers/comments.js";
 import * as Databases from "../handlers/databases.js";
@@ -162,6 +162,14 @@ export const recordParam = {
 	description: "Record ID or short id (`NOT-12`)",
 };
 
+export const criterionParam = {
+	name: "criterionId",
+	in: "path" as const,
+	required: true,
+	schema: { type: "string" },
+	description: "A criterion's `id`, as Get a record returns it",
+};
+
 const permanentQuery = {
 	name: "permanent",
 	in: "query" as const,
@@ -174,6 +182,32 @@ const permanentQuery = {
 /** The 404 mapping the old hand-written routes gave getPage/updatePage. */
 const notFound = (resource: string, id: string) =>
 	new ApiError({ status: 404, message: `${resource} ${id} not found` });
+
+const databaseViewer = (
+	ctx: Pick<OperationContext, "userId" | "workspaceId" | "params">,
+) =>
+	Effect.gen(function* () {
+		const dbId = yield* requireParam(ctx.params, "dbId");
+		yield* Permissions.checkDatabasePermission(
+			ctx.userId,
+			ctx.workspaceId,
+			dbId,
+			"viewer",
+		);
+	});
+
+/** The route's record, refused unless it belongs to the route's database. */
+const recordOf = (ctx: Pick<OperationContext, "params">) =>
+	Effect.gen(function* () {
+		const dbId = yield* requireParam(ctx.params, "dbId");
+		const recordId = yield* requireParam(ctx.params, "recordId");
+		const { record } = yield* Databases.getRecordWithValues(recordId).pipe(
+			Effect.mapError(() => notFound("Record", recordId)),
+		);
+		if (record.databaseId !== dbId)
+			return yield* Effect.fail(notFound("Record", recordId));
+		return record;
+	});
 
 // ── Pages ──────────────────────────────────────────────────────────────────────
 
@@ -1171,6 +1205,51 @@ export const recordOperations: readonly Operation[] = [
 			},
 		},
 	},
+	{
+		method: "PUT",
+		path: "/api/v1/workspaces/:workspaceId/databases/:dbId/records/:recordId/criteria/:criterionId",
+		operationId: "tickCriterion",
+		tag: "Databases",
+		pathParams: [dbParam, recordParam, criterionParam],
+		checkPermission: (ctx) =>
+			Effect.gen(function* () {
+				const dbId = yield* requireParam(ctx.params, "dbId");
+				yield* Permissions.checkDatabasePermission(
+					ctx.userId,
+					ctx.workspaceId,
+					dbId,
+					"editor",
+				);
+			}),
+		run: (ctx) =>
+			Effect.gen(function* () {
+				const id = yield* requireParam(ctx.params, "criterionId");
+				const { checked } = (yield* parseBody) as Record<string, unknown>;
+				if (typeof checked !== "boolean")
+					return yield* Effect.fail(
+						new ApiError({
+							status: 422,
+							message: 'Field "checked" must be a boolean',
+						}),
+					);
+				const { pageId } = yield* recordOf(ctx);
+				return ok(
+					yield* tickCriterion({ pageId, id, checked }).pipe(
+						Effect.mapError(() => notFound("Criterion", id)),
+					),
+				);
+			}),
+		openapi: {
+			summary: "Tick or untick one of a record's criteria",
+			description:
+				"`criterionId` is a criterion's `id` from Get a record. The record's page and its markdown body change with it.",
+			requestBody: jsonBody("CriterionUpdate"),
+			responses: {
+				200: jsonResponse("The criterion", jsonSchema("Criterion")),
+				...errorResponses,
+			},
+		},
+	},
 ];
 
 // ── Comments ───────────────────────────────────────────────────────────────────
@@ -1236,6 +1315,63 @@ export const commentOperations: readonly Operation[] = [
 			summary: "Comment on a page",
 			description:
 				"The comment is authored by the key's user and names the key. A read key cannot comment.",
+			requestBody: jsonBody("CommentCreate"),
+			responses: {
+				201: jsonResponse("Created comment", jsonSchema("Comment")),
+				...errorResponses,
+			},
+		},
+	},
+	{
+		method: "GET",
+		path: "/api/v1/workspaces/:workspaceId/databases/:dbId/records/:recordId/comments",
+		operationId: "listRecordComments",
+		tag: "Comments",
+		pathParams: [dbParam, recordParam],
+		checkPermission: databaseViewer,
+		run: (ctx) =>
+			Effect.gen(function* () {
+				const { pageId } = yield* recordOf(ctx);
+				return ok(pageId ? yield* Comments.listComments(pageId) : []);
+			}),
+		openapi: {
+			summary: "List a record's comments, oldest first",
+			description:
+				"The thread its page shows; empty for a record never opened as a page.",
+			responses: {
+				200: jsonResponse("Comments", {
+					type: "array",
+					items: jsonSchema("Comment"),
+				}),
+				...errorResponses,
+			},
+		},
+	},
+	{
+		method: "POST",
+		path: "/api/v1/workspaces/:workspaceId/databases/:dbId/records/:recordId/comments",
+		operationId: "addRecordComment",
+		tag: "Comments",
+		pathParams: [dbParam, recordParam],
+		checkPermission: databaseViewer,
+		run: (ctx) =>
+			Effect.gen(function* () {
+				const record = yield* recordOf(ctx);
+				const body = yield* requireField(yield* parseBody, "body");
+				const { pageId } = yield* Databases.openRecordAsPage(record.id);
+				const comment = yield* Comments.addComment({
+					pageId,
+					workspaceId: ctx.workspaceId,
+					authorId: ctx.userId,
+					body,
+					keyName: ctx.keyName,
+				});
+				return created(comment);
+			}),
+		openapi: {
+			summary: "Comment on a record",
+			description:
+				"Opens the record as a page if it has none, so the comment shows there. Authored by the key's user and names the key. A read key cannot comment.",
 			requestBody: jsonBody("CommentCreate"),
 			responses: {
 				201: jsonResponse("Created comment", jsonSchema("Comment")),

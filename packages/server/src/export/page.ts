@@ -8,7 +8,7 @@ import {
 } from "@notara/shared";
 import { Effect } from "effect";
 import { SqlClient } from "effect/sql";
-import { listBlocks } from "../handlers/blocks.js";
+import { listBlocks, updateBlock } from "../handlers/blocks.js";
 import {
 	blockFromRow,
 	DB_COLS,
@@ -18,7 +18,7 @@ import {
 	RECORD_COLS,
 	recordFromRow,
 } from "../mappers.js";
-import { htmlToMarkdown, todoItems } from "./html-markdown.js";
+import { htmlToMarkdown, setTodoChecked, todoItems } from "./html-markdown.js";
 
 // ── Block to Markdown conversion ─────────────────────────────────────────────
 
@@ -92,8 +92,38 @@ export function recordAsMarkdown(pageId: string | null) {
 			body: blocks.map((b) => blockToMarkdown(b.type, b.content)).join("\n\n"),
 			criteria: blocks
 				.filter((b) => b.type === "todo")
-				.flatMap((b) => todoItems(b.content)),
+				.flatMap((b) =>
+					todoItems(b.content).map((item, n) => ({
+						id: `${b.id}:${n}`,
+						...item,
+					})),
+				),
 		};
+	});
+}
+
+/**
+ * Ticks or unticks criterion `id` (`<blockId>:<n>`, as `recordAsMarkdown`
+ * names it) on the record page `pageId`. Fails with NotFoundError when the
+ * page has no such criterion.
+ */
+export function tickCriterion(req: {
+	pageId: string | null;
+	id: string;
+	checked: boolean;
+}) {
+	return Effect.gen(function* () {
+		const missing = () => new NotFoundError({ resource: "block", id: req.id });
+		const [, blockId, n] = /^(.+):(\d+)$/.exec(req.id) ?? [];
+		if (!req.pageId || !blockId) return yield* missing();
+		const block = (yield* listBlocks(req.pageId)).find(
+			(b) => b.id === blockId && b.type === "todo",
+		);
+		const content =
+			block && setTodoChecked(block.content, Number(n), req.checked);
+		if (!content) return yield* missing();
+		yield* updateBlock({ id: blockId, content });
+		return { id: req.id, ...todoItems(content)[Number(n)] };
 	});
 }
 

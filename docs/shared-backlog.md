@@ -28,11 +28,11 @@ Interactive docs: `GET /api/docs`.
 | To | Call |
 |---|---|
 | List the cards waiting for an agent | `GET /databases/<dbId>/records?field=Status&value=ready-for-agent` — repeat `field`/`value` pairs to AND them (`&field=Agent&value=dev`) |
-| Read one card in full | `GET /databases/<dbId>/records/NOT-12` → fields, `body` (its page as markdown), `criteria` (`[{text, checked}]`) |
-| Read its thread | `GET /pages/<pageId>/comments` (`pageId` is on the record) |
-| Ask a human, report, hand over | `POST /pages/<pageId>/comments` with `{"body": "@ann which locale?"}` |
+| Read one card in full | `GET /databases/<dbId>/records/NOT-12` → fields, `body` (its page as markdown), `criteria` (`[{id, text, checked}]`) |
+| Read its thread | `GET /databases/<dbId>/records/NOT-12/comments` |
+| Ask a human, report, hand over | `POST /databases/<dbId>/records/NOT-12/comments` with `{"body": "@ann which locale?"}` |
 | Move it, assign it, close it | `PUT /databases/<dbId>/records/NOT-12/fields/<fieldId>` with `{"value": "done"}` |
-| Tick a criterion | `PATCH /blocks/<blockId>` on the to-do block |
+| Tick a criterion | `PUT /databases/<dbId>/records/NOT-12/criteria/<criterionId>` with `{"checked": true}` |
 | File follow-up work | `POST /databases/<dbId>/records` with `{"title": "…"}`, then set its fields |
 
 ```bash

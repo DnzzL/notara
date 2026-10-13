@@ -123,9 +123,15 @@ const inline = (nodes: Node[]): string =>
 const isList = (n: Node): n is Node & { kind: "el" } =>
 	n.kind === "el" && (n.tag === "ul" || n.tag === "ol");
 
+/** A list item's content; the editor wraps a task item's in a `<div>`. */
+const itemNodes = (li: Node & { kind: "el" }) =>
+	li.children.flatMap((c) =>
+		c.kind === "el" && c.tag === "div" ? c.children : [c],
+	);
+
 /** A list item's own text: everything but the lists nested in it. */
 const itemText = (li: Node & { kind: "el" }) =>
-	blocks(li.children.filter((c) => !isList(c)))
+	blocks(itemNodes(li).filter((c) => !isList(c)))
 		.join(" ")
 		.trim();
 
@@ -142,7 +148,7 @@ const list = (el: Node & { kind: "el" }, depth: number): string =>
 						? "1."
 						: "-"
 					: `- [${checked === "true" ? "x" : " "}]`;
-			const nested = li.children
+			const nested = itemNodes(li)
 				.filter(isList)
 				.map((sub) => `\n${list(sub, depth + 1)}`)
 				.join("");
@@ -226,4 +232,35 @@ export const todoItems = (html: string) => {
 	};
 	walk(parse(html));
 	return found;
+};
+
+/**
+ * `html` with its `n`th to-do item, counted as `todoItems` counts, ticked or
+ * not, its own checkbox included; null when it has no such item.
+ */
+export const setTodoChecked = (html: string, n: number, checked: boolean) => {
+	let seen = -1;
+	let inItem = false;
+	const out = html.replace(
+		/<(\/?)([a-zA-Z][a-zA-Z0-9]*)([^>]*)>/g,
+		(tag, close: string, name: string, attrs: string) => {
+			const el = name.toLowerCase();
+			if (close) return tag;
+			if (el === "li" && attr({ attrs }, "data-checked") !== undefined) {
+				seen++;
+				inItem = seen === n;
+				return inItem
+					? tag.replace(/data-checked="[^"]*"/, `data-checked="${checked}"`)
+					: tag;
+			}
+			// The item's own checkbox is the first one after its tag.
+			if (el === "input" && inItem && /type="checkbox"/.test(attrs)) {
+				inItem = false;
+				const bare = tag.replace(/\schecked(="[^"]*")?/, "");
+				return checked ? bare.replace(/\s*\/?>$/, ' checked="checked">') : bare;
+			}
+			return tag;
+		},
+	);
+	return seen >= n ? out : null;
 };
