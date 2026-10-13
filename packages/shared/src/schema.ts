@@ -125,8 +125,8 @@ export class InboxEntry extends Schema.Class<InboxEntry>("InboxEntry")({
 	authorId: Schema.String,
 	/** The start of the comment, as written. */
 	excerpt: Schema.String,
-	/** Why it is here: it mentions them, or it is on a record they are assigned to. */
-	reason: Schema.Literals(["mention", "assigned"]),
+	/** Why it is here: it mentions them, it is on a record they are assigned to, or their API key wrote it. */
+	reason: Schema.Literals(["mention", "assigned", "agent"]),
 	createdAt: Schema.String,
 	readAt: Schema.NullOr(Schema.String),
 }) {}

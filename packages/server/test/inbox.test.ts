@@ -174,6 +174,29 @@ describe("the inbox", () => {
 		]);
 	});
 
+	test("a key's comment reaches its owner on a page nothing assigns them", async () => {
+		using api = restWorkspace();
+		const p = await page(api);
+		const res = await api.call(
+			"POST",
+			`/api/v1/workspaces/${WORKSPACE}/pages/${p.id}/comments`,
+			{ key: "write", body: { body: "Done; tests pass." } },
+		);
+		expect(res.status).toBe(201);
+		expect((await inbox(api, "ann")).map((e) => e.reason)).toEqual(["agent"]);
+	});
+
+	test("a key's comment mentioning its owner lands once, as a mention", async () => {
+		using api = restWorkspace();
+		const p = await page(api);
+		await api.call(
+			"POST",
+			`/api/v1/workspaces/${WORKSPACE}/pages/${p.id}/comments`,
+			{ key: "write", body: { body: "@ann which locale?" } },
+		);
+		expect((await inbox(api, "ann")).map((e) => e.reason)).toEqual(["mention"]);
+	});
+
 	test("deleting a comment updates the open inboxes it was in", async () => {
 		using api = restWorkspace();
 		const p = await page(api);

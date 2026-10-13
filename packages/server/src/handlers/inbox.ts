@@ -30,8 +30,9 @@ const assigneesOf = (pageId: string) =>
 
 /**
  * File `comment` in the inbox of everyone it concerns: the members it mentions,
- * then the members its record is assigned to — never someone who cannot see
- * the page, and never its author unless it came through an API key. One entry per member per comment, so an edit
+ * then the members its record is assigned to, then — when it came through an
+ * API key — the key's owner; never someone who cannot see the page, and never
+ * the author of a comment written in the app. One entry per member per comment, so an edit
  * only adds the people it newly concerns.
  */
 export const notify = (req: {
@@ -54,6 +55,7 @@ export const notify = (req: {
 		// Written in the app, the author knows. Written through a key, it is the
 		// key's agent speaking, and the key's owner is who it speaks to.
 		if (keyName === null) reasons.delete(authorId);
+		else if (!reasons.has(authorId)) reasons.set(authorId, "agent");
 		const now = new Date().toISOString();
 		for (const [userId, reason] of reasons) {
 			const access = yield* resolveEffectiveRelation(
