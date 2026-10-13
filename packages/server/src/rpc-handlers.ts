@@ -18,6 +18,7 @@ import * as Blocks from "./handlers/blocks.js";
 import * as Comments from "./handlers/comments.js";
 import * as Databases from "./handlers/databases.js";
 import * as ImportExport from "./handlers/importExport.js";
+import * as Inbox from "./handlers/inbox.js";
 import * as Onboarding from "./handlers/onboarding.js";
 import * as PageShares from "./handlers/page-shares.js";
 import * as Pages from "./handlers/pages.js";
@@ -162,6 +163,14 @@ export const rpcHandlersLayer = AppRpc.toLayer({
 			}),
 		).pipe(dieUnlessApiError),
 
+	listInbox: () =>
+		withAuthedWorkspace(({ userId }) => Inbox.listInbox(userId)).pipe(
+			dieUnlessApiError,
+		),
+	markInboxRead: ({ ids }) =>
+		withAuthedWorkspace(({ userId, workspaceId }) =>
+			Inbox.markRead({ workspaceId, userId, ids }),
+		).pipe(dieUnlessApiError),
 	listComments: ({ pageId }) =>
 		withAuthedWorkspace(({ userId, workspaceId }) =>
 			Effect.gen(function* () {
@@ -219,7 +228,11 @@ export const rpcHandlersLayer = AppRpc.toLayer({
 					pageId,
 					"viewer",
 				);
-				return yield* Comments.deleteComment({ id, authorId: userId });
+				return yield* Comments.deleteComment({
+					id,
+					workspaceId,
+					authorId: userId,
+				});
 			}),
 		).pipe(dieUnlessApiError),
 	listBlocks: ({ pageId }) =>

@@ -84,7 +84,11 @@ describe("comments", () => {
 			}),
 		);
 		const del = await ws.fail(
-			Comments.deleteComment({ id: c.id, authorId: "bob" }),
+			Comments.deleteComment({
+				id: c.id,
+				workspaceId: WORKSPACE,
+				authorId: "bob",
+			}),
 		);
 		expect([edit._tag, del._tag]).toEqual(["AuthError", "AuthError"]);
 		expect((await ws.run(Comments.listComments(page.id)))[0].body).toBe("mine");
@@ -101,7 +105,13 @@ describe("comments", () => {
 				body: "oops",
 			}),
 		);
-		await ws.run(Comments.deleteComment({ id: c.id, authorId: "ann" }));
+		await ws.run(
+			Comments.deleteComment({
+				id: c.id,
+				workspaceId: WORKSPACE,
+				authorId: "ann",
+			}),
+		);
 		expect(await ws.run(Comments.listComments(page.id))).toEqual([]);
 	});
 
@@ -229,7 +239,11 @@ describe("comments", () => {
 		);
 		await ws.run(Databases.purgePage(page.id));
 		const err = await ws.fail(
-			Comments.deleteComment({ id: c.id, authorId: "ann" }),
+			Comments.deleteComment({
+				id: c.id,
+				workspaceId: WORKSPACE,
+				authorId: "ann",
+			}),
 		);
 		expect(err._tag).toBe("NotFoundError");
 	});

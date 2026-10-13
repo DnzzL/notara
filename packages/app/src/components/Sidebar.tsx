@@ -25,6 +25,7 @@ import { api } from "../rpc-client.js";
 import { usePageStore } from "../store.js";
 import { EmojiPicker } from "./EmojiPicker.js";
 import { ImportModal } from "./ImportModal.js";
+import { InboxButton } from "./InboxButton.js";
 import { TemplatePicker } from "./TemplatePicker.js";
 import { TrashModal } from "./TrashModal.js";
 import { WorkspaceSwitcher } from "./WorkspaceSwitcher.js";
@@ -470,6 +471,7 @@ export function Sidebar({
 							<span>Search…</span>
 							<kbd>⌘K</kbd>
 						</button>
+						<InboxButton onNavigate={onNavigate} />
 						<input
 							type="text"
 							name="page-filter"

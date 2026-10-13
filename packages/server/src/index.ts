@@ -31,6 +31,7 @@ import { restoreBackup } from "./handlers/restore.js";
 import { loadSettings, saveSettings } from "./handlers/settings.js";
 import * as Upload from "./handlers/upload.js";
 import { causeResponse, failureResponse } from "./http-error.js";
+import { makeInboxStreamHandler } from "./inbox-stream.js";
 import {
 	checkRateLimit,
 	corsHeaders,
@@ -524,6 +525,9 @@ const staticFilesRoute = Effect.gen(function* () {
 		"/api/stream/view-config",
 		makeViewConfigStreamHandler(wdb),
 	);
+
+	// Inbox unread-count stream — the sidebar badge.
+	yield* router.add("GET", "/api/stream/inbox", makeInboxStreamHandler(wdb));
 
 	// Handle CORS preflight
 	yield* router.add(

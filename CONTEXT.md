@@ -89,6 +89,11 @@ or deletes it. Written through an API key, it carries the key's name.
 name when they join, changeable. **Mention** — a handle written as `@handle` in a comment;
 one that no member holds is just text.
 
+**Inbox** — a member's queue of comments that concern them, per workspace: those that
+mention them, and those on records a `people` field assigns to them. A comment written
+through an API key also reaches the key's owner — it is their agent speaking. Nothing lands
+for someone who cannot see the page.
+
 **Short id** — a record's human name, `PREFIX-n` (`NOT-12`): the database's *prefix*, unique
 in the workspace, and a number the database hands out once and never again. Accepted by
 REST wherever a record id is. Renaming a prefix breaks the short ids written with the old one.

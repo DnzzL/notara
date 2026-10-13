@@ -116,6 +116,21 @@ export class Comment extends Schema.Class<Comment>("Comment")({
 	mentions: Schema.Array(Schema.String),
 }) {}
 
+/** One thing in a member's inbox: a comment that concerns them. */
+export class InboxEntry extends Schema.Class<InboxEntry>("InboxEntry")({
+	id: Schema.String,
+	commentId: Schema.String,
+	pageId: Schema.String,
+	pageTitle: Schema.String,
+	authorId: Schema.String,
+	/** The start of the comment, as written. */
+	excerpt: Schema.String,
+	/** Why it is here: it mentions them, or it is on a record they are assigned to. */
+	reason: Schema.Literals(["mention", "assigned"]),
+	createdAt: Schema.String,
+	readAt: Schema.NullOr(Schema.String),
+}) {}
+
 export class RecordFieldValue extends Schema.Class<RecordFieldValue>(
 	"RecordFieldValue",
 )({

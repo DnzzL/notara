@@ -47,6 +47,7 @@ import {
 	DatabaseView,
 	ExportAllResult,
 	ImportResult,
+	InboxEntry,
 	Page,
 	PageExport,
 	PagePermissions,
@@ -113,6 +114,24 @@ export const AppRpc = RpcGroup.make(
 			pageIds: Schema.Array(Schema.String),
 		},
 		success: Schema.Struct({ reordered: Schema.Boolean }),
+	}),
+
+	// Inbox
+	Rpc.make("listInbox", {
+		error: ApiError,
+		payload: {},
+		success: Schema.Array(InboxEntry),
+	}),
+	Rpc.make("markInboxRead", {
+		error: ApiError,
+		payload: {
+			ids: Schema.optional(
+				Schema.Array(
+					Schema.String.pipe(Schema.check(Schema.isMaxLength(64))),
+				).pipe(Schema.check(Schema.isMaxLength(500))),
+			),
+		},
+		success: Schema.Void,
 	}),
 
 	// Comments

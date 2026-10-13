@@ -5,6 +5,7 @@ import { ulid } from "ulidx";
 import { HANDLE, membersByHandle } from "../member-handles.js";
 import { PlatformDb } from "../platform-db.js";
 import { forbidden } from "../policy.js";
+import * as Inbox from "./inbox.js";
 
 const COLS = `id, page_id as "pageId", author_id as "authorId", body,
   created_at as "createdAt", updated_at as "updatedAt", key_name as "keyName"`;
@@ -80,6 +81,23 @@ const withMentions = (rows: readonly unknown[]) =>
 		);
 	});
 
+/**
+ * What every write of a comment ends with: resolve who `body` mentions, file
+ * it in the inboxes it concerns, and return it as the API shows it.
+ */
+const settle = (
+	workspaceId: string,
+	id: string,
+	body: string,
+	rows: readonly unknown[],
+) =>
+	Effect.gen(function* () {
+		yield* writeMentions(id, yield* mentionedIn(workspaceId, body));
+		const [comment] = yield* withMentions(rows);
+		yield* Inbox.notify({ workspaceId, comment });
+		return comment;
+	});
+
 export const listComments = (pageId: string) =>
 	Effect.gen(function* () {
 		const sql = yield* SqlClient.SqlClient;
@@ -125,8 +143,7 @@ export const addComment = (req: {
       VALUES (${id}, ${req.pageId}, ${req.authorId}, ${body}, ${new Date().toISOString()}, ${req.keyName ?? null})
       RETURNING ${sql.unsafe(COLS)}
     `;
-		yield* writeMentions(id, yield* mentionedIn(req.workspaceId, body));
-		return (yield* withMentions(rows))[0];
+		return yield* settle(req.workspaceId, id, body, rows);
 	});
 
 /** Fails unless `authorId` wrote comment `id`. */
@@ -152,15 +169,22 @@ export const updateComment = (req: {
       WHERE id = ${req.id}
       RETURNING ${sql.unsafe(COLS)}
     `;
-		yield* writeMentions(req.id, yield* mentionedIn(req.workspaceId, body));
-		return (yield* withMentions(rows))[0];
+		return yield* settle(req.workspaceId, req.id, body, rows);
 	});
 
-export const deleteComment = (req: { id: string; authorId: string }) =>
+export const deleteComment = (req: {
+	id: string;
+	workspaceId: string;
+	authorId: string;
+}) =>
 	Effect.gen(function* () {
 		const sql = yield* SqlClient.SqlClient;
 		yield* requireAuthor(req.id, req.authorId);
 		yield* sql`DELETE FROM comment_mentions WHERE comment_id = ${req.id}`;
+		yield* Inbox.forgetComment({
+			workspaceId: req.workspaceId,
+			commentId: req.id,
+		});
 		yield* sql`DELETE FROM comments WHERE id = ${req.id}`;
 		return { deleted: true };
 	});
