@@ -91,5 +91,8 @@ point at the runner's CLI; Backlog.md is retired.
 - `fragile` — a member removed from a workspace keeps their mention rows on old comments;
   the inbox ignores them (no access), nothing else reads them yet.
 - `not tested` — no browser run of the comment panel, inbox or settings UI.
+- `not done` — an agent cannot comment on a card never opened as a page, cannot tick one
+  criterion, and writes fields one call each by id: NOT-159, NOT-160, NOT-161.
+- `not done` — HTML artifacts on cards (ADR-013): NOT-162, NOT-163; `llms.txt`: NOT-164.
 - `untouched` — the runner-side adapter (outside this repo) and the cut-over from
   Backlog.md: NOT-157.
