@@ -8,6 +8,7 @@ import { Effect } from "effect";
 import * as Blocks from "../src/handlers/blocks.js";
 import * as Databases from "../src/handlers/databases.js";
 import * as Pages from "../src/handlers/pages.js";
+import * as Permissions from "../src/handlers/permissions.js";
 import { restWorkspace, WORKSPACE } from "./rest-harness.js";
 
 const backlog = (api: ReturnType<typeof restWorkspace>) =>
@@ -232,4 +233,67 @@ describe("a markdown body as the editor shows it", () => {
 		const { json } = await create("# Context\n\nWhy.");
 		expect(json.body).toContain("# Context");
 	});
+});
+
+test("a route names a database bob can edit, and a card of one locked away from him", async () => {
+	using api = restWorkspace();
+	const { open, locked } = await api.run(
+		Effect.gen(function* () {
+			const make = (title: string) =>
+				Effect.gen(function* () {
+					const page = yield* Pages.createPage({ title, parentId: null });
+					const db = yield* Databases.createDatabase({
+						pageId: page.id,
+						name: title,
+					});
+					const rec = yield* Databases.createRecord({
+						databaseId: db.id,
+						title: "r",
+					});
+					const field = yield* Databases.createField({
+						databaseId: db.id,
+						name: "Status",
+						type: "text",
+						options: null,
+						relationTargetDbId: null,
+					});
+					return { page: page.id, db: db.id, rec: rec.id, field: field.id };
+				});
+			const open = yield* make("Open");
+			const locked = yield* make("Locked");
+			yield* Permissions.writePagePermissions({
+				pageId: locked.page,
+				set: [{ subject: { type: "user", id: "ann" }, relation: "owner" }],
+				remove: [],
+			});
+			return { open, locked };
+		}),
+	);
+	const base = `${records(open.db)}/${locked.rec}`;
+	const tries = [
+		await api.call("PATCH", base, { key: "bob", body: { title: "owned" } }),
+		await api.call("PUT", `${base}/fields/${locked.field}`, {
+			key: "bob",
+			body: { value: "owned" },
+		}),
+		await api.call(
+			"PUT",
+			`${records(open.db)}/${open.rec}/fields/${locked.field}`,
+			{
+				key: "bob",
+				body: { value: "owned" },
+			},
+		),
+		await api.call("DELETE", base, { key: "bob" }),
+		await api.call(
+			"PATCH",
+			`/api/v1/workspaces/${WORKSPACE}/databases/${open.db}/fields/${locked.field}`,
+			{ key: "bob", body: { name: "owned" } },
+		),
+	];
+	expect(tries.map((r) => r.status)).toEqual([404, 404, 404, 404, 404]);
+	const card = await api.call("GET", `${records(locked.db)}/${locked.rec}`, {
+		key: "write",
+	});
+	expect(card.json.title).toBe("r");
 });

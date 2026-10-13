@@ -398,6 +398,35 @@ export const resolveRecordId = (databaseId: string, ref: string) =>
 		return rows[0].id;
 	});
 
+/**
+ * Fails with NotFoundError unless `recordId` and `fieldId`, when given, belong
+ * to database `databaseId` — trashed records included, so they can be restored.
+ */
+export const requireInDatabase = (
+	databaseId: string,
+	ids: { recordId?: string; fieldId?: string },
+) =>
+	Effect.gen(function* () {
+		const sql = yield* SqlClient.SqlClient;
+		if (ids.recordId !== undefined) {
+			const rows = yield* sql`
+        SELECT 1 FROM database_records WHERE id = ${ids.recordId} AND database_id = ${databaseId}
+      `;
+			if (rows.length === 0)
+				return yield* new NotFoundError({
+					resource: "record",
+					id: ids.recordId,
+				});
+		}
+		if (ids.fieldId !== undefined) {
+			const rows = yield* sql`
+        SELECT 1 FROM database_fields WHERE id = ${ids.fieldId} AND database_id = ${databaseId}
+      `;
+			if (rows.length === 0)
+				return yield* new NotFoundError({ resource: "field", id: ids.fieldId });
+		}
+	});
+
 export const createRecord = (req: { databaseId: string; title: string }) =>
 	Effect.gen(function* () {
 		const sql = yield* SqlClient.SqlClient;

@@ -46,7 +46,8 @@ export const WORKSPACE = "ws";
 /**
  * A workspace `ws` with members `ann` (owner) and `bob`, whose handles are
  * their names, an outsider `eve`, and keys:
- * `write` (ann's, named "docket"), `read` (ann's, read scope), `eve` (eve's).
+ * `write` (ann's, named "docket"), `read` (ann's, read scope), `bob` (bob's),
+ * `eve` (eve's).
  */
 export function restWorkspace() {
 	const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), "notara-rest-"));
@@ -82,6 +83,7 @@ export function restWorkspace() {
 	for (const [token, user, name, scope] of [
 		["write", "ann", "docket", "write"],
 		["read", "ann", "reader", "read"],
+		["bob", "bob", "bob's key", "write"],
 		["eve", "eve", "eve's key", "write"],
 	])
 		platform

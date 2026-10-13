@@ -1616,6 +1616,17 @@ export const operationHandler = (op: Operation) =>
 						: routeParams;
 				if (op.checkPermission)
 					yield* op.checkPermission({ userId, workspaceId, params });
+				// The permission check above is on the database: a record or
+				// field of another one is not this route's to touch.
+				if (params.dbId)
+					yield* Databases.requireInDatabase(params.dbId, {
+						recordId: params.recordId,
+						fieldId: params.fieldId,
+					}).pipe(
+						Effect.catchTag("NotFoundError", (e) =>
+							Effect.fail(notFound(e.resource, e.id)),
+						),
+					);
 				return yield* op.run({
 					userId,
 					workspaceId,
