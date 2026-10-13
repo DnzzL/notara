@@ -104,7 +104,9 @@ export const listComments = (pageId: string) =>
 		return yield* withMentions(
 			yield* sql`
         SELECT ${sql.unsafe(COLS)} FROM comments WHERE page_id = ${pageId}
-        ORDER BY created_at ASC, id ASC
+        -- Two comments written in the same millisecond keep the order they were
+        -- written in; ULIDs of one millisecond do not sort by time.
+        ORDER BY created_at ASC, rowid ASC
       `,
 		);
 	});
