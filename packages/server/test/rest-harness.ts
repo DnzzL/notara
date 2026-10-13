@@ -113,7 +113,8 @@ export function restWorkspace() {
 	const call = async (
 		method: string,
 		url: string,
-		opts: { key: string; body?: unknown },
+		/** `raw` sends a body as is, for routes that take something other than JSON. */
+		opts: { key: string; body?: unknown; raw?: string },
 	) => {
 		const found = restOperations
 			.map((op) => ({
@@ -126,7 +127,9 @@ export function restWorkspace() {
 			new Request(`http://test${url}`, {
 				method,
 				headers: { authorization: `Bearer ${opts.key}` },
-				body: opts.body === undefined ? undefined : JSON.stringify(opts.body),
+				body:
+					opts.raw ??
+					(opts.body === undefined ? undefined : JSON.stringify(opts.body)),
 			}),
 		);
 		// Operation.run is typed `any` in R (operations.ts); these are the

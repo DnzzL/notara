@@ -1,5 +1,6 @@
 import { Effect } from "effect";
 import * as HttpRouter from "effect/http/HttpRouter";
+import * as HttpServerRequest from "effect/http/HttpServerRequest";
 import type * as HttpServerResponse from "effect/http/HttpServerResponse";
 import { SqlClient } from "effect/sql";
 import { WorkspaceDb } from "../db.js";
@@ -10,6 +11,7 @@ import * as Databases from "../handlers/databases.js";
 import * as Pages from "../handlers/pages.js";
 import * as Permissions from "../handlers/permissions.js";
 import * as Search from "../handlers/search.js";
+import * as Upload from "../handlers/upload.js";
 import {
 	editorBlock,
 	markdownAsEditorBlocks,
@@ -1481,6 +1483,166 @@ export const commentOperations: readonly Operation[] = [
 	},
 ];
 
+// ── Artifacts ──────────────────────────────────────────────────────────────────
+
+const htmlBody = {
+	required: true,
+	content: { "text/html": { schema: { type: "string" } } },
+};
+
+const nameQuery = {
+	name: "name",
+	in: "query" as const,
+	required: true,
+	schema: { type: "string" },
+	description:
+		"File name, ending in `.html`; the page's artifact of that name is replaced",
+};
+
+const artifactParam = {
+	name: "artifactId",
+	in: "path" as const,
+	required: true,
+	schema: { type: "string" },
+	description: "An artifact's `id`, as attaching it returns it",
+};
+
+/** Attach the request body as artifact `name` to `pageId` (ADR-013). */
+const attachArtifact = (pageId: string, name: string) =>
+	Effect.gen(function* () {
+		const req = yield* HttpServerRequest.HttpServerRequest;
+		const html = Buffer.from(yield* req.arrayBuffer);
+		const res = yield* Upload.uploadFile({
+			pageId,
+			fileName: name,
+			mimeType: "text/html",
+			fileBuffer: html,
+		}).pipe(unwritable);
+		return {
+			id: res.fileUrl.replace(/^\/attachments\/|\.[^.]*$/g, ""),
+			url: res.fileUrl,
+			blockedHosts: res.blockedHosts,
+		};
+	});
+
+/** The `name` query parameter, refused unless it names an HTML file. */
+const artifactName = Effect.gen(function* () {
+	const name = yield* queryParam("name");
+	if (!name || !/\.html?$/i.test(name))
+		return yield* Effect.fail(
+			new ApiError({
+				status: 422,
+				message: 'Query parameter "name" must be a file name ending in .html',
+			}),
+		);
+	return name;
+});
+
+const artifactResponses = (status: 200 | 201) => ({
+	[status]: jsonResponse("The artifact", jsonSchema("Artifact")),
+	...errorResponses,
+});
+
+const pageEditor = (
+	ctx: Pick<OperationContext, "userId" | "workspaceId" | "params">,
+) =>
+	Effect.gen(function* () {
+		const pageId = yield* requireParam(ctx.params, "pageId");
+		yield* Permissions.checkPagePermission(
+			ctx.userId,
+			ctx.workspaceId,
+			pageId,
+			"editor",
+		);
+	});
+
+export const artifactOperations: readonly Operation[] = [
+	{
+		method: "POST",
+		path: "/api/v1/workspaces/:workspaceId/pages/:pageId/artifacts",
+		operationId: "attachArtifact",
+		tag: "Artifacts",
+		pathParams: [pageParam],
+		checkPermission: pageEditor,
+		run: (ctx) =>
+			Effect.gen(function* () {
+				const pageId = yield* requireParam(ctx.params, "pageId");
+				return created(yield* attachArtifact(pageId, yield* artifactName));
+			}),
+		openapi: {
+			summary: "Attach an HTML artifact to a page",
+			description:
+				"The body is the HTML. It is shown live at the end of the page, isolated: its inline scripts run, but it reaches no network, CDN included — `blockedHosts` lists the hosts it references that will not load. Attaching a name the page already has replaces that artifact. At most 5 MB.",
+			parameters: [nameQuery],
+			requestBody: htmlBody,
+			responses: artifactResponses(201),
+		},
+	},
+	{
+		method: "POST",
+		path: "/api/v1/workspaces/:workspaceId/databases/:dbId/records/:recordId/artifacts",
+		operationId: "attachRecordArtifact",
+		tag: "Artifacts",
+		pathParams: [dbParam, recordParam],
+		checkPermission: (ctx) =>
+			Effect.gen(function* () {
+				const dbId = yield* requireParam(ctx.params, "dbId");
+				yield* Permissions.checkDatabasePermission(
+					ctx.userId,
+					ctx.workspaceId,
+					dbId,
+					"editor",
+				);
+			}),
+		run: (ctx) =>
+			Effect.gen(function* () {
+				const record = yield* recordOf(ctx);
+				const name = yield* artifactName;
+				const { pageId } = yield* Databases.openRecordAsPage(record.id);
+				return created(yield* attachArtifact(pageId, name));
+			}),
+		openapi: {
+			summary: "Attach an HTML artifact to a record",
+			description:
+				"As attaching to a page, on the record's page — opened if it has none.",
+			parameters: [nameQuery],
+			requestBody: htmlBody,
+			responses: artifactResponses(201),
+		},
+	},
+	{
+		method: "PUT",
+		path: "/api/v1/workspaces/:workspaceId/artifacts/:artifactId",
+		operationId: "replaceArtifact",
+		tag: "Artifacts",
+		pathParams: [artifactParam],
+		run: (ctx) =>
+			Effect.gen(function* () {
+				const id = yield* requireParam(ctx.params, "artifactId");
+				const sql = yield* SqlClient.SqlClient;
+				const [artifact] = yield* sql<{ pageId: string; fileName: string }>`
+          SELECT page_id as "pageId", file_name as "fileName" FROM attachments
+          WHERE id = ${id} AND artifact = 1
+        `;
+				if (!artifact) return yield* Effect.fail(notFound("Artifact", id));
+				yield* Permissions.checkPagePermission(
+					ctx.userId,
+					ctx.workspaceId,
+					artifact.pageId,
+					"editor",
+				);
+				return ok(yield* attachArtifact(artifact.pageId, artifact.fileName));
+			}),
+		openapi: {
+			summary: "Replace an artifact's HTML",
+			description:
+				"Same URL, same place in the page; no history kept. At most 5 MB.",
+			requestBody: htmlBody,
+			responses: artifactResponses(200),
+		},
+	},
+];
+
 // ── Search + Trash ─────────────────────────────────────────────────────────────
 
 export const searchOperations: readonly Operation[] = [
@@ -1570,6 +1732,7 @@ export const restOperations: readonly Operation[] = [
 	...fieldOperations,
 	...recordOperations,
 	...commentOperations,
+	...artifactOperations,
 	...searchOperations,
 	...trashOperations,
 ];

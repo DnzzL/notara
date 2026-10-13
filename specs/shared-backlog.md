@@ -97,8 +97,7 @@ point at the runner's CLI; Backlog.md is retired.
 - `not done` — a criterion ticked over REST reaches an open editor only on reload.
 - `fragile` — a criterion id (`<blockId>:<n>`) shifts if its to-do block is restructured.
 - `fragile` — a people, relation or page value is checked for shape only, not that its ids exist.
-- `not done` — artifacts over REST: NOT-163. On a public share an artifact is a link, and
-  opening it downloads it.
+- `not done` — on a public share an artifact is a link, and opening it downloads it.
 - `fragile` — `blockedHosts` reads markup and CSS only; a host a script fetches from is not
   reported (it is blocked all the same).
 - `not tested` — an artifact's full-screen button (headless browser).

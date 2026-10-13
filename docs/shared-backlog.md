@@ -33,6 +33,7 @@ Interactive docs: `GET /api/docs`. An agent arriving cold can read `GET /llms.tx
 | Ask a human, report, hand over | `POST /databases/<dbId>/records/NOT-12/comments` with `{"body": "@ann which locale?"}` |
 | Move it, assign it, close it | `PATCH /databases/<dbId>/records/NOT-12` with `{"fields": {"Status": "done"}}` — fields by name or id, a value its field cannot take is refused with 422 and nothing is written |
 | Tick a criterion | `PUT /databases/<dbId>/records/NOT-12/criteria/<criterionId>` with `{"checked": true}` |
+| Attach a report or dashboard | `POST /databases/<dbId>/records/NOT-12/artifacts?name=report.html` with the HTML as body; shown live in the card, isolated: no network, so everything inline (`blockedHosts` names what will not load) |
 | File follow-up work | `POST /databases/<dbId>/records` with `{"title": "…", "fields": {…}, "body": "markdown", "criteria": ["…"]}` |
 
 ```bash

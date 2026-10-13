@@ -368,6 +368,22 @@ const schemas = {
 		example: { Status: "ready-for-agent", Labels: ["bug"], Estimate: 3 },
 	},
 
+	Artifact: {
+		type: "object",
+		required: ["id", "url", "blockedHosts"],
+		properties: {
+			id: { type: "string", description: "Names it for Replace an artifact" },
+			url: { type: "string", example: "/attachments/01J….html" },
+			blockedHosts: {
+				type: "array",
+				items: { type: "string" },
+				description:
+					"External hosts its markup or CSS loads from; none of them will load",
+				example: ["cdn.jsdelivr.net"],
+			},
+		},
+	},
+
 	RecordCreate: {
 		type: "object",
 		required: ["title"],
@@ -606,6 +622,11 @@ blank. If you have blocks created that way, rewrite them as HTML.
 		{
 			name: "Comments",
 			description: "Read and write the comment thread under a page",
+		},
+		{
+			name: "Artifacts",
+			description:
+				"Self-contained HTML shown live and isolated in a page: no network, everything inline",
 		},
 		{ name: "Search", description: "Full-text search across pages and blocks" },
 		{ name: "Trash", description: "Soft-deleted items; restore or purge them" },

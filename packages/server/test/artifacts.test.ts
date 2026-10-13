@@ -6,13 +6,16 @@ import { afterEach, beforeEach, describe, expect, test } from "bun:test";
 import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
+import { Effect } from "effect";
 import { blockToMarkdown } from "../src/export/page.js";
 import {
 	attachmentHeaders,
 	withBaseTarget,
 } from "../src/handlers/attachments.js";
 import * as Blocks from "../src/handlers/blocks.js";
+import * as Databases from "../src/handlers/databases.js";
 import * as Pages from "../src/handlers/pages.js";
+import * as Permissions from "../src/handlers/permissions.js";
 import { uploadFile } from "../src/handlers/upload.js";
 import { restWorkspace } from "./rest-harness.js";
 
@@ -131,4 +134,117 @@ test("in markdown, an artifact is a link", () => {
 			JSON.stringify({ src: "/attachments/01X.html", fileName: "report.html" }),
 		),
 	).toBe("[Artifact: report.html](/attachments/01X.html)");
+});
+
+describe("artifacts over REST", () => {
+	const W = "/api/v1/workspaces/ws";
+
+	test("a key attaches a report to a page, then regenerates it in place", async () => {
+		using api = restWorkspace();
+		const page = await api.run(
+			Pages.createPage({ title: "P", parentId: null }),
+		);
+		const posted = await api.call(
+			"POST",
+			`${W}/pages/${page.id}/artifacts?name=report.html`,
+			{ key: "write", raw: REPORT },
+		);
+		expect(posted.status).toBe(201);
+		expect(posted.json).toMatchObject({
+			blockedHosts: ["cdn.example.com", "fonts.example.org"],
+		});
+		expect(posted.json.url).toBe(`/attachments/${posted.json.id}.html`);
+
+		const put = await api.call("PUT", `${W}/artifacts/${posted.json.id}`, {
+			key: "write",
+			raw: "<p>v2</p>",
+		});
+		expect(put.status).toBe(200);
+		expect(put.json).toEqual({
+			id: posted.json.id,
+			url: posted.json.url,
+			blockedHosts: [],
+		});
+		const blocks = await api.run(Blocks.listBlocks(page.id));
+		expect(blocks.map((b) => b.type)).toEqual(["artifact"]);
+	});
+
+	test("a card nobody opened takes an artifact by its short id", async () => {
+		using api = restWorkspace();
+		const { db } = await api.run(
+			Effect.gen(function* () {
+				const page = yield* Pages.createPage({ title: "P", parentId: null });
+				const db = yield* Databases.createDatabase({
+					pageId: page.id,
+					name: "Notara",
+				});
+				yield* Databases.createRecord({ databaseId: db.id, title: "t" });
+				return { db };
+			}),
+		);
+		const res = await api.call(
+			"POST",
+			`${W}/databases/${db.id}/records/NOT-1/artifacts?name=diff.html`,
+			{ key: "write", raw: "<p>diff</p>" },
+		);
+		expect(res.status).toBe(201);
+		const card = await api.call(
+			"GET",
+			`${W}/databases/${db.id}/records/NOT-1`,
+			{
+				key: "read",
+			},
+		);
+		expect(card.json.body).toBe(`[Artifact: diff.html](${res.json.url})`);
+	});
+
+	test("a read key, a missing name, a non-HTML name or over 5 MB is refused", async () => {
+		using api = restWorkspace();
+		const page = await api.run(
+			Pages.createPage({ title: "P", parentId: null }),
+		);
+		const url = `${W}/pages/${page.id}/artifacts`;
+		const statuses = [
+			(
+				await api.call("POST", `${url}?name=r.html`, {
+					key: "read",
+					raw: "<p/>",
+				})
+			).status,
+			(await api.call("POST", url, { key: "write", raw: "<p/>" })).status,
+			(await api.call("POST", `${url}?name=r.js`, { key: "write", raw: "x" }))
+				.status,
+			(
+				await api.call("POST", `${url}?name=r.html`, {
+					key: "write",
+					raw: "x".repeat(5 * 1024 * 1024 + 1),
+				})
+			).status,
+		];
+		expect(statuses).toEqual([403, 422, 422, 422]);
+	});
+
+	test("an artifact on a page locked away from the caller cannot be replaced", async () => {
+		using api = restWorkspace();
+		const page = await api.run(
+			Pages.createPage({ title: "P", parentId: null }),
+		);
+		const posted = await api.call(
+			"POST",
+			`${W}/pages/${page.id}/artifacts?name=r.html`,
+			{ key: "write", raw: "<p/>" },
+		);
+		await api.run(
+			Permissions.writePagePermissions({
+				pageId: page.id,
+				set: [{ subject: { type: "user", id: "ann" }, relation: "owner" }],
+				remove: [],
+			}),
+		);
+		const res = await api.call("PUT", `${W}/artifacts/${posted.json.id}`, {
+			key: "bob",
+			raw: "<p>owned</p>",
+		});
+		expect(res.status).toBe(403);
+	});
 });

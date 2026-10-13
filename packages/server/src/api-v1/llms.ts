@@ -22,7 +22,9 @@ To learn a database's fields and their options: \`GET /databases/<dbId>/fields\`
 
 ## Artifacts
 
-An HTML report or dashboard attached to a card runs isolated: no network, no access to the page around it. Make it self-contained — scripts, styles, fonts and images inline. A library loaded from a CDN will not load.
+Attach an HTML report to a card: \`POST /databases/<dbId>/records/NOT-12/artifacts?name=report.html\` with the HTML as the body → \`{id, url, blockedHosts}\`; attaching the same name again replaces it, as does \`PUT /artifacts/<id>\`. At most 5 MB.
+
+It runs isolated: no network, no access to the page around it. Make it self-contained — scripts, styles, fonts and images inline. A library loaded from a CDN will not load.
 
 ## More
 
