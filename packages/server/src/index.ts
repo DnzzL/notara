@@ -321,10 +321,9 @@ const staticFilesRoute = Effect.gen(function* () {
 			const content = fs.readFileSync(filePath);
 			return HttpServerResponse.uint8Array(new Uint8Array(content), {
 				headers: {
-					"Content-Type":
-						mimeTypes[path.extname(filePath)] || "application/octet-stream",
 					...corsHeaders,
 					...NO_INDEX,
+					...Attachments.attachmentHeaders(fileName),
 				},
 			});
 		}).pipe(withPlatformServices, Effect.catchCause(causeResponse)),
@@ -694,12 +693,10 @@ const staticFilesRoute = Effect.gen(function* () {
 				});
 			}
 
-			const ext = path.extname(filePath);
-			const contentType = mimeTypes[ext] || "application/octet-stream";
 			const content = fs.readFileSync(filePath);
 
 			return HttpServerResponse.uint8Array(new Uint8Array(content), {
-				headers: { "Content-Type": contentType, ...corsHeaders },
+				headers: { ...corsHeaders, ...Attachments.attachmentHeaders(fileName) },
 			});
 		}).pipe(
 			withPlatformServices,

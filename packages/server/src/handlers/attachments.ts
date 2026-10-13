@@ -91,3 +91,39 @@ export const resolveReadableAttachment = (
 
 		return null;
 	});
+
+/** Attachment types shown in place; anything else is offered as a download. */
+const SHOWN: Record<string, string> = {
+	".png": "image/png",
+	".jpg": "image/jpeg",
+	".jpeg": "image/jpeg",
+	".gif": "image/gif",
+	".webp": "image/webp",
+	".svg": "image/svg+xml",
+	".pdf": "application/pdf",
+};
+
+/**
+ * Response headers for serving attachment `fileName`, whatever a member
+ * uploaded. Attachments are served from the app's own origin, so nothing in one
+ * may run there: only images and PDFs are shown, everything else is a download,
+ * and a `sandbox` policy keeps even a shown image (an SVG can carry script)
+ * from running anything when opened directly. PDFs keep the app's policy:
+ * browsers' PDF viewers do not render under `sandbox`, and they do not run a
+ * PDF's scripts in the page's origin.
+ */
+export const attachmentHeaders = (fileName: string): Record<string, string> => {
+	const ext = /\.[^.]+$/.exec(fileName)?.[0].toLowerCase() ?? "";
+	const shown = SHOWN[ext];
+	return {
+		"Content-Type": shown ?? "application/octet-stream",
+		"Content-Disposition": shown ? "inline" : "attachment",
+		"X-Content-Type-Options": "nosniff",
+		...(ext === ".pdf"
+			? {}
+			: {
+					"Content-Security-Policy":
+						"sandbox; default-src 'none'; img-src 'self' data:; style-src 'unsafe-inline'",
+				}),
+	};
+};
