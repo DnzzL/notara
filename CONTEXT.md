@@ -16,7 +16,8 @@ own SQLite database file; users, sessions, workspaces and membership live in a s
 *platform* database shared by all of them. Almost every API call names a workspace, by an
 `X-Workspace-Id` header on RPC or a path segment on REST.
 
-**Workspace member** — a user who belongs to a workspace, with role `owner` or `member`.
+**Workspace member** — a user who belongs to a workspace, with role `owner` or `member`, and a
+*handle*.
 Membership is the precondition for everything: a non-member is refused before any resource
 is consulted. One query answers it, in `membership.ts`.
 
@@ -80,6 +81,13 @@ eighteen places — see NOT-113 through NOT-117, which is the work to make it on
 **Record** — a row. A record may open as its own page (`DatabaseRecord.pageId`); when it
 does, that page *is* the record's detail view, not a separate document beside it. Creating a
 standalone page alongside a record produces duplicates.
+
+**Comment** — a flat markdown note on a page, records' pages included. Only its author edits
+or deletes it. Written through an API key, it carries the key's name.
+
+**Handle** — a workspace member's `@name`: unique in the workspace, derived from their first
+name when they join, changeable. **Mention** — a handle written as `@handle` in a comment;
+one that no member holds is just text.
 
 **Short id** — a record's human name, `PREFIX-n` (`NOT-12`): the database's *prefix*, unique
 in the workspace, and a number the database hands out once and never again. Accepted by

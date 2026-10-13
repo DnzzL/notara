@@ -2,46 +2,14 @@
  * Comments on pages (NOT-149): a flat thread under any page, records' pages
  * included, where only the author edits or deletes what they wrote.
  */
-import { Database } from "bun:sqlite";
 import { describe, expect, test } from "bun:test";
-import fs from "node:fs";
-import os from "node:os";
-import path from "node:path";
-import { SqliteClient } from "@effect/sql-sqlite-bun";
-import { Effect } from "effect";
-import type { SqlClient } from "effect/sql";
 import * as Comments from "../src/handlers/comments.js";
 import * as Databases from "../src/handlers/databases.js";
 import * as Pages from "../src/handlers/pages.js";
 import { restWorkspace, WORKSPACE } from "./rest-harness.js";
 
-const migrationsDir = path.join(
-	import.meta.dirname || __dirname,
-	"../migrations",
-);
-
-function workspace() {
-	const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), "notara-comments-"));
-	const filename = path.join(tmpDir, "test.db");
-	const db = new Database(filename);
-	for (const file of fs
-		.readdirSync(migrationsDir)
-		.filter((f) => f.endsWith(".sql"))
-		.sort())
-		db.exec(fs.readFileSync(path.join(migrationsDir, file), "utf-8"));
-	db.close();
-	const run = <A, E>(eff: Effect.Effect<A, E, SqlClient.SqlClient>) =>
-		eff.pipe(
-			Effect.provide(SqliteClient.layer({ filename })),
-			Effect.runPromise,
-		);
-	return {
-		run,
-		fail: <A, E>(eff: Effect.Effect<A, E, SqlClient.SqlClient>) =>
-			run(Effect.flip(eff)),
-		[Symbol.dispose]: () => fs.rmSync(tmpDir, { recursive: true, force: true }),
-	};
-}
+/** A workspace with members ann and bob (see rest-harness). */
+const workspace = restWorkspace;
 
 const newPage = (ws: ReturnType<typeof workspace>) =>
 	ws.run(Pages.createPage({ title: "P", parentId: null }));
@@ -51,10 +19,20 @@ describe("comments", () => {
 		using ws = workspace();
 		const page = await newPage(ws);
 		await ws.run(
-			Comments.addComment({ pageId: page.id, authorId: "ann", body: "first" }),
+			Comments.addComment({
+				pageId: page.id,
+				authorId: "ann",
+				workspaceId: WORKSPACE,
+				body: "first",
+			}),
 		);
 		await ws.run(
-			Comments.addComment({ pageId: page.id, authorId: "bob", body: "second" }),
+			Comments.addComment({
+				pageId: page.id,
+				authorId: "bob",
+				workspaceId: WORKSPACE,
+				body: "second",
+			}),
 		);
 		const listed = await ws.run(Comments.listComments(page.id));
 		expect(listed.map((c) => [c.authorId, c.body])).toEqual([
@@ -67,10 +45,20 @@ describe("comments", () => {
 		using ws = workspace();
 		const page = await newPage(ws);
 		const c = await ws.run(
-			Comments.addComment({ pageId: page.id, authorId: "ann", body: "typo" }),
+			Comments.addComment({
+				pageId: page.id,
+				authorId: "ann",
+				workspaceId: WORKSPACE,
+				body: "typo",
+			}),
 		);
 		const edited = await ws.run(
-			Comments.updateComment({ id: c.id, authorId: "ann", body: "fixed" }),
+			Comments.updateComment({
+				id: c.id,
+				authorId: "ann",
+				workspaceId: WORKSPACE,
+				body: "fixed",
+			}),
 		);
 		expect(edited.body).toBe("fixed");
 		expect(edited.updatedAt).not.toBeNull();
@@ -80,10 +68,20 @@ describe("comments", () => {
 		using ws = workspace();
 		const page = await newPage(ws);
 		const c = await ws.run(
-			Comments.addComment({ pageId: page.id, authorId: "ann", body: "mine" }),
+			Comments.addComment({
+				pageId: page.id,
+				authorId: "ann",
+				workspaceId: WORKSPACE,
+				body: "mine",
+			}),
 		);
 		const edit = await ws.fail(
-			Comments.updateComment({ id: c.id, authorId: "bob", body: "hijack" }),
+			Comments.updateComment({
+				id: c.id,
+				authorId: "bob",
+				workspaceId: WORKSPACE,
+				body: "hijack",
+			}),
 		);
 		const del = await ws.fail(
 			Comments.deleteComment({ id: c.id, authorId: "bob" }),
@@ -96,7 +94,12 @@ describe("comments", () => {
 		using ws = workspace();
 		const page = await newPage(ws);
 		const c = await ws.run(
-			Comments.addComment({ pageId: page.id, authorId: "ann", body: "oops" }),
+			Comments.addComment({
+				pageId: page.id,
+				authorId: "ann",
+				workspaceId: WORKSPACE,
+				body: "oops",
+			}),
 		);
 		await ws.run(Comments.deleteComment({ id: c.id, authorId: "ann" }));
 		expect(await ws.run(Comments.listComments(page.id))).toEqual([]);
@@ -106,7 +109,12 @@ describe("comments", () => {
 		using ws = workspace();
 		const page = await newPage(ws);
 		const err = await ws.fail(
-			Comments.addComment({ pageId: page.id, authorId: "ann", body: "  \n" }),
+			Comments.addComment({
+				pageId: page.id,
+				authorId: "ann",
+				workspaceId: WORKSPACE,
+				body: "  \n",
+			}),
 		);
 		expect(err._tag).toBe("ValidationError");
 	});
@@ -118,6 +126,7 @@ describe("comments", () => {
 			Comments.addComment({
 				pageId: page.id,
 				authorId: "ann",
+				workspaceId: WORKSPACE,
 				body: "x".repeat(10_001),
 			}),
 		);
@@ -129,16 +138,94 @@ describe("comments", () => {
 		const page = await newPage(ws);
 		const body = "    indented code\nnext line";
 		const c = await ws.run(
-			Comments.addComment({ pageId: page.id, authorId: "ann", body }),
+			Comments.addComment({
+				pageId: page.id,
+				authorId: "ann",
+				workspaceId: WORKSPACE,
+				body,
+			}),
 		);
 		expect(c.body).toBe(body);
+	});
+
+	test("@handles of members become mentions; anything else stays text", async () => {
+		using ws = workspace();
+		const page = await newPage(ws);
+		const c = await ws.run(
+			Comments.addComment({
+				pageId: page.id,
+				workspaceId: WORKSPACE,
+				authorId: "ann",
+				body: "@Bob can you look? cc @nobody, mail bob@example.test, @bob again",
+			}),
+		);
+		expect(c.mentions).toEqual(["bob"]);
+		expect(c.body).toContain("@Bob can you look?");
+	});
+
+	test("@handles in code, glued to a word or overlong mention no one", async () => {
+		using ws = workspace();
+		const page = await newPage(ws);
+		const c = await ws.run(
+			Comments.addComment({
+				pageId: page.id,
+				workspaceId: WORKSPACE,
+				authorId: "ann",
+				body: `\`@bob\` and\n\`\`\`\n@bob\n\`\`\`\né@bob @bobby @bob${"x".repeat(40)}`,
+			}),
+		);
+		expect(c.mentions).toEqual([]);
+	});
+
+	test("a handle followed by - or _ still mentions", async () => {
+		using ws = workspace();
+		const page = await newPage(ws);
+		const c = await ws.run(
+			Comments.addComment({
+				pageId: page.id,
+				workspaceId: WORKSPACE,
+				authorId: "ann",
+				body: "ask @bob-- he knows",
+			}),
+		);
+		expect(c.mentions).toEqual(["bob"]);
+	});
+
+	test("editing a comment recomputes its mentions", async () => {
+		using ws = workspace();
+		const page = await newPage(ws);
+		const c = await ws.run(
+			Comments.addComment({
+				pageId: page.id,
+				workspaceId: WORKSPACE,
+				authorId: "bob",
+				body: "@ann?",
+			}),
+		);
+		const edited = await ws.run(
+			Comments.updateComment({
+				id: c.id,
+				workspaceId: WORKSPACE,
+				authorId: "bob",
+				body: "never mind",
+			}),
+		);
+		expect(edited.mentions).toEqual([]);
+		expect((await ws.run(Comments.listComments(page.id)))[0].mentions).toEqual(
+			[],
+		);
 	});
 
 	test("purging a page deletes its comments", async () => {
 		using ws = workspace();
 		const page = await newPage(ws);
 		const c = await ws.run(
-			Comments.addComment({ pageId: page.id, authorId: "ann", body: "gone" }),
+			Comments.addComment({
+				pageId: page.id,
+				authorId: "ann",
+				workspaceId: WORKSPACE,
+				body: "gone",
+			}),
 		);
 		await ws.run(Databases.purgePage(page.id));
 		const err = await ws.fail(
@@ -169,6 +256,18 @@ describe("comments over REST", () => {
 		expect(listed.json.map((c: { body: string }) => c.body)).toEqual([
 			"Blocked: which locale?",
 		]);
+	});
+
+	test("a comment through a key mentions by @handle too", async () => {
+		using api = restWorkspace();
+		const page = await api.run(
+			Pages.createPage({ title: "P", parentId: null }),
+		);
+		const posted = await api.call("POST", P(page.id), {
+			key: "write",
+			body: { body: "@bob blocked on the locale" },
+		});
+		expect(posted.json.mentions).toEqual(["bob"]);
 	});
 
 	test("a read key cannot comment", async () => {
@@ -209,7 +308,12 @@ describe("comments over REST", () => {
 		using ws = workspace();
 		const page = await newPage(ws);
 		const c = await ws.run(
-			Comments.addComment({ pageId: page.id, authorId: "ann", body: "hi" }),
+			Comments.addComment({
+				pageId: page.id,
+				authorId: "ann",
+				workspaceId: WORKSPACE,
+				body: "hi",
+			}),
 		);
 		expect(c.keyName).toBeNull();
 	});

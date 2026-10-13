@@ -440,6 +440,14 @@ export const AppRpc = RpcGroup.make(
 		payload: { workspaceId: Schema.String },
 		success: Schema.Array(WorkspaceMember),
 	}),
+	Rpc.make("setMyHandle", {
+		error: ApiError,
+		payload: {
+			workspaceId: Schema.String,
+			handle: Schema.String.pipe(Schema.check(Schema.isMaxLength(30))),
+		},
+		success: Schema.Void,
+	}),
 	Rpc.make("removeMember", {
 		error: ApiError,
 		payload: { workspaceId: Schema.String, userId: Schema.String },

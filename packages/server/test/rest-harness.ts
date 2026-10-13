@@ -20,6 +20,7 @@ import { sha256 } from "../src/api-v1/auth.js";
 import { operationHandler, restOperations } from "../src/api-v1/operations.js";
 import { respond } from "../src/api-v1/response.js";
 import { WorkspaceDb } from "../src/db.js";
+import { addMember } from "../src/member-handles.js";
 import { PlatformDb, runPlatformMigrations } from "../src/platform-db.js";
 
 const migrationsDir = path.join(
@@ -43,7 +44,8 @@ const match = (routePath: string, url: string) => {
 export const WORKSPACE = "ws";
 
 /**
- * A workspace `ws` with member `ann`, an outsider `eve`, and keys:
+ * A workspace `ws` with members `ann` (owner) and `bob`, whose handles are
+ * their names, an outsider `eve`, and keys:
  * `write` (ann's, named "docket"), `read` (ann's, read scope), `eve` (eve's).
  */
 export function restWorkspace() {
@@ -62,6 +64,7 @@ export function restWorkspace() {
 	const now = new Date().toISOString();
 	for (const [id, email] of [
 		["ann", "ann@example.test"],
+		["bob", "bob@example.test"],
 		["eve", "eve@example.test"],
 	])
 		platform
@@ -74,11 +77,8 @@ export function restWorkspace() {
 			"INSERT INTO workspaces (id, name, slug, owner_id, invite_token) VALUES (?, 'W', 'w', 'ann', 'tok')",
 		)
 		.run(WORKSPACE);
-	platform
-		.prepare(
-			"INSERT INTO workspace_members (workspace_id, user_id, role) VALUES (?, 'ann', 'owner')",
-		)
-		.run(WORKSPACE);
+	addMember(platform, WORKSPACE, "ann", "owner", now);
+	addMember(platform, WORKSPACE, "bob", "member", now);
 	for (const [token, user, name, scope] of [
 		["write", "ann", "docket", "write"],
 		["read", "ann", "reader", "read"],
@@ -96,9 +96,16 @@ export function restWorkspace() {
 		Layer.succeed(WorkspaceDb, { getLayer: () => sqlLayer }),
 	);
 
-	/** Run an effect against the workspace database directly (for setup). */
-	const run = <A, E>(eff: Effect.Effect<A, E, SqlClient.SqlClient>) =>
-		eff.pipe(Effect.provide(sqlLayer), Effect.runPromise);
+	/** Run an effect against the workspace and platform databases directly. */
+	const run = <A, E>(
+		eff: Effect.Effect<A, E, SqlClient.SqlClient | PlatformDb>,
+	) =>
+		eff.pipe(
+			Effect.provide(
+				Layer.merge(sqlLayer, Layer.succeed(PlatformDb, platform)),
+			),
+			Effect.runPromise,
+		);
 
 	/** Call the API as the bearer of `key` (one of write, read, eve). */
 	const call = async (
@@ -146,6 +153,8 @@ export function restWorkspace() {
 
 	return {
 		run,
+		fail: <A, E>(eff: Effect.Effect<A, E, SqlClient.SqlClient | PlatformDb>) =>
+			run(Effect.flip(eff)),
 		call,
 		[Symbol.dispose]: () => {
 			platform.close();

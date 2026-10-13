@@ -2,12 +2,12 @@ import { Comment, NotFoundError, ValidationError } from "@notara/shared";
 import { Effect } from "effect";
 import { SqlClient } from "effect/sql";
 import { ulid } from "ulidx";
+import { HANDLE, membersByHandle } from "../member-handles.js";
+import { PlatformDb } from "../platform-db.js";
 import { forbidden } from "../policy.js";
 
 const COLS = `id, page_id as "pageId", author_id as "authorId", body,
   created_at as "createdAt", updated_at as "updatedAt", key_name as "keyName"`;
-
-const fromRow = (r: unknown) => new Comment(r as Comment);
 
 /** Longest comment accepted, here and in the RPC schema (CommentBody). */
 export const MAX_COMMENT_LENGTH = 10_000;
@@ -24,14 +24,71 @@ const requireBody = (body: string) =>
 				)
 			: Effect.succeed(body);
 
+/**
+ * `@word` not glued to a letter, digit, `@` or `.` before it (words, emails).
+ * The word is taken whole, so `@bobby` is not `@bob`; trailing `-` and `_` are
+ * punctuation, since a handle ends with a letter or digit.
+ */
+const MENTION = /(?<![\p{L}\p{N}_@.])@([a-z0-9][a-z0-9_-]*)/giu;
+
+/** Code spans and fenced blocks: an `@handle` in code mentions no one. */
+const CODE = /```[\s\S]*?```|`[^`\n]*`/g;
+
+/**
+ * The members of `workspaceId` that `body` mentions by handle. A handle no
+ * member holds is just text.
+ */
+const mentionedIn = (workspaceId: string, body: string) =>
+	Effect.gen(function* () {
+		const handles = [
+			...new Set(
+				[...body.replace(CODE, " ").matchAll(MENTION)]
+					.map((m) => m[1].toLowerCase().replace(/[-_]+$/, ""))
+					.filter((h) => HANDLE.test(h)),
+			),
+		];
+		return membersByHandle(yield* PlatformDb, workspaceId, handles);
+	});
+
+/** Replace who comment `id` mentions. */
+const writeMentions = (id: string, userIds: readonly string[]) =>
+	Effect.gen(function* () {
+		const sql = yield* SqlClient.SqlClient;
+		yield* sql`DELETE FROM comment_mentions WHERE comment_id = ${id}`;
+		for (const userId of userIds)
+			yield* sql`INSERT INTO comment_mentions (comment_id, user_id) VALUES (${id}, ${userId})`;
+	});
+
+/** Comment rows, each with who it mentions. */
+const withMentions = (rows: readonly unknown[]) =>
+	Effect.gen(function* () {
+		if (rows.length === 0) return [];
+		const sql = yield* SqlClient.SqlClient;
+		const ids = rows.map((r) => (r as { id: string }).id);
+		const mentions = yield* sql<{ commentId: string; userId: string }>`
+      SELECT comment_id as "commentId", user_id as "userId" FROM comment_mentions
+      WHERE comment_id IN ${sql.in(ids)} ORDER BY rowid
+    `;
+		return rows.map(
+			(r) =>
+				new Comment({
+					...(r as Omit<Comment, "mentions">),
+					mentions: mentions
+						.filter((m) => m.commentId === (r as { id: string }).id)
+						.map((m) => m.userId),
+				}),
+		);
+	});
+
 export const listComments = (pageId: string) =>
 	Effect.gen(function* () {
 		const sql = yield* SqlClient.SqlClient;
-		const rows = yield* sql`
-      SELECT ${sql.unsafe(COLS)} FROM comments WHERE page_id = ${pageId}
-      ORDER BY created_at ASC, id ASC
-    `;
-		return rows.map(fromRow);
+		return yield* withMentions(
+			yield* sql`
+        SELECT ${sql.unsafe(COLS)} FROM comments WHERE page_id = ${pageId}
+        ORDER BY created_at ASC, id ASC
+      `,
+		);
 	});
 
 /** Who wrote comment `id` and where it sits; not found when it is gone. */
@@ -52,6 +109,8 @@ export const commentPageId = (id: string) =>
 
 export const addComment = (req: {
 	pageId: string;
+	/** The workspace whose members' @handles the body may mention. */
+	workspaceId: string;
 	authorId: string;
 	body: string;
 	/** The API key it comes through, when it does. */
@@ -60,12 +119,14 @@ export const addComment = (req: {
 	Effect.gen(function* () {
 		const sql = yield* SqlClient.SqlClient;
 		const body = yield* requireBody(req.body);
+		const id = ulid();
 		const rows = yield* sql`
       INSERT INTO comments (id, page_id, author_id, body, created_at, key_name)
-      VALUES (${ulid()}, ${req.pageId}, ${req.authorId}, ${body}, ${new Date().toISOString()}, ${req.keyName ?? null})
+      VALUES (${id}, ${req.pageId}, ${req.authorId}, ${body}, ${new Date().toISOString()}, ${req.keyName ?? null})
       RETURNING ${sql.unsafe(COLS)}
     `;
-		return fromRow(rows[0]);
+		yield* writeMentions(id, yield* mentionedIn(req.workspaceId, body));
+		return (yield* withMentions(rows))[0];
 	});
 
 /** Fails unless `authorId` wrote comment `id`. */
@@ -78,6 +139,7 @@ const requireAuthor = (id: string, authorId: string) =>
 
 export const updateComment = (req: {
 	id: string;
+	workspaceId: string;
 	authorId: string;
 	body: string;
 }) =>
@@ -90,13 +152,15 @@ export const updateComment = (req: {
       WHERE id = ${req.id}
       RETURNING ${sql.unsafe(COLS)}
     `;
-		return fromRow(rows[0]);
+		yield* writeMentions(req.id, yield* mentionedIn(req.workspaceId, body));
+		return (yield* withMentions(rows))[0];
 	});
 
 export const deleteComment = (req: { id: string; authorId: string }) =>
 	Effect.gen(function* () {
 		const sql = yield* SqlClient.SqlClient;
 		yield* requireAuthor(req.id, req.authorId);
+		yield* sql`DELETE FROM comment_mentions WHERE comment_id = ${req.id}`;
 		yield* sql`DELETE FROM comments WHERE id = ${req.id}`;
 		return { deleted: true };
 	});

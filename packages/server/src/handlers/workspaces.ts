@@ -9,6 +9,7 @@ import { Effect } from "effect";
 import { ulid } from "ulidx";
 import { demoMode } from "../demo.js";
 import { BASE_URL, sendEmail } from "../email.js";
+import { addMember, HANDLE } from "../member-handles.js";
 import * as Membership from "../membership.js";
 import { PlatformDb } from "../platform-db.js";
 
@@ -50,9 +51,7 @@ export const createWorkspace = (req: {
 			return yield* new ConflictError({ message: String(e.message) });
 		}
 
-		db.prepare(
-			"INSERT INTO workspace_members (workspace_id, user_id, role, joined_at) VALUES (?, ?, 'owner', ?)",
-		).run(id, req.userId, now);
+		addMember(db, id, req.userId, "owner", now);
 
 		return toWorkspace(
 			{
@@ -101,9 +100,7 @@ export const startDemo = (userId: string) =>
 		db.prepare(
 			"INSERT INTO workspaces (id, name, slug, owner_id, invite_token, created_at, is_demo) VALUES (?, ?, ?, ?, ?, ?, 1)",
 		).run(id, "Demo workspace", slug, userId, inviteToken, now);
-		db.prepare(
-			"INSERT INTO workspace_members (workspace_id, user_id, role, joined_at) VALUES (?, ?, 'owner', ?)",
-		).run(id, userId, now);
+		addMember(db, id, userId, "owner", now);
 
 		return {
 			workspace: toWorkspace(
@@ -154,9 +151,7 @@ export const joinWorkspaceByToken = (req: {
 		const alreadyIn = yield* Membership.isMember(req.userId, ws.id);
 
 		if (!alreadyIn) {
-			db.prepare(
-				"INSERT INTO workspace_members (workspace_id, user_id, role, joined_at) VALUES (?, ?, 'member', ?)",
-			).run(ws.id, req.userId, new Date().toISOString());
+			addMember(db, ws.id, req.userId, "member", new Date().toISOString());
 		}
 
 		return toWorkspace(ws, "member");
@@ -167,7 +162,7 @@ export const getWorkspaceMembers = (workspaceId: string) =>
 		const db = yield* PlatformDb;
 		const rows = db
 			.prepare(
-				`SELECT wm.user_id, wm.role,
+				`SELECT wm.user_id, wm.role, wm.handle,
                 COALESCE(u.name, '') as name,
                 COALESCE(u.email, '') as email
          FROM workspace_members wm
@@ -177,6 +172,7 @@ export const getWorkspaceMembers = (workspaceId: string) =>
 			.all(workspaceId) as {
 			user_id: string;
 			role: string;
+			handle: string;
 			name: string;
 			email: string;
 		}[];
@@ -185,11 +181,38 @@ export const getWorkspaceMembers = (workspaceId: string) =>
 			(r) =>
 				new WorkspaceMember({
 					userId: r.user_id,
+					handle: r.handle,
 					name: r.name,
 					email: r.email,
 					role: r.role as "owner" | "member",
 				}),
 		);
+	});
+
+/** Change `userId`'s handle in `workspaceId`; refused when malformed or taken. */
+export const setMemberHandle = (req: {
+	workspaceId: string;
+	userId: string;
+	handle: string;
+}) =>
+	Effect.gen(function* () {
+		const db = yield* PlatformDb;
+		const handle = req.handle.toLowerCase();
+		if (!HANDLE.test(handle))
+			return yield* new ValidationError({
+				message:
+					"A handle is 2 to 30 lowercase letters, digits, _ or -, starting and ending with a letter or digit",
+			});
+		const holder = db
+			.prepare(
+				"SELECT user_id FROM workspace_members WHERE workspace_id = ? AND handle = ?",
+			)
+			.get(req.workspaceId, handle) as { user_id: string } | null;
+		if (holder && holder.user_id !== req.userId)
+			return yield* new ConflictError({ message: `@${handle} is taken` });
+		db.prepare(
+			"UPDATE workspace_members SET handle = ? WHERE workspace_id = ? AND user_id = ?",
+		).run(handle, req.workspaceId, req.userId);
 	});
 
 export const removeMember = (req: { workspaceId: string; userId: string }) =>

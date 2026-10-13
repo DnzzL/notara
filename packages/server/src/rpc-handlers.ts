@@ -183,7 +183,12 @@ export const rpcHandlersLayer = AppRpc.toLayer({
 					pageId,
 					"viewer",
 				);
-				return yield* Comments.addComment({ pageId, authorId: userId, body });
+				return yield* Comments.addComment({
+					pageId,
+					workspaceId,
+					authorId: userId,
+					body,
+				});
 			}),
 		).pipe(dieUnlessApiError),
 	updateComment: ({ id, body }) =>
@@ -196,7 +201,12 @@ export const rpcHandlersLayer = AppRpc.toLayer({
 					pageId,
 					"viewer",
 				);
-				return yield* Comments.updateComment({ id, authorId: userId, body });
+				return yield* Comments.updateComment({
+					id,
+					workspaceId,
+					authorId: userId,
+					body,
+				});
 			}),
 		).pipe(dieUnlessApiError),
 	deleteComment: ({ id }) =>
@@ -822,6 +832,16 @@ export const rpcHandlersLayer = AppRpc.toLayer({
 		Effect.gen(function* () {
 			yield* requireWorkspaceRole(workspaceId);
 			return yield* Workspaces.getWorkspaceMembers(workspaceId);
+		}).pipe(dieUnlessApiError),
+	setMyHandle: ({ workspaceId, handle }) =>
+		Effect.gen(function* () {
+			yield* requireWorkspaceRole(workspaceId);
+			const user = yield* getSessionUser;
+			return yield* Workspaces.setMemberHandle({
+				workspaceId,
+				userId: user.id,
+				handle,
+			});
 		}).pipe(dieUnlessApiError),
 	removeMember: ({ workspaceId, userId }) =>
 		Effect.gen(function* () {

@@ -118,6 +118,13 @@ const setupDB = Effect.gen(function* () {
     )
   `;
 	yield* sql`
+    CREATE TABLE comment_mentions (
+      comment_id TEXT NOT NULL,
+      user_id TEXT NOT NULL,
+      PRIMARY KEY (comment_id, user_id)
+    )
+  `;
+	yield* sql`
     CREATE TABLE database_views (
       id TEXT PRIMARY KEY,
       database_id TEXT NOT NULL REFERENCES databases(id),

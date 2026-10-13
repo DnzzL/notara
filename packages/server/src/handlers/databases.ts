@@ -851,6 +851,7 @@ export const purgePage = (
 		yield* sql`DELETE FROM database_views WHERE database_id IN (SELECT id FROM databases WHERE page_id = ${id})`;
 		yield* sql`DELETE FROM databases WHERE page_id = ${id}`;
 		yield* sql`DELETE FROM blocks WHERE page_id = ${id}`;
+		yield* sql`DELETE FROM comment_mentions WHERE comment_id IN (SELECT id FROM comments WHERE page_id = ${id})`;
 		yield* sql`DELETE FROM comments WHERE page_id = ${id}`;
 		// Child pages, before the parent row goes: they are found through it.
 		// Skipping them left rows whose parent_id pointed at nothing — and with

@@ -112,6 +112,8 @@ export class Comment extends Schema.Class<Comment>("Comment")({
 	updatedAt: Schema.NullOr(Schema.String),
 	/** Name of the API key it was written through; null when written in the app. */
 	keyName: Schema.NullOr(Schema.String),
+	/** User ids of the members its @handles name. */
+	mentions: Schema.Array(Schema.String),
 }) {}
 
 export class RecordFieldValue extends Schema.Class<RecordFieldValue>(
@@ -199,6 +201,8 @@ export class WorkspaceMember extends Schema.Class<WorkspaceMember>(
 	"WorkspaceMember",
 )({
 	userId: Schema.String,
+	/** What an @mention names; unique in the workspace. */
+	handle: Schema.String,
 	name: Schema.String,
 	email: Schema.String,
 	role: Schema.Literals(["owner", "member"]),

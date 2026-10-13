@@ -18,10 +18,28 @@ export function WorkspaceSettingsModal({ workspace, onClose }: Props) {
 	const [inviteEmail, setInviteEmail] = useState("");
 	const [inviteSending, setInviteSending] = useState(false);
 	const [inviteSent, setInviteSent] = useState(false);
+	const [handleDraft, setHandleDraft] = useState<string | null>(null);
+	const [handleError, setHandleError] = useState<string | null>(null);
 
 	useEffect(() => {
 		api.getWorkspaceMembers({ workspaceId: workspace.id }).then(setMembers);
 	}, [workspace.id]);
+
+	const saveHandle = async () => {
+		if (handleDraft === null) return;
+		try {
+			await api.setMyHandle({ workspaceId: workspace.id, handle: handleDraft });
+			setMembers(await api.getWorkspaceMembers({ workspaceId: workspace.id }));
+			setHandleDraft(null);
+			setHandleError(null);
+		} catch (e) {
+			setHandleError(
+				e instanceof Error && e.message
+					? e.message
+					: "That handle cannot be used",
+			);
+		}
+	};
 
 	const inviteUrl = `${window.location.origin}/join/${inviteToken}`;
 
@@ -141,9 +159,53 @@ export function WorkspaceSettingsModal({ workspace, onClose }: Props) {
 								<span className="text-[13.5px] font-medium block text-text">
 									{m.name || m.email}
 								</span>
-								<span className="text-[11.5px] text-text-3 capitalize">
-									{m.role}
+								<span className="text-[11.5px] text-text-3">
+									{m.userId === session?.user?.id && handleDraft !== null ? (
+										<span className="inline-flex items-center gap-1">
+											@
+											<input
+												aria-label="Your handle"
+												className="w-[120px] rounded border border-border-mid bg-surface px-1 text-text"
+												value={handleDraft}
+												maxLength={30}
+												onChange={(e) => setHandleDraft(e.target.value)}
+												onKeyDown={(e) => {
+													if (e.key === "Enter") saveHandle();
+													if (e.key === "Escape") setHandleDraft(null);
+												}}
+											/>
+											<button
+												type="button"
+												className="text-accent"
+												onClick={saveHandle}
+											>
+												Save
+											</button>
+										</span>
+									) : (
+										<>
+											@{m.handle}
+											{m.userId === session?.user?.id && (
+												<button
+													type="button"
+													className="ml-1.5 text-text-3 underline hover:text-text"
+													onClick={() => setHandleDraft(m.handle)}
+												>
+													change
+												</button>
+											)}
+										</>
+									)}{" "}
+									· <span className="capitalize">{m.role}</span>
 								</span>
+								{m.userId === session?.user?.id && handleError && (
+									<span
+										role="alert"
+										className="block text-[11.5px] text-danger"
+									>
+										{handleError}
+									</span>
+								)}
 							</div>
 							{isOwner &&
 								m.role !== "owner" &&

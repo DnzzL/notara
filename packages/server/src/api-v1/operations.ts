@@ -1225,6 +1225,7 @@ export const commentOperations: readonly Operation[] = [
 				const body = yield* requireField(yield* parseBody, "body");
 				const comment = yield* Comments.addComment({
 					pageId,
+					workspaceId: ctx.workspaceId,
 					authorId: ctx.userId,
 					body,
 					keyName: ctx.keyName,

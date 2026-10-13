@@ -281,6 +281,7 @@ const schemas = {
 			"createdAt",
 			"updatedAt",
 			"keyName",
+			"mentions",
 		],
 		properties: {
 			id: { type: "string" },
@@ -295,6 +296,12 @@ const schemas = {
 				example: "docket",
 				description:
 					"Name of the API key it was written through; null when written in the app",
+			},
+			mentions: {
+				type: "array",
+				items: { type: "string" },
+				description:
+					"User ids of the workspace members its @handles name; an @handle no member holds stays text",
 			},
 		},
 	},
