@@ -59,6 +59,7 @@ import {
 	hasBlockRenderer,
 } from "./blocks/renderer-registry.js";
 import { SLASH_COMMANDS } from "./blockTypes.js";
+import { CommentsPanel } from "./CommentsPanel.js";
 import { DatabaseView } from "./DatabaseView.js";
 import { DragHandle } from "./DragHandle.js";
 import { EmojiPicker } from "./EmojiPicker.js";
@@ -1937,6 +1938,7 @@ export function BlockEditor() {
 
 					{/* Backlinks Panel */}
 					<BacklinksPanel />
+					<CommentsPanel />
 
 					<DragOverlay>
 						{activeBlockId ? (

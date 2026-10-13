@@ -102,6 +102,16 @@ export class DatabaseRecord extends Schema.Class<DatabaseRecord>(
 	shortId: Schema.String,
 }) {}
 
+/** One comment in a page's flat thread. `authorId` is a platform user id. */
+export class Comment extends Schema.Class<Comment>("Comment")({
+	id: Schema.String,
+	pageId: Schema.String,
+	authorId: Schema.String,
+	body: Schema.String,
+	createdAt: Schema.String,
+	updatedAt: Schema.NullOr(Schema.String),
+}) {}
+
 export class RecordFieldValue extends Schema.Class<RecordFieldValue>(
 	"RecordFieldValue",
 )({

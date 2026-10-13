@@ -15,6 +15,9 @@ const ShortName = Schema.String.pipe(
 // Bounds only; the format (letters then letters/digits) is checked by the
 // handler, which REST reaches without this schema.
 const ShortPrefix = Schema.String.pipe(Schema.check(Schema.isMaxLength(6)));
+const CommentBody = Schema.String.pipe(
+	Schema.check(Schema.isMaxLength(10_000)),
+);
 const Slug = Schema.String.pipe(
 	Schema.check(Schema.isPattern(/^[a-z0-9](?:[a-z0-9-]{0,58}[a-z0-9])?$/)),
 );
@@ -35,6 +38,7 @@ import {
 	ApiKeyScope,
 	Backlink,
 	Block,
+	Comment,
 	Database,
 	DatabaseCsvExport,
 	DatabaseField,
@@ -109,6 +113,28 @@ export const AppRpc = RpcGroup.make(
 			pageIds: Schema.Array(Schema.String),
 		},
 		success: Schema.Struct({ reordered: Schema.Boolean }),
+	}),
+
+	// Comments
+	Rpc.make("listComments", {
+		error: ApiError,
+		payload: { pageId: Schema.String },
+		success: Schema.Array(Comment),
+	}),
+	Rpc.make("addComment", {
+		error: ApiError,
+		payload: { pageId: Schema.String, body: CommentBody },
+		success: Comment,
+	}),
+	Rpc.make("updateComment", {
+		error: ApiError,
+		payload: { id: Schema.String, body: CommentBody },
+		success: Comment,
+	}),
+	Rpc.make("deleteComment", {
+		error: ApiError,
+		payload: { id: Schema.String },
+		success: Schema.Struct({ deleted: Schema.Boolean }),
 	}),
 
 	// Blocks

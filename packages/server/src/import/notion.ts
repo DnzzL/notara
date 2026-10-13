@@ -1039,6 +1039,7 @@ function importRun(exportDir: string) {
         AND NOT EXISTS (SELECT 1 FROM pages c WHERE c.parent_id = p.id)
         AND NOT EXISTS (SELECT 1 FROM databases d WHERE d.page_id = p.id)
         AND NOT EXISTS (SELECT 1 FROM database_records dr WHERE dr.page_id = p.id)
+        AND NOT EXISTS (SELECT 1 FROM comments c WHERE c.page_id = p.id)
       `;
 			if (emptyLeaves.length === 0) {
 				keepPruning = false;

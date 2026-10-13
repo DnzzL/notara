@@ -15,6 +15,7 @@ import {
 import { Effect } from "effect";
 import * as ApiKeys from "./handlers/api-keys.js";
 import * as Blocks from "./handlers/blocks.js";
+import * as Comments from "./handlers/comments.js";
 import * as Databases from "./handlers/databases.js";
 import * as ImportExport from "./handlers/importExport.js";
 import * as Onboarding from "./handlers/onboarding.js";
@@ -161,6 +162,56 @@ export const rpcHandlersLayer = AppRpc.toLayer({
 			}),
 		).pipe(dieUnlessApiError),
 
+	listComments: ({ pageId }) =>
+		withAuthedWorkspace(({ userId, workspaceId }) =>
+			Effect.gen(function* () {
+				yield* Permissions.checkPagePermission(
+					userId,
+					workspaceId,
+					pageId,
+					"viewer",
+				);
+				return yield* Comments.listComments(pageId);
+			}),
+		).pipe(dieUnlessApiError),
+	addComment: ({ pageId, body }) =>
+		withAuthedWorkspace(({ userId, workspaceId }) =>
+			Effect.gen(function* () {
+				yield* Permissions.checkPagePermission(
+					userId,
+					workspaceId,
+					pageId,
+					"viewer",
+				);
+				return yield* Comments.addComment({ pageId, authorId: userId, body });
+			}),
+		).pipe(dieUnlessApiError),
+	updateComment: ({ id, body }) =>
+		withAuthedWorkspace(({ userId, workspaceId }) =>
+			Effect.gen(function* () {
+				const pageId = yield* Comments.commentPageId(id);
+				yield* Permissions.checkPagePermission(
+					userId,
+					workspaceId,
+					pageId,
+					"viewer",
+				);
+				return yield* Comments.updateComment({ id, authorId: userId, body });
+			}),
+		).pipe(dieUnlessApiError),
+	deleteComment: ({ id }) =>
+		withAuthedWorkspace(({ userId, workspaceId }) =>
+			Effect.gen(function* () {
+				const pageId = yield* Comments.commentPageId(id);
+				yield* Permissions.checkPagePermission(
+					userId,
+					workspaceId,
+					pageId,
+					"viewer",
+				);
+				return yield* Comments.deleteComment({ id, authorId: userId });
+			}),
+		).pipe(dieUnlessApiError),
 	listBlocks: ({ pageId }) =>
 		withAuthedWorkspace(({ userId, workspaceId }) =>
 			Effect.gen(function* () {

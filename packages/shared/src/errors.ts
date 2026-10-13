@@ -23,6 +23,7 @@ export const NotFoundResource = Schema.Literals([
 	"view",
 	"workspace",
 	"template",
+	"comment",
 ]);
 export type NotFoundResource = typeof NotFoundResource.Type;
 
