@@ -17,6 +17,7 @@ import {
 	optionalField,
 	parseBody,
 	queryParam,
+	queryParams,
 	requireField,
 	requireParam,
 } from "./response.js";
@@ -885,10 +886,21 @@ export const recordOperations: readonly Operation[] = [
 		run: (ctx) =>
 			Effect.gen(function* () {
 				const dbId = yield* requireParam(ctx.params, "dbId");
-				// `listRecordsWithValues` yields `{ record, values }`, where `values`
-				// is already a field-name → parsed-value map. Flatten it for REST
-				// consumers.
-				const raw = yield* Databases.listRecordsWithValues(dbId);
+				const fields = yield* queryParams("field");
+				const values = yield* queryParams("value");
+				if (fields.length !== values.length)
+					return yield* Effect.fail(
+						new ApiError({
+							status: 400,
+							message: "Each `field` needs a `value`, in the same order",
+						}),
+					);
+				// `{ record, values }`, where `values` is already a field-name →
+				// parsed-value map. Flattened below for REST consumers.
+				const raw = yield* Databases.listRecordsMatching(
+					dbId,
+					fields.map((field, i) => ({ field, value: values[i] })),
+				);
 				const records = (
 					raw as Array<{ record: any; values: Record<string, unknown> }>
 				).map(({ record, values }) => ({
@@ -905,6 +917,28 @@ export const recordOperations: readonly Operation[] = [
 			}),
 		openapi: {
 			summary: "List records in a database",
+			description:
+				"Pass `field` and `value` pairs to keep only matching records: `?field=Status&value=done&field=Agent&value=dev`. Pairs combine with AND; a field is named by id, else by name. Matching is on the decoded value: a multi-value field (multiSelect, people, relation, page — the last three hold ids) matches when it contains the value; a number matches numerically; a checkbox never ticked is `false`; an empty value matches an empty field.",
+			parameters: [
+				{
+					name: "field",
+					in: "query" as const,
+					required: false,
+					schema: { type: "array", items: { type: "string" } },
+					style: "form",
+					explode: true,
+					description: "Field id or name; repeat, paired in order with `value`",
+				},
+				{
+					name: "value",
+					in: "query" as const,
+					required: false,
+					schema: { type: "array", items: { type: "string" } },
+					style: "form",
+					explode: true,
+					description: "Value the paired field must hold",
+				},
+			],
 			responses: {
 				200: jsonResponse("Records with field values", {
 					type: "array",

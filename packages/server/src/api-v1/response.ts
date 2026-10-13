@@ -88,6 +88,13 @@ export const queryParam = (name: string) =>
 		return url.searchParams.get(name);
 	});
 
+/** Every value of a repeated query param, in order. */
+export const queryParams = (name: string) =>
+	Effect.gen(function* () {
+		const req = yield* HttpServerRequest.HttpServerRequest;
+		return new URL(req.url, "http://x").searchParams.getAll(name);
+	});
+
 // ── Error boundary ────────────────────────────────────────────────────────────
 
 /**

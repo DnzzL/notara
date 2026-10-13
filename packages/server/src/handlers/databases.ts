@@ -256,6 +256,69 @@ export const listRecordsWithValues = (databaseId: string) =>
 		}));
 	});
 
+/**
+ * The records of `databaseId` whose fields hold every `{ field, value }` asked
+ * for. A field is named by id, else by name; one the database does not have is
+ * refused, naming it. Matching is on the decoded cell: a multi-value field
+ * (multiSelect, people, relation, page) matches when it contains the value; a
+ * number matches numerically; a checkbox never ticked is `false`; an empty
+ * value matches an empty field, lists included.
+ */
+export const listRecordsMatching = (
+	databaseId: string,
+	filters: ReadonlyArray<{ field: string; value: string }>,
+) =>
+	Effect.gen(function* () {
+		const records = yield* listRecordsWithValues(databaseId);
+		if (filters.length === 0) return records;
+		const fields = yield* listFields(databaseId);
+		const wanted: Array<{ id: string; type: string; value: string }> = [];
+		for (const { field, value } of filters) {
+			const found =
+				fields.find((f) => f.id === field) ??
+				fields.find((f) => f.name === field);
+			if (!found)
+				return yield* new ValidationError({
+					message: `This database has no field "${field}"`,
+				});
+			wanted.push({ id: found.id, type: found.type, value });
+		}
+		// Read the cells by field id: `values` is keyed by name, and two fields
+		// may share one.
+		const sql = yield* SqlClient.SqlClient;
+		const rows = yield* sql<{
+			recordId: string;
+			fieldId: string;
+			value: string;
+		}>`
+      SELECT record_id as "recordId", field_id as "fieldId", value
+      FROM record_field_values WHERE field_id IN ${sql.in(wanted.map((w) => w.id))}
+    `;
+		const cells = new Map(
+			rows.map((r) => [`${r.recordId}:${r.fieldId}`, r.value] as const),
+		);
+		const holds = (raw: string | undefined, type: string, value: string) => {
+			const cell =
+				raw === undefined
+					? type === "checkbox"
+						? false
+						: undefined
+					: decodeFieldValue(type, raw);
+			if (Array.isArray(cell))
+				return value === ""
+					? cell.length === 0
+					: cell.map(String).includes(value);
+			if (typeof cell === "number")
+				return value !== "" && Number(value) === cell;
+			return String(cell ?? "") === value;
+		};
+		return records.filter(({ record }) =>
+			wanted.every((w) =>
+				holds(cells.get(`${record.id}:${w.id}`), w.type, w.value),
+			),
+		);
+	});
+
 export const getRecordWithValues = (recordId: string) =>
 	Effect.gen(function* () {
 		const sql = yield* SqlClient.SqlClient;
