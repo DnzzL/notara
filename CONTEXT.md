@@ -49,9 +49,15 @@ embedded database, and so on (`Block.type`). Blocks are ordered within their pag
 > views use `sortOrder`. Same concept, two names, for historical reasons — do not assume
 > one when reading the other.
 
-**Attachment** — an uploaded image or PDF. The file sits on disk named by ULID; the database
+**Attachment** — an uploaded file: an image or PDF shown in the page, an *artifact*, or any
+other file, offered as a download. The file sits on disk named by ULID; the database
 keeps only metadata and the owning page. An attachment is not independently shareable: it is
 readable exactly when its page is (ADR-006).
+
+**Artifact** — an attachment that is a self-contained HTML document — a report, a dashboard,
+a diff — shown live inside its page. It may run its own scripts but reaches nothing outside
+itself: not the network, not the page around it, not the reader's session. Humans and agents
+attach one the same way; attaching again replaces it, with no history kept.
 
 **Backlink** — a block on some page that references another page, listed on the referenced
 page. Derived, never stored as its own record.
