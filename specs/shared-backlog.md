@@ -79,3 +79,17 @@ point at the runner's CLI; Backlog.md is retired.
 - No third-party SDK, so `/privacy` is unchanged. No handles or comment text in PostHog
   properties.
 - API key write scope covers comments; reading comments follows page access.
+
+## Known gaps
+
+- `not done` — a full page opened from a record shows nothing of its record (short id,
+  fields): NOT-158.
+- `not done` — `@` completion in the comment box only, not while editing a comment;
+  comments render as plain text, not markdown.
+- `fragile` — trashing or restoring a page hides or shows its inbox entries but does not
+  push a new unread count; the badge corrects on the next event or reload.
+- `fragile` — a member removed from a workspace keeps their mention rows on old comments;
+  the inbox ignores them (no access), nothing else reads them yet.
+- `not tested` — no browser run of the comment panel, inbox or settings UI.
+- `untouched` — the runner-side adapter (outside this repo) and the cut-over from
+  Backlog.md: NOT-157.

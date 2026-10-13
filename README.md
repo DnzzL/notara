@@ -3,7 +3,7 @@
 
 # Notara
 
-**The notes app you actually own.**
+**The AI-first Notion alternative: notes, docs and one backlog your team and your agents share.**
 
 ![License](https://img.shields.io/badge/license-AGPL--3.0--or--later-2B4DFF)
 ![Self-hosted](https://img.shields.io/badge/self--hosted-one%20SQLite%20file-blue)
@@ -14,6 +14,10 @@ control, no subscription, no cloud, and few enough features that one person can 
 all working. That's Notara: a self-hostable, **open-source** Notion alternative with a
 block editor, inline databases, and real-time collaboration. It's free to self-host, and
 there's nothing to be locked into.
+
+Any database can double as the backlog your coding agents work from: they read and close
+cards over the API, ask you questions in a card's comments, and those land in your inbox.
+See [Shared backlog for humans and agents](docs/shared-backlog.md).
 
 It's built and maintained by one person ([me](https://thomas.legrand.sh)), on purpose. The
 guiding rule is *fewer features, done well* — so the list below is deliberately short.

@@ -169,18 +169,18 @@ export function LandingPage({ demoMode }: { demoMode: boolean }) {
 						className="landing-headline lp-reveal"
 						style={{ animationDelay: ".12s" }}
 					>
-						The notes app
+						The <span className="blue">AI-first</span>
 						<br />
-						you <span className="out">actually</span>{" "}
-						<span className="blue">own.</span>
+						Notion alternative.
 					</h1>
 					<div className="lp-hero-lower">
 						<div className="lp-hero-text">
 							<p className="lp-reveal" style={{ animationDelay: ".24s" }}>
-								A Notion alternative you can touch. Desktop app, block editor,
-								inline databases, real-time collaboration — all backed by a
-								single SQLite file on your own server. Free to self-host. Keep
-								the source. Walk away whenever you like.
+								Notes, docs and one backlog your team and your agents share.
+								Desktop app, block editor, inline databases, real-time
+								collaboration — all backed by a single SQLite file on your own
+								server. Free to self-host. Keep the source. Walk away whenever
+								you like.
 							</p>
 							<div
 								className="landing-hero-ctas lp-reveal"
