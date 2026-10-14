@@ -1,24 +1,30 @@
 # Triage Labels
 
-The skills speak in terms of five canonical triage roles. In this repo, triage state is
-carried by the Backlog.md **status** field (not by labels), and the statuses were renamed
-to map **1:1** onto the canonical roles. So the mapping is an identity.
+The skills speak in terms of five canonical triage roles. In this repo, triage state is the
+**Status** field of a card in Notara — the roles are its option words, so the mapping is an
+identity. There are no triage *labels*: labels are reserved for issue type (`bug`,
+`enhancement`).
 
-| Canonical role    | Backlog.md status  | Meaning                                  |
-| ----------------- | ------------------ | ---------------------------------------- |
-| `needs-triage`    | `needs-triage`     | Maintainer needs to evaluate this task   |
-| `needs-info`      | `needs-info`       | Waiting on reporter for more information |
-| `ready-for-agent` | `ready-for-agent`  | Fully specified, ready for an AFK agent  |
-| `ready-for-human` | `ready-for-human`  | Requires a human decision / implementation |
-| `wontfix`         | `wontfix`          | Will not be actioned                     |
-
-Apply a triage state with `backlog task edit <id> -s "<status>"`. When a skill mentions a
-role (e.g. "apply the AFK-ready triage label"), set the matching status from this table.
+| Canonical role    | Notara Status      | Meaning                                    | Set by |
+| ----------------- | ------------------ | ------------------------------------------ | ------ |
+| `needs-triage`    | `needs-triage`     | Maintainer needs to evaluate this card     | a person, in Notara's board |
+| `needs-info`      | `needs-info`       | Waiting on the reporter for more           | a person, in Notara's board |
+| `ready-for-agent` | `ready-for-agent`  | Fully specified, ready for an AFK agent    | a person, in the board — and where `herdr-docket task create` lands |
+| `ready-for-human` | `ready-for-human`  | Requires a human decision / implementation | a person, in Notara's board |
+| `wontfix`         | `wontfix`          | Will not be actioned                       | a person, in Notara's board |
+| `done`            | `done`             | Terminal                                   | `herdr-docket task done`, or the board |
 
 Notes:
 
-- `done` is a sixth, terminal status — not a triage role. Close finished work with `-s done`.
-- The `bug` / `enhancement` **labels** are orthogonal to triage state; they classify the
-  issue *type*, set via `-l bug,enhancement`.
-- The status list is defined in `backlog/config.yml` (`statuses:`). Keep this table in sync
-  if you change it.
+- **The runner has verbs for the queue, not for triage.** `herdr-docket` can `done`, `fail`,
+  `block` and `verdict` a card, but it cannot file one at `needs-triage` or park one at
+  `ready-for-human` — those are a human's call, made where the human works: Notara's board.
+  A skill that wants to triage a card says so in a note (`task note`) or files it and lets a
+  person move it.
+- **The fleet reads exactly one word: `ready-for-agent`** (the runner's `todo:` in
+  `fleet.yaml`). Every other status is invisible to it, which is what makes `needs-triage` a
+  real parking space rather than a race.
+- `in-progress`, `failed` and `blocked` are the fleet's own lifecycle words, not triage
+  roles. The runner writes them; the board shows them.
+- The status list is the `options` of the queue database's `Status` field. Adding a word there
+  is a field edit in the board; adding one the *fleet* must read is a `fleet.yaml` change too.

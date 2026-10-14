@@ -10,6 +10,9 @@ and your agents share."** Done when Notara's own backlog lives in a Notara datab
 of `backlog/`, and its author plus at least two different agents pick, work and close cards
 there through a runner.
 
+**Met (2026-10-14).** The 173 cards were imported into a Notara database, the fleet reads it
+(`kind: notara` in herdr-docket's `fleet.yaml`), and `backlog/` is gone.
+
 ## Non-goals (v1)
 
 Claim, lease or transition rules · agents as workspace members · MCP server · webhooks ·
@@ -98,6 +101,3 @@ point at the runner's CLI; Backlog.md is retired.
 - `fragile` — `blockedHosts` reads markup and CSS only; a host a script fetches from is not
   reported (it is blocked all the same).
 - `not tested` — an artifact's full-screen button (headless browser).
-- `untouched` — the cut-over from Backlog.md: NOT-157. The REST import runs
-  (`packages/server/src/import-backlog-api.ts`, needs only an API key); the runner's Notara
-  adapter is merged in herdr-docket.

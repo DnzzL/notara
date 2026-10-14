@@ -1,46 +1,50 @@
-# Issue tracker: Backlog.md
+# Issue tracker: Notara, worked through the runner
 
-Issues, tasks, PRDs, and ideas for this repo live in **Backlog.md** — markdown task
-files under `backlog/tasks/`, managed exclusively through the `backlog` CLI. There is
-no GitHub Issues workflow for day-to-day work. (GitHub Issues are used only for external
-bug reports via the `bug_report.yml` template; see `CLAUDE.md` §8.)
+Issues, tasks, PRDs and ideas for this repo live in a **Notara database** — the one this
+project's own fleet reads. There is no GitHub Issues workflow for day-to-day work, and PRs are
+not a triage surface. (GitHub Issues are used only for external bug reports via the
+`bug_report.yml` template; see `CLAUDE.md` §8.)
 
-Task IDs are prefixed `NOT-` (e.g. `NOT-42`).
+A card is a record of that database, and its short id is `NOT-n` (`NOT-42`). Its status and
+its agent are ordinary `select` fields; its acceptance criteria are the to-dos of its page;
+its conversation is its comment thread.
 
-> **Never edit task markdown files directly.** Every read and write goes through the CLI
-> so metadata, Git tracking, and relationships stay in sync. See the full Backlog.md
-> reference in `AGENTS.md`.
+> **The database is the store; the runner is the door.** Everything below goes through
+> `herdr-docket`, which speaks Notara's REST API. The human works the same cards in Notara's
+> own board and inbox. Where the queue lives — server, workspace, database — is the runner's
+> `fleet.yaml`, not this repo.
 
 ## Conventions
 
-- **Create a task**: `backlog task create "<title>" -s "needs-triage" --priority <low|medium|high> -l <bug|enhancement> -d "<description>" --ac "<AC 1>" --ac "<AC 2>"`
-- **Read a task**: `backlog task <id> --plain` (e.g. `backlog task NOT-42 --plain`)
-- **List tasks**: `backlog task list --plain`, or filter with `-s "<status>"` / `-a @who`
-- **Search**: `backlog search "<topic>" --plain` (fuzzy; add `--type task`)
-- **Set status**: `backlog task edit <id> -s "<status>"`
-- **Assign**: `backlog task edit <id> -a @me`
-- **Add labels**: `backlog task edit <id> -l bug,enhancement`
-- **Comment**: `backlog task edit <id> --comment "..." --comment-author @agent`
-- **Progress log**: `backlog task edit <id> --append-notes "..."`
-- **PR summary**: `backlog task edit <id> --final-summary "..."`
-- **Close**: `backlog task edit <id> -s done`
+- **Read the queue**: `herdr-docket task list` — what is waiting to be picked up.
+  Add `--all` for the whole backlog, whatever its status.
+- **Read one card**: `herdr-docket task view NOT-42` — body, notes and criteria.
+- **Create a card**: `herdr-docket task create "<title>" -d "<body>" --ac "<criterion>"`
+  (repeat `--ac`; `-a <agent>` assigns it, `-s <source>` names the queue).
+- **Write a note**: `herdr-docket task note NOT-42 "<text>"`
+- **Assign**: `herdr-docket task assign NOT-42 <agent>`
+- **Close**: `herdr-docket task done NOT-42 [--pr <url>]`, or `fail` / `block` /
+  `verdict NOT-42 PASS|FAIL --pr <url>` when a person decides.
+
+`task create` files into the queue's pickup status — `ready-for-agent` — so the fleet may
+claim the card on its next tick (~15s). To park a card for a human instead, set its Status in
+Notara's board: the runner has no verb for the triage-only words.
 
 ## Triage state = status
 
-Triage is driven by the task **status** field, not by labels. The configured statuses in
-`backlog/config.yml` are the five canonical triage roles plus a terminal `done`. See
-`docs/agents/triage-labels.md` for the role↔status mapping (it's 1:1). Labels are reserved
-for issue *type* (`bug` / `enhancement`).
+Triage is the card's **Status** field, not labels. The five canonical roles plus `done` are
+status option words; see `docs/agents/triage-labels.md` for the mapping. The fleet reads
+exactly one of them.
 
 ## Pull requests as a triage surface
 
-**PRs as a request surface: no.** Backlog.md has no pull-request concept — requests are
-captured as tasks. `/triage` operates only on tasks.
+**No.** The tracker has no pull-request concept — requests are captured as cards. A PR is
+evidence attached to a card (`task done --pr`), never a place work is filed.
 
 ## When a skill says "publish to the issue tracker"
 
-Create a Backlog.md task: `backlog task create "<title>" -s "<triage status>" ...`.
+`herdr-docket task create "<title>" -d "<body>" --ac "<criterion>"`.
 
 ## When a skill says "fetch the relevant ticket"
 
-Run `backlog task <id> --plain`.
+`herdr-docket task view <id>`.
