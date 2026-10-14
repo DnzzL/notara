@@ -1,11 +1,11 @@
 ---
 id: NOT-158
 title: La page d'un record montre son record
-status: ready-for-agent
+status: done
 assignee:
   - '@claude'
 created_date: '2026-10-13 13:23'
-updated_date: '2026-10-14 07:43'
+updated_date: '2026-10-14 07:59'
 labels:
   - enhancement
 dependencies: []
@@ -21,6 +21,12 @@ Un record ouvert en page (DatabaseRecord.pageId) n'affiche ni son id court ni se
 
 ## Acceptance Criteria
 <!-- AC:BEGIN -->
-- [ ] #1 La page pleine d'un record affiche son id court
-- [ ] #2 La page pleine d'un record affiche ses valeurs de champs
+- [x] #1 La page pleine d'un record affiche son id court
+- [x] #2 La page pleine d'un record affiche ses valeurs de champs
 <!-- AC:END -->
+
+## Final Summary
+
+<!-- SECTION:FINAL_SUMMARY:BEGIN -->
+La page pleine d'un record affiche son id court et ses champs, éditables sur place (même grille que le panneau latéral, extraite en RecordProperties). Vérifié en navigateur sur NOT-2.
+<!-- SECTION:FINAL_SUMMARY:END -->

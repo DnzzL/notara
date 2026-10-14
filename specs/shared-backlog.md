@@ -83,18 +83,14 @@ point at the runner's CLI; Backlog.md is retired.
 
 ## Known gaps
 
-- `not done` — a full page opened from a record shows nothing of its record (short id,
-  fields): NOT-158.
 - `not done` — `@` completion in the comment box only, not while editing a comment.
 - `fragile` — trashing or restoring a page hides or shows its inbox entries but does not
   push a new unread count; the badge corrects on the next event or reload.
 - `fragile` — a member removed from a workspace keeps their mention rows on old comments;
   the inbox ignores them (no access), nothing else reads them yet.
 - `not tested` — no browser run of the settings UI.
-- `not done` — a comment posted elsewhere shows on an open page only after reload (NOT-165);
-  record pages flood the sidebar (NOT-166); comments render as plain text (NOT-167); an inbox
-  entry does not name the key that wrote it (NOT-168).
 - `not done` — a criterion ticked over REST reaches an open editor only on reload.
+- `not done` — the fields at the top of a record's page reach another open viewer only on reload.
 - `fragile` — a criterion id (`<blockId>:<n>`) shifts if its to-do block is restructured.
 - `fragile` — a people, relation or page value is checked for shape only, not that its ids exist.
 - `not done` — on a public share an artifact is a link, and opening it downloads it.

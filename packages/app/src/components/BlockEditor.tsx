@@ -62,6 +62,7 @@ import { SLASH_COMMANDS } from "./blockTypes.js";
 import { CommentsPanel } from "./CommentsPanel.js";
 import { DatabaseView } from "./DatabaseView.js";
 import { DragHandle } from "./DragHandle.js";
+import { RecordPageHeader } from "./db/RecordPageHeader.js";
 import { EmojiPicker } from "./EmojiPicker.js";
 import {
 	blockContent,
@@ -1622,6 +1623,9 @@ export function BlockEditor() {
 							workspaceId={getCurrentWorkspaceId()}
 						/>
 					</div>
+					{currentPage.recordId && (
+						<RecordPageHeader recordId={currentPage.recordId} />
+					)}
 					<EmojiPicker
 						open={iconPickerAnchor !== null}
 						anchor={iconPickerAnchor}
