@@ -13,9 +13,12 @@ export interface PresenceState {
 	locks: Map<string, string>;
 	/** SSE connection status. */
 	status: "idle" | "connecting" | "open" | "closed";
+	/** Bumped when the current page's thread changes elsewhere. */
+	commentsVersion: number;
 
 	setOthers: (users: UserPresence[], selfUserId: string) => void;
 	setStatus: (status: PresenceState["status"]) => void;
+	commentsChanged: () => void;
 	reset: () => void;
 }
 
@@ -23,6 +26,7 @@ export const usePresenceStore = create<PresenceState>((set) => ({
 	others: [],
 	locks: new Map(),
 	status: "idle",
+	commentsVersion: 0,
 
 	setOthers: (users, selfUserId) => {
 		const others = users.filter((u) => u.userId !== selfUserId);
@@ -34,6 +38,9 @@ export const usePresenceStore = create<PresenceState>((set) => ({
 	},
 
 	setStatus: (status) => set({ status }),
+
+	commentsChanged: () =>
+		set((s) => ({ commentsVersion: s.commentsVersion + 1 })),
 
 	reset: () => set({ others: [], locks: new Map(), status: "idle" }),
 }));

@@ -7,6 +7,7 @@ import { Effect } from "effect";
 import * as Comments from "../src/handlers/comments.js";
 import * as Databases from "../src/handlers/databases.js";
 import * as Pages from "../src/handlers/pages.js";
+import { presence } from "../src/presence/index.js";
 import { restWorkspace, WORKSPACE } from "./rest-harness.js";
 
 /** A workspace with members ann and bob (see rest-harness). */
@@ -423,5 +424,44 @@ describe("a card's thread over REST", () => {
 			body: { body: "hi" },
 		});
 		expect(res.status).toBe(404);
+	});
+});
+
+describe("an open page hears its thread change", () => {
+	const watch = (pageId: string, userId: string) => {
+		const heard: string[] = [];
+		const stop = presence.subscribe(WORKSPACE, pageId, userId, (e) =>
+			heard.push(e.type),
+		);
+		return { heard, stop };
+	};
+
+	test("a key's comment reaches its owner's open page, as do edits and deletes", async () => {
+		using ws = workspace();
+		const page = await newPage(ws);
+		const ann = watch(page.id, "ann");
+		const res = await ws.call(
+			"POST",
+			`/api/v1/workspaces/${WORKSPACE}/pages/${page.id}/comments`,
+			{ key: "write", body: { body: "Done; tests pass." } },
+		);
+		expect(res.status).toBe(201);
+		await ws.run(
+			Comments.updateComment({
+				id: res.json.id,
+				authorId: "ann",
+				workspaceId: WORKSPACE,
+				body: "Done.",
+			}),
+		);
+		await ws.run(
+			Comments.deleteComment({
+				id: res.json.id,
+				authorId: "ann",
+				workspaceId: WORKSPACE,
+			}),
+		);
+		ann.stop();
+		expect(ann.heard.filter((t) => t === "comments.changed")).toHaveLength(3);
 	});
 });

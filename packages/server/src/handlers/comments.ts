@@ -5,6 +5,7 @@ import { ulid } from "ulidx";
 import { HANDLE, membersByHandle } from "../member-handles.js";
 import { PlatformDb } from "../platform-db.js";
 import { forbidden } from "../policy.js";
+import { presence } from "../presence/index.js";
 import * as Inbox from "./inbox.js";
 
 const COLS = `id, page_id as "pageId", author_id as "authorId", body,
@@ -95,6 +96,9 @@ const settle = (
 		yield* writeMentions(id, yield* mentionedIn(workspaceId, body));
 		const [comment] = yield* withMentions(rows);
 		yield* Inbox.notify({ workspaceId, comment });
+		presence.broadcast(workspaceId, comment.pageId, {
+			type: "comments.changed",
+		});
 		return comment;
 	});
 
@@ -148,12 +152,13 @@ export const addComment = (req: {
 		return yield* settle(req.workspaceId, id, body, rows);
 	});
 
-/** Fails unless `authorId` wrote comment `id`. */
+/** Fails unless `authorId` wrote comment `id`; the page it is on. */
 const requireAuthor = (id: string, authorId: string) =>
 	Effect.gen(function* () {
 		const comment = yield* findComment(id);
 		if (comment.authorId !== authorId)
 			return yield* forbidden("Only the author can change a comment");
+		return comment.pageId;
 	});
 
 export const updateComment = (req: {
@@ -181,12 +186,13 @@ export const deleteComment = (req: {
 }) =>
 	Effect.gen(function* () {
 		const sql = yield* SqlClient.SqlClient;
-		yield* requireAuthor(req.id, req.authorId);
+		const pageId = yield* requireAuthor(req.id, req.authorId);
 		yield* sql`DELETE FROM comment_mentions WHERE comment_id = ${req.id}`;
 		yield* Inbox.forgetComment({
 			workspaceId: req.workspaceId,
 			commentId: req.id,
 		});
 		yield* sql`DELETE FROM comments WHERE id = ${req.id}`;
+		presence.broadcast(req.workspaceId, pageId, { type: "comments.changed" });
 		return { deleted: true };
 	});

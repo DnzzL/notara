@@ -4,11 +4,13 @@ import { useSession } from "../auth-client.js";
 import { commentHtml } from "../lib/commentHtml.js";
 import { api, getCurrentWorkspaceId } from "../rpc-client.js";
 import { usePageStore } from "../store.js";
+import { usePresenceStore } from "../stores/presenceStore.js";
 import { Button } from "./ui/index.js";
 
 /** The flat comment thread under the current page. */
 export function CommentsPanel() {
 	const pageId = usePageStore((s) => s.currentPage?.id);
+	const commentsVersion = usePresenceStore((s) => s.commentsVersion);
 	const { data: session } = useSession();
 	const [comments, setComments] = useState<readonly Comment[]>([]);
 	const [members, setMembers] = useState<
@@ -29,13 +31,18 @@ export function CommentsPanel() {
 
 	useEffect(() => {
 		if (!pageId) return;
-		// A new page starts clean: no draft or edit carried over from the last one,
-		// and a late answer for the last page is dropped.
-		let current = true;
+		// A new page starts clean: no draft or edit carried over from the last one.
 		setComments([]);
 		setDraft("");
 		setEditing(null);
 		setError(null);
+	}, [pageId]);
+
+	// Loaded with the page, and again when its thread changes elsewhere; a late
+	// answer for the last page is dropped.
+	useEffect(() => {
+		if (!pageId) return;
+		let current = true;
 		api
 			.listComments({ pageId })
 			.then((cs) => current && setComments(cs))
@@ -43,7 +50,7 @@ export function CommentsPanel() {
 		return () => {
 			current = false;
 		};
-	}, [pageId]);
+	}, [pageId, commentsVersion]);
 
 	useEffect(() => {
 		const wsId = getCurrentWorkspaceId();
