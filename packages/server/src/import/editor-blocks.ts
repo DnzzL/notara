@@ -3,31 +3,8 @@
  * escaped text inside the editor's HTML. Used by the Backlog.md import and by
  * REST writes of a card's body.
  */
+import { escapeHtml, inlineMarkdown as inline } from "@notara/shared";
 import { markdownToBlocks } from "./notion.js";
-
-const escapeHtml = (s: string) =>
-	s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
-
-/**
- * Inline markdown as editor marks: `code`, **bold**, _italic_ or *italic*,
- * and [links](https://…). Everything else is escaped text; a link to anything
- * but http(s) stays text.
- */
-const inline = (text: string) =>
-	escapeHtml(text)
-		.split(/(`[^`]+`)/)
-		.map((part) =>
-			part.startsWith("`") && part.endsWith("`") && part.length > 1
-				? `<code>${part.slice(1, -1)}</code>`
-				: part
-						.replace(/\*\*(.+?)\*\*/g, "<strong>$1</strong>")
-						.replace(/(^|\W)[_*](\S(?:.*?\S)?)[_*](?=\W|$)/g, "$1<em>$2</em>")
-						.replace(
-							/\[([^\]]+)\]\((https?:\/\/[^\s)"]+)\)/g,
-							'<a href="$2">$1</a>',
-						),
-		)
-		.join("");
 
 /** A parsed markdown block as the editor stores it: escaped text in its HTML. */
 export const editorBlock = (parsed: string, text: string) => {

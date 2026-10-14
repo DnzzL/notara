@@ -1,6 +1,7 @@
 import type { Comment } from "@notara/shared";
 import { useEffect, useId, useState } from "react";
 import { useSession } from "../auth-client.js";
+import { commentHtml } from "../lib/commentHtml.js";
 import { api, getCurrentWorkspaceId } from "../rpc-client.js";
 import { usePageStore } from "../store.js";
 import { Button } from "./ui/index.js";
@@ -179,7 +180,12 @@ export function CommentsPanel() {
 								</span>
 							</div>
 						) : (
-							<p className="mt-0.5 whitespace-pre-wrap text-text">{c.body}</p>
+							<div
+								className="comment-body mt-0.5 whitespace-pre-wrap text-text"
+								// Escaped by commentHtml: only its own marks are HTML.
+								// biome-ignore lint/security/noDangerouslySetInnerHtml: see above
+								dangerouslySetInnerHTML={{ __html: commentHtml(c.body) }}
+							/>
 						)}
 					</li>
 				))}
