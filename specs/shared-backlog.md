@@ -1,7 +1,7 @@
 # Spec: Shared Backlog for Humans and Agents
 
-Decision: `docs/adr/012-notara-is-a-queue-backend.md`. No code yet; seams below are
-proposals to confirm before building behind them.
+Decision: `docs/adr/012-notara-is-a-queue-backend.md`. The seams below are shipped; the
+runner-side adapter is not.
 
 ## Goal
 
