@@ -128,6 +128,8 @@ export class InboxEntry extends Schema.Class<InboxEntry>("InboxEntry")({
 	excerpt: Schema.String,
 	/** Why it is here: it mentions them, it is on a record they are assigned to, or their API key wrote it. */
 	reason: Schema.Literals(["mention", "assigned", "agent"]),
+	/** The API key the comment came through, when it did. */
+	keyName: Schema.NullOr(Schema.String),
 	createdAt: Schema.String,
 	readAt: Schema.NullOr(Schema.String),
 }) {}

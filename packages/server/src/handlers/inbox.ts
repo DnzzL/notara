@@ -90,6 +90,7 @@ export const listInbox = (userId: string) =>
       SELECT e.id, e.comment_id as "commentId", e.page_id as "pageId",
              p.title as "pageTitle", c.author_id as "authorId",
              substr(c.body, 1, ${EXCERPT}) as excerpt, e.reason,
+             c.key_name as "keyName",
              e.created_at as "createdAt", e.read_at as "readAt"
       FROM inbox_entries e
       JOIN comments c ON c.id = e.comment_id

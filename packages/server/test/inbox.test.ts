@@ -66,6 +66,7 @@ describe("the inbox", () => {
 			pageTitle: "Plan",
 			authorId: "ann",
 			reason: "mention",
+			keyName: null,
 			readAt: null,
 		});
 		expect(entry.excerpt).toContain("@bob and @ann");
@@ -183,7 +184,9 @@ describe("the inbox", () => {
 			{ key: "write", body: { body: "Done; tests pass." } },
 		);
 		expect(res.status).toBe(201);
-		expect((await inbox(api, "ann")).map((e) => e.reason)).toEqual(["agent"]);
+		expect(await inbox(api, "ann")).toMatchObject([
+			{ reason: "agent", keyName: "docket" },
+		]);
 	});
 
 	test("a key's comment mentioning its owner lands once, as a mention", async () => {

@@ -138,7 +138,8 @@ export function InboxButton({ onNavigate }: { onNavigate?: () => void }) {
 									<span className="block font-medium">
 										{!e.readAt && <span aria-hidden="true">● </span>}
 										{!e.readAt && <span className="sr-only">Unread: </span>}
-										{names[e.authorId] ?? "Someone"}{" "}
+										{names[e.authorId] ?? "Someone"}
+										{e.keyName && ` via ${e.keyName}`}{" "}
 										{e.reason === "mention" ? "mentioned you" : "commented"} on{" "}
 										{e.pageTitle || "Untitled"}
 									</span>

@@ -1,9 +1,11 @@
 ---
 id: NOT-167
 title: Le corps d'un commentaire s'affiche en markdown
-status: needs-triage
-assignee: []
+status: ready-for-agent
+assignee:
+  - '@claude'
 created_date: '2026-10-13 18:12'
+updated_date: '2026-10-14 07:43'
 labels:
   - enhancement
 dependencies: []

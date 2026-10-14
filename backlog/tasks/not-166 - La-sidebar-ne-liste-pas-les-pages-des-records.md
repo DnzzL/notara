@@ -1,9 +1,11 @@
 ---
 id: NOT-166
 title: La sidebar ne liste pas les pages des records
-status: needs-triage
-assignee: []
+status: ready-for-agent
+assignee:
+  - '@claude'
 created_date: '2026-10-13 18:12'
+updated_date: '2026-10-14 07:43'
 labels:
   - bug
 dependencies: []

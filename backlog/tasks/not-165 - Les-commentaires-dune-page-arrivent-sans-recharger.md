@@ -1,9 +1,11 @@
 ---
 id: NOT-165
 title: Les commentaires d'une page arrivent sans recharger
-status: needs-triage
-assignee: []
+status: ready-for-agent
+assignee:
+  - '@claude'
 created_date: '2026-10-13 18:12'
+updated_date: '2026-10-14 07:43'
 labels:
   - bug
 dependencies: []

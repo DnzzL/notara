@@ -1,9 +1,11 @@
 ---
 id: NOT-158
 title: La page d'un record montre son record
-status: needs-triage
-assignee: []
+status: ready-for-agent
+assignee:
+  - '@claude'
 created_date: '2026-10-13 13:23'
+updated_date: '2026-10-14 07:43'
 labels:
   - enhancement
 dependencies: []
