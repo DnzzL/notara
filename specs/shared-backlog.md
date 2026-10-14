@@ -39,7 +39,8 @@ REST `/api/v1` additions, the contract a runner's adapter depends on:
 | Get record | `GET /databases/:dbId/records/:idOrShortId` → record, field values, `body` markdown, `criteria` `[{id, text, checked}]` | `Get` |
 | List comments | `GET /databases/:dbId/records/:idOrShortId/comments` (also `/pages/:id/comments`) | thread in the briefing |
 | Add comment | `POST /databases/:dbId/records/:idOrShortId/comments {body}` → `Comment` (`authorId`, `keyName`, …); opens the record's page if needed | `Comment` |
-| Tick criterion | `PUT /databases/:dbId/records/:idOrShortId/criteria/:criterionId {checked}` → `{id, text, checked}`; id = `<blockId>:<n>` | `CriterionWriter` |
+| Add criteria | `POST /databases/:dbId/records/:idOrShortId/criteria {criteria}` → record document; appended after the existing ones, heading added on the first | `CriterionWriter` |
+| Tick criterion | `PUT /databases/:dbId/records/:idOrShortId/criteria/:criterionId {checked}` → `{id, text, checked}`; id = `<blockId>:<n>` | evidence on the card |
 | Close / phase / assign | `PATCH /databases/:dbId/records/:idOrShortId {fields: {nameOrId: value}}` → record document; all values checked before any is written (422) | `Close`, `Phaser`, `Assigner` |
 | Create card | `POST /databases/:dbId/records {title, fields?, body? (markdown), criteria?}` → record document | follow-up work |
 

@@ -360,6 +360,31 @@ const schemas = {
 		properties: { checked: { type: "boolean" } },
 	},
 
+	CriteriaAdd: {
+		type: "object",
+		required: ["criteria"],
+		properties: {
+			criteria: {
+				type: "array",
+				minItems: 1,
+				items: {
+					oneOf: [
+						{ type: "string" },
+						{
+							type: "object",
+							required: ["text"],
+							properties: {
+								text: { type: "string" },
+								checked: { type: "boolean" },
+							},
+						},
+					],
+				},
+				example: ["The bar a run hands on"],
+			},
+		},
+	},
+
 	FieldValues: {
 		type: "object",
 		description:

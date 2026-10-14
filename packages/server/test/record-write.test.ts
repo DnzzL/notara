@@ -188,6 +188,85 @@ describe("updating a card's fields in one call", () => {
 	});
 });
 
+describe("adding criteria to a card that exists", () => {
+	const criteriaOf = (dbId: string) => `${records(dbId)}/NOT-1/criteria`;
+
+	test("appended after the ones it has, under the one heading", async () => {
+		using api = restWorkspace();
+		const { db } = await backlog(api);
+		await api.call("POST", records(db.id), {
+			key: "write",
+			body: { title: "t", body: "Why.", criteria: ["first"] },
+		});
+		const res = await api.call("POST", criteriaOf(db.id), {
+			key: "write",
+			body: { criteria: ["second", { text: "third", checked: true }] },
+		});
+		expect(res.status).toBe(201);
+		expect(res.json.criteria).toMatchObject([
+			{ text: "first", checked: false },
+			{ text: "second", checked: false },
+			{ text: "third", checked: true },
+		]);
+		expect(res.json.body.match(/Acceptance Criteria/g)).toHaveLength(1);
+		expect(res.json.body.indexOf("Why.")).toBeLessThan(
+			res.json.body.indexOf("second"),
+		);
+	});
+
+	test("a card with no page gets one, with the heading", async () => {
+		using api = restWorkspace();
+		const { db } = await backlog(api);
+		await api.call("POST", records(db.id), {
+			key: "write",
+			body: { title: "Bare" },
+		});
+		const res = await api.call("POST", criteriaOf(db.id), {
+			key: "write",
+			body: { criteria: ["compiles"] },
+		});
+		expect(res.status).toBe(201);
+		expect(res.json.criteria).toMatchObject([
+			{ text: "compiles", checked: false },
+		]);
+		expect(res.json.body).toContain("Acceptance Criteria");
+	});
+
+	test("no criteria, or a malformed one, writes nothing", async () => {
+		using api = restWorkspace();
+		const { db } = await backlog(api);
+		await api.call("POST", records(db.id), {
+			key: "write",
+			body: { title: "t" },
+		});
+		for (const criteria of [[], undefined, ["ok", 3]]) {
+			const res = await api.call("POST", criteriaOf(db.id), {
+				key: "write",
+				body: { criteria },
+			});
+			expect(res.status).toBe(422);
+		}
+		const read = await api.call("GET", `${records(db.id)}/NOT-1`, {
+			key: "read",
+		});
+		expect(read.json).toMatchObject({ body: "", criteria: [] });
+	});
+
+	test("a read key cannot add criteria", async () => {
+		using api = restWorkspace();
+		const { db } = await backlog(api);
+		await api.call("POST", records(db.id), {
+			key: "write",
+			body: { title: "t" },
+		});
+		const res = await api.call("POST", criteriaOf(db.id), {
+			key: "read",
+			body: { criteria: ["x"] },
+		});
+		expect(res.status).toBe(403);
+	});
+});
+
 describe("a markdown body as the editor shows it", () => {
 	const create = async (body: string) => {
 		using api = restWorkspace();

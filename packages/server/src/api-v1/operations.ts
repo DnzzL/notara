@@ -1308,6 +1308,76 @@ export const recordOperations: readonly Operation[] = [
 		},
 	},
 	{
+		method: "POST",
+		path: "/api/v1/workspaces/:workspaceId/databases/:dbId/records/:recordId/criteria",
+		operationId: "addCriteria",
+		tag: "Databases",
+		pathParams: [dbParam, recordParam],
+		checkPermission: (ctx) =>
+			Effect.gen(function* () {
+				const dbId = yield* requireParam(ctx.params, "dbId");
+				yield* Permissions.checkDatabasePermission(
+					ctx.userId,
+					ctx.workspaceId,
+					dbId,
+					"editor",
+				);
+			}),
+		run: (ctx) =>
+			Effect.gen(function* () {
+				const record = yield* recordOf(ctx);
+				const b = (yield* parseBody) as Record<string, unknown>;
+				const criteria = yield* criteriaOf(b);
+				if (criteria.length === 0)
+					return yield* Effect.fail(
+						new ApiError({
+							status: 422,
+							message: 'Field "criteria" must name at least one criterion',
+						}),
+					);
+				const sql = yield* SqlClient.SqlClient;
+				yield* sql.withTransaction(
+					Effect.gen(function* () {
+						const { pageId } = yield* Databases.openRecordAsPage(record.id);
+						const blocks = yield* Blocks.listBlocks(pageId);
+						// Appended after the last top-level block; the heading only
+						// when the page has no criteria yet, as Create writes it.
+						let index =
+							Math.max(
+								-1,
+								...blocks
+									.filter((x) => x.parentId === null)
+									.map((x) => x.index),
+							) + 1;
+						const added = [
+							...(blocks.some((x) => x.type === "todo")
+								? []
+								: [editorBlock("heading2", "Acceptance Criteria")]),
+							...criteria.map((c) => todo(c.text, c.checked)),
+						];
+						for (const block of added)
+							yield* Blocks.createBlock({
+								pageId,
+								...block,
+								index: index++,
+								parentId: null,
+							});
+					}),
+				);
+				return created(yield* recordDocument(record.id));
+			}),
+		openapi: {
+			summary: "Add criteria to a record",
+			description:
+				"Appends to-dos after the record's existing criteria, at the end of its page; the first ones get an Acceptance Criteria heading, as Create writes them. A read key cannot.",
+			requestBody: jsonBody("CriteriaAdd"),
+			responses: {
+				201: jsonResponse("The record", jsonSchema("RecordDocument")),
+				...errorResponses,
+			},
+		},
+	},
+	{
 		method: "PUT",
 		path: "/api/v1/workspaces/:workspaceId/databases/:dbId/records/:recordId/criteria/:criterionId",
 		operationId: "tickCriterion",
