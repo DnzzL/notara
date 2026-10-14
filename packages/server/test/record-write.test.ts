@@ -297,3 +297,19 @@ test("a route names a database bob can edit, and a card of one locked away from 
 	});
 	expect(card.json.title).toBe("r");
 });
+
+test("a card's page says which card it is; other pages say none", async () => {
+	using api = restWorkspace();
+	const { db } = await backlog(api);
+	const res = await api.call("POST", records(db.id), {
+		key: "write",
+		body: { title: "t" },
+	});
+	const { pageId } = await api.run(Databases.openRecordAsPage(res.json.id));
+	const pages = await api.run(Pages.listPages);
+	expect(pages.find((p) => p.id === pageId)?.recordId).toBe(res.json.id);
+	expect(pages.filter((p) => p.id !== pageId).map((p) => p.recordId)).toEqual([
+		null,
+	]);
+	expect((await api.run(Pages.getPage(pageId))).recordId).toBe(res.json.id);
+});

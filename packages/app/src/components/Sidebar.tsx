@@ -197,13 +197,14 @@ export function Sidebar({
 		loadPages();
 	}, [loadPages]);
 
+	// A record's page lives in its database, not the tree: a backlog of cards
+	// would bury every other page.
+	const inTree = pages.filter((p) => !p.isDeleted && p.recordId === null);
 	const filtered = searchQuery
-		? pages.filter(
-				(p) =>
-					!p.isDeleted &&
-					p.title.toLowerCase().includes(searchQuery.toLowerCase()),
+		? inTree.filter((p) =>
+				p.title.toLowerCase().includes(searchQuery.toLowerCase()),
 			)
-		: pages.filter((p) => !p.isDeleted);
+		: inTree;
 
 	// Expand all nodes on first load; expand newly added nodes on subsequent updates
 	useEffect(() => {

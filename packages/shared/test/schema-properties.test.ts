@@ -62,6 +62,7 @@ const pageArb = fc.record({
 	createdAt: isoDateArb,
 	updatedAt: isoDateArb,
 	deletedAt: fc.oneof(fc.constant(null), isoDateArb),
+	recordId: fc.oneof(fc.constant(null), ulidArb),
 });
 
 // Block arbitrary

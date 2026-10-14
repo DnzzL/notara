@@ -17,6 +17,8 @@ export class Page extends Schema.Class<Page>("Page")({
 	createdAt: Schema.String,
 	updatedAt: Schema.String,
 	deletedAt: Schema.NullOr(Schema.String),
+	/** The database record this page opens, when it is a record's page. */
+	recordId: Schema.NullOr(Schema.String),
 }) {}
 
 export class Block extends Schema.Class<Block>("Block")({

@@ -26,7 +26,8 @@ export const PAGE_COLS = `id, title, parent_id as "parentId", icon,
   cover_url as "coverUrl", sort_order as "sortOrder",
   is_deleted as "isDeleted", is_favorite as "isFavorite",
   created_at as "createdAt", updated_at as "updatedAt",
-  deleted_at as "deletedAt"`;
+  deleted_at as "deletedAt",
+  (SELECT r.id FROM database_records r WHERE r.page_id = pages.id) as "recordId"`;
 
 export function pageFromRow(r: unknown): Page {
 	const row = r as Record<string, unknown>;
@@ -42,6 +43,7 @@ export function pageFromRow(r: unknown): Page {
 		createdAt: new Date(row.createdAt as string).toISOString(),
 		updatedAt: new Date(row.updatedAt as string).toISOString(),
 		deletedAt: (row.deletedAt as string | null) ?? null,
+		recordId: (row.recordId as string | null) ?? null,
 	});
 }
 

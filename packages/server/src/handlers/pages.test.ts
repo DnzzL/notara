@@ -29,6 +29,8 @@ const setupDB = Effect.gen(function* () {
       deleted_at TEXT
     )
   `;
+	// A page lists the record it opens, if any.
+	yield* sql`CREATE TABLE database_records (id TEXT PRIMARY KEY, page_id TEXT)`;
 });
 
 beforeAll(async () => {
