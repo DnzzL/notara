@@ -414,6 +414,13 @@ const schemas = {
 		required: ["title"],
 		properties: {
 			title: { type: "string", example: "Fix the login bug" },
+			shortNumber: {
+				type: "integer",
+				minimum: 1,
+				description:
+					"The number of the card's short id (PREFIX-n), kept from the source by an import. Omit for the next free one; a number already used in the database is a 409.",
+				example: 42,
+			},
 			fields: { $ref: "#/components/schemas/FieldValues" },
 			body: {
 				type: "string",
@@ -550,7 +557,10 @@ const ref = (name: keyof typeof schemas) => ({
 	$ref: `#/components/schemas/${name}`,
 });
 
-const jsonResponse = (description: string, schema: object) => ({
+const jsonResponse = (
+	description: string,
+	schema: Record<string, unknown>,
+) => ({
 	description,
 	content: { "application/json": { schema } },
 });

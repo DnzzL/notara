@@ -88,6 +88,34 @@ describe("creating a card in one call", () => {
 		expect(read.json).toEqual(res.json);
 	});
 
+	test("a chosen shortNumber is kept, and a taken one is refused", async () => {
+		using api = restWorkspace();
+		const { db } = await backlog(api);
+		const first = await api.call("POST", records(db.id), {
+			key: "write",
+			body: { title: "Kept its number", shortNumber: 42 },
+		});
+		expect(first.status).toBe(201);
+		expect(first.json).toMatchObject({ shortId: "NOT-42" });
+
+		const clash = await api.call("POST", records(db.id), {
+			key: "write",
+			body: { title: "Wants the same", shortNumber: 42 },
+		});
+		expect(clash.status).toBe(409);
+
+		const bad = await api.call("POST", records(db.id), {
+			key: "write",
+			body: { title: "Not a number", shortNumber: 0 },
+		});
+		expect(bad.status).toBe(422);
+
+		const listed = await api.call("GET", records(db.id), { key: "read" });
+		expect(listed.json.map((r: { title: string }) => r.title)).toEqual([
+			"Kept its number",
+		]);
+	});
+
 	test("a title alone still makes a card", async () => {
 		using api = restWorkspace();
 		const { db } = await backlog(api);

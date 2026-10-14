@@ -42,7 +42,7 @@ REST `/api/v1` additions, the contract a runner's adapter depends on:
 | Add criteria | `POST /databases/:dbId/records/:idOrShortId/criteria {criteria}` → record document; appended after the existing ones, heading added on the first | `CriterionWriter` |
 | Tick criterion | `PUT /databases/:dbId/records/:idOrShortId/criteria/:criterionId {checked}` → `{id, text, checked}`; id = `<blockId>:<n>` | evidence on the card |
 | Close / phase / assign | `PATCH /databases/:dbId/records/:idOrShortId {fields: {nameOrId: value}}` → record document; all values checked before any is written (422) | `Close`, `Phaser`, `Assigner` |
-| Create card | `POST /databases/:dbId/records {title, fields?, body? (markdown), criteria?}` → record document | follow-up work |
+| Create card | `POST /databases/:dbId/records {title, shortNumber?, fields?, body? (markdown), criteria?}` → record document; `shortNumber` keeps a chosen `PREFIX-n` for an import (409 if taken) | follow-up work |
 
 Schema additions: `comments`, `inbox_entries`, member `handle`, database `short_prefix` +
 counter, record `short_number`.
@@ -98,5 +98,6 @@ point at the runner's CLI; Backlog.md is retired.
 - `fragile` — `blockedHosts` reads markup and CSS only; a host a script fetches from is not
   reported (it is blocked all the same).
 - `not tested` — an artifact's full-screen button (headless browser).
-- `untouched` — the runner-side adapter (outside this repo) and the cut-over from
-  Backlog.md: NOT-157.
+- `untouched` — the cut-over from Backlog.md: NOT-157. The REST import runs
+  (`packages/server/src/import-backlog-api.ts`, needs only an API key); the runner's Notara
+  adapter is merged in herdr-docket.

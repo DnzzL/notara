@@ -123,7 +123,10 @@ const jsonBody = (name: string) => ({
 	required: true,
 	content: { "application/json": { schema: jsonSchema(name) } },
 });
-const jsonResponse = (description: string, schema: object) => ({
+const jsonResponse = (
+	description: string,
+	schema: Record<string, unknown>,
+) => ({
 	description,
 	content: { "application/json": { schema } },
 });
@@ -269,6 +272,20 @@ const criteriaOf = (b: Record<string, unknown>) => {
 						'Field "criteria" must be a list of strings or {"text", "checked"}',
 				}),
 			);
+};
+
+/** `shortNumber` from a create body: an import keeping the numbers its source had. */
+const shortNumberOf = (b: Record<string, unknown>) => {
+	const raw = b.shortNumber;
+	if (raw === undefined) return Effect.succeed(null);
+	if (typeof raw !== "number" || !Number.isInteger(raw) || raw < 1)
+		return Effect.fail(
+			new ApiError({
+				status: 422,
+				message: 'Field "shortNumber" must be a positive integer',
+			}),
+		);
+	return Effect.succeed(raw);
 };
 
 // ── Pages ──────────────────────────────────────────────────────────────────────
@@ -1069,6 +1086,7 @@ export const recordOperations: readonly Operation[] = [
 				const title = yield* requireField(body, "title");
 				const markdown = typeof b.body === "string" ? b.body : "";
 				const criteria = yield* criteriaOf(b);
+				const shortNumber = yield* shortNumberOf(b);
 				const writes = yield* Databases.fieldWrites(
 					dbId,
 					yield* fieldsOf(b),
@@ -1080,6 +1098,8 @@ export const recordOperations: readonly Operation[] = [
 							databaseId: dbId,
 							title,
 						});
+						if (shortNumber !== null)
+							yield* Databases.setShortNumber(record.id, shortNumber);
 						for (const w of writes)
 							yield* Databases.updateFieldValue({ recordId: record.id, ...w });
 						const blocks = [
@@ -1107,7 +1127,7 @@ export const recordOperations: readonly Operation[] = [
 		openapi: {
 			summary: "Create a record, with its fields, body and criteria",
 			description:
-				"Only `title` is required. `fields` names each field by id or name; every value is checked against its field (a select takes one of its options, a number a number, …) before anything is written, and a 422 names the first that is not. `body` is markdown; `criteria` become to-dos under an Acceptance Criteria heading.",
+				"Only `title` is required. `fields` names each field by id or name; every value is checked against its field (a select takes one of its options, a number a number, …) before anything is written, and a 422 names the first that is not. `body` is markdown; `criteria` become to-dos under an Acceptance Criteria heading. `shortNumber` is for an import that keeps the numbers its source had: omit it for the next free one, and a number already used in the database is a 409.",
 			requestBody: jsonBody("RecordCreate"),
 			responses: {
 				201: jsonResponse("Created record", jsonSchema("RecordDocument")),
@@ -1879,7 +1899,7 @@ export const operationHandler = (op: Operation) =>
  */
 export const operationsOpenApiPaths = (
 	operations: readonly Operation[],
-	wsParam: object,
+	wsParam: Record<string, unknown>,
 ) => {
 	const toDocPath = (routerPath: string) =>
 		routerPath.replace("/api/v1", "").replace(/:([a-zA-Z]+)/g, "{$1}");

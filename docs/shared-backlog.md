@@ -35,7 +35,7 @@ Interactive docs: `GET /api/docs`. An agent arriving cold can read `GET /llms.tx
 | Add criteria to a card | `POST /databases/<dbId>/records/NOT-12/criteria` with `{"criteria": ["…"]}` — appended after the ones it has |
 | Tick a criterion | `PUT /databases/<dbId>/records/NOT-12/criteria/<criterionId>` with `{"checked": true}` |
 | Attach a report or dashboard | `POST /databases/<dbId>/records/NOT-12/artifacts?name=report.html` with the HTML as body; shown live in the card, isolated: no network, so everything inline (`blockedHosts` names what will not load) |
-| File follow-up work | `POST /databases/<dbId>/records` with `{"title": "…", "fields": {…}, "body": "markdown", "criteria": ["…"]}` |
+| File follow-up work | `POST /databases/<dbId>/records` with `{"title": "…", "fields": {…}, "body": "markdown", "criteria": ["…"]}`. `"shortNumber": 12` keeps a chosen number for the card's short id (`NOT-12`) — for an import, not day-to-day work; a number already used is a 409 |
 
 ```bash
 curl "https://notes.example.com/api/v1/workspaces/$WS/databases/$DB/records?field=Status&value=ready-for-agent" \
@@ -44,6 +44,17 @@ curl "https://notes.example.com/api/v1/workspaces/$WS/databases/$DB/records?fiel
 
 ## Moving an existing Backlog.md project in
 
-`bun packages/server/src/import-backlog.ts <workspaceId> <yourUserId> [backlogDir]` imports
-a Backlog.md project into a new database: every task keeps its number, its criteria become
-to-dos and its comments come along. Running it again imports only what is new.
+The REST import needs only an API key, so it runs wherever the `backlog/` directory is:
+
+```bash
+NOTARA_URL=https://notes.example.com NOTARA_API_KEY=ntr_… NOTARA_WORKSPACE=<workspaceId> \
+  bun packages/server/src/import-backlog-api.ts [backlogDir]
+```
+
+Every task keeps its number, its criteria become to-dos and its comments come along.
+Running it again imports only what is new — a card whose short id or title is already in
+the database is skipped.
+
+`bun packages/server/src/import-backlog.ts <workspaceId> <yourUserId> [backlogDir]` does
+the same through the server's own database, for running on the host that holds `DATA_DIR`.
+It needs no API key, and writes the whole project in one transaction.
