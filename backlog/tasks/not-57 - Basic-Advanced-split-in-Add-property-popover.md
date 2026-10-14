@@ -1,11 +1,11 @@
 ---
 id: NOT-57
 title: Basic/Advanced split in Add-property popover
-status: ready-for-human
+status: done
 assignee:
   - '@thomas'
 created_date: '2026-07-19 19:40'
-updated_date: '2026-07-21 16:39'
+updated_date: '2026-10-14 14:04'
 labels:
   - enhancement
 dependencies: []

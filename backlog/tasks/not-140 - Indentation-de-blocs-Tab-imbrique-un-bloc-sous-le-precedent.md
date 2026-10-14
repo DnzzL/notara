@@ -1,9 +1,10 @@
 ---
 id: NOT-140
 title: Indentation de blocs (Tab imbrique un bloc sous le precedent)
-status: needs-triage
+status: wontfix
 assignee: []
 created_date: '2026-08-30 18:49'
+updated_date: '2026-10-14 14:05'
 labels:
   - enhancement
 dependencies: []
@@ -22,3 +23,13 @@ Tab indente aujourd'hui a l'interieur d'un bloc (liste multi-items) et, a defaut
 - [ ] #1 Decider si le nesting de blocs entre au perimetre
 - [ ] #2 Si oui : rendu hierarchique, Tab/Shift-Tab reparentent, drag-and-drop et numerotation suivent
 <!-- AC:END -->
+
+## Comments
+
+<!-- COMMENTS:BEGIN -->
+author: @agent
+created: 2026-10-14 14:05
+---
+Hors périmètre sans décision produit. L'imbrication de blocs (blocks.parent_id) est un chantier de rendu hiérarchique entier, non retenu.
+---
+<!-- COMMENTS:END -->

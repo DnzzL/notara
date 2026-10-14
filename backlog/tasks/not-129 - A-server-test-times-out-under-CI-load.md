@@ -1,9 +1,10 @@
 ---
 id: NOT-129
 title: A server test times out under CI load
-status: needs-triage
+status: wontfix
 assignee: []
 created_date: '2026-08-27 15:45'
+updated_date: '2026-10-14 14:05'
 labels:
   - bug
 dependencies: []
@@ -28,3 +29,13 @@ If it turns out to be genuinely slow rather than flaky, the fix is in the handle
 - [ ] #1 Established whether the test is slow or the assertion is slow
 - [ ] #2 CI passes this test consistently, without simply raising the timeout to hide it
 <!-- AC:END -->
+
+## Comments
+
+<!-- COMMENTS:BEGIN -->
+author: @agent
+created: 2026-10-14 14:05
+---
+Faible priorité, non nécessaire maintenant. À rouvrir si le test redevient rouge en CI.
+---
+<!-- COMMENTS:END -->

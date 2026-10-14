@@ -1,9 +1,10 @@
 ---
 id: NOT-142
 title: 'Search: page-title queries return nothing, and ''-'' fails the query'
-status: needs-triage
+status: wontfix
 assignee: []
 created_date: '2026-10-01 20:14'
+updated_date: '2026-10-14 14:07'
 labels: []
 dependencies: []
 priority: medium
@@ -29,3 +30,13 @@ Block-content search (blocks_fts) works: query 'second' returns the block hit.
 - [ ] #3 globalSearch handler tests cover title match, block match, and FTS operator characters
 - [ ] #4 Deleted pages and blocks stay excluded (NOT-26 regression)
 <!-- AC:END -->
+
+## Comments
+
+<!-- COMMENTS:BEGIN -->
+author: @agent
+created: 2026-10-14 14:07
+---
+Won't do : antérieur à la bascule agent-first (backlog humains/agents, NOT-148..157).
+---
+<!-- COMMENTS:END -->

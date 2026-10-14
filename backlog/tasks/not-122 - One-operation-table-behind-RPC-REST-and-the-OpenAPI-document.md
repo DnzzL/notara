@@ -1,11 +1,11 @@
 ---
 id: NOT-122
 title: 'One operation table behind RPC, REST and the OpenAPI document'
-status: ready-for-agent
+status: wontfix
 assignee:
   - '@thomas'
 created_date: '2026-08-26 11:13'
-updated_date: '2026-08-27 07:29'
+updated_date: '2026-10-14 14:07'
 labels:
   - enhancement
 dependencies:
@@ -67,3 +67,13 @@ CORRECTED after code review. The audit was too lenient: it treated any status >=
 
 Also raised, and worth recording rather than fixing: the coverage cross-check reads openapi.json rather than the router, so a route registered but undocumented escapes both tests. The parity test in NOT-106 closes that transitively by asserting the document and the router agree — but it is a chain of two tests rather than one direct check. Worth collapsing when the operation table lands and the document becomes derived.
 <!-- SECTION:NOTES:END -->
+
+## Comments
+
+<!-- COMMENTS:BEGIN -->
+author: @agent
+created: 2026-10-14 14:07
+---
+Won't do : antérieur à la bascule agent-first (backlog humains/agents, NOT-148..157).
+---
+<!-- COMMENTS:END -->

@@ -1,10 +1,10 @@
 ---
 id: NOT-68
 title: 'Coverage floor: prevent test coverage backsliding'
-status: ready-for-agent
+status: wontfix
 assignee: []
 created_date: '2026-07-28 14:52'
-updated_date: '2026-07-28 15:17'
+updated_date: '2026-10-14 14:07'
 labels:
   - enhancement
 dependencies:
@@ -44,3 +44,13 @@ Coverage floor implementation:
 
 Current baselines: @notara/server=40%, @notara/app=15%, @notara/shared=35%, @notara/electron=80%
 <!-- SECTION:NOTES:END -->
+
+## Comments
+
+<!-- COMMENTS:BEGIN -->
+author: @agent
+created: 2026-10-14 14:07
+---
+Won't do : antérieur à la bascule agent-first (backlog humains/agents, NOT-148..157).
+---
+<!-- COMMENTS:END -->

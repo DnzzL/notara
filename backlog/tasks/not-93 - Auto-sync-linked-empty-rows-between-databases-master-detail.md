@@ -1,10 +1,10 @@
 ---
 id: NOT-93
 title: 'Auto-sync: linked empty rows between databases (master-detail)'
-status: ready-for-agent
+status: wontfix
 assignee: []
 created_date: '2026-08-12 08:06'
-updated_date: '2026-08-12 08:12'
+updated_date: '2026-10-14 14:07'
 labels:
   - enhancement
 dependencies: []
@@ -43,3 +43,13 @@ Contrainte de scope : la synchronisation ne s'applique qu'aux relations un-à-un
 5. Renommage : le titre de la ligne enfant suit le titre du maître (mise à jour au rename).
 6. Tests : unitaires + intégration (création, backfill, rename, suppression/restauration, cas many-to-many non concerné).
 <!-- SECTION:PLAN:END -->
+
+## Comments
+
+<!-- COMMENTS:BEGIN -->
+author: @agent
+created: 2026-10-14 14:07
+---
+Won't do : antérieur à la bascule agent-first (backlog humains/agents, NOT-148..157).
+---
+<!-- COMMENTS:END -->

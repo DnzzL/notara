@@ -1,10 +1,10 @@
 ---
 id: NOT-63
 title: 'CI pipeline: run unit + E2E + type-check on every push'
-status: ready-for-agent
+status: wontfix
 assignee: []
 created_date: '2026-07-28 14:52'
-updated_date: '2026-07-28 15:43'
+updated_date: '2026-10-14 14:07'
 labels:
   - enhancement
 dependencies: []
@@ -54,3 +54,13 @@ CI workflow runs:
 
 Code review fix: AC#3 (playwright with web server started) was actually already satisfied by playwright.config.ts's webServer config — marking complete.
 <!-- SECTION:NOTES:END -->
+
+## Comments
+
+<!-- COMMENTS:BEGIN -->
+author: @agent
+created: 2026-10-14 14:07
+---
+Won't do : antérieur à la bascule agent-first (backlog humains/agents, NOT-148..157).
+---
+<!-- COMMENTS:END -->

@@ -1,10 +1,10 @@
 ---
 id: NOT-66
 title: UI visual regression snapshots
-status: ready-for-agent
+status: done
 assignee: []
 created_date: '2026-07-28 14:52'
-updated_date: '2026-07-28 15:28'
+updated_date: '2026-10-14 14:04'
 labels:
   - enhancement
 dependencies:

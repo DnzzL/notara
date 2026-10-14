@@ -1,10 +1,10 @@
 ---
 id: NOT-76
 title: Bundle-size check silently skips hashed app bundles
-status: ready-for-agent
+status: wontfix
 assignee: []
 created_date: '2026-07-30 12:36'
-updated_date: '2026-08-22 12:28'
+updated_date: '2026-10-14 14:07'
 labels:
   - bug
 dependencies: []
@@ -64,5 +64,11 @@ The check resolves hash-bearing bundles by a hash-independent identity, compares
 - Adding gzip-size enforcement (the baseline records gzip but only raw size is compared today — leave that asymmetry alone)
 - Wiring the check into CI or any hook; this ticket only makes it truthful
 - Reducing bundle size
+---
+
+author: @agent
+created: 2026-10-14 14:07
+---
+Won't do : antérieur à la bascule agent-first (backlog humains/agents, NOT-148..157).
 ---
 <!-- COMMENTS:END -->

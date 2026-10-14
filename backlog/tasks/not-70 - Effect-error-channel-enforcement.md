@@ -1,10 +1,10 @@
 ---
 id: NOT-70
 title: Effect error channel enforcement
-status: ready-for-agent
+status: done
 assignee: []
 created_date: '2026-07-28 14:52'
-updated_date: '2026-07-28 15:27'
+updated_date: '2026-10-14 14:04'
 labels:
   - enhancement
 dependencies:

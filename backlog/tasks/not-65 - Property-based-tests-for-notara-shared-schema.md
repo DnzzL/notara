@@ -1,10 +1,10 @@
 ---
 id: NOT-65
 title: Property-based tests for @notara/shared schema
-status: ready-for-agent
+status: wontfix
 assignee: []
 created_date: '2026-07-28 14:52'
-updated_date: '2026-07-28 15:19'
+updated_date: '2026-10-14 14:07'
 labels:
   - enhancement
 dependencies:
@@ -48,3 +48,13 @@ Property-based tests for @notara/shared schema:
   7. DatabaseField rejects invalid field types
 - All tests pass in shared package test suite
 <!-- SECTION:NOTES:END -->
+
+## Comments
+
+<!-- COMMENTS:BEGIN -->
+author: @agent
+created: 2026-10-14 14:07
+---
+Won't do : antérieur à la bascule agent-first (backlog humains/agents, NOT-148..157).
+---
+<!-- COMMENTS:END -->

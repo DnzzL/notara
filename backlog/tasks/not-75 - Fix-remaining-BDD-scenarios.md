@@ -1,9 +1,10 @@
 ---
 id: NOT-75
 title: Fix remaining BDD scenarios
-status: needs-triage
+status: wontfix
 assignee: []
 created_date: '2026-07-28 19:20'
+updated_date: '2026-10-14 14:05'
 labels: []
 dependencies: []
 ordinal: 78000
@@ -26,3 +27,13 @@ ordinal: 78000
 - [ ] #7 Template picker scenario passes
 - [ ] #8 Onboarding workspace creation works end-to-end
 <!-- AC:END -->
+
+## Comments
+
+<!-- COMMENTS:BEGIN -->
+author: @agent
+created: 2026-10-14 14:05
+---
+Périmé. Le harnais BDD parasité par NOT-67 a été retiré volontairement (commit 4768069 'Remove overkill testing artifacts'). Aucune action.
+---
+<!-- COMMENTS:END -->

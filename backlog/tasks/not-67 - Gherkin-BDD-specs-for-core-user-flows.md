@@ -1,10 +1,10 @@
 ---
 id: NOT-67
 title: Gherkin BDD specs for core user flows
-status: ready-for-agent
+status: wontfix
 assignee: []
 created_date: '2026-07-28 14:52'
-updated_date: '2026-07-28 15:32'
+updated_date: '2026-10-14 14:05'
 labels:
   - enhancement
 dependencies:
@@ -51,3 +51,13 @@ NOT-67 Gherkin BDD specs:
 - Wired into CI as part of e2e-tests: uses shared auth setup
 - Added 'bun run bdd' script to package.json
 <!-- SECTION:NOTES:END -->
+
+## Comments
+
+<!-- COMMENTS:BEGIN -->
+author: @agent
+created: 2026-10-14 14:05
+---
+Retiré volontairement. Le BDD Cucumber a été supprimé comme overkill (commit 4768069), les ACs cochés sont périmés.
+---
+<!-- COMMENTS:END -->

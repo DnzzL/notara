@@ -1,9 +1,10 @@
 ---
 id: NOT-136
 title: CI never builds packages/app
-status: needs-triage
+status: wontfix
 assignee: []
 created_date: '2026-08-29 17:33'
+updated_date: '2026-10-14 14:07'
 labels:
   - bug
 dependencies: []
@@ -21,3 +22,13 @@ ci.yml runs install, shared build, typecheck, tests and e2e — but never 'bun r
 <!-- AC:BEGIN -->
 - [ ] #1 CI builds packages/app on every push
 <!-- AC:END -->
+
+## Comments
+
+<!-- COMMENTS:BEGIN -->
+author: @agent
+created: 2026-10-14 14:07
+---
+Won't do : antérieur à la bascule agent-first (backlog humains/agents, NOT-148..157).
+---
+<!-- COMMENTS:END -->

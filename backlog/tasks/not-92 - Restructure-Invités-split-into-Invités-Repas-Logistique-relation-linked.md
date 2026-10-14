@@ -1,10 +1,10 @@
 ---
 id: NOT-92
 title: 'Restructure Invités: split into Invités / Repas / Logistique (relation-linked)'
-status: ready-for-agent
+status: wontfix
 assignee: []
 created_date: '2026-08-12 08:06'
-updated_date: '2026-08-12 08:12'
+updated_date: '2026-10-14 14:05'
 labels:
   - enhancement
 dependencies: []
@@ -55,3 +55,13 @@ Risque AC #1 (backup) : le backup admin (POST /api/backup/trigger) exige S3 conf
 9. Créer une vue filtrante par repas dans Repas (ex. 'Vendredi soir — oui').
 10. Vérification finale : relations OK, rollback possible depuis le backup.
 <!-- SECTION:PLAN:END -->
+
+## Comments
+
+<!-- COMMENTS:BEGIN -->
+author: @agent
+created: 2026-10-14 14:05
+---
+Chantier opérationnel one-off (restructuration de données du workspace Let's get married), pas du produit. Aucun code en cours. À rouvrir si le mariage reste une cible active.
+---
+<!-- COMMENTS:END -->

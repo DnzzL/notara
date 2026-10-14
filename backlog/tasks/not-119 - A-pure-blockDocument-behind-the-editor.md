@@ -1,10 +1,10 @@
 ---
 id: NOT-119
 title: A pure blockDocument behind the editor
-status: ready-for-agent
+status: wontfix
 assignee: []
 created_date: '2026-08-26 11:13'
-updated_date: '2026-09-01 17:20'
+updated_date: '2026-10-14 14:07'
 labels:
   - enhancement
 dependencies:
@@ -60,3 +60,13 @@ Caveat on AC #1: mergeBlocks still calls extractInlineHTML, which uses DOMParser
 
 Not touched in this slice (remaining AC #2-7): the extension-as-key-mapper, the per-page focus session replacing the 3 window events + focus singleton, the single block-list writer/reconciliation path, migrating the two tests that copy implementation, the NOT-96 regression test at the module level, and e2e verification. Follow-up filed on the fleet backlog.
 <!-- SECTION:NOTES:END -->
+
+## Comments
+
+<!-- COMMENTS:BEGIN -->
+author: @agent
+created: 2026-10-14 14:07
+---
+Won't do : antérieur à la bascule agent-first (backlog humains/agents, NOT-148..157).
+---
+<!-- COMMENTS:END -->

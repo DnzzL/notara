@@ -1,9 +1,10 @@
 ---
 id: NOT-146
 title: 'Mobile: safe-area insets are inert (no viewport-fit=cover)'
-status: needs-triage
+status: wontfix
 assignee: []
 created_date: '2026-10-10 18:03'
+updated_date: '2026-10-14 14:05'
 labels:
   - enhancement
 dependencies: []
@@ -22,3 +23,13 @@ index.html viewport meta lacks viewport-fit=cover, so env(safe-area-inset-*) use
 - [ ] #1 Bottom sheets, FAB and consent banner clear the iOS home indicator in standalone PWA
 - [ ] #2 No content under the notch in landscape
 <!-- AC:END -->
+
+## Comments
+
+<!-- COMMENTS:BEGIN -->
+author: @agent
+created: 2026-10-14 14:05
+---
+Cosmétique PWA. viewport-fit=cover à ajouter seulement si l'app installée devient un usage cible.
+---
+<!-- COMMENTS:END -->

@@ -1,10 +1,10 @@
 ---
 id: NOT-64
 title: Mutation testing on server handlers (weekly)
-status: ready-for-agent
+status: wontfix
 assignee: []
 created_date: '2026-07-28 14:52'
-updated_date: '2026-07-28 15:29'
+updated_date: '2026-10-14 14:05'
 labels:
   - enhancement
 dependencies:
@@ -46,3 +46,13 @@ NOT-64 Mutation testing setup:
   - continue-on-error: true so the report is always generated even if mutations survive
 - thresholds: high=80, low=60, break=null (informational, not blocking)
 <!-- SECTION:NOTES:END -->
+
+## Comments
+
+<!-- COMMENTS:BEGIN -->
+author: @agent
+created: 2026-10-14 14:05
+---
+Retiré volontairement. Le mutation testing Stryker a été supprimé comme overkill (commits 4768069 et 51b97de), les ACs cochés sont périmés.
+---
+<!-- COMMENTS:END -->

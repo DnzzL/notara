@@ -1,9 +1,10 @@
 ---
 id: NOT-127
 title: Does the todo markdown shortcut actually work?
-status: needs-triage
+status: wontfix
 assignee: []
 created_date: '2026-08-27 15:30'
+updated_date: '2026-10-14 14:07'
 labels:
   - bug
 dependencies: []
@@ -31,3 +32,13 @@ Consequence either way: the todo half of the NOT-96 fix has no automated coverag
 - [ ] #2 If it is a product defect, typing the shortcut creates a todo
 - [ ] #3 If it is a harness artifact, the todo split has an e2e that genuinely exercises the todo branch
 <!-- AC:END -->
+
+## Comments
+
+<!-- COMMENTS:BEGIN -->
+author: @agent
+created: 2026-10-14 14:07
+---
+Won't do : antérieur à la bascule agent-first (backlog humains/agents, NOT-148..157).
+---
+<!-- COMMENTS:END -->

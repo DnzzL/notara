@@ -1,10 +1,10 @@
 ---
 id: NOT-69
 title: 'Biome: lint + format enforcement'
-status: ready-for-agent
+status: wontfix
 assignee: []
 created_date: '2026-07-28 14:52'
-updated_date: '2026-07-28 15:15'
+updated_date: '2026-10-14 14:07'
 labels:
   - enhancement
 dependencies:
@@ -44,3 +44,13 @@ Biome setup:
 - Added biome ci to CI workflow
 - Set up pre-commit hook (biome check --write --unsafe) and pre-push hook (biome ci)
 <!-- SECTION:NOTES:END -->
+
+## Comments
+
+<!-- COMMENTS:BEGIN -->
+author: @agent
+created: 2026-10-14 14:07
+---
+Won't do : antérieur à la bascule agent-first (backlog humains/agents, NOT-148..157).
+---
+<!-- COMMENTS:END -->

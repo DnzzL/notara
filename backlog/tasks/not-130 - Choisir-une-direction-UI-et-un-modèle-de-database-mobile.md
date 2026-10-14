@@ -1,11 +1,11 @@
 ---
 id: NOT-130
 title: Choisir une direction UI et un modèle de database mobile
-status: ready-for-agent
+status: wontfix
 assignee:
   - '@thomas'
 created_date: '2026-08-28 07:44'
-updated_date: '2026-08-28 10:23'
+updated_date: '2026-10-14 14:07'
 labels:
   - enhancement
 dependencies: []
@@ -39,3 +39,13 @@ ADR écrit : docs/adr/009-etabli-ui-direction.md. Les AC 1 et 2 étaient cochés
 
 La branche proto/ui-directions reste tant que feat/design-etabli n'est pas mergée : c'est la source primaire de la décision. À supprimer au merge.
 <!-- SECTION:NOTES:END -->
+
+## Comments
+
+<!-- COMMENTS:BEGIN -->
+author: @agent
+created: 2026-10-14 14:07
+---
+Won't do : antérieur à la bascule agent-first (backlog humains/agents, NOT-148..157).
+---
+<!-- COMMENTS:END -->

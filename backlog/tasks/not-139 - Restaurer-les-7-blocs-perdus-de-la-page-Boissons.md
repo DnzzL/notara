@@ -1,9 +1,10 @@
 ---
 id: NOT-139
 title: Restaurer les 7 blocs perdus de la page Boissons
-status: needs-info
+status: wontfix
 assignee: []
 created_date: '2026-08-30 18:49'
+updated_date: '2026-10-14 14:07'
 labels:
   - bug
 dependencies: []
@@ -23,3 +24,13 @@ La page Boissons (01KVGF4W1F7XC8RZ7CTK8YEYTP, workspace Let's get married) a per
 - [ ] #2 Si oui : extraire les blocs de page_id=01KVGF4W1F7XC8RZ7CTK8YEYTP depuis le SQLite de l'archive et les reinserer via l'API, sans toucher au reste de l'instance
 - [ ] #3 Si non : le documenter et fermer
 <!-- AC:END -->
+
+## Comments
+
+<!-- COMMENTS:BEGIN -->
+author: @agent
+created: 2026-10-14 14:07
+---
+Won't do : antérieur à la bascule agent-first (backlog humains/agents, NOT-148..157).
+---
+<!-- COMMENTS:END -->
