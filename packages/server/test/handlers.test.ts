@@ -410,6 +410,8 @@ describe("Blocks CRUD", () => {
 			const updated = await Blocks.updateBlock({
 				id: block.id,
 				content: "Updated!",
+				workspaceId: "ws",
+				actorUserId: "ann",
 			}).pipe(Effect.provide(TestDbLayer(filename)), Effect.runPromise);
 			expect(updated.content).toBe("Updated!");
 		} finally {
@@ -541,6 +543,8 @@ describe("Blocks CRUD", () => {
 				id: block.id,
 				content: "<h1>Hello</h1>",
 				type: "heading1",
+				workspaceId: "ws",
+				actorUserId: "ann",
 			}).pipe(Effect.provide(TestDbLayer(filename)), Effect.runPromise);
 			expect(updated.type).toBe("heading1");
 			expect(updated.content).toBe("<h1>Hello</h1>");
@@ -577,6 +581,8 @@ describe("Blocks CRUD", () => {
 			const updated = await Blocks.updateBlock({
 				id: block.id,
 				content: "<h1>Updated Title</h1>",
+				workspaceId: "ws",
+				actorUserId: "ann",
 			}).pipe(Effect.provide(TestDbLayer(filename)), Effect.runPromise);
 			expect(updated.type).toBe("heading1");
 			expect(updated.content).toBe("<h1>Updated Title</h1>");
@@ -605,6 +611,8 @@ describe("Blocks CRUD", () => {
 				id: block.id,
 				content: "<blockquote>New</blockquote>",
 				type: "blockquote",
+				workspaceId: "ws",
+				actorUserId: "ann",
 			}).pipe(Effect.provide(TestDbLayer(filename)), Effect.runPromise);
 			expect(updated.type).toBe("blockquote");
 			expect(updated.content).toBe("<blockquote>New</blockquote>");

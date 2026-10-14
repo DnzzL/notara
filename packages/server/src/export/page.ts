@@ -119,6 +119,9 @@ export function tickCriterion(req: {
 	pageId: string | null;
 	id: string;
 	checked: boolean;
+	workspaceId: string;
+	/** Whose tick this is: other viewers are told, this one is not. */
+	actorUserId: string;
 }) {
 	return Effect.gen(function* () {
 		const missing = () => new NotFoundError({ resource: "block", id: req.id });
@@ -130,7 +133,12 @@ export function tickCriterion(req: {
 		const content =
 			block && setTodoChecked(block.content, Number(n), req.checked);
 		if (!content) return yield* missing();
-		yield* updateBlock({ id: blockId, content });
+		yield* updateBlock({
+			id: blockId,
+			content,
+			workspaceId: req.workspaceId,
+			actorUserId: req.actorUserId,
+		});
 		return { id: req.id, ...todoItems(content)[Number(n)] };
 	});
 }

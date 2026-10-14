@@ -9,6 +9,7 @@ import * as Blocks from "../src/handlers/blocks.js";
 import * as Databases from "../src/handlers/databases.js";
 import * as Pages from "../src/handlers/pages.js";
 import * as Permissions from "../src/handlers/permissions.js";
+import { presence } from "../src/presence/index.js";
 import { restWorkspace, WORKSPACE } from "./rest-harness.js";
 
 const backlog = (api: ReturnType<typeof restWorkspace>) =>
@@ -218,6 +219,38 @@ describe("updating a card's fields in one call", () => {
 
 describe("adding criteria to a card that exists", () => {
 	const criteriaOf = (dbId: string) => `${records(dbId)}/NOT-1/criteria`;
+
+	test("a criterion ticked here reaches the other viewers, not the ticker", async () => {
+		using api = restWorkspace();
+		const { db } = await backlog(api);
+		await api.call("POST", records(db.id), {
+			key: "write",
+			body: { title: "t", criteria: ["first"] },
+		});
+		const card = (
+			await api.call("GET", `${records(db.id)}/NOT-1`, { key: "read" })
+		).json;
+		const watch = (user: string) => {
+			const types: string[] = [];
+			const stop = presence.subscribe(WORKSPACE, card.pageId, user, (e) =>
+				types.push(e.type),
+			);
+			return { types, stop };
+		};
+		// The write key is ann's: she is the actor, bob is the other viewer.
+		const ann = watch("ann");
+		const bob = watch("bob");
+		const res = await api.call(
+			"PUT",
+			`${records(db.id)}/NOT-1/criteria/${card.criteria[0].id}`,
+			{ key: "write", body: { checked: true } },
+		);
+		ann.stop();
+		bob.stop();
+		expect(res.status).toBe(200);
+		expect(bob.types).toContain("block.updated");
+		expect(ann.types).not.toContain("block.updated");
+	});
 
 	test("appended after the ones it has, under the one heading", async () => {
 		using api = restWorkspace();

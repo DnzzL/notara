@@ -90,8 +90,8 @@ point at the runner's CLI; Backlog.md is retired.
 - `fragile` — a member removed from a workspace keeps their mention rows on old comments;
   the inbox ignores them (no access), nothing else reads them yet.
 - `not tested` — no browser run of the settings UI.
-- `not done` — a criterion ticked over REST reaches an open editor only on reload.
 - `not done` — the fields at the top of a record's page reach another open viewer only on reload.
+  (A criterion ticked over REST does not: the block broadcast lives in `Blocks.updateBlock`.)
 - `fragile` — a criterion id (`<blockId>:<n>`) shifts if its to-do block is restructured.
 - `fragile` — a people, relation or page value is checked for shape only, not that its ids exist.
 - `not done` — on a public share an artifact is a link, and opening it downloads it.

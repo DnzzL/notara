@@ -283,16 +283,13 @@ export const rpcHandlersLayer = AppRpc.toLayer({
 						);
 					}
 				}
-				const block = yield* Blocks.updateBlock(req);
-				if (pageId) {
-					presence.broadcast(workspaceId, pageId, {
-						type: "block.updated",
-						actorUserId: userId,
-						blockId: req.id,
-						content: req.content,
-					});
-				}
-				return block;
+				// The broadcast lives in Blocks.updateBlock now: every writer passes
+				// through it, so a criterion ticked over REST is announced too.
+				return yield* Blocks.updateBlock({
+					...req,
+					workspaceId,
+					actorUserId: userId,
+				});
 			}),
 		).pipe(dieUnlessApiError),
 	deleteBlock: ({ id }) =>

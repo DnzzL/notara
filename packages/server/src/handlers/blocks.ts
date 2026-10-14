@@ -3,6 +3,7 @@ import { Effect } from "effect";
 import { SqlClient } from "effect/sql";
 import { ulid } from "ulidx";
 import { BLOCK_COLS, blockFromRow } from "../mappers.js";
+import { presence } from "../presence/index.js";
 
 /**
  * THE BLOCK CONTENT CONTRACT — one shape, both API surfaces.
@@ -96,6 +97,9 @@ export const updateBlock = (req: {
 	id: string;
 	content: string;
 	type?: string;
+	workspaceId: string;
+	/** Whose edit this is: other viewers are told, this one is not. */
+	actorUserId: string;
 }) =>
 	Effect.gen(function* () {
 		const sql = yield* SqlClient.SqlClient;
@@ -110,7 +114,19 @@ export const updateBlock = (req: {
       `;
 		if (rows.length === 0)
 			return yield* new NotFoundError({ resource: "block", id: req.id });
-		return blockFromRow(rows[0]);
+		const block = blockFromRow(rows[0]);
+		// Announced from here, not from the RPC adapter. It used to live there,
+		// so a writer that called this function directly — ticking a criterion
+		// over REST — changed the row and reached no open editor at all.
+		const pageId = yield* getBlockPageId(req.id);
+		if (pageId)
+			presence.broadcast(req.workspaceId, pageId, {
+				type: "block.updated",
+				actorUserId: req.actorUserId,
+				blockId: req.id,
+				content: req.content,
+			});
+		return block;
 	});
 
 export const deleteBlock = (id: string) =>

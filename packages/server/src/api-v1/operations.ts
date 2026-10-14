@@ -600,6 +600,8 @@ export const blockOperations: readonly Operation[] = [
 				const block = yield* Blocks.updateBlock({
 					id: blockId,
 					content: yield* requireBlockContent(b.content),
+					workspaceId: ctx.workspaceId,
+					actorUserId: ctx.userId,
 				}).pipe(Effect.mapError(() => notFound("Block", blockId)));
 				return ok(block);
 			}),
@@ -1426,9 +1428,13 @@ export const recordOperations: readonly Operation[] = [
 					);
 				const { pageId } = yield* recordOf(ctx);
 				return ok(
-					yield* tickCriterion({ pageId, id, checked }).pipe(
-						Effect.mapError(() => notFound("Criterion", id)),
-					),
+					yield* tickCriterion({
+						pageId,
+						id,
+						checked,
+						workspaceId: ctx.workspaceId,
+						actorUserId: ctx.userId,
+					}).pipe(Effect.mapError(() => notFound("Criterion", id))),
 				);
 			}),
 		openapi: {
