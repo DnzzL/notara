@@ -34,3 +34,6 @@ plans/
 # Playwright run artifacts
 test-results/
 playwright-report/
+
+# devenv shell state (caches, logs). devenv.lock IS committed.
+.devenv/

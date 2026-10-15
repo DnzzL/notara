@@ -1,0 +1,9 @@
+# yaml-language-server: $schema=https://devenv.sh/devenv.schema.json
+#
+# devenv's own tested nixpkgs channel. `devenv.lock` pins the exact revision,
+# so bumping this line and running `devenv update` is the only way the
+# toolchain moves. Rolling carries bun 1.4.2, which is the version this repo's
+# `bun.lock` was written by.
+inputs:
+  nixpkgs:
+    url: github:cachix/devenv-nixpkgs/rolling
