@@ -1,7 +1,12 @@
 import {
 	ConflictError,
+	type DatabaseRecord,
+	type FilterOperator,
 	fieldTypeSpec,
+	matchesFilter,
 	NotFoundError,
+	normaliseFilterOperator,
+	normaliseSortDirection,
 	TrashContents,
 	TrashedDatabase,
 	TrashedPage,
@@ -256,6 +261,27 @@ export const listRecordsWithValues = (databaseId: string) =>
 		}));
 	});
 
+/** A sort a saved view stores: which field, and which way. */
+export interface ViewSort {
+	fieldId: string;
+	direction: "asc" | "desc";
+}
+
+/**
+ * The records of `databaseId` that satisfy every filter, each naming a field by
+ * id or by name and an operator from that field type's registry. An unknown
+ * field, or an operator the field type does not offer, is refused naming it.
+ * `sorts` orders the result, first sort first. `q`, when given, narrows the
+ * result by text.
+ */
+export const listRecordsFiltered = (
+	databaseId: string,
+	filters: ReadonlyArray<{ field: string; operator: string; value: string }>,
+	equality: ReadonlyArray<{ field: string; value: string }> = [],
+	sorts: ReadonlyArray<ViewSort> = [],
+	q: string | null = null,
+) => recordsSatisfying(databaseId, equality, filters, sorts, q);
+
 /**
  * The records of `databaseId` whose fields hold every `{ field, value }` asked
  * for. A field is named by id, else by name; one the database does not have is
@@ -263,60 +289,210 @@ export const listRecordsWithValues = (databaseId: string) =>
  * (multiSelect, people, relation, page) matches when it contains the value; a
  * number matches numerically; a checkbox never ticked is `false`; an empty
  * value matches an empty field, lists included.
+ *
+ * Evaluation is @notara/shared's one evaluator, the same the app's query bar
+ * runs, so equality here and a saved view there cannot drift.
  */
 export const listRecordsMatching = (
 	databaseId: string,
 	filters: ReadonlyArray<{ field: string; value: string }>,
+	q: string | null = null,
+) => recordsSatisfying(databaseId, filters, [], [], q);
+
+/** A decoded cell as searchable text: a list and an object are flattened, so a
+ *  multi-value field is searched on each of its entries, not on its JSON. */
+const valueAsText = (value: unknown): string => {
+	if (value === null || value === undefined) return "";
+	if (Array.isArray(value)) return value.map(valueAsText).join(" ");
+	if (typeof value === "object")
+		return Object.values(value).map(valueAsText).join(" ");
+	return String(value);
+};
+
+/**
+ * `records` narrowed to those whose text contains `needle`, case-insensitively.
+ *
+ * The text is the record's decoded field values plus the content of the blocks
+ * on its page — the record's own body and criteria, the same text its page
+ * renders. A record never opened as a page has no blocks and is searched on its
+ * field values alone.
+ *
+ * A case-insensitive substring test, not a search engine: no ranking, no
+ * relevance, no word algebra — a one-line `q` is a filter the `filter=`
+ * operators could not express.
+ */
+const narrowByText = (
+	records: ReadonlyArray<{
+		record: DatabaseRecord;
+		values: Record<string, unknown>;
+	}>,
+	needle: string,
+) =>
+	Effect.gen(function* () {
+		const sql = yield* SqlClient.SqlClient;
+		const pageIds = records.flatMap(({ record }) =>
+			record.pageId ? [record.pageId] : [],
+		);
+		const blocks: ReadonlyArray<{ pageId: string; content: string }> =
+			pageIds.length === 0
+				? []
+				: yield* sql<{ pageId: string; content: string }>`
+            SELECT page_id as "pageId", content FROM blocks
+            WHERE page_id IN ${sql.in(pageIds)}
+          `;
+		const byPage = new Map<string, string>();
+		for (const b of blocks)
+			byPage.set(b.pageId, `${byPage.get(b.pageId) ?? ""}\n${b.content}`);
+
+		const want = needle.toLowerCase();
+		return records.filter(({ record, values }) =>
+			[
+				// The record's own name and description first: a card is addressed by its
+				// title, and a search that cannot find a card by the name written on it
+				// is a search that lies. `title` is a column of `database_records`, not a
+				// field value, so it is not in `values`.
+				record.title ?? "",
+				record.description ?? "",
+				...Object.values(values).map(valueAsText),
+				record.pageId ? (byPage.get(record.pageId) ?? "") : "",
+			]
+				.join("\n")
+				.toLowerCase()
+				.includes(want),
+		);
+	});
+
+const recordsSatisfying = (
+	databaseId: string,
+	equality: ReadonlyArray<{ field: string; value: string }>,
+	structured: ReadonlyArray<{ field: string; operator: string; value: string }>,
+	sorts: ReadonlyArray<ViewSort> = [],
+	q: string | null = null,
 ) =>
 	Effect.gen(function* () {
 		const records = yield* listRecordsWithValues(databaseId);
-		if (filters.length === 0) return records;
+		if (
+			equality.length === 0 &&
+			structured.length === 0 &&
+			sorts.length === 0 &&
+			q === null
+		)
+			return records;
 		const fields = yield* listFields(databaseId);
-		const wanted: Array<{ id: string; type: string; value: string }> = [];
-		for (const { field, value } of filters) {
-			const found =
-				fields.find((f) => f.id === field) ??
-				fields.find((f) => f.name === field);
+		const resolve = (name: string) =>
+			fields.find((f) => f.id === name) ?? fields.find((f) => f.name === name);
+
+		const wanted: Array<{
+			id: string;
+			type: string;
+			operator: FilterOperator;
+			value: string;
+		}> = [];
+
+		// The legacy pair is equality: `is`, on the decoded cell.
+		for (const { field, value } of equality) {
+			const found = resolve(field);
 			if (!found)
 				return yield* new ValidationError({
 					message: `This database has no field "${field}"`,
 				});
-			wanted.push({ id: found.id, type: found.type, value });
+			wanted.push({ id: found.id, type: found.type, operator: "is", value });
 		}
+
+		// A structured filter names an operator the field type must offer; one it
+		// does not is refused, naming the operator and the list it does offer.
+		for (const { field, operator, value } of structured) {
+			const found = resolve(field);
+			if (!found)
+				return yield* new ValidationError({
+					message: `This database has no field "${field}"`,
+				});
+			const offered = fieldTypeSpec(found.type).operators;
+			if (!offered.includes(operator as FilterOperator))
+				return yield* new ValidationError({
+					message: `The field "${found.name}" of type "${found.type}" does not offer the operator "${operator}"; it offers: ${offered.join(", ")}`,
+				});
+			wanted.push({
+				id: found.id,
+				type: found.type,
+				operator: operator as FilterOperator,
+				value,
+			});
+		}
+
+		// A sort names a field the database still has; one it does not is skipped
+		// as the app skips it, rather than refusing the whole query.
+		const sortSpecs = sorts.flatMap((s) => {
+			const field = fields.find((f) => f.id === s.fieldId);
+			return field
+				? [
+						{
+							fieldId: s.fieldId,
+							direction: s.direction,
+							spec: fieldTypeSpec(field.type),
+						},
+					]
+				: [];
+		});
+
 		// Read the cells by field id: `values` is keyed by name, and two fields
-		// may share one.
+		// may share one, so evaluating a filter or a sort against it would read the
+		// wrong cell. Filters and sorts both read the same `recordId:fieldId` key.
+		const wantedIds = [
+			...wanted.map((w) => w.id),
+			...sortSpecs.map((s) => s.fieldId),
+		];
 		const sql = yield* SqlClient.SqlClient;
-		const rows = yield* sql<{
-			recordId: string;
-			fieldId: string;
-			value: string;
-		}>`
+		const rows =
+			wantedIds.length === 0
+				? []
+				: yield* sql<{
+						recordId: string;
+						fieldId: string;
+						value: string;
+					}>`
       SELECT record_id as "recordId", field_id as "fieldId", value
-      FROM record_field_values WHERE field_id IN ${sql.in(wanted.map((w) => w.id))}
+      FROM record_field_values WHERE field_id IN ${sql.in(wantedIds)}
     `;
 		const cells = new Map(
 			rows.map((r) => [`${r.recordId}:${r.fieldId}`, r.value] as const),
 		);
-		const holds = (raw: string | undefined, type: string, value: string) => {
-			const cell =
-				raw === undefined
-					? type === "checkbox"
-						? false
-						: undefined
-					: decodeFieldValue(type, raw);
-			if (Array.isArray(cell))
-				return value === ""
-					? cell.length === 0
-					: cell.map(String).includes(value);
-			if (typeof cell === "number")
-				return value !== "" && Number(value) === cell;
-			return String(cell ?? "") === value;
-		};
-		return records.filter(({ record }) =>
-			wanted.every((w) =>
-				holds(cells.get(`${record.id}:${w.id}`), w.type, w.value),
-			),
+		const matched = records.filter(({ record }) =>
+			wanted.every((w) => {
+				const raw = cells.get(`${record.id}:${w.id}`);
+				const spec = fieldTypeSpec(w.type);
+				const cell =
+					raw === undefined
+						? spec.type === "checkbox"
+							? false
+							: undefined
+						: spec.decode(raw);
+				return matchesFilter(spec, w.operator, cell, w.value);
+			}),
 		);
+		// The order of operations, and the reason this file exists: gather →
+		// filter → search → sort → window. The search runs on the records the
+		// filters kept, and the window is taken by the caller only after this
+		// returns. Windowed first, a search would silently miss every match past
+		// the first page — a search that lies.
+		const searched = q === null ? matched : yield* narrowByText(matched, q);
+		if (sortSpecs.length === 0) return searched;
+
+		// Last sort to first, so the first has highest precedence — the same rule
+		// the app's `applySorts` uses. The cell is the stored value, which is what
+		// `compare` reads for every field type.
+		const result = [...searched];
+		for (let i = sortSpecs.length - 1; i >= 0; i--) {
+			const s = sortSpecs[i];
+			result.sort((a, b) => {
+				const cmp = s.spec.compare(
+					cells.get(`${a.record.id}:${s.fieldId}`) ?? "",
+					cells.get(`${b.record.id}:${s.fieldId}`) ?? "",
+				);
+				return s.direction === "desc" ? -cmp : cmp;
+			});
+		}
+		return result;
 	});
 
 export const getRecordWithValues = (recordId: string) =>
@@ -574,6 +750,100 @@ export const listViews = (databaseId: string) =>
       SELECT ${sql.unsafe(VIEW_COLS)} FROM database_views WHERE database_id = ${databaseId}
     `;
 		return rows.map(viewFromRow);
+	});
+
+/** A view's stored query, read back ready to evaluate. */
+export interface ViewQuery {
+	filters: Array<{ field: string; operator: string; value: string }>;
+	sorts: ViewSort[];
+}
+
+const EMPTY_VIEW_QUERY: ViewQuery = { filters: [], sorts: [] };
+
+/**
+ * Read a stored view's `config` into the filters and sorts it holds.
+ *
+ * A config that is empty, unparseable, or holds a malformed entry that names
+ * no field or operator reads as empty rather than throwing: a broken view
+ * shows every record, never an error and never an empty list. A view's filters
+ * hold a field **id**; evaluation reads cells by id so a name two fields share
+ * cannot select the wrong one.
+ *
+ * Legacy spellings are normalised by `@notara/shared`, the same table the app's
+ * `viewConfig` reads stored configurations through. Neither reader owns the
+ * spellings: a stored view holding `equals` or `order` must mean to an agent
+ * exactly what it means in the app, or the whole point of addressing it is lost.
+ */
+const readViewQuery = (config: string | null | undefined): ViewQuery => {
+	if (!config) return EMPTY_VIEW_QUERY;
+	let parsed: unknown;
+	try {
+		parsed = JSON.parse(config);
+	} catch {
+		return EMPTY_VIEW_QUERY;
+	}
+	const c = parsed as { filters?: unknown; sorts?: unknown } | null;
+	if (!c || typeof c !== "object") return EMPTY_VIEW_QUERY;
+
+	const filters = Array.isArray(c.filters)
+		? c.filters.flatMap((raw) => {
+				if (!raw || typeof raw !== "object") return [];
+				const f = raw as Record<string, unknown>;
+				if (typeof f.fieldId !== "string" || typeof f.operator !== "string")
+					return [];
+				return [
+					{
+						field: f.fieldId,
+						operator: normaliseFilterOperator(f.operator),
+						value: String(f.value ?? ""),
+					},
+				];
+			})
+		: [];
+
+	const sorts: ViewSort[] = Array.isArray(c.sorts)
+		? c.sorts.flatMap((raw) => {
+				if (!raw || typeof raw !== "object") return [];
+				const s = raw as Record<string, unknown>;
+				if (typeof s.fieldId !== "string") return [];
+				return [
+					{
+						fieldId: s.fieldId,
+						direction: normaliseSortDirection(s.direction ?? s.order),
+					},
+				];
+			})
+		: [];
+
+	return { filters, sorts };
+};
+
+/**
+ * The view of `databaseId` a caller addressed by id or by name, with the query
+ * it stores.
+ *
+ * An id wins outright. A name is matched case-insensitively and within this
+ * database only; a name no view holds is refused naming it, and a name two
+ * views share (differing only by case) is refused naming the candidates rather
+ * than silently picking one.
+ */
+export const resolveView = (databaseId: string, ref: string) =>
+	Effect.gen(function* () {
+		const views = yield* listViews(databaseId);
+		const byId = views.find((v) => v.id === ref);
+		if (byId) return readViewQuery(byId.config);
+
+		const needle = ref.toLowerCase();
+		const named = views.filter((v) => v.name.toLowerCase() === needle);
+		if (named.length === 0)
+			return yield* new NotFoundError({ resource: "view", id: ref });
+		if (named.length > 1)
+			return yield* new ConflictError({
+				message: `The view name "${ref}" is ambiguous in this database; it names ${named
+					.map((v) => `"${v.name}" (${v.id})`)
+					.join(", ")}`,
+			});
+		return readViewQuery(named[0].config);
 	});
 
 export const updateField = (req: {

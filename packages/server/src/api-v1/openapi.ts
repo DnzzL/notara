@@ -183,6 +183,31 @@ const schemas = {
 		},
 	},
 
+	DatabaseView: {
+		type: "object",
+		required: ["id", "databaseId", "name", "type", "config", "isDefault"],
+		properties: {
+			id: { type: "string" },
+			databaseId: { type: "string" },
+			name: { type: "string", example: "Grid" },
+			type: {
+				type: "string",
+				enum: ["table", "board", "calendar"],
+				example: "table",
+			},
+			groupByFieldId: { type: "string", nullable: true },
+			sortFieldId: { type: "string", nullable: true },
+			sortOrder: { type: "string", enum: ["asc", "desc"] },
+			config: {
+				type: "string",
+				description:
+					"Stored JSON: `{filters, sorts, boardHidden}`. A filter holds a field **id**, not its name.",
+				example: '{"filters":[],"sorts":[],"boardHidden":[]}',
+			},
+			isDefault: { type: "boolean" },
+		},
+	},
+
 	DatabaseField: {
 		type: "object",
 		required: ["id", "databaseId", "name", "type"],
@@ -267,6 +292,25 @@ const schemas = {
 				description: "Map of field names to their values for this record",
 				additionalProperties: { type: "string" },
 				example: { Status: "In progress", Priority: "High" },
+			},
+		},
+	},
+
+	RecordPage: {
+		type: "object",
+		required: ["records", "nextCursor"],
+		description:
+			"A bounded window of records, returned only when the request sends `limit`; without it the response is a bare array of DatabaseRecord.",
+		properties: {
+			records: {
+				type: "array",
+				items: { $ref: "#/components/schemas/DatabaseRecord" },
+			},
+			nextCursor: {
+				type: "string",
+				nullable: true,
+				description:
+					"Continuation for the next window: pass it back as `offset` to read the following records, no gap and no repeat. Its content is opaque — do not parse it. `null` once this window reaches the end of the records.",
 			},
 		},
 	},

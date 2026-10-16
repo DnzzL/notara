@@ -11,7 +11,7 @@ Every call takes \`Authorization: Bearer ntr_…\` (a key from the sidebar → A
 
 ## A card's cycle
 
-1. Find work: \`GET /databases/<dbId>/records?field=Status&value=ready-for-agent\` — repeat \`field\`/\`value\` pairs to AND them; fields by name or id.
+1. Find work: \`GET /databases/<dbId>/records?field=Status&value=ready-for-agent\` — repeat \`field\`/\`value\` pairs to AND them; fields by name or id. A big database answers in one bare array; add \`limit=50\` for \`{records, nextCursor}\`, then pass \`nextCursor\` back as \`offset\` until it is \`null\`. Narrow with \`q=text\`, anything in the cards' fields or page bodies: it searches before the window, so the match on the last page is found in one call, not by walking the pages.
 2. Read the card: \`GET /databases/<dbId>/records/NOT-12\` → \`fields\`, \`body\` (its page as markdown), \`criteria\` (\`[{id, text, checked}]\`).
 3. Read and write its thread: \`GET /databases/<dbId>/records/NOT-12/comments\`, \`POST /databases/<dbId>/records/NOT-12/comments\` with \`{"body": "@ann which locale?"}\`. Markdown; \`@handle\` notifies a member.
 4. Tick a criterion: \`PUT /databases/<dbId>/records/NOT-12/criteria/<criterionId>\` with \`{"checked": true}\`.
@@ -19,6 +19,8 @@ Every call takes \`Authorization: Bearer ntr_…\` (a key from the sidebar → A
 6. File follow-up work: \`POST /databases/<dbId>/records\` with \`{"title": "…", "fields": {"Status": "needs-triage"}, "body": "markdown", "criteria": ["…"]}\`.
 
 To learn a database's fields and their options: \`GET /databases/<dbId>/fields\`.
+
+A **view** is a saved query a person and an agent can both point at: \`GET /databases/<dbId>/views\` lists a database's views, and \`?view=<name>\` (or its id) on the records call returns exactly the records that view shows, in its order. A name is matched without case; a name two views share is refused, naming them, never guessed. Add \`q=text\` to any of these calls to narrow further by text.
 
 ## Artifacts
 

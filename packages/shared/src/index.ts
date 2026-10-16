@@ -3,4 +3,5 @@ export * from "./client.js";
 export * from "./errors.js";
 export * from "./field-types.js";
 export * from "./markdown.js";
+export * from "./query.js";
 export * from "./schema.js";
