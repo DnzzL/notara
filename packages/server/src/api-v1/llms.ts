@@ -20,6 +20,8 @@ Every call takes \`Authorization: Bearer ntr_…\` (a key from the sidebar → A
 
 To learn a database's fields and their options: \`GET /databases/<dbId>/fields\`.
 
+A **view** is a saved query a person and an agent can both point at: \`GET /databases/<dbId>/views\` lists a database's views, and \`?view=<name>\` (or its id) on the records call returns exactly the records that view shows, in its order. A name is matched without case; a name two views share is refused, naming them, never guessed.
+
 ## Artifacts
 
 Attach an HTML report to a card: \`POST /databases/<dbId>/records/NOT-12/artifacts?name=report.html\` with the HTML as the body → \`{id, url, blockedHosts}\`; attaching the same name again replaces it, as does \`PUT /artifacts/<id>\`. At most 5 MB.

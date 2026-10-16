@@ -823,6 +823,41 @@ export const databaseOperations: readonly Operation[] = [
 			},
 		},
 	},
+	{
+		method: "GET",
+		path: "/api/v1/workspaces/:workspaceId/databases/:dbId/views",
+		operationId: "listDatabaseViews",
+		tag: "Databases",
+		pathParams: [dbParam],
+		checkPermission: (ctx) =>
+			Effect.gen(function* () {
+				const dbId = yield* requireParam(ctx.params, "dbId");
+				yield* Permissions.checkDatabasePermission(
+					ctx.userId,
+					ctx.workspaceId,
+					dbId,
+					"viewer",
+				);
+			}),
+		run: (ctx) =>
+			Effect.gen(function* () {
+				const dbId = yield* requireParam(ctx.params, "dbId");
+				const views = yield* Databases.listViews(dbId);
+				return ok(views);
+			}),
+		openapi: {
+			summary: "List a database's saved views",
+			description:
+				"Each view's `id`, `name`, `type`, stored `config` and whether it is the default. Address one on the records route with `?view=<name|id>` to read exactly the records it shows, in its order. A database may have no views: the response is then an empty array.",
+			responses: {
+				200: jsonResponse("Views", {
+					type: "array",
+					items: jsonSchema("DatabaseView"),
+				}),
+				...errorResponses,
+			},
+		},
+	},
 ];
 
 // ── Fields ─────────────────────────────────────────────────────────────────────
@@ -1046,10 +1081,18 @@ export const recordOperations: readonly Operation[] = [
 					field,
 					value: values[i],
 				}));
+				// A named view contributes its stored filters and sorts; they AND with
+				// everything the caller passed. An unknown view is a 404 naming it, an
+				// ambiguous name a 409 naming the candidates.
+				const viewRef = yield* queryParam("view");
+				const view = viewRef
+					? yield* Databases.resolveView(dbId, viewRef)
+					: { filters: [], sorts: [] };
+				const filters = [...structured, ...view.filters];
 				// `{ record, values }`, where `values` is already a field-name →
 				// parsed-value map. Flattened below for REST consumers.
-				const raw = yield* structured.length > 0
-					? Databases.listRecordsFiltered(dbId, structured, equality)
+				const raw = yield* filters.length > 0 || view.sorts.length > 0
+					? Databases.listRecordsFiltered(dbId, filters, equality, view.sorts)
 					: Databases.listRecordsMatching(dbId, equality);
 				const records = (
 					raw as Array<{ record: any; values: Record<string, unknown> }>
@@ -1068,7 +1111,7 @@ export const recordOperations: readonly Operation[] = [
 		openapi: {
 			summary: "List records in a database",
 			description:
-				"Keep only matching records, two ways that combine with AND. Pass `field`/`value` pairs for equality: `?field=Status&value=done`. Pass repeated `filter=field:operator:value` for an operator the field type offers: `?filter=Status:is_not:done&filter=Points:gt:4`. A field is named by id, else by name. Matching is on the decoded value and is case-insensitive for text, select, date and multi-value cells: a multi-value field (multiSelect, people, relation, page — the last three hold ids) matches on membership; a number matches numerically; a checkbox never ticked is `false`; an empty value matches an empty field, an empty list included.",
+				"Keep only matching records, three ways that combine with AND. Pass `field`/`value` pairs for equality: `?field=Status&value=done`. Pass repeated `filter=field:operator:value` for an operator the field type offers: `?filter=Status:is_not:done&filter=Points:gt:4`. Pass `view=<name|id>` to read exactly what a saved view shows, in that view's order: its stored filters join the others (AND) and its sorts are applied, first sort first. A field is named by id, else by name. An unknown view is a `404` naming it; a view name two views share (differing only by case) is a `409` naming the candidates. Matching is on the decoded value and is case-insensitive for text, select, date and multi-value cells: a multi-value field (multiSelect, people, relation, page — the last three hold ids) matches on membership; a number matches numerically; a checkbox never ticked is `false`; an empty value matches an empty field, an empty list included.",
 			parameters: [
 				{
 					name: "field",
@@ -1097,6 +1140,14 @@ export const recordOperations: readonly Operation[] = [
 					explode: true,
 					description:
 						"`field:operator:value`; repeat to AND several. Shape `field:operator:value`, the operator from the field type's list",
+				},
+				{
+					name: "view",
+					in: "query" as const,
+					required: false,
+					schema: { type: "string" },
+					description:
+						"A saved view's id or name; case-insensitive name, within this database. Its filters join the others (AND) and its sorts order the result. Unknown → 404, ambiguous name → 409.",
 				},
 			],
 			responses: {

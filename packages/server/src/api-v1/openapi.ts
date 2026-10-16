@@ -183,6 +183,31 @@ const schemas = {
 		},
 	},
 
+	DatabaseView: {
+		type: "object",
+		required: ["id", "databaseId", "name", "type", "config", "isDefault"],
+		properties: {
+			id: { type: "string" },
+			databaseId: { type: "string" },
+			name: { type: "string", example: "Grid" },
+			type: {
+				type: "string",
+				enum: ["table", "board", "calendar"],
+				example: "table",
+			},
+			groupByFieldId: { type: "string", nullable: true },
+			sortFieldId: { type: "string", nullable: true },
+			sortOrder: { type: "string", enum: ["asc", "desc"] },
+			config: {
+				type: "string",
+				description:
+					"Stored JSON: `{filters, sorts, boardHidden}`. A filter holds a field **id**, not its name.",
+				example: '{"filters":[],"sorts":[],"boardHidden":[]}',
+			},
+			isDefault: { type: "boolean" },
+		},
+	},
+
 	DatabaseField: {
 		type: "object",
 		required: ["id", "databaseId", "name", "type"],

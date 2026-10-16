@@ -258,16 +258,24 @@ export const listRecordsWithValues = (databaseId: string) =>
 		}));
 	});
 
+/** A sort a saved view stores: which field, and which way. */
+export interface ViewSort {
+	fieldId: string;
+	direction: "asc" | "desc";
+}
+
 /**
  * The records of `databaseId` that satisfy every filter, each naming a field by
  * id or by name and an operator from that field type's registry. An unknown
  * field, or an operator the field type does not offer, is refused naming it.
+ * `sorts` orders the result, first sort first.
  */
 export const listRecordsFiltered = (
 	databaseId: string,
 	filters: ReadonlyArray<{ field: string; operator: string; value: string }>,
 	equality: ReadonlyArray<{ field: string; value: string }> = [],
-) => recordsSatisfying(databaseId, equality, filters);
+	sorts: ReadonlyArray<ViewSort> = [],
+) => recordsSatisfying(databaseId, equality, filters, sorts);
 
 /**
  * The records of `databaseId` whose fields hold every `{ field, value }` asked
@@ -289,10 +297,12 @@ const recordsSatisfying = (
 	databaseId: string,
 	equality: ReadonlyArray<{ field: string; value: string }>,
 	structured: ReadonlyArray<{ field: string; operator: string; value: string }>,
+	sorts: ReadonlyArray<ViewSort> = [],
 ) =>
 	Effect.gen(function* () {
 		const records = yield* listRecordsWithValues(databaseId);
-		if (equality.length === 0 && structured.length === 0) return records;
+		if (equality.length === 0 && structured.length === 0 && sorts.length === 0)
+			return records;
 		const fields = yield* listFields(databaseId);
 		const resolve = (name: string) =>
 			fields.find((f) => f.id === name) ?? fields.find((f) => f.name === name);
@@ -335,21 +345,44 @@ const recordsSatisfying = (
 			});
 		}
 
+		// A sort names a field the database still has; one it does not is skipped
+		// as the app skips it, rather than refusing the whole query.
+		const sortSpecs = sorts.flatMap((s) => {
+			const field = fields.find((f) => f.id === s.fieldId);
+			return field
+				? [
+						{
+							fieldId: s.fieldId,
+							direction: s.direction,
+							spec: fieldTypeSpec(field.type),
+						},
+					]
+				: [];
+		});
+
 		// Read the cells by field id: `values` is keyed by name, and two fields
-		// may share one, so evaluating against it would compare the wrong cell.
+		// may share one, so evaluating a filter or a sort against it would read the
+		// wrong cell. Filters and sorts both read the same `recordId:fieldId` key.
+		const wantedIds = [
+			...wanted.map((w) => w.id),
+			...sortSpecs.map((s) => s.fieldId),
+		];
 		const sql = yield* SqlClient.SqlClient;
-		const rows = yield* sql<{
-			recordId: string;
-			fieldId: string;
-			value: string;
-		}>`
+		const rows =
+			wantedIds.length === 0
+				? []
+				: yield* sql<{
+						recordId: string;
+						fieldId: string;
+						value: string;
+					}>`
       SELECT record_id as "recordId", field_id as "fieldId", value
-      FROM record_field_values WHERE field_id IN ${sql.in(wanted.map((w) => w.id))}
+      FROM record_field_values WHERE field_id IN ${sql.in(wantedIds)}
     `;
 		const cells = new Map(
 			rows.map((r) => [`${r.recordId}:${r.fieldId}`, r.value] as const),
 		);
-		return records.filter(({ record }) =>
+		const matched = records.filter(({ record }) =>
 			wanted.every((w) => {
 				const raw = cells.get(`${record.id}:${w.id}`);
 				const spec = fieldTypeSpec(w.type);
@@ -362,6 +395,23 @@ const recordsSatisfying = (
 				return matchesFilter(spec, w.operator, cell, w.value);
 			}),
 		);
+		if (sortSpecs.length === 0) return matched;
+
+		// Last sort to first, so the first has highest precedence — the same rule
+		// the app's `applySorts` uses. The cell is the stored value, which is what
+		// `compare` reads for every field type.
+		const result = [...matched];
+		for (let i = sortSpecs.length - 1; i >= 0; i--) {
+			const s = sortSpecs[i];
+			result.sort((a, b) => {
+				const cmp = s.spec.compare(
+					cells.get(`${a.record.id}:${s.fieldId}`) ?? "",
+					cells.get(`${b.record.id}:${s.fieldId}`) ?? "",
+				);
+				return s.direction === "desc" ? -cmp : cmp;
+			});
+		}
+		return result;
 	});
 
 export const getRecordWithValues = (recordId: string) =>
@@ -619,6 +669,100 @@ export const listViews = (databaseId: string) =>
       SELECT ${sql.unsafe(VIEW_COLS)} FROM database_views WHERE database_id = ${databaseId}
     `;
 		return rows.map(viewFromRow);
+	});
+
+/** A view's stored query, read back ready to evaluate. */
+export interface ViewQuery {
+	filters: Array<{ field: string; operator: string; value: string }>;
+	sorts: ViewSort[];
+}
+
+const EMPTY_VIEW_QUERY: ViewQuery = { filters: [], sorts: [] };
+
+/**
+ * Read a stored view's `config` into the filters and sorts it holds.
+ *
+ * A config that is empty, unparseable, or holds a malformed entry that names
+ * no field or operator reads as empty rather than throwing: a broken view
+ * shows every record, never an error and never an empty list. A view's filters
+ * hold a field **id**; evaluation reads cells by id so a name two fields share
+ * cannot select the wrong one.
+ *
+ * The legacy operator aliases the app normalises on read (`equals`,
+ * `startsWith`, … in `packages/app/src/lib/viewConfig.ts`) are not re-spelled
+ * here: the server does not depend on the app. The configs the app writes today
+ * already carry the current operator names, so they are unaffected.
+ */
+const readViewQuery = (config: string | null | undefined): ViewQuery => {
+	if (!config) return EMPTY_VIEW_QUERY;
+	let parsed: unknown;
+	try {
+		parsed = JSON.parse(config);
+	} catch {
+		return EMPTY_VIEW_QUERY;
+	}
+	const c = parsed as { filters?: unknown; sorts?: unknown } | null;
+	if (!c || typeof c !== "object") return EMPTY_VIEW_QUERY;
+
+	const filters = Array.isArray(c.filters)
+		? c.filters.flatMap((raw) => {
+				if (!raw || typeof raw !== "object") return [];
+				const f = raw as Record<string, unknown>;
+				if (typeof f.fieldId !== "string" || typeof f.operator !== "string")
+					return [];
+				return [
+					{
+						field: f.fieldId,
+						operator: f.operator,
+						value: String(f.value ?? ""),
+					},
+				];
+			})
+		: [];
+
+	const sorts: ViewSort[] = Array.isArray(c.sorts)
+		? c.sorts.flatMap((raw) => {
+				if (!raw || typeof raw !== "object") return [];
+				const s = raw as Record<string, unknown>;
+				if (typeof s.fieldId !== "string") return [];
+				return [
+					{
+						fieldId: s.fieldId,
+						direction: s.direction === "desc" ? "desc" : "asc",
+					},
+				];
+			})
+		: [];
+
+	return { filters, sorts };
+};
+
+/**
+ * The view of `databaseId` a caller addressed by id or by name, with the query
+ * it stores.
+ *
+ * An id wins outright. A name is matched case-insensitively and within this
+ * database only; a name no view holds is refused naming it, and a name two
+ * views share (differing only by case) is refused naming the candidates rather
+ * than silently picking one.
+ */
+export const resolveView = (databaseId: string, ref: string) =>
+	Effect.gen(function* () {
+		const views = yield* listViews(databaseId);
+		const byId = views.find((v) => v.id === ref);
+		if (byId) return readViewQuery(byId.config);
+
+		const needle = ref.toLowerCase();
+		const named = views.filter((v) => v.name.toLowerCase() === needle);
+		if (named.length === 0)
+			return yield* new NotFoundError({ resource: "view", id: ref });
+		if (named.length > 1)
+			return yield* new ConflictError({
+				message: `The view name "${ref}" is ambiguous in this database; it names ${named
+					.map((v) => `"${v.name}" (${v.id})`)
+					.join(", ")}`,
+			});
+		return readViewQuery(named[0].config);
 	});
 
 export const updateField = (req: {
