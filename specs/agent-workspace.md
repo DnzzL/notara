@@ -21,8 +21,11 @@ gated on the reach test.
 ## Non-goals
 
 Agents creating their own views · agent-writable filters · MCP server · webhooks · a new
-`Card` entity · Notara-shipped default views · multi-tenant or cloud hosting · cursor
-pagination · board-view virtualization.
+`Card` entity · views named after a runner's vocabulary (no `ready-for-agent` default) ·
+multi-tenant or cloud hosting · cursor pagination · board-view virtualization
+
+> The existing generic `Grid` view `createDatabase` inserts so a new database renders is
+> **not** in scope: it predates this work, is not run vocabulary, and stays exactly as it is.
 
 ## Tests reproduce the failure before the fix
 

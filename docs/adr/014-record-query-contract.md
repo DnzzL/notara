@@ -61,10 +61,12 @@ The product wedge — one workspace a team and its agents share — requires a v
   empty, which the app's `"[]"` string check missed.
 - **Search is part of the query, applied before pagination**, so a search cannot silently
   miss records past the first page.
-- **Notara ships no views of its own.** Views are user-defined. Default views named after a
-  runner's vocabulary would contradict `docs/shared-backlog.md`, which states that what a
-  status *means* is the runner's configuration, not Notara's. A database template is the
-  flexible form of the same convenience.
+- **Notara never creates a view that encodes a run vocabulary.** No default
+  `ready-for-agent`, no `needs-triage`: a view named after the runner's status words would
+  make Notara the author of the meaning, which `docs/shared-backlog.md` refuses. This is not
+  a claim that Notara creates no views at all — `createDatabase` already inserts one generic,
+  empty `Grid` table view so a new database renders. A database template is the flexible form
+  of the convenience a run-vocabulary view would have bought.
 - **Views gain a nullable owner/source** (`human` vs API key), unused at first, so the
   deferred question of agents creating their own working sets needs no backfill.
 
