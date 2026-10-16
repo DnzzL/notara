@@ -1,5 +1,6 @@
 import {
 	ConflictError,
+	type DatabaseRecord,
 	type FilterOperator,
 	fieldTypeSpec,
 	matchesFilter,
@@ -270,14 +271,16 @@ export interface ViewSort {
  * The records of `databaseId` that satisfy every filter, each naming a field by
  * id or by name and an operator from that field type's registry. An unknown
  * field, or an operator the field type does not offer, is refused naming it.
- * `sorts` orders the result, first sort first.
+ * `sorts` orders the result, first sort first. `q`, when given, narrows the
+ * result by text.
  */
 export const listRecordsFiltered = (
 	databaseId: string,
 	filters: ReadonlyArray<{ field: string; operator: string; value: string }>,
 	equality: ReadonlyArray<{ field: string; value: string }> = [],
 	sorts: ReadonlyArray<ViewSort> = [],
-) => recordsSatisfying(databaseId, equality, filters, sorts);
+	q: string | null = null,
+) => recordsSatisfying(databaseId, equality, filters, sorts, q);
 
 /**
  * The records of `databaseId` whose fields hold every `{ field, value }` asked
@@ -293,17 +296,81 @@ export const listRecordsFiltered = (
 export const listRecordsMatching = (
 	databaseId: string,
 	filters: ReadonlyArray<{ field: string; value: string }>,
-) => recordsSatisfying(databaseId, filters, []);
+	q: string | null = null,
+) => recordsSatisfying(databaseId, filters, [], [], q);
+
+/** A decoded cell as searchable text: a list and an object are flattened, so a
+ *  multi-value field is searched on each of its entries, not on its JSON. */
+const valueAsText = (value: unknown): string => {
+	if (value === null || value === undefined) return "";
+	if (Array.isArray(value)) return value.map(valueAsText).join(" ");
+	if (typeof value === "object")
+		return Object.values(value).map(valueAsText).join(" ");
+	return String(value);
+};
+
+/**
+ * `records` narrowed to those whose text contains `needle`, case-insensitively.
+ *
+ * The text is the record's decoded field values plus the content of the blocks
+ * on its page — the record's own body and criteria, the same text its page
+ * renders. A record never opened as a page has no blocks and is searched on its
+ * field values alone.
+ *
+ * A case-insensitive substring test, not a search engine: no ranking, no
+ * relevance, no word algebra — a one-line `q` is a filter the `filter=`
+ * operators could not express.
+ */
+const narrowByText = (
+	records: ReadonlyArray<{
+		record: DatabaseRecord;
+		values: Record<string, unknown>;
+	}>,
+	needle: string,
+) =>
+	Effect.gen(function* () {
+		const sql = yield* SqlClient.SqlClient;
+		const pageIds = records.flatMap(({ record }) =>
+			record.pageId ? [record.pageId] : [],
+		);
+		const blocks: ReadonlyArray<{ pageId: string; content: string }> =
+			pageIds.length === 0
+				? []
+				: yield* sql<{ pageId: string; content: string }>`
+            SELECT page_id as "pageId", content FROM blocks
+            WHERE page_id IN ${sql.in(pageIds)}
+          `;
+		const byPage = new Map<string, string>();
+		for (const b of blocks)
+			byPage.set(b.pageId, `${byPage.get(b.pageId) ?? ""}\n${b.content}`);
+
+		const want = needle.toLowerCase();
+		return records.filter(({ record, values }) =>
+			[
+				...Object.values(values).map(valueAsText),
+				record.pageId ? (byPage.get(record.pageId) ?? "") : "",
+			]
+				.join("\n")
+				.toLowerCase()
+				.includes(want),
+		);
+	});
 
 const recordsSatisfying = (
 	databaseId: string,
 	equality: ReadonlyArray<{ field: string; value: string }>,
 	structured: ReadonlyArray<{ field: string; operator: string; value: string }>,
 	sorts: ReadonlyArray<ViewSort> = [],
+	q: string | null = null,
 ) =>
 	Effect.gen(function* () {
 		const records = yield* listRecordsWithValues(databaseId);
-		if (equality.length === 0 && structured.length === 0 && sorts.length === 0)
+		if (
+			equality.length === 0 &&
+			structured.length === 0 &&
+			sorts.length === 0 &&
+			q === null
+		)
 			return records;
 		const fields = yield* listFields(databaseId);
 		const resolve = (name: string) =>
@@ -397,12 +464,18 @@ const recordsSatisfying = (
 				return matchesFilter(spec, w.operator, cell, w.value);
 			}),
 		);
-		if (sortSpecs.length === 0) return matched;
+		// The order of operations, and the reason this file exists: gather →
+		// filter → search → sort → window. The search runs on the records the
+		// filters kept, and the window is taken by the caller only after this
+		// returns. Windowed first, a search would silently miss every match past
+		// the first page — a search that lies.
+		const searched = q === null ? matched : yield* narrowByText(matched, q);
+		if (sortSpecs.length === 0) return searched;
 
 		// Last sort to first, so the first has highest precedence — the same rule
 		// the app's `applySorts` uses. The cell is the stored value, which is what
 		// `compare` reads for every field type.
-		const result = [...matched];
+		const result = [...searched];
 		for (let i = sortSpecs.length - 1; i >= 0; i--) {
 			const s = sortSpecs[i];
 			result.sort((a, b) => {
