@@ -1068,7 +1068,7 @@ export const recordOperations: readonly Operation[] = [
 		openapi: {
 			summary: "List records in a database",
 			description:
-				"Keep only matching records, two ways that combine with AND. Pass `field`/`value` pairs for equality: `?field=Status&value=done`. Pass repeated `filter=field:operator:value` for an operator the field type offers: `?filter=Status:is_not:done&filter=Points:gt:4`. A field is named by id, else by name. Matching is on the decoded value: a multi-value field (multiSelect, people, relation, page — the last three hold ids) matches on membership; a number matches numerically; a checkbox never ticked is `false`; an empty value matches an empty field.",
+				"Keep only matching records, two ways that combine with AND. Pass `field`/`value` pairs for equality: `?field=Status&value=done`. Pass repeated `filter=field:operator:value` for an operator the field type offers: `?filter=Status:is_not:done&filter=Points:gt:4`. A field is named by id, else by name. Matching is on the decoded value and is case-insensitive for text, select, date and multi-value cells: a multi-value field (multiSelect, people, relation, page — the last three hold ids) matches on membership; a number matches numerically; a checkbox never ticked is `false`; an empty value matches an empty field, an empty list included.",
 			parameters: [
 				{
 					name: "field",

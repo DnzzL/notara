@@ -47,10 +47,18 @@ The product wedge — one workspace a team and its agents share — requires a v
   is the query layer's job, not a caller's.
 - **Evaluation is server-side and authoritative.** The client stops deciding which records
   match; it asks. Server-side ordering is deterministic, so pagination is stable.
-- **The contract is additive only.** `?field=&value=` equality keeps byte-identical
-  behaviour. No `limit` returns today's bare array; passing `limit` returns
-  `{records, nextCursor}`. A published CLI and scripts we do not control must not break in a
-  feature release.
+- **The contract is additive only.** A caller that sends none of the new parameters gets
+  today's response shape and today's matching. No `limit` returns today's bare array;
+  passing `limit` returns `{records, nextCursor}`. A published CLI and scripts we do not
+  control must not break in a feature release.
+- **Equality is case-insensitive, and this is a widening, not a break.** The app's `is`
+  always compared lowercased; the server's equality path compared exactly. One evaluator
+  must mean one thing, so the server now agrees with the app: `is` on a text, select or
+  date cell ignores case, and membership in a multi-value field does too. A query can only
+  match *more* than before, never fewer, so no existing caller starts losing records.
+  Two consequences follow and are intended: `is` on a number compares numerically (`1.0`
+  matches `1`, where string equality did not), and `is_empty` treats an empty list as
+  empty, which the app's `"[]"` string check missed.
 - **Search is part of the query, applied before pagination**, so a search cannot silently
   miss records past the first page.
 - **Notara ships no views of its own.** Views are user-defined. Default views named after a
@@ -85,8 +93,12 @@ The product wedge — one workspace a team and its agents share — requires a v
 - The app's database table must load through the server query, which changes a store that
   currently holds the whole list and mutates it optimistically. This is the riskiest part of
   the change and is sequenced last.
-- `listRecordsMatching` becomes a caller of the shared evaluator; its equality behaviour and
-  its error for an unknown field are preserved.
+- `listRecordsMatching` becomes a caller of the shared evaluator; its error for an unknown
+  field is preserved, and its matching widens to case-insensitive as described above.
+- The server reads a record's cells by **field id**, not by field name. `listRecordsWithValues`
+  keys its `values` map by name, and two fields of one database may share a name, so
+  evaluating a saved view (whose filters hold field ids) against that map would compare the
+  wrong cell. This is why the query layer keys by `recordId:fieldId` instead.
 - Sorting must be defined for every field type server-side (`fieldTypeSpec.compare` already
   exists to be used) before pagination can be stable.
 - A record search must reach the card's page content. `globalSearch` covers pages and blocks
