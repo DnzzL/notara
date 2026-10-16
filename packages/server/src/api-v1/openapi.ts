@@ -296,6 +296,25 @@ const schemas = {
 		},
 	},
 
+	RecordPage: {
+		type: "object",
+		required: ["records", "nextCursor"],
+		description:
+			"A bounded window of records, returned only when the request sends `limit`; without it the response is a bare array of DatabaseRecord.",
+		properties: {
+			records: {
+				type: "array",
+				items: { $ref: "#/components/schemas/DatabaseRecord" },
+			},
+			nextCursor: {
+				type: "string",
+				nullable: true,
+				description:
+					"Continuation for the next window: pass it back as `offset` to read the following records, no gap and no repeat. Its content is opaque — do not parse it. `null` once this window reaches the end of the records.",
+			},
+		},
+	},
+
 	Comment: {
 		type: "object",
 		required: [

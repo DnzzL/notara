@@ -1032,6 +1032,54 @@ const parseRecordFilter = (
 	};
 };
 
+/**
+ * A window's ceiling. `specs/agent-workspace.md` designs for ten thousand
+ * records per database; a window that could hold all of them would be the
+ * unbounded response `limit` exists to bound. A thousand keeps a full walk of
+ * such a database at ten calls.
+ */
+const RECORD_LIMIT_CEILING = 1000;
+
+/**
+ * The window `limit`/`offset` ask for, or the reason they cannot be honoured.
+ * `null` means no `limit` was sent, which keeps today's bare-array response.
+ * Both are read as whole numbers, and every fault is refused here rather than
+ * quietly adjusted: a caller that asks for 100 and is handed 20 unasked is
+ * being lied to. `offset` without `limit` is refused too — the bare array has
+ * no window to offset into.
+ */
+const parseRecordWindow = (
+	limit: string | null,
+	offset: string | null,
+): { limit: number; offset: number } | null | { error: string } => {
+	/** A whole number of 0 or more, or null when the text is not one. */
+	const whole = (raw: string) => (/^\d+$/.test(raw) ? Number(raw) : null);
+
+	if (limit === null)
+		return offset === null
+			? null
+			: {
+					error:
+						"`offset` needs a `limit`; an unbounded response has no window to offset into",
+				};
+
+	const size = whole(limit);
+	if (size === null || size === 0)
+		return {
+			error: `\`limit\` is a positive whole number of records; got "${limit}"`,
+		};
+	if (size > RECORD_LIMIT_CEILING)
+		return {
+			error: `\`limit\` is at most ${RECORD_LIMIT_CEILING}; got "${limit}"`,
+		};
+
+	if (offset === null) return { limit: size, offset: 0 };
+	const start = whole(offset);
+	return start === null
+		? { error: `\`offset\` is a whole number of 0 or more; got "${offset}"` }
+		: { limit: size, offset: start };
+};
+
 export const recordOperations: readonly Operation[] = [
 	{
 		method: "GET",
@@ -1081,6 +1129,16 @@ export const recordOperations: readonly Operation[] = [
 					field,
 					value: values[i],
 				}));
+				// Read the window before anything else runs, so a limit the server
+				// refuses costs no query and is never silently clamped.
+				const window = parseRecordWindow(
+					yield* queryParam("limit"),
+					yield* queryParam("offset"),
+				);
+				if (window !== null && "error" in window)
+					return yield* Effect.fail(
+						new ApiError({ status: 400, message: window.error }),
+					);
 				// A named view contributes its stored filters and sorts; they AND with
 				// everything the caller passed. An unknown view is a 404 naming it, an
 				// ambiguous name a 409 naming the candidates.
@@ -1106,12 +1164,24 @@ export const recordOperations: readonly Operation[] = [
 					createdAt: record.createdAt,
 					fields: values ?? {},
 				}));
-				return ok(records);
+				// The window is taken here, after filtering and sorting, never before:
+				// a slice of the unordered rows would overlap or miss when a view's
+				// sorts order them.
+				if (window === null) return ok(records);
+				const page = records.slice(window.offset, window.offset + window.limit);
+				const next = window.offset + page.length;
+				return ok({
+					records: page,
+					// Opaque to the caller: hand it back as `offset` to continue. What it
+					// holds is not part of the contract; `null` says the walk reached
+					// the end of the records.
+					nextCursor: next < records.length ? String(next) : null,
+				});
 			}),
 		openapi: {
 			summary: "List records in a database",
 			description:
-				"Keep only matching records, three ways that combine with AND. Pass `field`/`value` pairs for equality: `?field=Status&value=done`. Pass repeated `filter=field:operator:value` for an operator the field type offers: `?filter=Status:is_not:done&filter=Points:gt:4`. Pass `view=<name|id>` to read exactly what a saved view shows, in that view's order: its stored filters join the others (AND) and its sorts are applied, first sort first. A field is named by id, else by name. An unknown view is a `404` naming it; a view name two views share (differing only by case) is a `409` naming the candidates. Matching is on the decoded value and is case-insensitive for text, select, date and multi-value cells: a multi-value field (multiSelect, people, relation, page — the last three hold ids) matches on membership; a number matches numerically; a checkbox never ticked is `false`; an empty value matches an empty field, an empty list included.",
+				"Keep only matching records, three ways that combine with AND. Pass `field`/`value` pairs for equality: `?field=Status&value=done`. Pass repeated `filter=field:operator:value` for an operator the field type offers: `?filter=Status:is_not:done&filter=Points:gt:4`. Pass `view=<name|id>` to read exactly what a saved view shows, in that view's order: its stored filters join the others (AND) and its sorts are applied, first sort first. A field is named by id, else by name. An unknown view is a `404` naming it; a view name two views share (differing only by case) is a `409` naming the candidates. Matching is on the decoded value and is case-insensitive for text, select, date and multi-value cells: a multi-value field (multiSelect, people, relation, page — the last three hold ids) matches on membership; a number matches numerically; a checkbox never ticked is `false`; an empty value matches an empty field, an empty list included. Pass `limit` (with optional `offset`) to bound a large database: the response becomes `{records, nextCursor}` and handing `nextCursor` back as `offset` reads the next window, no gap and no repeat. Omitting `limit` keeps the bare array described below, byte for byte, so a caller that never sends it sees exactly today's response.",
 			parameters: [
 				{
 					name: "field",
@@ -1149,12 +1219,40 @@ export const recordOperations: readonly Operation[] = [
 					description:
 						"A saved view's id or name; case-insensitive name, within this database. Its filters join the others (AND) and its sorts order the result. Unknown → 404, ambiguous name → 409.",
 				},
+				{
+					name: "limit",
+					in: "query" as const,
+					required: false,
+					schema: {
+						type: "integer",
+						minimum: 1,
+						maximum: RECORD_LIMIT_CEILING,
+					},
+					description:
+						"How many records this response may hold. Omit it and the response stays the bare array; send it and the response becomes `{records, nextCursor}`. A `limit` that is not a positive whole number, or is above the ceiling, is a `400` naming it — never a clamped window.",
+				},
+				{
+					name: "offset",
+					in: "query" as const,
+					required: false,
+					schema: { type: "integer", minimum: 0 },
+					description:
+						"Where the window starts in the order the query returns, counting from 0. Needs `limit`; a negative offset is a `400`. A caller normally walks with `nextCursor` instead of counting.",
+				},
 			],
 			responses: {
-				200: jsonResponse("Records with field values", {
-					type: "array",
-					items: jsonSchema("DatabaseRecord"),
-				}),
+				200: jsonResponse(
+					"Records: today's bare array without `limit`, `{records, nextCursor}` with it",
+					{
+						oneOf: [
+							{
+								type: "array",
+								items: jsonSchema("DatabaseRecord"),
+							},
+							jsonSchema("RecordPage"),
+						],
+					},
+				),
 				...errorResponses,
 			},
 		},
