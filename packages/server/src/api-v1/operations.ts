@@ -982,6 +982,21 @@ export const fieldOperations: readonly Operation[] = [
 
 // ── Records ────────────────────────────────────────────────────────────────────
 
+/** `field:operator:value`; the value may hold colons (a timestamp, say). */
+const parseRecordFilter = (
+	raw: string,
+): { field: string; operator: string; value: string } | null => {
+	const first = raw.indexOf(":");
+	if (first < 0) return null;
+	const second = raw.indexOf(":", first + 1);
+	if (second < 0) return null;
+	return {
+		field: raw.slice(0, first),
+		operator: raw.slice(first + 1, second),
+		value: raw.slice(second + 1),
+	};
+};
+
 export const recordOperations: readonly Operation[] = [
 	{
 		method: "GET",
@@ -1011,12 +1026,31 @@ export const recordOperations: readonly Operation[] = [
 							message: "Each `field` needs a `value`, in the same order",
 						}),
 					);
+				const structured: Array<{
+					field: string;
+					operator: string;
+					value: string;
+				}> = [];
+				for (const raw of yield* queryParams("filter")) {
+					const parsed = parseRecordFilter(raw);
+					if (!parsed)
+						return yield* Effect.fail(
+							new ApiError({
+								status: 400,
+								message: `Each \`filter\` is "field:operator:value"; got "${raw}"`,
+							}),
+						);
+					structured.push(parsed);
+				}
+				const equality = fields.map((field, i) => ({
+					field,
+					value: values[i],
+				}));
 				// `{ record, values }`, where `values` is already a field-name →
 				// parsed-value map. Flattened below for REST consumers.
-				const raw = yield* Databases.listRecordsMatching(
-					dbId,
-					fields.map((field, i) => ({ field, value: values[i] })),
-				);
+				const raw = yield* structured.length > 0
+					? Databases.listRecordsFiltered(dbId, structured, equality)
+					: Databases.listRecordsMatching(dbId, equality);
 				const records = (
 					raw as Array<{ record: any; values: Record<string, unknown> }>
 				).map(({ record, values }) => ({
@@ -1034,7 +1068,7 @@ export const recordOperations: readonly Operation[] = [
 		openapi: {
 			summary: "List records in a database",
 			description:
-				"Pass `field` and `value` pairs to keep only matching records: `?field=Status&value=done&field=Agent&value=dev`. Pairs combine with AND; a field is named by id, else by name. Matching is on the decoded value: a multi-value field (multiSelect, people, relation, page — the last three hold ids) matches when it contains the value; a number matches numerically; a checkbox never ticked is `false`; an empty value matches an empty field.",
+				"Keep only matching records, two ways that combine with AND. Pass `field`/`value` pairs for equality: `?field=Status&value=done`. Pass repeated `filter=field:operator:value` for an operator the field type offers: `?filter=Status:is_not:done&filter=Points:gt:4`. A field is named by id, else by name. Matching is on the decoded value: a multi-value field (multiSelect, people, relation, page — the last three hold ids) matches on membership; a number matches numerically; a checkbox never ticked is `false`; an empty value matches an empty field.",
 			parameters: [
 				{
 					name: "field",
@@ -1053,6 +1087,16 @@ export const recordOperations: readonly Operation[] = [
 					style: "form",
 					explode: true,
 					description: "Value the paired field must hold",
+				},
+				{
+					name: "filter",
+					in: "query" as const,
+					required: false,
+					schema: { type: "array", items: { type: "string" } },
+					style: "form",
+					explode: true,
+					description:
+						"`field:operator:value`; repeat to AND several. Shape `field:operator:value`, the operator from the field type's list",
 				},
 			],
 			responses: {

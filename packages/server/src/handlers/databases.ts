@@ -1,6 +1,8 @@
 import {
 	ConflictError,
+	type FilterOperator,
 	fieldTypeSpec,
+	matchesFilter,
 	NotFoundError,
 	TrashContents,
 	TrashedDatabase,
@@ -257,34 +259,84 @@ export const listRecordsWithValues = (databaseId: string) =>
 	});
 
 /**
+ * The records of `databaseId` that satisfy every filter, each naming a field by
+ * id or by name and an operator from that field type's registry. An unknown
+ * field, or an operator the field type does not offer, is refused naming it.
+ */
+export const listRecordsFiltered = (
+	databaseId: string,
+	filters: ReadonlyArray<{ field: string; operator: string; value: string }>,
+	equality: ReadonlyArray<{ field: string; value: string }> = [],
+) => recordsSatisfying(databaseId, equality, filters);
+
+/**
  * The records of `databaseId` whose fields hold every `{ field, value }` asked
  * for. A field is named by id, else by name; one the database does not have is
  * refused, naming it. Matching is on the decoded cell: a multi-value field
  * (multiSelect, people, relation, page) matches when it contains the value; a
  * number matches numerically; a checkbox never ticked is `false`; an empty
  * value matches an empty field, lists included.
+ *
+ * Evaluation is @notara/shared's one evaluator, the same the app's query bar
+ * runs, so equality here and a saved view there cannot drift.
  */
 export const listRecordsMatching = (
 	databaseId: string,
 	filters: ReadonlyArray<{ field: string; value: string }>,
+) => recordsSatisfying(databaseId, filters, []);
+
+const recordsSatisfying = (
+	databaseId: string,
+	equality: ReadonlyArray<{ field: string; value: string }>,
+	structured: ReadonlyArray<{ field: string; operator: string; value: string }>,
 ) =>
 	Effect.gen(function* () {
 		const records = yield* listRecordsWithValues(databaseId);
-		if (filters.length === 0) return records;
+		if (equality.length === 0 && structured.length === 0) return records;
 		const fields = yield* listFields(databaseId);
-		const wanted: Array<{ id: string; type: string; value: string }> = [];
-		for (const { field, value } of filters) {
-			const found =
-				fields.find((f) => f.id === field) ??
-				fields.find((f) => f.name === field);
+		const resolve = (name: string) =>
+			fields.find((f) => f.id === name) ?? fields.find((f) => f.name === name);
+
+		const wanted: Array<{
+			id: string;
+			type: string;
+			operator: FilterOperator;
+			value: string;
+		}> = [];
+
+		// The legacy pair is equality: `is`, on the decoded cell.
+		for (const { field, value } of equality) {
+			const found = resolve(field);
 			if (!found)
 				return yield* new ValidationError({
 					message: `This database has no field "${field}"`,
 				});
-			wanted.push({ id: found.id, type: found.type, value });
+			wanted.push({ id: found.id, type: found.type, operator: "is", value });
 		}
+
+		// A structured filter names an operator the field type must offer; one it
+		// does not is refused, naming the operator and the list it does offer.
+		for (const { field, operator, value } of structured) {
+			const found = resolve(field);
+			if (!found)
+				return yield* new ValidationError({
+					message: `This database has no field "${field}"`,
+				});
+			const offered = fieldTypeSpec(found.type).operators;
+			if (!offered.includes(operator as FilterOperator))
+				return yield* new ValidationError({
+					message: `The field "${found.name}" of type "${found.type}" does not offer the operator "${operator}"; it offers: ${offered.join(", ")}`,
+				});
+			wanted.push({
+				id: found.id,
+				type: found.type,
+				operator: operator as FilterOperator,
+				value,
+			});
+		}
+
 		// Read the cells by field id: `values` is keyed by name, and two fields
-		// may share one.
+		// may share one, so evaluating against it would compare the wrong cell.
 		const sql = yield* SqlClient.SqlClient;
 		const rows = yield* sql<{
 			recordId: string;
@@ -297,25 +349,18 @@ export const listRecordsMatching = (
 		const cells = new Map(
 			rows.map((r) => [`${r.recordId}:${r.fieldId}`, r.value] as const),
 		);
-		const holds = (raw: string | undefined, type: string, value: string) => {
-			const cell =
-				raw === undefined
-					? type === "checkbox"
-						? false
-						: undefined
-					: decodeFieldValue(type, raw);
-			if (Array.isArray(cell))
-				return value === ""
-					? cell.length === 0
-					: cell.map(String).includes(value);
-			if (typeof cell === "number")
-				return value !== "" && Number(value) === cell;
-			return String(cell ?? "") === value;
-		};
 		return records.filter(({ record }) =>
-			wanted.every((w) =>
-				holds(cells.get(`${record.id}:${w.id}`), w.type, w.value),
-			),
+			wanted.every((w) => {
+				const raw = cells.get(`${record.id}:${w.id}`);
+				const spec = fieldTypeSpec(w.type);
+				const cell =
+					raw === undefined
+						? spec.type === "checkbox"
+							? false
+							: undefined
+						: spec.decode(raw);
+				return matchesFilter(spec, w.operator, cell, w.value);
+			}),
 		);
 	});
 
