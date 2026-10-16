@@ -10,6 +10,8 @@ import { fieldTypeSpec } from "../src/field-types.js";
 import {
 	matchesFilter,
 	matchesFilters,
+	normaliseFilterOperator,
+	normaliseSortDirection,
 	operatorsForFieldType,
 } from "../src/query.js";
 
@@ -173,5 +175,32 @@ describe("a whole filter list, ANDed", () => {
 				{ fieldId: "gone", operator: "is", value: "x" },
 			]).length,
 		).toBe(3);
+	});
+});
+
+// A stored view config was written by whichever build was current at the time, and two
+// readers now read it: the app's `viewConfig` and the server answering `?view=`. The
+// spellings live here so the two cannot come to disagree about what a saved view means.
+describe("stored spellings", () => {
+	it("reads the reference block's operator names in today's spelling", () => {
+		expect(normaliseFilterOperator("equals")).toBe("is");
+		expect(normaliseFilterOperator("notEquals")).toBe("is_not");
+		expect(normaliseFilterOperator("startsWith")).toBe("contains");
+		expect(normaliseFilterOperator("isEmpty")).toBe("is_empty");
+		expect(normaliseFilterOperator("notEmpty")).toBe("is_not_empty");
+		expect(normaliseFilterOperator("is_not")).toBe("is_not");
+	});
+
+	it("passes an unknown spelling through, so a caller can refuse it by name", () => {
+		// Silently meaning nothing is how a filter comes to match everything.
+		expect(normaliseFilterOperator("~=")).toBe("~=");
+		expect(normaliseFilterOperator(undefined)).toBe("");
+	});
+
+	it("reads a direction, treating anything that is not `desc` as `asc`", () => {
+		expect(normaliseSortDirection("desc")).toBe("desc");
+		expect(normaliseSortDirection("asc")).toBe("asc");
+		expect(normaliseSortDirection(undefined)).toBe("asc");
+		expect(normaliseSortDirection("garbage")).toBe("asc");
 	});
 });

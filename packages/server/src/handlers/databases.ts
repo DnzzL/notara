@@ -4,6 +4,8 @@ import {
 	fieldTypeSpec,
 	matchesFilter,
 	NotFoundError,
+	normaliseFilterOperator,
+	normaliseSortDirection,
 	TrashContents,
 	TrashedDatabase,
 	TrashedPage,
@@ -688,10 +690,10 @@ const EMPTY_VIEW_QUERY: ViewQuery = { filters: [], sorts: [] };
  * hold a field **id**; evaluation reads cells by id so a name two fields share
  * cannot select the wrong one.
  *
- * The legacy operator aliases the app normalises on read (`equals`,
- * `startsWith`, … in `packages/app/src/lib/viewConfig.ts`) are not re-spelled
- * here: the server does not depend on the app. The configs the app writes today
- * already carry the current operator names, so they are unaffected.
+ * Legacy spellings are normalised by `@notara/shared`, the same table the app's
+ * `viewConfig` reads stored configurations through. Neither reader owns the
+ * spellings: a stored view holding `equals` or `order` must mean to an agent
+ * exactly what it means in the app, or the whole point of addressing it is lost.
  */
 const readViewQuery = (config: string | null | undefined): ViewQuery => {
 	if (!config) return EMPTY_VIEW_QUERY;
@@ -713,7 +715,7 @@ const readViewQuery = (config: string | null | undefined): ViewQuery => {
 				return [
 					{
 						field: f.fieldId,
-						operator: f.operator,
+						operator: normaliseFilterOperator(f.operator),
 						value: String(f.value ?? ""),
 					},
 				];
@@ -728,7 +730,7 @@ const readViewQuery = (config: string | null | undefined): ViewQuery => {
 				return [
 					{
 						fieldId: s.fieldId,
-						direction: s.direction === "desc" ? "desc" : "asc",
+						direction: normaliseSortDirection(s.direction ?? s.order),
 					},
 				];
 			})

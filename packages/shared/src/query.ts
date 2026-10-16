@@ -135,6 +135,37 @@ export function matchesFilter(
 }
 
 /**
+ * Operator spellings that exist in stored view configurations but are not what the filter
+ * UI emits today. The reference block understood `equals`, `startsWith`, `notEmpty` and
+ * `isEmpty`; the app normalises them on read, and the server now reads the same stored
+ * configurations to answer `?view=`, so the table belongs here rather than in whichever
+ * reader happened to come first.
+ */
+const OPERATOR_ALIASES: Record<string, FilterOperator> = {
+	equals: "is",
+	notEquals: "is_not",
+	startsWith: "contains",
+	isEmpty: "is_empty",
+	notEmpty: "is_not_empty",
+};
+
+/**
+ * A stored operator in today's spelling.
+ *
+ * A spelling this build does not know passes through unchanged, so a caller can refuse it
+ * by name rather than have it quietly mean nothing.
+ */
+export function normaliseFilterOperator(raw: unknown): FilterOperator {
+	const value = String(raw ?? "");
+	return OPERATOR_ALIASES[value] ?? (value as FilterOperator);
+}
+
+/** A stored sort direction in today's spelling; `order` is the reference block's word. */
+export function normaliseSortDirection(raw: unknown): "asc" | "desc" {
+	return raw === "desc" ? "desc" : "asc";
+}
+
+/**
  * The rows whose values pass every filter, ANDed. The cell is read from the
  * row's `values` map by the field's name; a field that no longer exists is
  * ignored rather than emptying the view.

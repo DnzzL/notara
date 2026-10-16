@@ -435,4 +435,61 @@ describe("a view's stored cells and order", () => {
 		expect(res.status).toBe(200);
 		expect(titles(res.json)).toEqual(["early-high", "late-low"]);
 	});
+
+	// A view written by an older build spells its operator `equals` and its direction
+	// `order`. The server reads stored configurations too now, so it has to read those
+	// spellings exactly as the app's `viewConfig` does — otherwise the same saved view
+	// means one thing to the person and another to the agent, which is the whole reason
+	// the view is addressable in the first place.
+	test("a view stored with the older spellings reads as the app reads it", async () => {
+		using api = restWorkspace();
+		const { db, status, points } = await board(api);
+		await api.run(
+			Databases.createView({
+				databaseId: db.id,
+				name: "Current",
+				type: "table",
+				groupByFieldId: null,
+				config: JSON.stringify({
+					filters: [
+						{ fieldId: status.id, operator: "is", value: "ready-for-agent" },
+					],
+					sorts: [{ fieldId: points.id, direction: "desc" }],
+					boardHidden: [],
+				}),
+			}),
+		);
+		await api.run(
+			Databases.createView({
+				databaseId: db.id,
+				name: "Legacy",
+				type: "table",
+				groupByFieldId: null,
+				config: JSON.stringify({
+					filters: [
+						{
+							fieldId: status.id,
+							operator: "equals",
+							value: "ready-for-agent",
+						},
+					],
+					sorts: [{ fieldId: points.id, order: "desc" }],
+					boardHidden: [],
+				}),
+			}),
+		);
+
+		const current = await api.call("GET", recordsUrl(db.id, "?view=Current"), {
+			key: "read",
+		});
+		const legacy = await api.call("GET", recordsUrl(db.id, "?view=Legacy"), {
+			key: "read",
+		});
+
+		expect(current.status).toBe(200);
+		expect(legacy.status).toBe(200);
+		// Points desc, so b(5) before a(1): not the creation order, and not empty.
+		expect(titles(legacy.json)).toEqual(["b", "a"]);
+		expect(titles(legacy.json)).toEqual(titles(current.json));
+	});
 });
