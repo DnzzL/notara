@@ -110,6 +110,26 @@ describe("q narrows a query by text", () => {
 		expect(titles(res.json)).toEqual(["f"]);
 	});
 
+	// The record's own name is what a person types into a search box, and `title`
+	// is a column of `database_records` rather than a field value or page content.
+	// The page is deliberately never opened, so its `pageId` is null and the title
+	// is the only text that could match.
+	test("q matches a record's own title", async () => {
+		using api = restWorkspace();
+		const { db } = await board(api);
+		await api.run(
+			Databases.createRecord({
+				databaseId: db.id,
+				title: "gift wrap the barrels",
+			}),
+		);
+		const res = await api.call("GET", recordsUrl(db.id, "?q=gift"), {
+			key: "read",
+		});
+		expect(res.status).toBe(200);
+		expect(titles(res.json)).toEqual(["gift wrap the barrels"]);
+	});
+
 	test("matching ignores case", async () => {
 		using api = restWorkspace();
 		const { db } = await board(api);

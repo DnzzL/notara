@@ -347,6 +347,12 @@ const narrowByText = (
 		const want = needle.toLowerCase();
 		return records.filter(({ record, values }) =>
 			[
+				// The record's own name and description first: a card is addressed by its
+				// title, and a search that cannot find a card by the name written on it
+				// is a search that lies. `title` is a column of `database_records`, not a
+				// field value, so it is not in `values`.
+				record.title ?? "",
+				record.description ?? "",
 				...Object.values(values).map(valueAsText),
 				record.pageId ? (byPage.get(record.pageId) ?? "") : "",
 			]
