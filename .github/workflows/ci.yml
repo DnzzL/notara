@@ -32,7 +32,7 @@ jobs:
         run: bunx tsc --noEmit -p tsconfig.tests.json
 
       - name: lint
-        run: bunx @biomejs/biome ci packages/ e2e/
+        run: bun lint
       - name: effect error channels
         run: bash scripts/check-effect-errors.sh
 

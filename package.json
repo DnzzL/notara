@@ -2,24 +2,27 @@
   "name": "notara",
   "private": true,
   "scripts": {
-    "predev:server": "bun run --filter @notara/shared build",
+    "build:shared": "bun run --filter @notara/shared build",
+    "predev:server": "bun run build:shared",
     "dev:server": "bun run --filter @notara/server dev",
-    "predev:app": "bun run --filter @notara/shared build",
+    "predev:app": "bun run build:shared",
     "dev:app": "bun run --filter @notara/app dev",
-    "predev:electron": "bun run --filter @notara/shared build",
+    "predev:electron": "bun run build:shared",
     "dev:electron": "bun run --filter @notara/electron dev",
-    "build": "bun run --filter @notara/shared build && bun run --filter '!@notara/electron' build",
-    "build:electron": "bun run --filter @notara/shared build && bun run --filter @notara/server build && bun run --filter @notara/app build && bun run --filter @notara/electron build",
+    "build": "bun run build:shared && bun run --filter '!@notara/electron' build",
+    "build:electron": "bun run build:shared && bun run --filter @notara/server build && bun run --filter @notara/app build && bun run --filter @notara/electron build",
     "db:migrate": "bun run --filter @notara/server db:migrate",
     "test": "bun run --filter '*' test",
     "check-bundle-size": "bash scripts/check-bundle-size.sh",
+    "lint": "bunx @biomejs/biome ci packages/ e2e/",
+    "fmt": "bunx @biomejs/biome check --write --unsafe packages/ e2e/",
     "apply-patches": "bash scripts/patch-msgpackr.sh",
     "setup": "bash scripts/patch-msgpackr.sh && bunx simple-git-hooks",
-    "typecheck": "for pkg in packages/*/; do if [ -f \"$pkg/tsconfig.json\" ]; then (cd \"$pkg\" && bunx tsc --noEmit) || exit 1; fi; done",
-		"typecheck:tests": "bunx tsc --noEmit -p tsconfig.tests.json",
-		"quickcheck": "bun run --filter @notara/shared build && bun typecheck && bun run typecheck:tests && bun run test",
-		"lint:effect": "for pkg in packages/*/; do if [ -f \"$pkg/tsconfig.json\" ]; then bunx effect-tsgo diagnostics --project \"$pkg/tsconfig.json\" --severity error,warning --strict --format text || exit 1; fi; done",
-		"pre-merge": "bun run quickcheck && bunx @biomejs/biome ci packages/ e2e/ && bun run lint:effect && bash scripts/check-effect-errors.sh && bash scripts/check-bundle-size.sh",
+    "typecheck": "bun run build:shared && for pkg in packages/*/; do if [ -f \"$pkg/tsconfig.json\" ]; then (cd \"$pkg\" && bunx tsc --noEmit) || exit 1; fi; done",
+    "typecheck:tests": "bun run build:shared && bunx tsc --noEmit -p tsconfig.tests.json",
+    "quickcheck": "bun run typecheck && bun run typecheck:tests && bun run test",
+    "lint:effect": "for pkg in packages/*/; do if [ -f \"$pkg/tsconfig.json\" ]; then bunx effect-tsgo diagnostics --project \"$pkg/tsconfig.json\" --severity error,warning --strict --format text || exit 1; fi; done",
+    "pre-merge": "bun run quickcheck && bun run lint && bun run lint:effect && bash scripts/check-effect-errors.sh && bash scripts/check-bundle-size.sh",
 		"coverage": "bash scripts/check-coverage.sh '@notara/server' packages/server 'bun test' && bash scripts/check-coverage.sh '@notara/app' packages/app 'bun test' && bash scripts/check-coverage.sh '@notara/electron' packages/electron 'bun test' && bash scripts/check-coverage.sh '@notara/shared' packages/shared 'bunx vitest run'"
   },
   "workspaces": [
@@ -57,7 +60,7 @@
   },
   "simple-git-hooks": {
     "pre-commit": "bash scripts/pre-commit-lint-staged.sh",
-    "pre-push": "bunx @biomejs/biome ci packages/ e2e/ && bash scripts/check-effect-errors.sh && bun run quickcheck"
+    "pre-push": "bun run lint && bash scripts/check-effect-errors.sh && bun run quickcheck"
   },
   "devDependencies": {
     "@biomejs/biome": "^2.5.6",
