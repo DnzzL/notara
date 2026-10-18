@@ -9,11 +9,17 @@ shamefully-hoist = true
 # the shape most recent npm supply-chain compromises have taken, and the blast
 # radius is a developer machine and whatever tokens it holds.
 #
-# Bun already declines to run dependency lifecycle scripts unless the package is
-# listed in `trustedDependencies` in package.json. Nothing is listed there, and
-# nothing should be added without a reason written down beside it.
+# `trustedDependencies = []` alone does NOT achieve this: Bun ships a built-in
+# default-trust list for well-known packages (simple-git-hooks is on it), and
+# that list still runs regardless of what's declared here or in package.json.
+# Concretely, simple-git-hooks' own postinstall then crashes under Bun's
+# node_modules/.bun/<pkg>@<version>/node_modules/<pkg> store layout, because
+# its project-root detection only recognizes pnpm's `.store` dir name, not
+# Bun's `.bun` (upstream bug, not fixable from here). `ignoreScripts` is what
+# actually blocks every lifecycle script, default-trusted or not.
 #
 # This repo also has no `postinstall` of its own. The two things installing used
 # to do — patching @effect/platform's MsgPack export, and registering git hooks —
 # are `bun run setup`, run deliberately after cloning. See CONTRIBUTING.md.
 trustedDependencies = []
+ignoreScripts = true
