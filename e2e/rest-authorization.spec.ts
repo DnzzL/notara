@@ -75,6 +75,32 @@ const ROUTES: Route[] = [
 		path: "/databases/:dbId/records/:recordId/fields/:fieldId",
 		body: { value: "x" },
 	},
+	{ method: "get", path: "/databases/:dbId/views" },
+	{ method: "get", path: "/databases/:dbId/records/:recordId" },
+	{
+		method: "post",
+		path: "/databases/:dbId/records/:recordId/criteria",
+		body: { criteria: ["x"] },
+	},
+	{
+		method: "put",
+		path: "/databases/:dbId/records/:recordId/criteria/:criterionId",
+		body: { checked: true },
+	},
+	{ method: "get", path: "/pages/:pageId/comments" },
+	{ method: "post", path: "/pages/:pageId/comments", body: { body: "x" } },
+	{ method: "get", path: "/databases/:dbId/records/:recordId/comments" },
+	{
+		method: "post",
+		path: "/databases/:dbId/records/:recordId/comments",
+		body: { body: "x" },
+	},
+	{ method: "post", path: "/pages/:pageId/artifacts?name=x.html" },
+	{
+		method: "post",
+		path: "/databases/:dbId/records/:recordId/artifacts?name=x.html",
+	},
+	{ method: "put", path: "/artifacts/:artifactId" },
 	{ method: "get", path: "/search?q=secret" },
 	{ method: "get", path: "/trash" },
 ];
@@ -87,6 +113,8 @@ type Fixture = {
 	dbId: string;
 	fieldId: string;
 	recordId: string;
+	criterionId: string;
+	artifactId: string;
 };
 
 const fill = (path: string, f: Fixture) =>
@@ -95,7 +123,9 @@ const fill = (path: string, f: Fixture) =>
 		.replace(":blockId", f.blockId)
 		.replace(":dbId", f.dbId)
 		.replace(":fieldId", f.fieldId)
-		.replace(":recordId", f.recordId)}`;
+		.replace(":recordId", f.recordId)
+		.replace(":criterionId", f.criterionId)
+		.replace(":artifactId", f.artifactId)}`;
 
 const fillBody = (body: Record<string, unknown> | undefined, f: Fixture) =>
 	body
@@ -138,6 +168,23 @@ test("no REST route serves a caller who is not a workspace member", async ({
 		soloWs.workspaceId,
 	);
 
+	// Real ids, so a refusal can only come from the guard, never from a lookup
+	// that found nothing.
+	const base = `/api/v1/workspaces/${soloWs.workspaceId}`;
+	const recordPath = `${base}/databases/${db.id}/records/${record.id}`;
+	await alice.api.post(`${recordPath}/criteria`, {
+		data: { criteria: ["Secret criterion"] },
+	});
+	const { criteria } = (await (await alice.api.get(recordPath)).json()) as {
+		criteria: Array<{ id: string }>;
+	};
+	const artifact = (await (
+		await alice.api.post(`${base}/pages/${pageId}/artifacts?name=secret.html`, {
+			data: "<p>secret</p>",
+			headers: { "Content-Type": "text/html" },
+		})
+	).json()) as { id: string };
+
 	const fixture: Fixture = {
 		workspaceId: soloWs.workspaceId,
 		pageId,
@@ -145,6 +192,8 @@ test("no REST route serves a caller who is not a workspace member", async ({
 		dbId: db.id,
 		fieldId: field.id,
 		recordId: record.id,
+		criterionId: criteria[0].id,
+		artifactId: artifact.id,
 	};
 
 	// Only a refusal counts as a refusal. Accepting "anything >= 400" would let a
