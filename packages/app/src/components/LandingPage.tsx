@@ -368,7 +368,7 @@ export function LandingPage({ demoMode }: { demoMode: boolean }) {
 			<section className="landing-dev">
 				<div className="lp-wrap landing-dev-in">
 					<span className="lp-kicker">
-						<b>02</b> · For developers & AI agents
+						<b>02</b> · For developers
 					</span>
 					<h2>
 						Automate everything.
@@ -381,7 +381,7 @@ export function LandingPage({ demoMode }: { demoMode: boolean }) {
 								notara pages list --json | jq '.title'
 							</div>
 							<div className="lp-dev-desc">
-								Pipe your entire wiki into any script or AI agent
+								Pipe your entire wiki into any script
 							</div>
 						</div>
 						<div className="lp-dev-ex">
@@ -391,7 +391,7 @@ export function LandingPage({ demoMode }: { demoMode: boolean }) {
 								&quot;title&quot;:&quot;...&quot;{"}"}
 							</div>
 							<div className="lp-dev-desc">
-								Create pages from CI/CD, bots, or agent workflows
+								Create pages from CI/CD, scripts, or bots
 							</div>
 						</div>
 						<div className="lp-dev-ex">
