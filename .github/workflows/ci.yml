@@ -71,5 +71,9 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: playwright-report
-          path: playwright-report/
+          # reporter "list" writes no playwright-report/; the actual/diff
+          # screenshots of a failed visual test land in test-results/.
+          path: |
+            playwright-report/
+            test-results/
           retention-days: 7
