@@ -1,22 +1,54 @@
-/**
- * The app's view over the shared query engine.
- *
- * Filtering used to be implemented here, beside a server-side equality path and
- * a reference block's third engine, and they drifted. The operator semantics now
- * live once in `@notara/shared` — this module keeps the app's public surface
- * (its types, its labels, `applyFilters`/`applySorts`) and delegates to it, so a
- * saved view means the same thing here and over the API.
- */
 import {
 	type DatabaseField,
 	type DatabaseRecord,
-	type Filter,
 	fieldTypeSpec,
-	matchesFilters,
 } from "@notara/shared";
 
-export type { Filter, FilterOperator } from "@notara/shared";
-export { OPERATOR_LABELS, operatorsForFieldType } from "@notara/shared";
+export type FilterOperator =
+	| "contains"
+	| "does_not_contain"
+	| "is"
+	| "is_not"
+	| "is_empty"
+	| "is_not_empty"
+	| "gt"
+	| "lt"
+	| "gte"
+	| "lte"
+	| "before"
+	| "after";
+
+export interface Filter {
+	fieldId: string;
+	operator: FilterOperator;
+	value: string;
+}
+
+export const OPERATOR_LABELS: Record<FilterOperator, string> = {
+	contains: "Contains",
+	does_not_contain: "Does not contain",
+	is: "Is",
+	is_not: "Is not",
+	is_empty: "Is empty",
+	is_not_empty: "Is not empty",
+	gt: ">",
+	lt: "<",
+	gte: "≥",
+	lte: "≤",
+	before: "Before",
+	after: "After",
+};
+
+/**
+ * Operators offered for a field type — drives the smart filter UI.
+ *
+ * The list lives in the field-type registry, beside the decode and compare that
+ * have to agree with it. This used to be its own switch, which is how the
+ * reference block's private engine came to understand a different set entirely.
+ */
+export function operatorsForFieldType(type: string): FilterOperator[] {
+	return [...fieldTypeSpec(type).operators] as FilterOperator[];
+}
 
 export interface Sort {
 	fieldId: string;
@@ -34,7 +66,54 @@ export function applyFilters(
 	filters: Filter[],
 ): RecordWithValues[] {
 	if (filters.length === 0) return records;
-	return matchesFilters(records, fields, filters);
+	return records.filter((row) =>
+		filters.every((filter) => {
+			const field = fields.find((f) => f.id === filter.fieldId);
+			if (!field) return true;
+			const val = row.values[field.name];
+			const fv = filter.value.toLowerCase();
+			switch (filter.operator) {
+				case "contains":
+					return String(val ?? "")
+						.toLowerCase()
+						.includes(fv);
+				case "does_not_contain":
+					return !String(val ?? "")
+						.toLowerCase()
+						.includes(fv);
+				case "is":
+					return String(val ?? "").toLowerCase() === fv;
+				case "is_not":
+					return String(val ?? "").toLowerCase() !== fv;
+				case "is_empty":
+					return !val || val === "" || val === "[]" || val === "null";
+				case "is_not_empty":
+					return Boolean(val) && val !== "" && val !== "[]" && val !== "null";
+				case "gt":
+					return Number(val) > Number(filter.value);
+				case "lt":
+					return Number(val) < Number(filter.value);
+				case "gte":
+					return Number(val) >= Number(filter.value);
+				case "lte":
+					return Number(val) <= Number(filter.value);
+				case "before":
+					return (
+						val != null &&
+						val !== "" &&
+						new Date(String(val)) < new Date(filter.value)
+					);
+				case "after":
+					return (
+						val != null &&
+						val !== "" &&
+						new Date(String(val)) > new Date(filter.value)
+					);
+				default:
+					return true;
+			}
+		}),
+	);
 }
 
 export function applySorts(

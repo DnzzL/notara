@@ -29,9 +29,7 @@ export type PresenceEvent =
 			type: "page.metaUpdated";
 			actorUserId: string;
 			fields: Record<string, unknown>;
-	  }
-	/** Every viewer, the writer too: a key's owner watches their agent write. */
-	| { type: "comments.changed" };
+	  };
 
 type Subscriber = {
 	userId: string;
@@ -188,7 +186,8 @@ export function createPresenceService(opts: PresenceServiceOptions = {}) {
 		},
 
 		broadcast(workspaceId: string, pageId: string, event: PresenceEvent) {
-			const actor = "actorUserId" in event ? event.actorUserId : null;
+			const actor =
+				event.type === "presence.changed" ? null : event.actorUserId;
 			emit(workspaceId, pageId, event, actor);
 		},
 

@@ -2,7 +2,6 @@ import { Link, useNavigate } from "@tanstack/react-router";
 import { useState } from "react";
 import { capture } from "../analytics.js";
 import { authClient } from "../auth-client.js";
-import { loopSteps } from "../lib/landing-loop.js";
 import { api } from "../rpc-client.js";
 import { toaster } from "../toaster.js";
 
@@ -51,10 +50,6 @@ const features = [
 		title: "Open REST API",
 		desc: "Full HTTP API with API-key auth. Automate from scripts, CI, or any client. OpenAPI spec included.",
 		docsHref: "/api/docs",
-	},
-	{
-		title: "Artifacts",
-		desc: "HTML reports and dashboards attached to a card and shown live in it — rendered isolated: self-contained, no network.",
 	},
 	{
 		title: "Command-line client",
@@ -174,18 +169,18 @@ export function LandingPage({ demoMode }: { demoMode: boolean }) {
 						className="landing-headline lp-reveal"
 						style={{ animationDelay: ".12s" }}
 					>
-						The <span className="blue">AI-first</span>
+						The notes app
 						<br />
-						Notion alternative.
+						you <span className="out">actually</span>{" "}
+						<span className="blue">own.</span>
 					</h1>
 					<div className="lp-hero-lower">
 						<div className="lp-hero-text">
 							<p className="lp-reveal" style={{ animationDelay: ".24s" }}>
-								Notes, docs and one backlog your team and your agents share.
-								Desktop app, block editor, inline databases, real-time
-								collaboration — all backed by a single SQLite file on your own
-								server. Free to self-host. Keep the source. Walk away whenever
-								you like.
+								A Notion alternative you can touch. Desktop app, block editor,
+								inline databases, real-time collaboration — all backed by a
+								single SQLite file on your own server. Free to self-host. Keep
+								the source. Walk away whenever you like.
 							</p>
 							<div
 								className="landing-hero-ctas lp-reveal"
@@ -260,59 +255,12 @@ export function LandingPage({ demoMode }: { demoMode: boolean }) {
 				</div>
 			</section>
 
-			{/* The loop — the card cycle an agent runs, shown before any API surface */}
-			<section className="landing-loop">
-				<div className="lp-wrap landing-loop-in">
-					<span className="lp-kicker">
-						<b>01</b> · The loop
-					</span>
-					<h2>
-						Find the work. Read the card.
-						<br />
-						Tick it off.
-					</h2>
-					<p className="landing-loop-copy">
-						A card is a record with acceptance criteria. An agent reaches it
-						over the REST API, works it and reports back in the open — the three
-						calls below are the whole cycle.
-					</p>
-					<div className="lp-dev-examples">
-						{loopSteps.map((step) => (
-							<div key={step.desc} className="lp-dev-ex">
-								{step.calls.map((call) => (
-									<div key={call.path} className="lp-dev-cmd">
-										{`${call.method} ${call.path}`}
-									</div>
-								))}
-								<div className="lp-dev-desc">{step.desc}</div>
-							</div>
-						))}
-					</div>
-					<p className="landing-loop-effect">
-						&rarr; The criteria the agent ticked read as done on the card; the
-						question is already waiting in a teammate's inbox.
-					</p>
-					<p className="landing-loop-links">
-						<a href="/llms.txt">/llms.txt</a> — the cycle in one page for an
-						agent arriving cold ·{" "}
-						<a
-							href={`${REPO_URL}/blob/main/docs/shared-backlog.md`}
-							target="_blank"
-							rel="noopener noreferrer"
-						>
-							docs/shared-backlog.md
-						</a>{" "}
-						— the model behind the calls.
-					</p>
-				</div>
-			</section>
-
 			{/* Object */}
 			<section className="lp-object">
 				<div className="lp-wrap lp-object-in">
 					<div className="lp-object-txt">
 						<span className="lp-kicker">
-							<b>02</b> · The premise
+							<b>01</b> · The premise
 						</span>
 						<h2>One file. On your disk. No vendors in the middle.</h2>
 						<p>
@@ -386,7 +334,7 @@ export function LandingPage({ demoMode }: { demoMode: boolean }) {
 							<br />
 							Nothing you don't
 						</h2>
-						<span className="lp-kicker">Index · 01—11</span>
+						<span className="lp-kicker">Index · 01—10</span>
 					</div>
 					{features.map((f, i) => (
 						<div key={f.title} className="lp-feat-row">
@@ -420,7 +368,7 @@ export function LandingPage({ demoMode }: { demoMode: boolean }) {
 			<section className="landing-dev">
 				<div className="lp-wrap landing-dev-in">
 					<span className="lp-kicker">
-						<b>03</b> · For developers & AI agents
+						<b>02</b> · For developers & AI agents
 					</span>
 					<h2>
 						Automate everything.
@@ -483,7 +431,7 @@ export function LandingPage({ demoMode }: { demoMode: boolean }) {
 			<section id="why" className="landing-why">
 				<div className="lp-wrap lp-why-in">
 					<span className="lp-kicker">
-						<b>04</b> · A note from the developer
+						<b>03</b> · A note from the developer
 					</span>
 					<h2>Why AGPL, not just MIT?</h2>
 					<p className="landing-why-body">
@@ -522,7 +470,7 @@ export function LandingPage({ demoMode }: { demoMode: boolean }) {
 				<div className="lp-wrap">
 					<div className="lp-price-head">
 						<span className="lp-kicker">
-							<b>05</b> · Free &amp; open source
+							<b>04</b> · Free &amp; open source
 						</span>
 						<h2>
 							No tiers.

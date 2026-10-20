@@ -1,22 +1,12 @@
 import { Effect } from "effect";
 import * as HttpRouter from "effect/http/HttpRouter";
-import * as HttpServerRequest from "effect/http/HttpServerRequest";
 import type * as HttpServerResponse from "effect/http/HttpServerResponse";
-import { SqlClient } from "effect/sql";
 import { WorkspaceDb } from "../db.js";
-import { recordAsMarkdown, tickCriterion } from "../export/page.js";
 import * as Blocks from "../handlers/blocks.js";
-import * as Comments from "../handlers/comments.js";
 import * as Databases from "../handlers/databases.js";
 import * as Pages from "../handlers/pages.js";
 import * as Permissions from "../handlers/permissions.js";
 import * as Search from "../handlers/search.js";
-import * as Upload from "../handlers/upload.js";
-import {
-	editorBlock,
-	markdownAsEditorBlocks,
-	todo,
-} from "../import/editor-blocks.js";
 import { ApiError, requireWorkspaceMember, resolveApiUser } from "./auth.js";
 import {
 	created,
@@ -26,7 +16,6 @@ import {
 	optionalField,
 	parseBody,
 	queryParam,
-	queryParams,
 	requireField,
 	requireParam,
 } from "./response.js";
@@ -52,8 +41,6 @@ export interface OperationContext {
 	readonly userId: string;
 	readonly workspaceId: string;
 	readonly role: "owner" | "member";
-	/** The API key the caller came through; null for a session. */
-	readonly keyName: string | null;
 	readonly params: RouteParams;
 }
 
@@ -123,10 +110,7 @@ const jsonBody = (name: string) => ({
 	required: true,
 	content: { "application/json": { schema: jsonSchema(name) } },
 });
-const jsonResponse = (
-	description: string,
-	schema: Record<string, unknown>,
-) => ({
+const jsonResponse = (description: string, schema: object) => ({
 	description,
 	content: { "application/json": { schema } },
 });
@@ -170,15 +154,7 @@ export const recordParam = {
 	in: "path" as const,
 	required: true,
 	schema: { type: "string" },
-	description: "Record ID or short id (`NOT-12`)",
-};
-
-export const criterionParam = {
-	name: "criterionId",
-	in: "path" as const,
-	required: true,
-	schema: { type: "string" },
-	description: "A criterion's `id`, as Get a record returns it",
+	description: "Record ID",
 };
 
 const permanentQuery = {
@@ -193,100 +169,6 @@ const permanentQuery = {
 /** The 404 mapping the old hand-written routes gave getPage/updatePage. */
 const notFound = (resource: string, id: string) =>
 	new ApiError({ status: 404, message: `${resource} ${id} not found` });
-
-const databaseViewer = (
-	ctx: Pick<OperationContext, "userId" | "workspaceId" | "params">,
-) =>
-	Effect.gen(function* () {
-		const dbId = yield* requireParam(ctx.params, "dbId");
-		yield* Permissions.checkDatabasePermission(
-			ctx.userId,
-			ctx.workspaceId,
-			dbId,
-			"viewer",
-		);
-	});
-
-/** The route's record, refused unless it belongs to the route's database. */
-const recordOf = (ctx: Pick<OperationContext, "params">) =>
-	Effect.gen(function* () {
-		const dbId = yield* requireParam(ctx.params, "dbId");
-		const recordId = yield* requireParam(ctx.params, "recordId");
-		const { record } = yield* Databases.getRecordWithValues(recordId).pipe(
-			Effect.mapError(() => notFound("Record", recordId)),
-		);
-		if (record.databaseId !== dbId)
-			return yield* Effect.fail(notFound("Record", recordId));
-		return record;
-	});
-
-/** A record as GET returns it: fields, body as markdown, criteria. */
-const recordDocument = (recordId: string) =>
-	Effect.gen(function* () {
-		const { record, values } = yield* Databases.getRecordWithValues(recordId);
-		const { body, criteria } = yield* recordAsMarkdown(record.pageId);
-		return { ...record, fields: values, body, criteria };
-	});
-
-/** A refused write as the 422 REST answers with. */
-const unwritable = Effect.mapError((e: unknown) =>
-	e instanceof Error && "_tag" in e && e._tag === "ValidationError"
-		? new ApiError({ status: 422, message: e.message })
-		: e,
-);
-
-/** `fields` from a write body: an object of field id or name → value. */
-const fieldsOf = (b: Record<string, unknown>) =>
-	b.fields === undefined
-		? Effect.succeed({})
-		: typeof b.fields === "object" &&
-				b.fields !== null &&
-				!Array.isArray(b.fields)
-			? Effect.succeed(b.fields as Record<string, unknown>)
-			: Effect.fail(
-					new ApiError({
-						status: 422,
-						message:
-							'Field "fields" must be an object of field name or id to value',
-					}),
-				);
-
-/** `criteria` from a create body: strings, or `{text, checked}`. */
-const criteriaOf = (b: Record<string, unknown>) => {
-	const raw = b.criteria ?? [];
-	const items = Array.isArray(raw)
-		? raw.map((c) =>
-				typeof c === "string"
-					? { text: c, checked: false }
-					: typeof c === "object" && c !== null && typeof c.text === "string"
-						? { text: c.text as string, checked: c.checked === true }
-						: null,
-			)
-		: null;
-	return items?.every((c) => c !== null)
-		? Effect.succeed(items as Array<{ text: string; checked: boolean }>)
-		: Effect.fail(
-				new ApiError({
-					status: 422,
-					message:
-						'Field "criteria" must be a list of strings or {"text", "checked"}',
-				}),
-			);
-};
-
-/** `shortNumber` from a create body: an import keeping the numbers its source had. */
-const shortNumberOf = (b: Record<string, unknown>) => {
-	const raw = b.shortNumber;
-	if (raw === undefined) return Effect.succeed(null);
-	if (typeof raw !== "number" || !Number.isInteger(raw) || raw < 1)
-		return Effect.fail(
-			new ApiError({
-				status: 422,
-				message: 'Field "shortNumber" must be a positive integer',
-			}),
-		);
-	return Effect.succeed(raw);
-};
 
 // ── Pages ──────────────────────────────────────────────────────────────────────
 
@@ -600,8 +482,6 @@ export const blockOperations: readonly Operation[] = [
 				const block = yield* Blocks.updateBlock({
 					id: blockId,
 					content: yield* requireBlockContent(b.content),
-					workspaceId: ctx.workspaceId,
-					actorUserId: ctx.userId,
 				}).pipe(Effect.mapError(() => notFound("Block", blockId)));
 				return ok(block);
 			}),
@@ -739,14 +619,8 @@ export const databaseOperations: readonly Operation[] = [
 							typeof b.titleLabel === "string" ? b.titleLabel : undefined,
 						titleHidden:
 							"titleHidden" in b ? Boolean(b.titleHidden) : undefined,
-						shortPrefix:
-							typeof b.shortPrefix === "string" ? b.shortPrefix : undefined,
 					});
-				}).pipe(
-					Effect.catchTag("NotFoundError", () =>
-						Effect.fail(notFound("Database", dbId)),
-					),
-				);
+				}).pipe(Effect.mapError(() => notFound("Database", dbId)));
 				return ok(db);
 			}),
 		openapi: {
@@ -819,41 +693,6 @@ export const databaseOperations: readonly Operation[] = [
 			summary: "Restore a trashed database",
 			responses: {
 				200: jsonResponse("Restore result", jsonSchema("RestoreResult")),
-				...errorResponses,
-			},
-		},
-	},
-	{
-		method: "GET",
-		path: "/api/v1/workspaces/:workspaceId/databases/:dbId/views",
-		operationId: "listDatabaseViews",
-		tag: "Databases",
-		pathParams: [dbParam],
-		checkPermission: (ctx) =>
-			Effect.gen(function* () {
-				const dbId = yield* requireParam(ctx.params, "dbId");
-				yield* Permissions.checkDatabasePermission(
-					ctx.userId,
-					ctx.workspaceId,
-					dbId,
-					"viewer",
-				);
-			}),
-		run: (ctx) =>
-			Effect.gen(function* () {
-				const dbId = yield* requireParam(ctx.params, "dbId");
-				const views = yield* Databases.listViews(dbId);
-				return ok(views);
-			}),
-		openapi: {
-			summary: "List a database's saved views",
-			description:
-				"Each view's `id`, `name`, `type`, stored `config` and whether it is the default. Address one on the records route with `?view=<name|id>` to read exactly the records it shows, in its order. A database may have no views: the response is then an empty array.",
-			responses: {
-				200: jsonResponse("Views", {
-					type: "array",
-					items: jsonSchema("DatabaseView"),
-				}),
 				...errorResponses,
 			},
 		},
@@ -1017,78 +856,6 @@ export const fieldOperations: readonly Operation[] = [
 
 // ── Records ────────────────────────────────────────────────────────────────────
 
-/** `field:operator:value`; the value may hold colons (a timestamp, say). */
-const parseRecordFilter = (
-	raw: string,
-): { field: string; operator: string; value: string } | null => {
-	const first = raw.indexOf(":");
-	if (first < 0) return null;
-	const second = raw.indexOf(":", first + 1);
-	if (second < 0) return null;
-	return {
-		field: raw.slice(0, first),
-		operator: raw.slice(first + 1, second),
-		value: raw.slice(second + 1),
-	};
-};
-
-/**
- * A window's ceiling. `specs/agent-workspace.md` designs for ten thousand
- * records per database; a window that could hold all of them would be the
- * unbounded response `limit` exists to bound. A thousand keeps a full walk of
- * such a database at ten calls.
- */
-const RECORD_LIMIT_CEILING = 1000;
-
-/**
- * A `q`'s ceiling. A search term is a word or a short phrase; a value long
- * enough to be a paragraph is a caller sending a page where a filter belongs,
- * and matching it would compare every record against a string no human wrote.
- * Refused naming the ceiling, never truncated — the same posture `limit` takes
- * above a thousand records.
- */
-const RECORD_QUERY_CEILING = 1000;
-
-/**
- * The window `limit`/`offset` ask for, or the reason they cannot be honoured.
- * `null` means no `limit` was sent, which keeps today's bare-array response.
- * Both are read as whole numbers, and every fault is refused here rather than
- * quietly adjusted: a caller that asks for 100 and is handed 20 unasked is
- * being lied to. `offset` without `limit` is refused too — the bare array has
- * no window to offset into.
- */
-const parseRecordWindow = (
-	limit: string | null,
-	offset: string | null,
-): { limit: number; offset: number } | null | { error: string } => {
-	/** A whole number of 0 or more, or null when the text is not one. */
-	const whole = (raw: string) => (/^\d+$/.test(raw) ? Number(raw) : null);
-
-	if (limit === null)
-		return offset === null
-			? null
-			: {
-					error:
-						"`offset` needs a `limit`; an unbounded response has no window to offset into",
-				};
-
-	const size = whole(limit);
-	if (size === null || size === 0)
-		return {
-			error: `\`limit\` is a positive whole number of records; got "${limit}"`,
-		};
-	if (size > RECORD_LIMIT_CEILING)
-		return {
-			error: `\`limit\` is at most ${RECORD_LIMIT_CEILING}; got "${limit}"`,
-		};
-
-	if (offset === null) return { limit: size, offset: 0 };
-	const start = whole(offset);
-	return start === null
-		? { error: `\`offset\` is a whole number of 0 or more; got "${offset}"` }
-		: { limit: size, offset: start };
-};
-
 export const recordOperations: readonly Operation[] = [
 	{
 		method: "GET",
@@ -1109,82 +876,14 @@ export const recordOperations: readonly Operation[] = [
 		run: (ctx) =>
 			Effect.gen(function* () {
 				const dbId = yield* requireParam(ctx.params, "dbId");
-				const fields = yield* queryParams("field");
-				const values = yield* queryParams("value");
-				if (fields.length !== values.length)
-					return yield* Effect.fail(
-						new ApiError({
-							status: 400,
-							message: "Each `field` needs a `value`, in the same order",
-						}),
-					);
-				const structured: Array<{
-					field: string;
-					operator: string;
-					value: string;
-				}> = [];
-				for (const raw of yield* queryParams("filter")) {
-					const parsed = parseRecordFilter(raw);
-					if (!parsed)
-						return yield* Effect.fail(
-							new ApiError({
-								status: 400,
-								message: `Each \`filter\` is "field:operator:value"; got "${raw}"`,
-							}),
-						);
-					structured.push(parsed);
-				}
-				const equality = fields.map((field, i) => ({
-					field,
-					value: values[i],
-				}));
-				// Read the window before anything else runs, so a limit the server
-				// refuses costs no query and is never silently clamped.
-				const window = parseRecordWindow(
-					yield* queryParam("limit"),
-					yield* queryParam("offset"),
-				);
-				if (window !== null && "error" in window)
-					return yield* Effect.fail(
-						new ApiError({ status: 400, message: window.error }),
-					);
-				// `q` narrows the records by text; empty or absent changes nothing.
-				// Refuse a `q` past the ceiling rather than truncate it, and read it
-				// before the view so a query the server refuses costs no work.
-				const qParam = yield* queryParam("q");
-				const q =
-					qParam !== null && qParam.trim() !== "" ? qParam.trim() : null;
-				if (q !== null && q.length > RECORD_QUERY_CEILING)
-					return yield* Effect.fail(
-						new ApiError({
-							status: 400,
-							message: `\`q\` is at most ${RECORD_QUERY_CEILING} characters; got ${q.length}`,
-						}),
-					);
-				// A named view contributes its stored filters and sorts; they AND with
-				// everything the caller passed. An unknown view is a 404 naming it, an
-				// ambiguous name a 409 naming the candidates.
-				const viewRef = yield* queryParam("view");
-				const view = viewRef
-					? yield* Databases.resolveView(dbId, viewRef)
-					: { filters: [], sorts: [] };
-				const filters = [...structured, ...view.filters];
-				// `{ record, values }`, where `values` is already a field-name →
-				// parsed-value map. Flattened below for REST consumers.
-				const raw = yield* filters.length > 0 || view.sorts.length > 0
-					? Databases.listRecordsFiltered(
-							dbId,
-							filters,
-							equality,
-							view.sorts,
-							q,
-						)
-					: Databases.listRecordsMatching(dbId, equality, q);
+				// `listRecordsWithValues` yields `{ record, values }`, where `values`
+				// is already a field-name → parsed-value map. Flatten it for REST
+				// consumers.
+				const raw = yield* Databases.listRecordsWithValues(dbId);
 				const records = (
 					raw as Array<{ record: any; values: Record<string, unknown> }>
 				).map(({ record, values }) => ({
 					id: record.id,
-					shortId: record.shortId,
 					databaseId: record.databaseId,
 					title: record.title,
 					description: record.description ?? null,
@@ -1192,104 +891,15 @@ export const recordOperations: readonly Operation[] = [
 					createdAt: record.createdAt,
 					fields: values ?? {},
 				}));
-				// The window is taken here, after filtering, searching and sorting,
-				// never before: a slice of the unordered rows would overlap or miss when
-				// a view's sorts order them, and a slice taken before `q` would silently
-				// miss every match past the first page.
-				if (window === null) return ok(records);
-				const page = records.slice(window.offset, window.offset + window.limit);
-				const next = window.offset + page.length;
-				return ok({
-					records: page,
-					// Opaque to the caller: hand it back as `offset` to continue. What it
-					// holds is not part of the contract; `null` says the walk reached
-					// the end of the records.
-					nextCursor: next < records.length ? String(next) : null,
-				});
+				return ok(records);
 			}),
 		openapi: {
 			summary: "List records in a database",
-			description:
-				"Keep only matching records, ANDed, four ways. Pass `field`/`value` pairs for equality: `?field=Status&value=done`. Pass repeated `filter=field:operator:value` for an operator the field type offers: `?filter=Status:is_not:done&filter=Points:gt:4`. Pass `view=<name|id>` to read exactly what a saved view shows, in that view's order: its stored filters join the others (AND) and its sorts are applied, first sort first. Pass `q=text` to narrow by text: it keeps a record whose field values or whose page content contain `text`, case-insensitively, and is applied **before** `limit`/`offset`, so a match on a later page is found in one call rather than by walking the pages. `q` is a filter, not a search engine: a case-insensitive substring, no ranking or relevance. An empty or absent `q` changes nothing. A field is named by id, else by name. An unknown view is a `404` naming it; a view name two views share (differing only by case) is a `409` naming the candidates. Matching is on the decoded value and is case-insensitive for text, select, date and multi-value cells: a multi-value field (multiSelect, people, relation, page — the last three hold ids) matches on membership; a number matches numerically; a checkbox never ticked is `false`; an empty value matches an empty field, an empty list included. A `q` above 1000 characters is a `400` naming the ceiling, never truncated. Pass `limit` (with optional `offset`) to bound a large database: the response becomes `{records, nextCursor}` and handing `nextCursor` back as `offset` reads the next window, no gap and no repeat. Omitting `limit` keeps the bare array described below, byte for byte, so a caller that never sends it sees exactly today's response.",
-			parameters: [
-				{
-					name: "field",
-					in: "query" as const,
-					required: false,
-					schema: { type: "array", items: { type: "string" } },
-					style: "form",
-					explode: true,
-					description: "Field id or name; repeat, paired in order with `value`",
-				},
-				{
-					name: "value",
-					in: "query" as const,
-					required: false,
-					schema: { type: "array", items: { type: "string" } },
-					style: "form",
-					explode: true,
-					description: "Value the paired field must hold",
-				},
-				{
-					name: "filter",
-					in: "query" as const,
-					required: false,
-					schema: { type: "array", items: { type: "string" } },
-					style: "form",
-					explode: true,
-					description:
-						"`field:operator:value`; repeat to AND several. Shape `field:operator:value`, the operator from the field type's list",
-				},
-				{
-					name: "view",
-					in: "query" as const,
-					required: false,
-					schema: { type: "string" },
-					description:
-						"A saved view's id or name; case-insensitive name, within this database. Its filters join the others (AND) and its sorts order the result. Unknown → 404, ambiguous name → 409.",
-				},
-				{
-					name: "q",
-					in: "query" as const,
-					required: false,
-					schema: { type: "string", maxLength: RECORD_QUERY_CEILING },
-					description:
-						"Free text; keeps a record whose field values or page content contain it (case-insensitive substring). Applied before `limit`/`offset`, so a match past the first page is found in one call. ANDs with `field`/`value`, `filter=` and `view=`. Empty or absent changes nothing; above the ceiling → 400 naming it.",
-				},
-				{
-					name: "limit",
-					in: "query" as const,
-					required: false,
-					schema: {
-						type: "integer",
-						minimum: 1,
-						maximum: RECORD_LIMIT_CEILING,
-					},
-					description:
-						"How many records this response may hold. Omit it and the response stays the bare array; send it and the response becomes `{records, nextCursor}`. A `limit` that is not a positive whole number, or is above the ceiling, is a `400` naming it — never a clamped window.",
-				},
-				{
-					name: "offset",
-					in: "query" as const,
-					required: false,
-					schema: { type: "integer", minimum: 0 },
-					description:
-						"Where the window starts in the order the query returns, counting from 0. Needs `limit`; a negative offset is a `400`. A caller normally walks with `nextCursor` instead of counting.",
-				},
-			],
 			responses: {
-				200: jsonResponse(
-					"Records: today's bare array without `limit`, `{records, nextCursor}` with it",
-					{
-						oneOf: [
-							{
-								type: "array",
-								items: jsonSchema("DatabaseRecord"),
-							},
-							jsonSchema("RecordPage"),
-						],
-					},
-				),
+				200: jsonResponse("Records with field values", {
+					type: "array",
+					items: jsonSchema("DatabaseRecord"),
+				}),
 				...errorResponses,
 			},
 		},
@@ -1314,88 +924,18 @@ export const recordOperations: readonly Operation[] = [
 			Effect.gen(function* () {
 				const dbId = yield* requireParam(ctx.params, "dbId");
 				const body = yield* parseBody;
-				const b = body as Record<string, unknown>;
 				const title = yield* requireField(body, "title");
-				const markdown = typeof b.body === "string" ? b.body : "";
-				const criteria = yield* criteriaOf(b);
-				const shortNumber = yield* shortNumberOf(b);
-				const writes = yield* Databases.fieldWrites(
-					dbId,
-					yield* fieldsOf(b),
-				).pipe(unwritable);
-				const sql = yield* SqlClient.SqlClient;
-				const record = yield* sql.withTransaction(
-					Effect.gen(function* () {
-						const record = yield* Databases.createRecord({
-							databaseId: dbId,
-							title,
-						});
-						if (shortNumber !== null)
-							yield* Databases.setShortNumber(record.id, shortNumber);
-						for (const w of writes)
-							yield* Databases.updateFieldValue({ recordId: record.id, ...w });
-						const blocks = [
-							...markdownAsEditorBlocks(markdown),
-							...(criteria.length > 0
-								? [editorBlock("heading2", "Acceptance Criteria")]
-								: []),
-							...criteria.map((c) => todo(c.text, c.checked)),
-						];
-						if (blocks.length > 0) {
-							const { pageId } = yield* Databases.openRecordAsPage(record.id);
-							for (const [index, block] of blocks.entries())
-								yield* Blocks.createBlock({
-									pageId,
-									...block,
-									index,
-									parentId: null,
-								});
-						}
-						return record;
-					}),
-				);
-				return created(yield* recordDocument(record.id));
+				const record = yield* Databases.createRecord({
+					databaseId: dbId,
+					title,
+				});
+				return created(record);
 			}),
 		openapi: {
-			summary: "Create a record, with its fields, body and criteria",
-			description:
-				"Only `title` is required. `fields` names each field by id or name; every value is checked against its field (a select takes one of its options, a number a number, …) before anything is written, and a 422 names the first that is not. `body` is markdown; `criteria` become to-dos under an Acceptance Criteria heading. `shortNumber` is for an import that keeps the numbers its source had: omit it for the next free one, and a number already used in the database is a 409.",
+			summary: "Create a record (row)",
 			requestBody: jsonBody("RecordCreate"),
 			responses: {
-				201: jsonResponse("Created record", jsonSchema("RecordDocument")),
-				...errorResponses,
-			},
-		},
-	},
-	{
-		method: "GET",
-		path: "/api/v1/workspaces/:workspaceId/databases/:dbId/records/:recordId",
-		operationId: "getRecord",
-		tag: "Databases",
-		pathParams: [dbParam, recordParam],
-		checkPermission: (ctx) =>
-			Effect.gen(function* () {
-				const dbId = yield* requireParam(ctx.params, "dbId");
-				yield* Permissions.checkDatabasePermission(
-					ctx.userId,
-					ctx.workspaceId,
-					dbId,
-					"viewer",
-				);
-			}),
-		run: (ctx) =>
-			Effect.gen(function* () {
-				// The permission check was on dbId: a record of another database
-				// is not this route's to show.
-				const record = yield* recordOf(ctx);
-				return ok(yield* recordDocument(record.id));
-			}),
-		openapi: {
-			summary: "Get a record: field values, body as markdown, criteria",
-			description:
-				"`body` is the record's page rendered as markdown (empty when the record was never opened as a page); `criteria` are the to-do items on that page, in order.",
-			responses: {
-				200: jsonResponse("Record", jsonSchema("RecordDocument")),
+				201: jsonResponse("Created record", jsonSchema("DatabaseRecord")),
 				...errorResponses,
 			},
 		},
@@ -1418,35 +958,22 @@ export const recordOperations: readonly Operation[] = [
 			}),
 		run: (ctx) =>
 			Effect.gen(function* () {
-				const record = yield* recordOf(ctx);
+				const recordId = yield* requireParam(ctx.params, "recordId");
 				const body = yield* parseBody;
 				const b = body as Record<string, unknown>;
-				const writes = yield* Databases.fieldWrites(
-					record.databaseId,
-					yield* fieldsOf(b),
-				).pipe(unwritable);
-				const sql = yield* SqlClient.SqlClient;
-				yield* sql.withTransaction(
-					Effect.gen(function* () {
-						yield* Databases.updateRecord({
-							id: record.id,
-							title: typeof b.title === "string" ? b.title : undefined,
-							description:
-								typeof b.description === "string" ? b.description : undefined,
-						});
-						for (const w of writes)
-							yield* Databases.updateFieldValue({ recordId: record.id, ...w });
-					}),
-				);
-				return ok(yield* recordDocument(record.id));
+				const result = yield* Databases.updateRecord({
+					id: recordId,
+					title: typeof b.title === "string" ? b.title : undefined,
+					description:
+						typeof b.description === "string" ? b.description : undefined,
+				});
+				return ok(result);
 			}),
 		openapi: {
-			summary: "Update a record's title, description or fields",
-			description:
-				"`fields` names each field by id or name; fields left out keep their values. Every value is checked before anything is written; a 422 names the first that is not valid.",
+			summary: "Update a record's title or description",
 			requestBody: jsonBody("RecordUpdate"),
 			responses: {
-				200: jsonResponse("Updated record", jsonSchema("RecordDocument")),
+				200: jsonResponse("Updated record", jsonSchema("DatabaseRecord")),
 				...errorResponses,
 			},
 		},
@@ -1559,414 +1086,6 @@ export const recordOperations: readonly Operation[] = [
 			},
 		},
 	},
-	{
-		method: "POST",
-		path: "/api/v1/workspaces/:workspaceId/databases/:dbId/records/:recordId/criteria",
-		operationId: "addCriteria",
-		tag: "Databases",
-		pathParams: [dbParam, recordParam],
-		checkPermission: (ctx) =>
-			Effect.gen(function* () {
-				const dbId = yield* requireParam(ctx.params, "dbId");
-				yield* Permissions.checkDatabasePermission(
-					ctx.userId,
-					ctx.workspaceId,
-					dbId,
-					"editor",
-				);
-			}),
-		run: (ctx) =>
-			Effect.gen(function* () {
-				const record = yield* recordOf(ctx);
-				const b = (yield* parseBody) as Record<string, unknown>;
-				const criteria = yield* criteriaOf(b);
-				if (criteria.length === 0)
-					return yield* Effect.fail(
-						new ApiError({
-							status: 422,
-							message: 'Field "criteria" must name at least one criterion',
-						}),
-					);
-				const sql = yield* SqlClient.SqlClient;
-				yield* sql.withTransaction(
-					Effect.gen(function* () {
-						const { pageId } = yield* Databases.openRecordAsPage(record.id);
-						const blocks = yield* Blocks.listBlocks(pageId);
-						// Appended after the last top-level block; the heading only
-						// when the page has no criteria yet, as Create writes it.
-						let index =
-							Math.max(
-								-1,
-								...blocks
-									.filter((x) => x.parentId === null)
-									.map((x) => x.index),
-							) + 1;
-						const added = [
-							...(blocks.some((x) => x.type === "todo")
-								? []
-								: [editorBlock("heading2", "Acceptance Criteria")]),
-							...criteria.map((c) => todo(c.text, c.checked)),
-						];
-						for (const block of added)
-							yield* Blocks.createBlock({
-								pageId,
-								...block,
-								index: index++,
-								parentId: null,
-							});
-					}),
-				);
-				return created(yield* recordDocument(record.id));
-			}),
-		openapi: {
-			summary: "Add criteria to a record",
-			description:
-				"Appends to-dos after the record's existing criteria, at the end of its page; the first ones get an Acceptance Criteria heading, as Create writes them. A read key cannot.",
-			requestBody: jsonBody("CriteriaAdd"),
-			responses: {
-				201: jsonResponse("The record", jsonSchema("RecordDocument")),
-				...errorResponses,
-			},
-		},
-	},
-	{
-		method: "PUT",
-		path: "/api/v1/workspaces/:workspaceId/databases/:dbId/records/:recordId/criteria/:criterionId",
-		operationId: "tickCriterion",
-		tag: "Databases",
-		pathParams: [dbParam, recordParam, criterionParam],
-		checkPermission: (ctx) =>
-			Effect.gen(function* () {
-				const dbId = yield* requireParam(ctx.params, "dbId");
-				yield* Permissions.checkDatabasePermission(
-					ctx.userId,
-					ctx.workspaceId,
-					dbId,
-					"editor",
-				);
-			}),
-		run: (ctx) =>
-			Effect.gen(function* () {
-				const id = yield* requireParam(ctx.params, "criterionId");
-				const { checked } = (yield* parseBody) as Record<string, unknown>;
-				if (typeof checked !== "boolean")
-					return yield* Effect.fail(
-						new ApiError({
-							status: 422,
-							message: 'Field "checked" must be a boolean',
-						}),
-					);
-				const { pageId } = yield* recordOf(ctx);
-				return ok(
-					yield* tickCriterion({
-						pageId,
-						id,
-						checked,
-						workspaceId: ctx.workspaceId,
-						actorUserId: ctx.userId,
-					}).pipe(Effect.mapError(() => notFound("Criterion", id))),
-				);
-			}),
-		openapi: {
-			summary: "Tick or untick one of a record's criteria",
-			description:
-				"`criterionId` is a criterion's `id` from Get a record. The record's page and its markdown body change with it.",
-			requestBody: jsonBody("CriterionUpdate"),
-			responses: {
-				200: jsonResponse("The criterion", jsonSchema("Criterion")),
-				...errorResponses,
-			},
-		},
-	},
-];
-
-// ── Comments ───────────────────────────────────────────────────────────────────
-
-const pageViewer = (
-	ctx: Pick<OperationContext, "userId" | "workspaceId" | "params">,
-) =>
-	Effect.gen(function* () {
-		const pageId = yield* requireParam(ctx.params, "pageId");
-		yield* Permissions.checkPagePermission(
-			ctx.userId,
-			ctx.workspaceId,
-			pageId,
-			"viewer",
-		);
-	});
-
-export const commentOperations: readonly Operation[] = [
-	{
-		method: "GET",
-		path: "/api/v1/workspaces/:workspaceId/pages/:pageId/comments",
-		operationId: "listComments",
-		tag: "Comments",
-		pathParams: [pageParam],
-		checkPermission: pageViewer,
-		run: (ctx) =>
-			Effect.gen(function* () {
-				const pageId = yield* requireParam(ctx.params, "pageId");
-				return ok(yield* Comments.listComments(pageId));
-			}),
-		openapi: {
-			summary: "List a page's comments, oldest first",
-			responses: {
-				200: jsonResponse("Comments", {
-					type: "array",
-					items: jsonSchema("Comment"),
-				}),
-				...errorResponses,
-			},
-		},
-	},
-	{
-		method: "POST",
-		path: "/api/v1/workspaces/:workspaceId/pages/:pageId/comments",
-		operationId: "addComment",
-		tag: "Comments",
-		pathParams: [pageParam],
-		checkPermission: pageViewer,
-		run: (ctx) =>
-			Effect.gen(function* () {
-				const pageId = yield* requireParam(ctx.params, "pageId");
-				const body = yield* requireField(yield* parseBody, "body");
-				const comment = yield* Comments.addComment({
-					pageId,
-					workspaceId: ctx.workspaceId,
-					authorId: ctx.userId,
-					body,
-					keyName: ctx.keyName,
-				});
-				return created(comment);
-			}),
-		openapi: {
-			summary: "Comment on a page",
-			description:
-				"The comment is authored by the key's user and names the key. A read key cannot comment.",
-			requestBody: jsonBody("CommentCreate"),
-			responses: {
-				201: jsonResponse("Created comment", jsonSchema("Comment")),
-				...errorResponses,
-			},
-		},
-	},
-	{
-		method: "GET",
-		path: "/api/v1/workspaces/:workspaceId/databases/:dbId/records/:recordId/comments",
-		operationId: "listRecordComments",
-		tag: "Comments",
-		pathParams: [dbParam, recordParam],
-		checkPermission: databaseViewer,
-		run: (ctx) =>
-			Effect.gen(function* () {
-				const { pageId } = yield* recordOf(ctx);
-				return ok(pageId ? yield* Comments.listComments(pageId) : []);
-			}),
-		openapi: {
-			summary: "List a record's comments, oldest first",
-			description:
-				"The thread its page shows; empty for a record never opened as a page.",
-			responses: {
-				200: jsonResponse("Comments", {
-					type: "array",
-					items: jsonSchema("Comment"),
-				}),
-				...errorResponses,
-			},
-		},
-	},
-	{
-		method: "POST",
-		path: "/api/v1/workspaces/:workspaceId/databases/:dbId/records/:recordId/comments",
-		operationId: "addRecordComment",
-		tag: "Comments",
-		pathParams: [dbParam, recordParam],
-		checkPermission: databaseViewer,
-		run: (ctx) =>
-			Effect.gen(function* () {
-				const record = yield* recordOf(ctx);
-				const body = yield* requireField(yield* parseBody, "body");
-				const { pageId } = yield* Databases.openRecordAsPage(record.id);
-				const comment = yield* Comments.addComment({
-					pageId,
-					workspaceId: ctx.workspaceId,
-					authorId: ctx.userId,
-					body,
-					keyName: ctx.keyName,
-				});
-				return created(comment);
-			}),
-		openapi: {
-			summary: "Comment on a record",
-			description:
-				"Opens the record as a page if it has none, so the comment shows there. Authored by the key's user and names the key. A read key cannot comment.",
-			requestBody: jsonBody("CommentCreate"),
-			responses: {
-				201: jsonResponse("Created comment", jsonSchema("Comment")),
-				...errorResponses,
-			},
-		},
-	},
-];
-
-// ── Artifacts ──────────────────────────────────────────────────────────────────
-
-const htmlBody = {
-	required: true,
-	content: { "text/html": { schema: { type: "string" } } },
-};
-
-const nameQuery = {
-	name: "name",
-	in: "query" as const,
-	required: true,
-	schema: { type: "string" },
-	description:
-		"File name, ending in `.html`; the page's artifact of that name is replaced",
-};
-
-const artifactParam = {
-	name: "artifactId",
-	in: "path" as const,
-	required: true,
-	schema: { type: "string" },
-	description: "An artifact's `id`, as attaching it returns it",
-};
-
-/** Attach the request body as artifact `name` to `pageId` (ADR-013). */
-const attachArtifact = (pageId: string, name: string) =>
-	Effect.gen(function* () {
-		const req = yield* HttpServerRequest.HttpServerRequest;
-		const html = Buffer.from(yield* req.arrayBuffer);
-		const res = yield* Upload.uploadFile({
-			pageId,
-			fileName: name,
-			mimeType: "text/html",
-			fileBuffer: html,
-		}).pipe(unwritable);
-		return {
-			id: res.fileUrl.replace(/^\/attachments\/|\.[^.]*$/g, ""),
-			url: res.fileUrl,
-			blockedHosts: res.blockedHosts,
-		};
-	});
-
-/** The `name` query parameter, refused unless it names an HTML file. */
-const artifactName = Effect.gen(function* () {
-	const name = yield* queryParam("name");
-	if (!name || !/\.html?$/i.test(name))
-		return yield* Effect.fail(
-			new ApiError({
-				status: 422,
-				message: 'Query parameter "name" must be a file name ending in .html',
-			}),
-		);
-	return name;
-});
-
-const artifactResponses = (status: 200 | 201) => ({
-	[status]: jsonResponse("The artifact", jsonSchema("Artifact")),
-	...errorResponses,
-});
-
-const pageEditor = (
-	ctx: Pick<OperationContext, "userId" | "workspaceId" | "params">,
-) =>
-	Effect.gen(function* () {
-		const pageId = yield* requireParam(ctx.params, "pageId");
-		yield* Permissions.checkPagePermission(
-			ctx.userId,
-			ctx.workspaceId,
-			pageId,
-			"editor",
-		);
-	});
-
-export const artifactOperations: readonly Operation[] = [
-	{
-		method: "POST",
-		path: "/api/v1/workspaces/:workspaceId/pages/:pageId/artifacts",
-		operationId: "attachArtifact",
-		tag: "Artifacts",
-		pathParams: [pageParam],
-		checkPermission: pageEditor,
-		run: (ctx) =>
-			Effect.gen(function* () {
-				const pageId = yield* requireParam(ctx.params, "pageId");
-				return created(yield* attachArtifact(pageId, yield* artifactName));
-			}),
-		openapi: {
-			summary: "Attach an HTML artifact to a page",
-			description:
-				"The body is the HTML. It is shown live at the end of the page, isolated: its inline scripts run, but it reaches no network, CDN included — `blockedHosts` lists the hosts it references that will not load. Attaching a name the page already has replaces that artifact. At most 5 MB.",
-			parameters: [nameQuery],
-			requestBody: htmlBody,
-			responses: artifactResponses(201),
-		},
-	},
-	{
-		method: "POST",
-		path: "/api/v1/workspaces/:workspaceId/databases/:dbId/records/:recordId/artifacts",
-		operationId: "attachRecordArtifact",
-		tag: "Artifacts",
-		pathParams: [dbParam, recordParam],
-		checkPermission: (ctx) =>
-			Effect.gen(function* () {
-				const dbId = yield* requireParam(ctx.params, "dbId");
-				yield* Permissions.checkDatabasePermission(
-					ctx.userId,
-					ctx.workspaceId,
-					dbId,
-					"editor",
-				);
-			}),
-		run: (ctx) =>
-			Effect.gen(function* () {
-				const record = yield* recordOf(ctx);
-				const name = yield* artifactName;
-				const { pageId } = yield* Databases.openRecordAsPage(record.id);
-				return created(yield* attachArtifact(pageId, name));
-			}),
-		openapi: {
-			summary: "Attach an HTML artifact to a record",
-			description:
-				"As attaching to a page, on the record's page — opened if it has none.",
-			parameters: [nameQuery],
-			requestBody: htmlBody,
-			responses: artifactResponses(201),
-		},
-	},
-	{
-		method: "PUT",
-		path: "/api/v1/workspaces/:workspaceId/artifacts/:artifactId",
-		operationId: "replaceArtifact",
-		tag: "Artifacts",
-		pathParams: [artifactParam],
-		run: (ctx) =>
-			Effect.gen(function* () {
-				const id = yield* requireParam(ctx.params, "artifactId");
-				const sql = yield* SqlClient.SqlClient;
-				const [artifact] = yield* sql<{ pageId: string; fileName: string }>`
-          SELECT page_id as "pageId", file_name as "fileName" FROM attachments
-          WHERE id = ${id} AND artifact = 1
-        `;
-				if (!artifact) return yield* Effect.fail(notFound("Artifact", id));
-				yield* Permissions.checkPagePermission(
-					ctx.userId,
-					ctx.workspaceId,
-					artifact.pageId,
-					"editor",
-				);
-				return ok(yield* attachArtifact(artifact.pageId, artifact.fileName));
-			}),
-		openapi: {
-			summary: "Replace an artifact's HTML",
-			description:
-				"Same URL, same place in the page; no history kept. At most 5 MB.",
-			requestBody: htmlBody,
-			responses: artifactResponses(200),
-		},
-	},
 ];
 
 // ── Search + Trash ─────────────────────────────────────────────────────────────
@@ -2057,8 +1176,6 @@ export const restOperations: readonly Operation[] = [
 	...databaseOperations,
 	...fieldOperations,
 	...recordOperations,
-	...commentOperations,
-	...artifactOperations,
 	...searchOperations,
 	...trashOperations,
 ];
@@ -2073,60 +1190,28 @@ export const registerOperations = (
 	operations: readonly Operation[],
 ) =>
 	Effect.forEach(operations, (op) =>
-		router.add(op.method, op.path, handle(operationHandler(op))),
-	);
-
-/**
- * What a matched route runs for `op`, before `handle` maps its failures:
- * caller, membership, record reference, permission check, then the operation.
- */
-export const operationHandler = (op: Operation) =>
-	Effect.gen(function* () {
-		const { userId, keyName } = yield* resolveApiUser;
-		const routeParams = yield* HttpRouter.params;
-		const workspaceId = yield* requireParam(routeParams, "workspaceId");
-		const role = yield* requireWorkspaceMember(workspaceId, userId);
-		const wdb = yield* WorkspaceDb;
-		return yield* Effect.provide(
-			Effect.gen(function* () {
-				// A record route names its record by id or by short id
-				// (`NOT-12`); every operation below sees the id.
-				const { dbId, recordId } = routeParams;
-				const params =
-					dbId && recordId
-						? {
-								...routeParams,
-								recordId: yield* Databases.resolveRecordId(dbId, recordId).pipe(
-									Effect.catchTag("NotFoundError", () =>
-										Effect.fail(notFound("Record", recordId)),
-									),
-								),
-							}
-						: routeParams;
-				if (op.checkPermission)
-					yield* op.checkPermission({ userId, workspaceId, params });
-				// The permission check above is on the database: a record or
-				// field of another one is not this route's to touch.
-				if (params.dbId)
-					yield* Databases.requireInDatabase(params.dbId, {
-						recordId: params.recordId,
-						fieldId: params.fieldId,
-					}).pipe(
-						Effect.catchTag("NotFoundError", (e) =>
-							Effect.fail(notFound(e.resource, e.id)),
-						),
+		router.add(
+			op.method,
+			op.path,
+			handle(
+				Effect.gen(function* () {
+					const { userId } = yield* resolveApiUser;
+					const params = yield* HttpRouter.params;
+					const workspaceId = yield* requireParam(params, "workspaceId");
+					const role = yield* requireWorkspaceMember(workspaceId, userId);
+					const wdb = yield* WorkspaceDb;
+					return yield* Effect.provide(
+						Effect.gen(function* () {
+							if (op.checkPermission)
+								yield* op.checkPermission({ userId, workspaceId, params });
+							return yield* op.run({ userId, workspaceId, role, params });
+						}),
+						wdb.getLayer(workspaceId),
 					);
-				return yield* op.run({
-					userId,
-					workspaceId,
-					role,
-					keyName,
-					params,
-				});
-			}),
-			wdb.getLayer(workspaceId),
-		);
-	});
+				}),
+			),
+		),
+	);
 
 /**
  * The OpenAPI `paths` fragment for every operation in `operations`, grouped by
@@ -2135,7 +1220,7 @@ export const operationHandler = (op: Operation) =>
  */
 export const operationsOpenApiPaths = (
 	operations: readonly Operation[],
-	wsParam: Record<string, unknown>,
+	wsParam: object,
 ) => {
 	const toDocPath = (routerPath: string) =>
 		routerPath.replace("/api/v1", "").replace(/:([a-zA-Z]+)/g, "{$1}");

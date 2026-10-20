@@ -15,10 +15,8 @@ import {
 import { Effect } from "effect";
 import * as ApiKeys from "./handlers/api-keys.js";
 import * as Blocks from "./handlers/blocks.js";
-import * as Comments from "./handlers/comments.js";
 import * as Databases from "./handlers/databases.js";
 import * as ImportExport from "./handlers/importExport.js";
-import * as Inbox from "./handlers/inbox.js";
 import * as Onboarding from "./handlers/onboarding.js";
 import * as PageShares from "./handlers/page-shares.js";
 import * as Pages from "./handlers/pages.js";
@@ -163,78 +161,6 @@ export const rpcHandlersLayer = AppRpc.toLayer({
 			}),
 		).pipe(dieUnlessApiError),
 
-	listInbox: () =>
-		withAuthedWorkspace(({ userId }) => Inbox.listInbox(userId)).pipe(
-			dieUnlessApiError,
-		),
-	markInboxRead: ({ ids }) =>
-		withAuthedWorkspace(({ userId, workspaceId }) =>
-			Inbox.markRead({ workspaceId, userId, ids }),
-		).pipe(dieUnlessApiError),
-	listComments: ({ pageId }) =>
-		withAuthedWorkspace(({ userId, workspaceId }) =>
-			Effect.gen(function* () {
-				yield* Permissions.checkPagePermission(
-					userId,
-					workspaceId,
-					pageId,
-					"viewer",
-				);
-				return yield* Comments.listComments(pageId);
-			}),
-		).pipe(dieUnlessApiError),
-	addComment: ({ pageId, body }) =>
-		withAuthedWorkspace(({ userId, workspaceId }) =>
-			Effect.gen(function* () {
-				yield* Permissions.checkPagePermission(
-					userId,
-					workspaceId,
-					pageId,
-					"viewer",
-				);
-				return yield* Comments.addComment({
-					pageId,
-					workspaceId,
-					authorId: userId,
-					body,
-				});
-			}),
-		).pipe(dieUnlessApiError),
-	updateComment: ({ id, body }) =>
-		withAuthedWorkspace(({ userId, workspaceId }) =>
-			Effect.gen(function* () {
-				const pageId = yield* Comments.commentPageId(id);
-				yield* Permissions.checkPagePermission(
-					userId,
-					workspaceId,
-					pageId,
-					"viewer",
-				);
-				return yield* Comments.updateComment({
-					id,
-					workspaceId,
-					authorId: userId,
-					body,
-				});
-			}),
-		).pipe(dieUnlessApiError),
-	deleteComment: ({ id }) =>
-		withAuthedWorkspace(({ userId, workspaceId }) =>
-			Effect.gen(function* () {
-				const pageId = yield* Comments.commentPageId(id);
-				yield* Permissions.checkPagePermission(
-					userId,
-					workspaceId,
-					pageId,
-					"viewer",
-				);
-				return yield* Comments.deleteComment({
-					id,
-					workspaceId,
-					authorId: userId,
-				});
-			}),
-		).pipe(dieUnlessApiError),
 	listBlocks: ({ pageId }) =>
 		withAuthedWorkspace(({ userId, workspaceId }) =>
 			Effect.gen(function* () {
@@ -283,13 +209,16 @@ export const rpcHandlersLayer = AppRpc.toLayer({
 						);
 					}
 				}
-				// The broadcast lives in Blocks.updateBlock now: every writer passes
-				// through it, so a criterion ticked over REST is announced too.
-				return yield* Blocks.updateBlock({
-					...req,
-					workspaceId,
-					actorUserId: userId,
-				});
+				const block = yield* Blocks.updateBlock(req);
+				if (pageId) {
+					presence.broadcast(workspaceId, pageId, {
+						type: "block.updated",
+						actorUserId: userId,
+						blockId: req.id,
+						content: req.content,
+					});
+				}
+				return block;
 			}),
 		).pipe(dieUnlessApiError),
 	deleteBlock: ({ id }) =>
@@ -842,16 +771,6 @@ export const rpcHandlersLayer = AppRpc.toLayer({
 		Effect.gen(function* () {
 			yield* requireWorkspaceRole(workspaceId);
 			return yield* Workspaces.getWorkspaceMembers(workspaceId);
-		}).pipe(dieUnlessApiError),
-	setMyHandle: ({ workspaceId, handle }) =>
-		Effect.gen(function* () {
-			yield* requireWorkspaceRole(workspaceId);
-			const user = yield* getSessionUser;
-			return yield* Workspaces.setMemberHandle({
-				workspaceId,
-				userId: user.id,
-				handle,
-			});
 		}).pipe(dieUnlessApiError),
 	removeMember: ({ workspaceId, userId }) =>
 		Effect.gen(function* () {

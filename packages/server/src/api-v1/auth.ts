@@ -29,12 +29,7 @@ export const generateApiKey = (): {
 
 // ── Authenticated user ────────────────────────────────────────────────────────
 
-export type ApiUser = {
-	userId: string;
-	keyId: string | null;
-	/** The key's name, shown on what it writes; null for a session. */
-	keyName: string | null;
-};
+export type ApiUser = { userId: string; keyId: string | null };
 
 /**
  * Resolves the calling user from either:
@@ -57,8 +52,8 @@ export const resolveApiUser: Effect.Effect<
 
 		const db = yield* PlatformDb;
 		const key = db
-			.prepare("SELECT id, user_id, name FROM api_keys WHERE key_hash = ?")
-			.get(keyHash) as { id: string; user_id: string; name: string } | null;
+			.prepare("SELECT id, user_id FROM api_keys WHERE key_hash = ?")
+			.get(keyHash) as { id: string; user_id: string } | null;
 
 		if (!key) {
 			return yield* Effect.fail(
@@ -71,7 +66,7 @@ export const resolveApiUser: Effect.Effect<
 			key.id,
 		);
 
-		return { userId: key.user_id, keyId: key.id, keyName: key.name };
+		return { userId: key.user_id, keyId: key.id };
 	}
 
 	const headers = new Headers(req.headers as Record<string, string>);
@@ -86,7 +81,7 @@ export const resolveApiUser: Effect.Effect<
 		);
 	}
 
-	return { userId: session.user.id, keyId: null, keyName: null };
+	return { userId: session.user.id, keyId: null };
 });
 
 // ── Workspace membership check ────────────────────────────────────────────────

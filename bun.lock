@@ -123,7 +123,6 @@
     },
   },
   "overrides": {
-    "@effect/platform-node-shared": "4.0.0",
     "@tiptap/core": "2.11.0",
     "@tiptap/extension-blockquote": "2.11.0",
     "@tiptap/extension-bold": "2.11.0",

@@ -15,7 +15,6 @@ export type BlockType =
 	| "image"
 	| "pdf"
 	| "file"
-	| "artifact"
 	| "database"
 	| "pageLink"
 	| "toggle"
@@ -174,11 +173,6 @@ export const BLOCK_TYPE_CONFIG: Record<BlockType, BlockTypeConfig> = {
 		splitBehavior: "normal",
 	},
 	file: {
-		placeholder: "",
-		defaultContent: "",
-		splitBehavior: "normal",
-	},
-	artifact: {
 		placeholder: "",
 		defaultContent: "",
 		splitBehavior: "normal",

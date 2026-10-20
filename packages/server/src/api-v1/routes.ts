@@ -1,12 +1,29 @@
 import { Effect } from "effect";
 import * as HttpRouter from "effect/http/HttpRouter";
 import * as HttpServerResponse from "effect/http/HttpServerResponse";
+import { WorkspaceDb } from "../db.js";
 import * as Workspaces from "../handlers/workspaces.js";
 import { resolveApiUser } from "./auth.js";
-import { llmsTxt } from "./llms.js";
 import { spec as openApiSpec, swaggerHtml } from "./openapi.js";
 import { registerOperations, restOperations } from "./operations.js";
 import { handle, ok } from "./response.js";
+
+// ── Helpers ───────────────────────────────────────────────────────────────────
+
+/**
+ * Run a workspace-scoped handler with the correct per-workspace SQLite layer.
+ * Not used by any operation in `restOperations` — `registerOperations` does
+ * its own single acquisition per request — but kept until RPC (rpc-handlers.ts)
+ * goes through the same table too; see TASK-23.
+ */
+const _withWorkspace = <A, E, R>(
+	workspaceId: string,
+	inner: Effect.Effect<A, E, R>,
+) =>
+	Effect.gen(function* () {
+		const wdb = yield* WorkspaceDb;
+		return yield* Effect.provide(inner, wdb.getLayer(workspaceId));
+	});
 
 // ── Route registration ────────────────────────────────────────────────────────
 
@@ -21,16 +38,6 @@ export const registerV1Routes = Effect.gen(function* () {
 		Effect.succeed(
 			HttpServerResponse.text(JSON.stringify(openApiSpec, null, 2), {
 				headers: { "Content-Type": "application/json" },
-			}),
-		),
-	);
-
-	yield* router.add(
-		"GET",
-		"/llms.txt",
-		Effect.succeed(
-			HttpServerResponse.text(llmsTxt, {
-				headers: { "Content-Type": "text/markdown; charset=utf-8" },
 			}),
 		),
 	);

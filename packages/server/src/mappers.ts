@@ -26,8 +26,7 @@ export const PAGE_COLS = `id, title, parent_id as "parentId", icon,
   cover_url as "coverUrl", sort_order as "sortOrder",
   is_deleted as "isDeleted", is_favorite as "isFavorite",
   created_at as "createdAt", updated_at as "updatedAt",
-  deleted_at as "deletedAt",
-  (SELECT r.id FROM database_records r WHERE r.page_id = pages.id) as "recordId"`;
+  deleted_at as "deletedAt"`;
 
 export function pageFromRow(r: unknown): Page {
 	const row = r as Record<string, unknown>;
@@ -43,7 +42,6 @@ export function pageFromRow(r: unknown): Page {
 		createdAt: new Date(row.createdAt as string).toISOString(),
 		updatedAt: new Date(row.updatedAt as string).toISOString(),
 		deletedAt: (row.deletedAt as string | null) ?? null,
-		recordId: (row.recordId as string | null) ?? null,
 	});
 }
 
@@ -69,7 +67,7 @@ export function blockFromRow(r: unknown): Block {
 export const DB_COLS = `id, page_id as "pageId", name,
   is_deleted as "isDeleted", sort_order as "sortOrder",
   title_label as "titleLabel", title_hidden as "titleHidden",
-  deleted_at as "deletedAt", short_prefix as "shortPrefix"`;
+  deleted_at as "deletedAt"`;
 
 export function dbFromRow(r: unknown): Database {
 	const row = r as Record<string, unknown>;
@@ -82,7 +80,6 @@ export function dbFromRow(r: unknown): Database {
 		titleLabel: (row.titleLabel as string | null) ?? "Name",
 		titleHidden: (row.titleHidden as number) === 1,
 		deletedAt: (row.deletedAt as string | null) ?? null,
-		shortPrefix: row.shortPrefix as string,
 	});
 }
 
@@ -110,9 +107,7 @@ export function fieldFromRow(r: unknown): DatabaseField {
 
 export const RECORD_COLS = `id, database_id as "databaseId", title, description,
   page_id as "pageId", is_deleted as "isDeleted", created_at as "createdAt",
-  deleted_at as "deletedAt",
-  (SELECT short_prefix FROM databases WHERE databases.id = database_records.database_id)
-    || '-' || short_number as "shortId"`;
+  deleted_at as "deletedAt"`;
 
 export function recordFromRow(r: unknown): DatabaseRecord {
 	const row = r as Record<string, unknown>;
@@ -125,7 +120,6 @@ export function recordFromRow(r: unknown): DatabaseRecord {
 		isDeleted: (row.isDeleted as number) === 1,
 		createdAt: new Date(row.createdAt as string).toISOString(),
 		deletedAt: (row.deletedAt as string | null) ?? null,
-		shortId: row.shortId as string,
 	});
 }
 

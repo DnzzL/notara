@@ -16,8 +16,7 @@ own SQLite database file; users, sessions, workspaces and membership live in a s
 *platform* database shared by all of them. Almost every API call names a workspace, by an
 `X-Workspace-Id` header on RPC or a path segment on REST.
 
-**Workspace member** — a user who belongs to a workspace, with role `owner` or `member`, and a
-*handle*.
+**Workspace member** — a user who belongs to a workspace, with role `owner` or `member`.
 Membership is the precondition for everything: a non-member is refused before any resource
 is consulted. One query answers it, in `membership.ts`.
 
@@ -49,15 +48,9 @@ embedded database, and so on (`Block.type`). Blocks are ordered within their pag
 > views use `sortOrder`. Same concept, two names, for historical reasons — do not assume
 > one when reading the other.
 
-**Attachment** — an uploaded file: an image or PDF shown in the page, an *artifact*, or any
-other file, offered as a download. The file sits on disk named by ULID; the database
+**Attachment** — an uploaded image or PDF. The file sits on disk named by ULID; the database
 keeps only metadata and the owning page. An attachment is not independently shareable: it is
 readable exactly when its page is (ADR-006).
-
-**Artifact** — an attachment that is a self-contained HTML document — a report, a dashboard,
-a diff — shown live inside its page. It may run its own scripts but reaches nothing outside
-itself: not the network, not the page around it, not the reader's session. Humans and agents
-attach one the same way; attaching again replaces it, with no history kept.
 
 **Backlink** — a block on some page that references another page, listed on the referenced
 page. Derived, never stored as its own record.
@@ -87,22 +80,6 @@ eighteen places — see NOT-113 through NOT-117, which is the work to make it on
 **Record** — a row. A record may open as its own page (`DatabaseRecord.pageId`); when it
 does, that page *is* the record's detail view, not a separate document beside it. Creating a
 standalone page alongside a record produces duplicates.
-
-**Comment** — a flat markdown note on a page, records' pages included. Only its author edits
-or deletes it. Written through an API key, it carries the key's name.
-
-**Handle** — a workspace member's `@name`: unique in the workspace, derived from their first
-name when they join, changeable. **Mention** — a handle written as `@handle` in a comment;
-one that no member holds is just text.
-
-**Inbox** — a member's queue of comments that concern them, per workspace: those that
-mention them, and those on records a `people` field assigns to them. A comment written
-through an API key also reaches the key's owner — it is their agent speaking. Nothing lands
-for someone who cannot see the page.
-
-**Short id** — a record's human name, `PREFIX-n` (`NOT-12`): the database's *prefix*, unique
-in the workspace, and a number the database hands out once and never again. Accepted by
-REST wherever a record id is. Renaming a prefix breaks the short ids written with the old one.
 
 **Record field value** — one cell, stored as a string. Every field type encodes into and
 decodes out of that string; multi-value types use JSON.

@@ -1,17 +1,10 @@
 import {
-	ConflictError,
-	type DatabaseRecord,
-	type FilterOperator,
 	fieldTypeSpec,
-	matchesFilter,
 	NotFoundError,
-	normaliseFilterOperator,
-	normaliseSortDirection,
 	TrashContents,
 	TrashedDatabase,
 	TrashedPage,
 	TrashedRecord,
-	ValidationError,
 } from "@notara/shared";
 import { Effect } from "effect";
 import { SqlClient } from "effect/sql";
@@ -120,39 +113,13 @@ export const getDatabase = (id: string) =>
 		return dbFromRow(rows[0]);
 	});
 
-/**
- * The short-id prefix a new database named `name` gets: the first three
- * letters of the name, uppercased and stripped of accents, with a numeric
- * suffix when another database of the workspace already holds it. A name with
- * fewer than two letters falls back to `DB`. Letters only, as in migration 021,
- * so a base never equals another base plus its suffix.
- */
-export const allocatePrefix = (name: string) =>
-	Effect.gen(function* () {
-		const sql = yield* SqlClient.SqlClient;
-		const letters = name
-			.normalize("NFD")
-			.replace(/[^A-Za-z]/g, "")
-			.toUpperCase();
-		const base = letters.length >= 2 ? letters.slice(0, 3) : "DB";
-		const rows = yield* sql<{ p: string }>`
-      SELECT short_prefix AS p FROM databases WHERE short_prefix LIKE ${`${base}%`}
-    `;
-		const taken = new Set(rows.map((r) => r.p));
-		if (!taken.has(base)) return base;
-		let n = 2;
-		while (taken.has(`${base}${n}`)) n++;
-		return `${base}${n}`;
-	});
-
 export const createDatabase = (req: { pageId: string; name: string }) =>
 	Effect.gen(function* () {
 		const sql = yield* SqlClient.SqlClient;
 		const id = ulid();
-		const prefix = yield* allocatePrefix(req.name);
 		const rows = yield* sql`
-      INSERT INTO databases (id, page_id, name, short_prefix)
-      VALUES (${id}, ${req.pageId}, ${req.name}, ${prefix})
+      INSERT INTO databases (id, page_id, name)
+      VALUES (${id}, ${req.pageId}, ${req.name})
       RETURNING ${sql.unsafe(DB_COLS)}
     `;
 
@@ -261,240 +228,6 @@ export const listRecordsWithValues = (databaseId: string) =>
 		}));
 	});
 
-/** A sort a saved view stores: which field, and which way. */
-export interface ViewSort {
-	fieldId: string;
-	direction: "asc" | "desc";
-}
-
-/**
- * The records of `databaseId` that satisfy every filter, each naming a field by
- * id or by name and an operator from that field type's registry. An unknown
- * field, or an operator the field type does not offer, is refused naming it.
- * `sorts` orders the result, first sort first. `q`, when given, narrows the
- * result by text.
- */
-export const listRecordsFiltered = (
-	databaseId: string,
-	filters: ReadonlyArray<{ field: string; operator: string; value: string }>,
-	equality: ReadonlyArray<{ field: string; value: string }> = [],
-	sorts: ReadonlyArray<ViewSort> = [],
-	q: string | null = null,
-) => recordsSatisfying(databaseId, equality, filters, sorts, q);
-
-/**
- * The records of `databaseId` whose fields hold every `{ field, value }` asked
- * for. A field is named by id, else by name; one the database does not have is
- * refused, naming it. Matching is on the decoded cell: a multi-value field
- * (multiSelect, people, relation, page) matches when it contains the value; a
- * number matches numerically; a checkbox never ticked is `false`; an empty
- * value matches an empty field, lists included.
- *
- * Evaluation is @notara/shared's one evaluator, the same the app's query bar
- * runs, so equality here and a saved view there cannot drift.
- */
-export const listRecordsMatching = (
-	databaseId: string,
-	filters: ReadonlyArray<{ field: string; value: string }>,
-	q: string | null = null,
-) => recordsSatisfying(databaseId, filters, [], [], q);
-
-/** A decoded cell as searchable text: a list and an object are flattened, so a
- *  multi-value field is searched on each of its entries, not on its JSON. */
-const valueAsText = (value: unknown): string => {
-	if (value === null || value === undefined) return "";
-	if (Array.isArray(value)) return value.map(valueAsText).join(" ");
-	if (typeof value === "object")
-		return Object.values(value).map(valueAsText).join(" ");
-	return String(value);
-};
-
-/**
- * `records` narrowed to those whose text contains `needle`, case-insensitively.
- *
- * The text is the record's decoded field values plus the content of the blocks
- * on its page — the record's own body and criteria, the same text its page
- * renders. A record never opened as a page has no blocks and is searched on its
- * field values alone.
- *
- * A case-insensitive substring test, not a search engine: no ranking, no
- * relevance, no word algebra — a one-line `q` is a filter the `filter=`
- * operators could not express.
- */
-const narrowByText = (
-	records: ReadonlyArray<{
-		record: DatabaseRecord;
-		values: Record<string, unknown>;
-	}>,
-	needle: string,
-) =>
-	Effect.gen(function* () {
-		const sql = yield* SqlClient.SqlClient;
-		const pageIds = records.flatMap(({ record }) =>
-			record.pageId ? [record.pageId] : [],
-		);
-		const blocks: ReadonlyArray<{ pageId: string; content: string }> =
-			pageIds.length === 0
-				? []
-				: yield* sql<{ pageId: string; content: string }>`
-            SELECT page_id as "pageId", content FROM blocks
-            WHERE page_id IN ${sql.in(pageIds)}
-          `;
-		const byPage = new Map<string, string>();
-		for (const b of blocks)
-			byPage.set(b.pageId, `${byPage.get(b.pageId) ?? ""}\n${b.content}`);
-
-		const want = needle.toLowerCase();
-		return records.filter(({ record, values }) =>
-			[
-				// The record's own name and description first: a card is addressed by its
-				// title, and a search that cannot find a card by the name written on it
-				// is a search that lies. `title` is a column of `database_records`, not a
-				// field value, so it is not in `values`.
-				record.title ?? "",
-				record.description ?? "",
-				...Object.values(values).map(valueAsText),
-				record.pageId ? (byPage.get(record.pageId) ?? "") : "",
-			]
-				.join("\n")
-				.toLowerCase()
-				.includes(want),
-		);
-	});
-
-const recordsSatisfying = (
-	databaseId: string,
-	equality: ReadonlyArray<{ field: string; value: string }>,
-	structured: ReadonlyArray<{ field: string; operator: string; value: string }>,
-	sorts: ReadonlyArray<ViewSort> = [],
-	q: string | null = null,
-) =>
-	Effect.gen(function* () {
-		const records = yield* listRecordsWithValues(databaseId);
-		if (
-			equality.length === 0 &&
-			structured.length === 0 &&
-			sorts.length === 0 &&
-			q === null
-		)
-			return records;
-		const fields = yield* listFields(databaseId);
-		const resolve = (name: string) =>
-			fields.find((f) => f.id === name) ?? fields.find((f) => f.name === name);
-
-		const wanted: Array<{
-			id: string;
-			type: string;
-			operator: FilterOperator;
-			value: string;
-		}> = [];
-
-		// The legacy pair is equality: `is`, on the decoded cell.
-		for (const { field, value } of equality) {
-			const found = resolve(field);
-			if (!found)
-				return yield* new ValidationError({
-					message: `This database has no field "${field}"`,
-				});
-			wanted.push({ id: found.id, type: found.type, operator: "is", value });
-		}
-
-		// A structured filter names an operator the field type must offer; one it
-		// does not is refused, naming the operator and the list it does offer.
-		for (const { field, operator, value } of structured) {
-			const found = resolve(field);
-			if (!found)
-				return yield* new ValidationError({
-					message: `This database has no field "${field}"`,
-				});
-			const offered = fieldTypeSpec(found.type).operators;
-			if (!offered.includes(operator as FilterOperator))
-				return yield* new ValidationError({
-					message: `The field "${found.name}" of type "${found.type}" does not offer the operator "${operator}"; it offers: ${offered.join(", ")}`,
-				});
-			wanted.push({
-				id: found.id,
-				type: found.type,
-				operator: operator as FilterOperator,
-				value,
-			});
-		}
-
-		// A sort names a field the database still has; one it does not is skipped
-		// as the app skips it, rather than refusing the whole query.
-		const sortSpecs = sorts.flatMap((s) => {
-			const field = fields.find((f) => f.id === s.fieldId);
-			return field
-				? [
-						{
-							fieldId: s.fieldId,
-							direction: s.direction,
-							spec: fieldTypeSpec(field.type),
-						},
-					]
-				: [];
-		});
-
-		// Read the cells by field id: `values` is keyed by name, and two fields
-		// may share one, so evaluating a filter or a sort against it would read the
-		// wrong cell. Filters and sorts both read the same `recordId:fieldId` key.
-		const wantedIds = [
-			...wanted.map((w) => w.id),
-			...sortSpecs.map((s) => s.fieldId),
-		];
-		const sql = yield* SqlClient.SqlClient;
-		const rows =
-			wantedIds.length === 0
-				? []
-				: yield* sql<{
-						recordId: string;
-						fieldId: string;
-						value: string;
-					}>`
-      SELECT record_id as "recordId", field_id as "fieldId", value
-      FROM record_field_values WHERE field_id IN ${sql.in(wantedIds)}
-    `;
-		const cells = new Map(
-			rows.map((r) => [`${r.recordId}:${r.fieldId}`, r.value] as const),
-		);
-		const matched = records.filter(({ record }) =>
-			wanted.every((w) => {
-				const raw = cells.get(`${record.id}:${w.id}`);
-				const spec = fieldTypeSpec(w.type);
-				const cell =
-					raw === undefined
-						? spec.type === "checkbox"
-							? false
-							: undefined
-						: spec.decode(raw);
-				return matchesFilter(spec, w.operator, cell, w.value);
-			}),
-		);
-		// The order of operations, and the reason this file exists: gather →
-		// filter → search → sort → window. The search runs on the records the
-		// filters kept, and the window is taken by the caller only after this
-		// returns. Windowed first, a search would silently miss every match past
-		// the first page — a search that lies.
-		const searched = q === null ? matched : yield* narrowByText(matched, q);
-		if (sortSpecs.length === 0) return searched;
-
-		// Last sort to first, so the first has highest precedence — the same rule
-		// the app's `applySorts` uses. The cell is the stored value, which is what
-		// `compare` reads for every field type.
-		const result = [...searched];
-		for (let i = sortSpecs.length - 1; i >= 0; i--) {
-			const s = sortSpecs[i];
-			result.sort((a, b) => {
-				const cmp = s.spec.compare(
-					cells.get(`${a.record.id}:${s.fieldId}`) ?? "",
-					cells.get(`${b.record.id}:${s.fieldId}`) ?? "",
-				);
-				return s.direction === "desc" ? -cmp : cmp;
-			});
-		}
-		return result;
-	});
-
 export const getRecordWithValues = (recordId: string) =>
 	Effect.gen(function* () {
 		const sql = yield* SqlClient.SqlClient;
@@ -525,97 +258,15 @@ export const getRecordWithValues = (recordId: string) =>
 		return { record, values };
 	});
 
-/**
- * Give record `recordId` the short number `n`, for an import that keeps the
- * numbers its source had — the one writer of a chosen number. The database's
- * counter moves past `n`, so the next record created follows on.
- */
-export const setShortNumber = (recordId: string, n: number) =>
-	Effect.gen(function* () {
-		const sql = yield* SqlClient.SqlClient;
-		const [record] = yield* sql<{ databaseId: string }>`
-      SELECT database_id as "databaseId" FROM database_records WHERE id = ${recordId}
-    `;
-		if (!record)
-			return yield* new NotFoundError({ resource: "record", id: recordId });
-		const taken = yield* sql`
-      SELECT 1 FROM database_records
-      WHERE database_id = ${record.databaseId} AND short_number = ${n} AND id != ${recordId}
-    `;
-		if (taken.length > 0)
-			return yield* new ConflictError({
-				message: `Number ${n} is already used in this database`,
-			});
-		yield* sql`UPDATE database_records SET short_number = ${n} WHERE id = ${recordId}`;
-		yield* sql`
-      UPDATE databases SET next_short_number = MAX(next_short_number, ${n + 1})
-      WHERE id = ${record.databaseId}
-    `;
-	});
-
-/**
- * The record id a REST `:recordId` names: `PREFIX-n` (any case) is looked up
- * in `databaseId`, trashed records included so they can be restored; anything
- * else is taken as an id and passed through.
- */
-export const resolveRecordId = (databaseId: string, ref: string) =>
-	Effect.gen(function* () {
-		const match = /^([A-Za-z][A-Za-z0-9]{1,5})-(\d+)$/.exec(ref);
-		if (!match) return ref;
-		const sql = yield* SqlClient.SqlClient;
-		const rows = yield* sql<{ id: string }>`
-      SELECT r.id FROM database_records r
-      JOIN databases d ON d.id = r.database_id
-      WHERE d.id = ${databaseId} AND d.short_prefix = ${match[1].toUpperCase()}
-        AND r.short_number = ${Number(match[2])}
-    `;
-		if (rows.length === 0)
-			return yield* new NotFoundError({ resource: "record", id: ref });
-		return rows[0].id;
-	});
-
-/**
- * Fails with NotFoundError unless `recordId` and `fieldId`, when given, belong
- * to database `databaseId` — trashed records included, so they can be restored.
- */
-export const requireInDatabase = (
-	databaseId: string,
-	ids: { recordId?: string; fieldId?: string },
-) =>
-	Effect.gen(function* () {
-		const sql = yield* SqlClient.SqlClient;
-		if (ids.recordId !== undefined) {
-			const rows = yield* sql`
-        SELECT 1 FROM database_records WHERE id = ${ids.recordId} AND database_id = ${databaseId}
-      `;
-			if (rows.length === 0)
-				return yield* new NotFoundError({
-					resource: "record",
-					id: ids.recordId,
-				});
-		}
-		if (ids.fieldId !== undefined) {
-			const rows = yield* sql`
-        SELECT 1 FROM database_fields WHERE id = ${ids.fieldId} AND database_id = ${databaseId}
-      `;
-			if (rows.length === 0)
-				return yield* new NotFoundError({ resource: "field", id: ids.fieldId });
-		}
-	});
-
 export const createRecord = (req: { databaseId: string; title: string }) =>
 	Effect.gen(function* () {
 		const sql = yield* SqlClient.SqlClient;
 		const id = ulid();
 		const now = new Date().toISOString();
-		yield* sql`
+		const rows = yield* sql`
       INSERT INTO database_records (id, database_id, title, created_at)
       VALUES (${id}, ${req.databaseId}, ${req.title}, ${now})
-    `;
-		// Re-read rather than RETURNING: the short number is set by a trigger,
-		// after the row RETURNING would report.
-		const rows = yield* sql`
-      SELECT ${sql.unsafe(RECORD_COLS)} FROM database_records WHERE id = ${id}
+      RETURNING ${sql.unsafe(RECORD_COLS)}
     `;
 		return recordFromRow(rows[0]);
 	});
@@ -658,75 +309,6 @@ export const updateFieldValue = (req: {
 		}
 	});
 
-/** Why `value` cannot go in a field of this type and options; null when it can. */
-const invalidValue = (
-	field: { type: string; options: readonly string[] | null },
-	value: unknown,
-): string | null => {
-	const list =
-		Array.isArray(value) && value.every((v) => typeof v === "string");
-	switch (field.type) {
-		case "formula":
-			return "is computed and cannot be written";
-		case "number":
-			return typeof value === "number" && Number.isFinite(value)
-				? null
-				: "takes a number";
-		case "checkbox":
-			return typeof value === "boolean" ? null : "takes true or false";
-		case "date":
-			return typeof value === "string" && !Number.isNaN(Date.parse(value))
-				? null
-				: "takes a date like 2026-10-13";
-		case "select": {
-			if (typeof value !== "string") return "takes one option, as a string";
-			const unknown = value !== "" && !field.options?.includes(value);
-			return unknown ? `has no option "${value}"` : null;
-		}
-		case "multiSelect": {
-			if (!list) return "takes a list of options";
-			const unknown = value.find((v) => !field.options?.includes(v));
-			return unknown === undefined ? null : `has no option "${unknown}"`;
-		}
-		case "people":
-		case "relation":
-		case "page":
-			return list ? null : "takes a list of ids";
-		default:
-			return typeof value === "string" ? null : "takes a string";
-	}
-};
-
-/**
- * `input` (field id or name → value) as stored cells of database `databaseId`,
- * every one checked before any is written: an unknown field or a value its
- * field cannot take fails the lot with a ValidationError naming it.
- */
-export const fieldWrites = (
-	databaseId: string,
-	input: Readonly<Record<string, unknown>>,
-) =>
-	Effect.gen(function* () {
-		const fields = yield* listFields(databaseId);
-		const writes: Array<{ fieldId: string; value: string }> = [];
-		for (const [ref, value] of Object.entries(input)) {
-			const field =
-				fields.find((f) => f.id === ref) ?? fields.find((f) => f.name === ref);
-			if (!field)
-				return yield* new ValidationError({ message: `No field "${ref}"` });
-			const why = invalidValue(field, value);
-			if (why)
-				return yield* new ValidationError({
-					message: `Field "${field.name}" ${why}`,
-				});
-			writes.push({
-				fieldId: field.id,
-				value: fieldTypeSpec(field.type).encode(value),
-			});
-		}
-		return writes;
-	});
-
 export const deleteRecord = (id: string) =>
 	Effect.gen(function* () {
 		const sql = yield* SqlClient.SqlClient;
@@ -750,100 +332,6 @@ export const listViews = (databaseId: string) =>
       SELECT ${sql.unsafe(VIEW_COLS)} FROM database_views WHERE database_id = ${databaseId}
     `;
 		return rows.map(viewFromRow);
-	});
-
-/** A view's stored query, read back ready to evaluate. */
-export interface ViewQuery {
-	filters: Array<{ field: string; operator: string; value: string }>;
-	sorts: ViewSort[];
-}
-
-const EMPTY_VIEW_QUERY: ViewQuery = { filters: [], sorts: [] };
-
-/**
- * Read a stored view's `config` into the filters and sorts it holds.
- *
- * A config that is empty, unparseable, or holds a malformed entry that names
- * no field or operator reads as empty rather than throwing: a broken view
- * shows every record, never an error and never an empty list. A view's filters
- * hold a field **id**; evaluation reads cells by id so a name two fields share
- * cannot select the wrong one.
- *
- * Legacy spellings are normalised by `@notara/shared`, the same table the app's
- * `viewConfig` reads stored configurations through. Neither reader owns the
- * spellings: a stored view holding `equals` or `order` must mean to an agent
- * exactly what it means in the app, or the whole point of addressing it is lost.
- */
-const readViewQuery = (config: string | null | undefined): ViewQuery => {
-	if (!config) return EMPTY_VIEW_QUERY;
-	let parsed: unknown;
-	try {
-		parsed = JSON.parse(config);
-	} catch {
-		return EMPTY_VIEW_QUERY;
-	}
-	const c = parsed as { filters?: unknown; sorts?: unknown } | null;
-	if (!c || typeof c !== "object") return EMPTY_VIEW_QUERY;
-
-	const filters = Array.isArray(c.filters)
-		? c.filters.flatMap((raw) => {
-				if (!raw || typeof raw !== "object") return [];
-				const f = raw as Record<string, unknown>;
-				if (typeof f.fieldId !== "string" || typeof f.operator !== "string")
-					return [];
-				return [
-					{
-						field: f.fieldId,
-						operator: normaliseFilterOperator(f.operator),
-						value: String(f.value ?? ""),
-					},
-				];
-			})
-		: [];
-
-	const sorts: ViewSort[] = Array.isArray(c.sorts)
-		? c.sorts.flatMap((raw) => {
-				if (!raw || typeof raw !== "object") return [];
-				const s = raw as Record<string, unknown>;
-				if (typeof s.fieldId !== "string") return [];
-				return [
-					{
-						fieldId: s.fieldId,
-						direction: normaliseSortDirection(s.direction ?? s.order),
-					},
-				];
-			})
-		: [];
-
-	return { filters, sorts };
-};
-
-/**
- * The view of `databaseId` a caller addressed by id or by name, with the query
- * it stores.
- *
- * An id wins outright. A name is matched case-insensitively and within this
- * database only; a name no view holds is refused naming it, and a name two
- * views share (differing only by case) is refused naming the candidates rather
- * than silently picking one.
- */
-export const resolveView = (databaseId: string, ref: string) =>
-	Effect.gen(function* () {
-		const views = yield* listViews(databaseId);
-		const byId = views.find((v) => v.id === ref);
-		if (byId) return readViewQuery(byId.config);
-
-		const needle = ref.toLowerCase();
-		const named = views.filter((v) => v.name.toLowerCase() === needle);
-		if (named.length === 0)
-			return yield* new NotFoundError({ resource: "view", id: ref });
-		if (named.length > 1)
-			return yield* new ConflictError({
-				message: `The view name "${ref}" is ambiguous in this database; it names ${named
-					.map((v) => `"${v.name}" (${v.id})`)
-					.join(", ")}`,
-			});
-		return readViewQuery(named[0].config);
 	});
 
 export const updateField = (req: {
@@ -994,29 +482,11 @@ export const updateDatabase = (req: {
 	id: string;
 	titleLabel?: string;
 	titleHidden?: boolean;
-	shortPrefix?: string;
 }) =>
 	Effect.gen(function* () {
 		const sql = yield* SqlClient.SqlClient;
 		const sets: string[] = [];
 		const params: unknown[] = [];
-		if (req.shortPrefix !== undefined) {
-			const prefix = req.shortPrefix.toUpperCase();
-			if (!/^[A-Z][A-Z0-9]{1,5}$/.test(prefix))
-				return yield* new ValidationError({
-					message:
-						"A prefix is 2 to 6 letters or digits and starts with a letter",
-				});
-			const holders = yield* sql`
-        SELECT id FROM databases WHERE short_prefix = ${prefix} AND id != ${req.id}
-      `;
-			if (holders.length > 0)
-				return yield* new ConflictError({
-					message: `Prefix ${prefix} is already used by another database`,
-				});
-			sets.push("short_prefix = ?");
-			params.push(prefix);
-		}
 		if (req.titleLabel !== undefined) {
 			sets.push("title_label = ?");
 			params.push(req.titleLabel);
@@ -1247,9 +717,6 @@ export const purgePage = (
 		yield* sql`DELETE FROM database_views WHERE database_id IN (SELECT id FROM databases WHERE page_id = ${id})`;
 		yield* sql`DELETE FROM databases WHERE page_id = ${id}`;
 		yield* sql`DELETE FROM blocks WHERE page_id = ${id}`;
-		yield* sql`DELETE FROM comment_mentions WHERE comment_id IN (SELECT id FROM comments WHERE page_id = ${id})`;
-		yield* sql`DELETE FROM inbox_entries WHERE page_id = ${id}`;
-		yield* sql`DELETE FROM comments WHERE page_id = ${id}`;
 		// Child pages, before the parent row goes: they are found through it.
 		// Skipping them left rows whose parent_id pointed at nothing — and with
 		// the FK pragma off, the ON DELETE SET NULL that was supposed to catch

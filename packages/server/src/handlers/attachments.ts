@@ -54,7 +54,7 @@ export const resolveReadableAttachment = (
 	userId: string,
 	fileName: string,
 ): Effect.Effect<
-	{ workspaceId: string; pageId: string; artifact: boolean } | null,
+	{ workspaceId: string; pageId: string } | null,
 	ApiError,
 	PlatformDb | WorkspaceDb
 > =>
@@ -68,16 +68,15 @@ export const resolveReadableAttachment = (
 		for (const workspaceId of memberships) {
 			const layer = wdb.getLayer(workspaceId);
 
-			const row = yield* Effect.gen(function* () {
+			const pageId = yield* Effect.gen(function* () {
 				const sql = yield* SqlClient.SqlClient;
-				const rows = yield* sql<{ page_id: string; artifact: number }>`
-					SELECT page_id, artifact FROM attachments WHERE id = ${attachmentId}
+				const rows = yield* sql<{ page_id: string }>`
+					SELECT page_id FROM attachments WHERE id = ${attachmentId}
 				`;
-				return rows[0] ?? null;
+				return rows[0]?.page_id ?? null;
 			}).pipe(Effect.provide(layer), Effect.orDie);
 
-			if (!row) continue;
-			const pageId = row.page_id;
+			if (!pageId) continue;
 
 			// Found it. From here a denial is a real 403, not a miss. A workspace
 			// layer that will not open is a defect, not an answer — die rather than
@@ -87,81 +86,8 @@ export const resolveReadableAttachment = (
 				Effect.catchTag("ConfigError", Effect.die),
 			);
 
-			return { workspaceId, pageId, artifact: row.artifact === 1 };
+			return { workspaceId, pageId };
 		}
 
 		return null;
 	});
-
-/**
- * An artifact (ADR-013) is a document that runs its own inline scripts in an
- * opaque origin — not the app's, so not the reader's session — and reaches
- * nothing: no fetch, no CDN, no beacon. Popups are allowed so its links can
- * open, in a new tab and outside the sandbox. Never cached: attaching it again
- * replaces it under the same URL.
- */
-const ARTIFACT_HEADERS: Record<string, string> = {
-	"Content-Type": "text/html; charset=utf-8",
-	"Content-Disposition": "inline",
-	"X-Content-Type-Options": "nosniff",
-	"Cache-Control": "no-store",
-	"Content-Security-Policy":
-		"sandbox allow-scripts allow-popups allow-popups-to-escape-sandbox; default-src 'none'; script-src 'unsafe-inline'; style-src 'unsafe-inline'; img-src data: blob:; font-src data:; media-src data: blob:; frame-ancestors 'self'",
-};
-
-/**
- * `html` with `<base target="_blank">` as early as it can go, so the
- * artifact's links open in a new tab rather than inside its frame: inside
- * `<head>`, else after the doctype — before it, the document would fall into
- * quirks mode — else first.
- */
-export const withBaseTarget = (html: string) => {
-	const base = '<base target="_blank">';
-	const at =
-		/<head\b[^>]*>/i.exec(html) ?? /^\s*<!doctype[^>]*>\s*/i.exec(html);
-	return at
-		? html.slice(0, at.index + at[0].length) +
-				base +
-				html.slice(at.index + at[0].length)
-		: base + html;
-};
-
-/** Attachment types shown in place; anything else is offered as a download. */
-const SHOWN: Record<string, string> = {
-	".png": "image/png",
-	".jpg": "image/jpeg",
-	".jpeg": "image/jpeg",
-	".gif": "image/gif",
-	".webp": "image/webp",
-	".svg": "image/svg+xml",
-	".pdf": "application/pdf",
-};
-
-/**
- * Response headers for serving attachment `fileName`, whatever a member
- * uploaded. Attachments are served from the app's own origin, so nothing in one
- * may run there: only images and PDFs are shown, everything else is a download,
- * and a `sandbox` policy keeps even a shown image (an SVG can carry script)
- * from running anything when opened directly. PDFs keep the app's policy:
- * browsers' PDF viewers do not render under `sandbox`, and they do not run a
- * PDF's scripts in the page's origin.
- */
-export const attachmentHeaders = (
-	fileName: string,
-	{ artifact = false } = {},
-): Record<string, string> => {
-	if (artifact) return ARTIFACT_HEADERS;
-	const ext = /\.[^.]+$/.exec(fileName)?.[0].toLowerCase() ?? "";
-	const shown = SHOWN[ext];
-	return {
-		"Content-Type": shown ?? "application/octet-stream",
-		"Content-Disposition": shown ? "inline" : "attachment",
-		"X-Content-Type-Options": "nosniff",
-		...(ext === ".pdf"
-			? {}
-			: {
-					"Content-Security-Policy":
-						"sandbox; default-src 'none'; img-src 'self' data:; style-src 'unsafe-inline'",
-				}),
-	};
-};

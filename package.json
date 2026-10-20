@@ -26,7 +26,6 @@
     "packages/*"
   ],
   "overrides": {
-    "@effect/platform-node-shared": "4.0.0",
     "@tiptap/core": "2.11.0",
     "@tiptap/pm": "2.11.0",
     "@tiptap/react": "2.11.0",
