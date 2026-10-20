@@ -46,10 +46,7 @@ const setupDB = Effect.gen(function* () {
       sort_order INTEGER NOT NULL DEFAULT 0,
       title_label TEXT NOT NULL DEFAULT 'Name',
       title_hidden INTEGER NOT NULL DEFAULT 0,
-      deleted_at TEXT,
-      -- Short record ids. See migration 021.
-      short_prefix TEXT,
-      next_short_number INTEGER NOT NULL DEFAULT 1
+      deleted_at TEXT
     )
   `;
 	yield* sql`
@@ -62,21 +59,8 @@ const setupDB = Effect.gen(function* () {
       is_deleted INTEGER NOT NULL DEFAULT 0,
       created_at TEXT NOT NULL DEFAULT (datetime('now')),
       deleted_at TEXT,
-      page_id TEXT REFERENCES pages(id),
-      short_number INTEGER
+      page_id TEXT REFERENCES pages(id)
     )
-  `;
-	yield* sql`
-    CREATE TRIGGER trg_record_short_number
-    AFTER INSERT ON database_records
-    WHEN NEW.short_number IS NULL
-    BEGIN
-      UPDATE database_records
-        SET short_number = (SELECT next_short_number FROM databases WHERE id = NEW.database_id)
-        WHERE id = NEW.id;
-      UPDATE databases SET next_short_number = next_short_number + 1
-        WHERE id = NEW.database_id;
-    END
   `;
 	yield* sql`
     CREATE TABLE database_fields (
@@ -104,36 +88,6 @@ const setupDB = Effect.gen(function* () {
       page_id TEXT NOT NULL REFERENCES pages(id),
       type TEXT NOT NULL DEFAULT 'paragraph',
       content TEXT NOT NULL DEFAULT ''
-    )
-  `;
-	yield* sql`
-    CREATE TABLE comments (
-      id TEXT PRIMARY KEY,
-      page_id TEXT NOT NULL REFERENCES pages(id),
-      author_id TEXT NOT NULL,
-      body TEXT NOT NULL,
-      created_at TEXT NOT NULL,
-      updated_at TEXT,
-      key_name TEXT
-    )
-  `;
-	yield* sql`
-    CREATE TABLE comment_mentions (
-      comment_id TEXT NOT NULL,
-      user_id TEXT NOT NULL,
-      PRIMARY KEY (comment_id, user_id)
-    )
-  `;
-	yield* sql`
-    CREATE TABLE inbox_entries (
-      id TEXT PRIMARY KEY,
-      user_id TEXT NOT NULL,
-      comment_id TEXT NOT NULL,
-      page_id TEXT NOT NULL,
-      reason TEXT NOT NULL,
-      created_at TEXT NOT NULL,
-      read_at TEXT,
-      UNIQUE (user_id, comment_id)
     )
   `;
 	yield* sql`
@@ -179,7 +133,7 @@ async function seed() {
 			yield* sql`DELETE FROM databases`;
 			yield* sql`DELETE FROM pages`;
 			yield* sql`INSERT INTO pages (id, title) VALUES ('host-page', 'Host Page')`;
-			yield* sql`INSERT INTO databases (id, page_id, name, short_prefix) VALUES ('db1', 'host-page', 'My DB', 'MYD')`;
+			yield* sql`INSERT INTO databases (id, page_id, name) VALUES ('db1', 'host-page', 'My DB')`;
 			yield* sql`INSERT INTO database_records (id, database_id, title, created_at) VALUES ('rec1', 'db1', 'Task Alpha', datetime('now'))`;
 		}),
 	);
@@ -412,7 +366,7 @@ describe("default view (one per database)", () => {
 		await testRun(
 			Effect.gen(function* () {
 				const sql = yield* SqlClient.SqlClient;
-				yield* sql`INSERT INTO databases (id, page_id, name, short_prefix) VALUES ('db2', 'host-page', 'Other DB', 'OTH')`;
+				yield* sql`INSERT INTO databases (id, page_id, name) VALUES ('db2', 'host-page', 'Other DB')`;
 			}),
 		);
 		const { other, b } = await testRun(

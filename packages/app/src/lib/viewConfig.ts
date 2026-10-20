@@ -20,17 +20,8 @@
  * Normalising on read rather than migrating the stored rows is deliberate: a
  * migration would have to run against every workspace database, and a view
  * config is small, read often, and written rarely.
- *
- * The two spellings themselves are normalised by `@notara/shared`, because the
- * server reads the same stored configurations to answer `?view=`: a table that
- * lived here is how the app and the API would come to disagree about what a
- * saved view means.
  */
-import {
-	normaliseFilterOperator,
-	normaliseSortDirection,
-} from "@notara/shared";
-import type { Filter, Sort } from "./filterEngine.js";
+import type { Filter, FilterOperator, Sort } from "./filterEngine.js";
 
 export interface ViewConfig {
 	filters: Filter[];
@@ -45,16 +36,29 @@ export const emptyViewConfig = (): ViewConfig => ({
 });
 
 /**
- * The operator spellings and the `order`/`direction` divergence are normalised by
- * `@notara/shared`; see its `normaliseFilterOperator`.
+ * Operator spellings that exist in stored configurations but are not what the
+ * filter UI emits today.
  */
+const OPERATOR_ALIASES: Record<string, FilterOperator> = {
+	equals: "is",
+	notEquals: "is_not",
+	startsWith: "contains",
+	isEmpty: "is_empty",
+	notEmpty: "is_not_empty",
+};
+
+const normaliseOperator = (raw: unknown): FilterOperator => {
+	const value = String(raw ?? "");
+	return OPERATOR_ALIASES[value] ?? (value as FilterOperator);
+};
+
 const normaliseFilter = (raw: unknown): Filter | null => {
 	if (!raw || typeof raw !== "object") return null;
 	const f = raw as Record<string, unknown>;
 	if (typeof f.fieldId !== "string") return null;
 	return {
 		fieldId: f.fieldId,
-		operator: normaliseFilterOperator(f.operator),
+		operator: normaliseOperator(f.operator),
 		value: typeof f.value === "string" ? f.value : String(f.value ?? ""),
 	};
 };
@@ -64,9 +68,10 @@ const normaliseSort = (raw: unknown): Sort | null => {
 	const s = raw as Record<string, unknown>;
 	if (typeof s.fieldId !== "string") return null;
 	// `order` is the reference block's spelling of `direction`.
+	const direction = s.direction ?? s.order;
 	return {
 		fieldId: s.fieldId,
-		direction: normaliseSortDirection(s.direction ?? s.order),
+		direction: direction === "desc" ? "desc" : "asc",
 	};
 };
 

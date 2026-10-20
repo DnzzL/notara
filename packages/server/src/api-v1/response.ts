@@ -88,13 +88,6 @@ export const queryParam = (name: string) =>
 		return url.searchParams.get(name);
 	});
 
-/** Every value of a repeated query param, in order. */
-export const queryParams = (name: string) =>
-	Effect.gen(function* () {
-		const req = yield* HttpServerRequest.HttpServerRequest;
-		return new URL(req.url, "http://x").searchParams.getAll(name);
-	});
-
 // ── Error boundary ────────────────────────────────────────────────────────────
 
 /**
@@ -113,19 +106,6 @@ export const handle = <R>(
 	// The scope check needs the request, which the router supplies per request
 	// just as it does for handlers — so it is required, not excluded.
 	HttpServerRequest.HttpServerRequest | Exclude<R, PlatformDb | WorkspaceDb>
-> => respond(handler).pipe(Effect.provide(RequestServices));
-
-/**
- * `handle` without the production databases: the scope check and the error
- * mapping, over whatever PlatformDb and WorkspaceDb the caller provides. Tests
- * drive the real routes through this.
- */
-export const respond = <R>(
-	handler: Effect.Effect<HttpServerResponse.HttpServerResponse, unknown, R>,
-): Effect.Effect<
-	HttpServerResponse.HttpServerResponse,
-	never,
-	HttpServerRequest.HttpServerRequest | PlatformDb | R
 > =>
 	// The scope check runs before the handler, and before anything it might do.
 	// Here rather than per route: every v1 route already goes through handle, so
@@ -148,6 +128,7 @@ export const respond = <R>(
 				),
 			),
 		),
+		Effect.provide(RequestServices),
 	);
 
 /** Extract a required URL path param; fails with ApiError(400) if missing. */

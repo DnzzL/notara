@@ -80,8 +80,8 @@ function seedTestData() {
 		}
 
 		yield* sql`
-      INSERT INTO databases (id, page_id, name, sort_order, is_deleted, short_prefix)
-      VALUES ('test-db-1', 'test-page-1', 'Test Database', 0, 0, 'TES')
+      INSERT INTO databases (id, page_id, name, sort_order, is_deleted)
+      VALUES ('test-db-1', 'test-page-1', 'Test Database', 0, 0)
     `;
 
 		const fields = [
@@ -196,8 +196,8 @@ describe("exportDatabaseAsCsv", () => {
           VALUES ('test-page-2', 'CSV Escape Test', NULL, 0, 0, ${now}, ${now})
         `;
 				yield* sql`
-          INSERT INTO databases (id, page_id, name, sort_order, is_deleted, short_prefix)
-          VALUES ('test-db-2', 'test-page-2', 'Escape DB', 0, 0, 'ESC')
+          INSERT INTO databases (id, page_id, name, sort_order, is_deleted)
+          VALUES ('test-db-2', 'test-page-2', 'Escape DB', 0, 0)
         `;
 				yield* sql`
           INSERT INTO database_fields (id, database_id, name, type)

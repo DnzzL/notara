@@ -5,7 +5,6 @@
 	"scripts": {
 		"dev": "vite",
 		"build": "vite build",
-		"generate:llms-txt": "bun scripts/generate-llms-txt.ts",
 		"generate-pwa-icons": "pwa-assets-generator public/icon-512.svg --preset minimal --override",
 		"test": "bun test"
 	},

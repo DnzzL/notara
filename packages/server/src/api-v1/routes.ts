@@ -3,7 +3,6 @@ import * as HttpRouter from "effect/http/HttpRouter";
 import * as HttpServerResponse from "effect/http/HttpServerResponse";
 import * as Workspaces from "../handlers/workspaces.js";
 import { resolveApiUser } from "./auth.js";
-import { llmsTxt } from "./llms.js";
 import { spec as openApiSpec, swaggerHtml } from "./openapi.js";
 import { registerOperations, restOperations } from "./operations.js";
 import { handle, ok } from "./response.js";
@@ -21,16 +20,6 @@ export const registerV1Routes = Effect.gen(function* () {
 		Effect.succeed(
 			HttpServerResponse.text(JSON.stringify(openApiSpec, null, 2), {
 				headers: { "Content-Type": "application/json" },
-			}),
-		),
-	);
-
-	yield* router.add(
-		"GET",
-		"/llms.txt",
-		Effect.succeed(
-			HttpServerResponse.text(llmsTxt, {
-				headers: { "Content-Type": "text/markdown; charset=utf-8" },
 			}),
 		),
 	);

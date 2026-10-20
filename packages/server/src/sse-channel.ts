@@ -89,42 +89,6 @@ export type SseTopic<A> = {
 };
 
 /**
- * Who listens to what, for a topic's in-process pub/sub: subscribers keyed by
- * whatever the topic scopes events to. A subscriber whose send throws is gone
- * and is dropped.
- */
-export const subscriberSet = <E extends SseEvent>() => {
-	const byKey = new Map<string, Set<(e: E) => void>>();
-	return {
-		/** Attach `send` under `key`; returns the detach. */
-		subscribe: (key: string, send: (e: E) => void) => {
-			let set = byKey.get(key);
-			if (!set) {
-				set = new Set();
-				byKey.set(key, set);
-			}
-			set.add(send);
-			return () => {
-				set.delete(send);
-				if (set.size === 0) byKey.delete(key);
-			};
-		},
-		publish: (key: string, event: E) => {
-			const set = byKey.get(key);
-			if (!set) return;
-			for (const send of set) {
-				try {
-					send(event);
-				} catch {
-					set.delete(send);
-				}
-			}
-			if (set.size === 0) byKey.delete(key);
-		},
-	};
-};
-
-/**
  * Build the handler for one SSE topic.
  *
  * KNOWN, and inherited rather than introduced: on Bun the stream finalizer does

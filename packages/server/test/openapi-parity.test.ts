@@ -29,11 +29,7 @@ type Endpoint = { method: string; path: string };
  * Meta-routes: the document and the viewer that serves it. They are part of the
  * deployment, not part of the described API, so the spec rightly omits them.
  */
-const NOT_DOCUMENTED = new Set([
-	"GET /api/v1/openapi.json",
-	"GET /api/docs",
-	"GET /llms.txt",
-]);
+const NOT_DOCUMENTED = new Set(["GET /api/v1/openapi.json", "GET /api/docs"]);
 
 const HTTP_METHODS = new Set([
 	"get",

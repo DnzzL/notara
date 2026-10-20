@@ -13,6 +13,12 @@ in
 {
   packages = with pkgs; [
     bun # 1.4.2 — the runtime AND package manager for every package here
+
+    # The npm linux-x64 biome is a dynamically linked ELF that a NixOS host
+    # refuses to start without nix-ld. BIOME_BINARY (env below) points the npm
+    # wrapper at this one, so every `bunx @biomejs/biome` gate works unchanged.
+    # CI runs the package.json version: keep both on the same minor.
+    biome
     nodejs_22 # scripts/bundle-server.sh and electron tooling shell out to `node`
     python3 # node-gyp fallback for native deps (better-sqlite3, msgpackr)
     gnumake
@@ -37,12 +43,26 @@ in
 
     # SQLite databases and uploads stay in the checkout, never in $HOME.
     DATA_DIR = "${config.devenv.root}/.data";
+
+    BIOME_BINARY = "${pkgs.biome}/bin/biome";
   };
 
   enterShell = ''
     mkdir -p "$BUN_INSTALL_CACHE_DIR" "$BUN_TMPDIR" "$npm_config_cache" \
              "$XDG_CACHE_HOME" "$DATA_DIR"
     echo "notara — bun $(bun --version) / node $(node --version)"
+
+    # package.json declares a pre-commit and a pre-push gate, but nothing installs
+    # them into .git/hooks: they only appear once `bootstrap` runs. A checkout
+    # that skipped it commits with no gate at all, and nothing says so. Install
+    # on entry — once, and loudly if it fails.
+    if [ ! -f "${config.devenv.root}/.git/hooks/pre-commit" ]; then
+      if (cd "${config.devenv.root}" && bunx simple-git-hooks) >/dev/null 2>&1; then
+        echo "notara — git hooks installed"
+      else
+        echo "notara — WARNING: git hooks NOT installed; commits run no gate" >&2
+      fi
+    fi
   '';
 
   scripts = {

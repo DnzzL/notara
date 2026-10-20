@@ -17,8 +17,6 @@ export class Page extends Schema.Class<Page>("Page")({
 	createdAt: Schema.String,
 	updatedAt: Schema.String,
 	deletedAt: Schema.NullOr(Schema.String),
-	/** The database record this page opens, when it is a record's page. */
-	recordId: Schema.NullOr(Schema.String),
 }) {}
 
 export class Block extends Schema.Class<Block>("Block")({
@@ -38,7 +36,6 @@ export class Block extends Schema.Class<Block>("Block")({
 		"image",
 		"pdf",
 		"file",
-		"artifact",
 		"database",
 		"pageLink",
 		"toggle",
@@ -60,8 +57,6 @@ export class Database extends Schema.Class<Database>("Database")({
 	titleLabel: Schema.String,
 	titleHidden: Schema.Boolean,
 	deletedAt: Schema.NullOr(Schema.String),
-	/** Prefix of the database's short record ids: `NOT` in `NOT-12`. */
-	shortPrefix: Schema.String,
 }) {}
 
 export const DatabaseFieldType = Schema.Literals([
@@ -101,39 +96,6 @@ export class DatabaseRecord extends Schema.Class<DatabaseRecord>(
 	isDeleted: Schema.Boolean,
 	createdAt: Schema.String,
 	deletedAt: Schema.NullOr(Schema.String),
-	/** `PREFIX-n`: the database's prefix and a number never reused. */
-	shortId: Schema.String,
-}) {}
-
-/** One comment in a page's flat thread. `authorId` is a platform user id. */
-export class Comment extends Schema.Class<Comment>("Comment")({
-	id: Schema.String,
-	pageId: Schema.String,
-	authorId: Schema.String,
-	body: Schema.String,
-	createdAt: Schema.String,
-	updatedAt: Schema.NullOr(Schema.String),
-	/** Name of the API key it was written through; null when written in the app. */
-	keyName: Schema.NullOr(Schema.String),
-	/** User ids of the members its @handles name. */
-	mentions: Schema.Array(Schema.String),
-}) {}
-
-/** One thing in a member's inbox: a comment that concerns them. */
-export class InboxEntry extends Schema.Class<InboxEntry>("InboxEntry")({
-	id: Schema.String,
-	commentId: Schema.String,
-	pageId: Schema.String,
-	pageTitle: Schema.String,
-	authorId: Schema.String,
-	/** The start of the comment, as written. */
-	excerpt: Schema.String,
-	/** Why it is here: it mentions them, it is on a record they are assigned to, or their API key wrote it. */
-	reason: Schema.Literals(["mention", "assigned", "agent"]),
-	/** The API key the comment came through, when it did. */
-	keyName: Schema.NullOr(Schema.String),
-	createdAt: Schema.String,
-	readAt: Schema.NullOr(Schema.String),
 }) {}
 
 export class RecordFieldValue extends Schema.Class<RecordFieldValue>(
@@ -221,8 +183,6 @@ export class WorkspaceMember extends Schema.Class<WorkspaceMember>(
 	"WorkspaceMember",
 )({
 	userId: Schema.String,
-	/** What an @mention names; unique in the workspace. */
-	handle: Schema.String,
 	name: Schema.String,
 	email: Schema.String,
 	role: Schema.Literals(["owner", "member"]),

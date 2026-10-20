@@ -143,11 +143,6 @@ const schemas = {
 			titleLabel: { type: "string", example: "Name" },
 			titleHidden: { type: "boolean" },
 			deletedAt: { type: "string", format: "date-time", nullable: true },
-			shortPrefix: {
-				type: "string",
-				example: "NOT",
-				description: "Prefix of the database's short record ids",
-			},
 		},
 	},
 
@@ -174,37 +169,6 @@ const schemas = {
 				description: "Label of the built-in title column",
 			},
 			titleHidden: { type: "boolean", description: "Hide the title column" },
-			shortPrefix: {
-				type: "string",
-				example: "NOT",
-				description:
-					"2 to 6 letters or digits, starting with a letter; unique in the workspace. Renaming it breaks the old short ids.",
-			},
-		},
-	},
-
-	DatabaseView: {
-		type: "object",
-		required: ["id", "databaseId", "name", "type", "config", "isDefault"],
-		properties: {
-			id: { type: "string" },
-			databaseId: { type: "string" },
-			name: { type: "string", example: "Grid" },
-			type: {
-				type: "string",
-				enum: ["table", "board", "calendar"],
-				example: "table",
-			},
-			groupByFieldId: { type: "string", nullable: true },
-			sortFieldId: { type: "string", nullable: true },
-			sortOrder: { type: "string", enum: ["asc", "desc"] },
-			config: {
-				type: "string",
-				description:
-					"Stored JSON: `{filters, sorts, boardHidden}`. A filter holds a field **id**, not its name.",
-				example: '{"filters":[],"sorts":[],"boardHidden":[]}',
-			},
-			isDefault: { type: "boolean" },
 		},
 	},
 
@@ -269,12 +233,6 @@ const schemas = {
 		required: ["id", "databaseId", "title"],
 		properties: {
 			id: { type: "string" },
-			shortId: {
-				type: "string",
-				example: "NOT-12",
-				description:
-					"Database prefix and a number never reused; accepted wherever a recordId is",
-			},
 			databaseId: { type: "string" },
 			title: { type: "string", example: "Fix the login bug" },
 			description: { type: "string", nullable: true },
@@ -296,198 +254,11 @@ const schemas = {
 		},
 	},
 
-	RecordPage: {
-		type: "object",
-		required: ["records", "nextCursor"],
-		description:
-			"A bounded window of records, returned only when the request sends `limit`; without it the response is a bare array of DatabaseRecord.",
-		properties: {
-			records: {
-				type: "array",
-				items: { $ref: "#/components/schemas/DatabaseRecord" },
-			},
-			nextCursor: {
-				type: "string",
-				nullable: true,
-				description:
-					"Continuation for the next window: pass it back as `offset` to read the following records, no gap and no repeat. Its content is opaque — do not parse it. `null` once this window reaches the end of the records.",
-			},
-		},
-	},
-
-	Comment: {
-		type: "object",
-		required: [
-			"id",
-			"pageId",
-			"authorId",
-			"body",
-			"createdAt",
-			"updatedAt",
-			"keyName",
-			"mentions",
-		],
-		properties: {
-			id: { type: "string" },
-			pageId: { type: "string" },
-			authorId: { type: "string", description: "User id of the author" },
-			body: { type: "string", description: "Markdown, as written" },
-			createdAt: { type: "string", format: "date-time" },
-			updatedAt: { type: "string", format: "date-time", nullable: true },
-			keyName: {
-				type: "string",
-				nullable: true,
-				example: "docket",
-				description:
-					"Name of the API key it was written through; null when written in the app",
-			},
-			mentions: {
-				type: "array",
-				items: { type: "string" },
-				description:
-					"User ids of the workspace members its @handles name; an @handle no member holds stays text",
-			},
-		},
-	},
-
-	CommentCreate: {
-		type: "object",
-		required: ["body"],
-		properties: {
-			body: {
-				type: "string",
-				maxLength: 10000,
-				example: "Blocked: which locale should the dates use?",
-			},
-		},
-	},
-
-	RecordDocument: {
-		allOf: [
-			{ $ref: "#/components/schemas/DatabaseRecord" },
-			{
-				type: "object",
-				required: ["body", "criteria"],
-				properties: {
-					body: {
-						type: "string",
-						description:
-							"The record's page as markdown; empty when it has none",
-					},
-					criteria: {
-						type: "array",
-						description: "To-do items on the record's page, in order",
-						items: { $ref: "#/components/schemas/Criterion" },
-					},
-				},
-			},
-		],
-	},
-
-	Criterion: {
-		type: "object",
-		required: ["id", "text", "checked"],
-		properties: {
-			id: {
-				type: "string",
-				description:
-					"Names the criterion for Tick a criterion; holds while its to-do block is not restructured",
-			},
-			text: { type: "string", description: "Markdown" },
-			checked: { type: "boolean" },
-		},
-	},
-
-	CriterionUpdate: {
-		type: "object",
-		required: ["checked"],
-		properties: { checked: { type: "boolean" } },
-	},
-
-	CriteriaAdd: {
-		type: "object",
-		required: ["criteria"],
-		properties: {
-			criteria: {
-				type: "array",
-				minItems: 1,
-				items: {
-					oneOf: [
-						{ type: "string" },
-						{
-							type: "object",
-							required: ["text"],
-							properties: {
-								text: { type: "string" },
-								checked: { type: "boolean" },
-							},
-						},
-					],
-				},
-				example: ["The bar a run hands on"],
-			},
-		},
-	},
-
-	FieldValues: {
-		type: "object",
-		description:
-			"Field id or name → value: a string for text, select and date; a number; true/false; a list of strings for multiSelect, people, relation and page",
-		additionalProperties: true,
-		example: { Status: "ready-for-agent", Labels: ["bug"], Estimate: 3 },
-	},
-
-	Artifact: {
-		type: "object",
-		required: ["id", "url", "blockedHosts"],
-		properties: {
-			id: { type: "string", description: "Names it for Replace an artifact" },
-			url: { type: "string", example: "/attachments/01J….html" },
-			blockedHosts: {
-				type: "array",
-				items: { type: "string" },
-				description:
-					"External hosts its markup or CSS loads from; none of them will load",
-				example: ["cdn.jsdelivr.net"],
-			},
-		},
-	},
-
 	RecordCreate: {
 		type: "object",
 		required: ["title"],
 		properties: {
 			title: { type: "string", example: "Fix the login bug" },
-			shortNumber: {
-				type: "integer",
-				minimum: 1,
-				description:
-					"The number of the card's short id (PREFIX-n), kept from the source by an import. Omit for the next free one; a number already used in the database is a 409.",
-				example: 42,
-			},
-			fields: { $ref: "#/components/schemas/FieldValues" },
-			body: {
-				type: "string",
-				description: "Markdown",
-				example: "Users typing **creme** find nothing.",
-			},
-			criteria: {
-				type: "array",
-				items: {
-					oneOf: [
-						{ type: "string" },
-						{
-							type: "object",
-							required: ["text"],
-							properties: {
-								text: { type: "string" },
-								checked: { type: "boolean" },
-							},
-						},
-					],
-				},
-				example: ["Match with or without accents"],
-			},
 		},
 	},
 
@@ -496,7 +267,6 @@ const schemas = {
 		properties: {
 			title: { type: "string", example: "Updated title" },
 			description: { type: "string", example: "More detail" },
-			fields: { $ref: "#/components/schemas/FieldValues" },
 		},
 	},
 
@@ -601,10 +371,7 @@ const ref = (name: keyof typeof schemas) => ({
 	$ref: `#/components/schemas/${name}`,
 });
 
-const jsonResponse = (
-	description: string,
-	schema: Record<string, unknown>,
-) => ({
+const jsonResponse = (description: string, schema: object) => ({
 	description,
 	content: { "application/json": { schema } },
 });
@@ -697,15 +464,6 @@ blank. If you have blocks created that way, rewrite them as HTML.
 			name: "Databases",
 			description:
 				"Create and edit inline databases, their fields, and records",
-		},
-		{
-			name: "Comments",
-			description: "Read and write the comment thread under a page",
-		},
-		{
-			name: "Artifacts",
-			description:
-				"Self-contained HTML shown live and isolated in a page: no network, everything inline",
 		},
 		{ name: "Search", description: "Full-text search across pages and blocks" },
 		{ name: "Trash", description: "Soft-deleted items; restore or purge them" },

@@ -3,7 +3,6 @@ import { Effect } from "effect";
 import { SqlClient, type SqlError } from "effect/sql";
 import { ulid } from "ulidx";
 import { PAGE_COLS, pageFromRow } from "../mappers.js";
-import { allocatePrefix } from "./databases.js";
 
 type PlainBlock = { kind: "block"; type: string; content: string };
 type DatabaseBlock = {
@@ -636,10 +635,9 @@ const buildPage = (
 			// slash command and renders correctly. sort_order controls the order in
 			// which multiple databases on one page appear.
 			const dbId = ulid();
-			const prefix = yield* allocatePrefix(blockDef.name);
 			yield* sql`
-        INSERT INTO databases (id, page_id, name, title_label, title_hidden, sort_order, short_prefix)
-        VALUES (${dbId}, ${pageId}, ${blockDef.name}, ${blockDef.titleLabel}, 0, ${dbOrder++}, ${prefix})
+        INSERT INTO databases (id, page_id, name, title_label, title_hidden, sort_order)
+        VALUES (${dbId}, ${pageId}, ${blockDef.name}, ${blockDef.titleLabel}, 0, ${dbOrder++})
       `;
 			const recordIdByTitle = new Map<string, string>();
 			ctx.dbByName.set(blockDef.name, { id: dbId, recordIdByTitle });
