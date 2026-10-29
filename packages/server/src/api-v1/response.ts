@@ -100,7 +100,7 @@ export const queryParam = (name: string) =>
  */
 export const handle = <R>(
 	handler: Effect.Effect<HttpServerResponse.HttpServerResponse, unknown, R>,
-	scope?: ApiKeyScope,
+	scope: ApiKeyScope,
 ): Effect.Effect<
 	HttpServerResponse.HttpServerResponse,
 	never,
