@@ -40,10 +40,11 @@ Every request must be authenticated with one of:
    \`\`\`
    Authorization: Bearer ntr_<your-key>
    \`\`\`
-   Generate keys in your workspace settings → API keys. A key carries a scope:
-   a **read** key may only issue GET requests and gets \`403\` on anything that
-   changes state; a **write** key can do anything you can. The scope is fixed
-   when the key is created.
+   Generate keys in your workspace settings → API keys. A key carries a scope,
+   and each operation declares the scope it needs: a **read** key may call the
+   operations that only read and gets \`403\` on one that changes state; a
+   **write** key can do anything you can. The scope is fixed when the key is
+   created.
 
 2. **Session cookie**: if you're calling from a browser that is already signed in, the session cookie is sent automatically.
 
@@ -84,7 +85,7 @@ that was never what the server stored, and content written that way rendered
 blank. If you have blocks created that way, rewrite them as HTML.
 `.trim(),
 		contact: { name: "Notara", url: "https://github.com/notara" },
-		license: { name: "MIT" },
+		license: { name: "AGPL-3.0-or-later", identifier: "AGPL-3.0-or-later" },
 	},
 	servers: [{ url: "/api/v1", description: "Current instance" }],
 	security: [{ BearerAuth: [] }],

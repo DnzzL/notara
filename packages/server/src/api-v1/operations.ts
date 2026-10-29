@@ -58,6 +58,10 @@ export interface OperationContext {
 
 const errorRef = { $ref: "#/components/schemas/Error" };
 const errorResponses = {
+	400: {
+		description: "Malformed JSON body",
+		content: { "application/json": { schema: errorRef } },
+	},
 	401: {
 		description: "Unauthorized",
 		content: { "application/json": { schema: errorRef } },
@@ -68,6 +72,10 @@ const errorResponses = {
 	},
 	404: {
 		description: "Not found",
+		content: { "application/json": { schema: errorRef } },
+	},
+	409: {
+		description: "Conflict, such as a block another user is editing",
 		content: { "application/json": { schema: errorRef } },
 	},
 	422: {

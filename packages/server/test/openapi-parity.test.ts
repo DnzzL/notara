@@ -204,3 +204,27 @@ describe("the OpenAPI document is the operation table", () => {
 		expect(documented).toEqual(table);
 	});
 });
+
+describe("the OpenAPI document tells the truth about answers and terms", () => {
+	const operations = Object.values(spec.paths).flatMap((item) =>
+		Object.entries(item as Record<string, unknown>)
+			.filter(([key]) => HTTP_METHODS.has(key))
+			.map(([, op]) => op as { responses: Record<string, unknown> }),
+	);
+
+	test("every operation documents a conflict and a malformed body", () => {
+		expect(operations.length).toBeGreaterThan(0);
+		for (const op of operations)
+			expect(Object.keys(op.responses)).toEqual(
+				expect.arrayContaining(["400", "409"]),
+			);
+	});
+
+	test("the licence is the one the code ships under", () => {
+		expect(spec.info.license.name).toBe("AGPL-3.0-or-later");
+	});
+
+	test("scope is described per operation, not per HTTP method", () => {
+		expect(spec.info.description).not.toContain("only issue GET");
+	});
+});
