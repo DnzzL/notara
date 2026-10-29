@@ -1011,11 +1011,13 @@ export const registerTypedOperations = (
 			op.path,
 			handle(
 				Effect.gen(function* () {
+					// Who is calling comes first: a stranger learns nothing, not even
+					// that their body was malformed.
+					const { userId } = yield* resolveApiUser;
 					const req = yield* HttpServerRequest.HttpServerRequest;
 					const rest = inQuery(op.method)
 						? Object.fromEntries(new URL(req.url, "http://x").searchParams)
 						: yield* bodyObject;
-					const { userId } = yield* resolveApiUser;
 					const { workspaceId, ...pathParams } = yield* HttpRouter.params;
 					const output = yield* runOperation(
 						op,
