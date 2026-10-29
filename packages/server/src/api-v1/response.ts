@@ -1,5 +1,4 @@
 import { Effect, Layer } from "effect";
-import * as HttpServerRequest from "effect/http/HttpServerRequest";
 import * as HttpServerResponse from "effect/http/HttpServerResponse";
 import { type WorkspaceDb, WorkspaceDbLive } from "../db.js";
 import { causeResponse } from "../http-error.js";
@@ -38,52 +37,6 @@ export const apiError = (status: number, message: string) =>
 	HttpServerResponse.text(JSON.stringify({ error: message }), {
 		status,
 		headers: JSON_HEADER,
-	});
-
-// ── Request helpers ───────────────────────────────────────────────────────────
-
-/** Parse request body as JSON; fails with ApiError(400) on malformed input. */
-export const parseBody = Effect.gen(function* () {
-	const req = yield* HttpServerRequest.HttpServerRequest;
-	const ab = yield* req.arrayBuffer;
-	try {
-		return JSON.parse(Buffer.from(ab).toString("utf-8")) as unknown;
-	} catch {
-		return yield* Effect.fail(
-			new ApiError({ status: 400, message: "Invalid JSON body" }),
-		);
-	}
-});
-
-/** Parse a required string field from a parsed JSON body. */
-export const requireField = (
-	body: unknown,
-	field: string,
-): Effect.Effect<string, ApiError, never> => {
-	const value = (body as Record<string, unknown>)?.[field];
-	if (typeof value !== "string" || value.trim() === "") {
-		return Effect.fail(
-			new ApiError({
-				status: 422,
-				message: `Field "${field}" is required and must be a non-empty string`,
-			}),
-		);
-	}
-	return Effect.succeed(value);
-};
-
-/** Parse an optional string field from a parsed JSON body. */
-export const optionalField = (body: unknown, field: string): string | null => {
-	const value = (body as Record<string, unknown>)?.[field];
-	return typeof value === "string" ? value : null;
-};
-
-/** Parse query string from current request URL. */
-export const queryParam = (name: string) =>
-	Effect.gen(function* () {
-		const req = yield* HttpServerRequest.HttpServerRequest;
-		const url = new URL(req.url, "http://x");
-		return url.searchParams.get(name);
 	});
 
 // ── Error boundary ────────────────────────────────────────────────────────────
