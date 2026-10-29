@@ -21,6 +21,7 @@ import { describe, expect, test } from "bun:test";
 import { type Context, Effect, Layer } from "effect";
 import * as HttpRouter from "effect/http/HttpRouter";
 import { spec } from "../src/api-v1/openapi.js";
+import { typedOperations } from "../src/api-v1/operations.js";
 import { registerV1Routes } from "../src/api-v1/routes.js";
 
 type Endpoint = { method: string; path: string };
@@ -165,5 +166,44 @@ describe("the OpenAPI document describes the routes that exist", () => {
 			missing,
 			`documented but not registered — consumers would get a 404:\n  ${missing.join("\n  ")}`,
 		).toEqual([]);
+	});
+});
+
+describe("the OpenAPI document is the operation table", () => {
+	test("each documented operation is a table entry, with its method, path, tag and summary", () => {
+		// listWorkspaces is the one route outside the table: it names no
+		// workspace, so it has no workspace layer to run under (routes.ts).
+		const documented = Object.entries(spec.paths)
+			.flatMap(([specPath, item]) =>
+				Object.entries(item as Record<string, unknown>)
+					.filter(([key]) => HTTP_METHODS.has(key))
+					.map(([key, op]) => {
+						const o = op as {
+							operationId: string;
+							tags: string[];
+							summary: string;
+						};
+						return {
+							operationId: o.operationId,
+							method: key.toUpperCase(),
+							path: `/api/v1${toRouterPath(specPath)}`,
+							tag: o.tags[0],
+							summary: o.summary,
+						};
+					}),
+			)
+			.filter((op) => op.operationId !== "listWorkspaces")
+			.sort((a, b) => a.operationId.localeCompare(b.operationId));
+		const table = typedOperations
+			.map(({ operationId, method, path, tag, summary }) => ({
+				operationId,
+				method,
+				path,
+				tag,
+				summary,
+			}))
+			.sort((a, b) => a.operationId.localeCompare(b.operationId));
+		expect(table.length).toBeGreaterThan(0);
+		expect(documented).toEqual(table);
 	});
 });

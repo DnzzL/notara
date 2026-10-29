@@ -342,6 +342,14 @@ describe("both protocol eras on the one endpoint", () => {
 	});
 });
 
+describe("the MCP tool list is the operation table", () => {
+	test("a write key sees exactly one tool per operation id", async () => {
+		const ids = typedOperations.map((op) => op.operationId).sort();
+		expect(ids.length).toBeGreaterThan(0);
+		expect(await toolNames(stateless(writeKey))).toEqual(ids);
+	});
+});
+
 describe("tool calls behave like the REST operations they are", () => {
 	test("a tool result equals the REST response for the same operation", async () => {
 		const client = stateless(writeKey);
