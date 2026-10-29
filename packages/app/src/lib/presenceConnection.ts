@@ -47,8 +47,7 @@ type PresenceEvent =
 			type: "page.metaUpdated";
 			actorUserId: string;
 			fields: Record<string, unknown>;
-	  }
-	| { type: "comments.changed" };
+	  };
 
 const HEARTBEAT_INTERVAL_MS = 5_000;
 
@@ -236,10 +235,6 @@ export function startPresence(args: StartArgs) {
 				.filter((b): b is NonNullable<typeof b> => b !== null);
 			return { blocks: reordered };
 		});
-	});
-
-	source.addEventListener("comments.changed", () => {
-		usePresenceStore.getState().commentsChanged();
 	});
 
 	source.addEventListener("page.metaUpdated", (ev) => {

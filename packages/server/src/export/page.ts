@@ -8,27 +8,20 @@ import {
 } from "@notara/shared";
 import { Effect } from "effect";
 import { SqlClient } from "effect/sql";
-import { listBlocks, updateBlock } from "../handlers/blocks.js";
 import {
 	blockFromRow,
-	DB_COLS,
 	dbFromRow,
 	fieldFromRow,
 	pageFromRow,
-	RECORD_COLS,
 	recordFromRow,
 } from "../mappers.js";
-import { htmlToMarkdown, setTodoChecked, todoItems } from "./html-markdown.js";
 
 // ── Block to Markdown conversion ─────────────────────────────────────────────
 
 /**
- * Convert a block type and content to Markdown format. Text-bearing blocks
- * hold the editor's HTML; content written as plain text keeps the older,
- * per-type rendering below.
+ * Convert a block type and content to Markdown format.
  */
 export function blockToMarkdown(type: string, content: string): string {
-	if (/^\s*<[a-zA-Z]/.test(content)) return htmlToMarkdown(content);
 	switch (type) {
 		case "heading1":
 			return `# ${content}`;
@@ -68,14 +61,6 @@ export function blockToMarkdown(type: string, content: string): string {
 				return `[file](${content})`;
 			}
 		}
-		case "artifact": {
-			try {
-				const data = JSON.parse(content);
-				return `[Artifact: ${data.fileName || "artifact"}](${data.src})`;
-			} catch {
-				return `[Artifact](${content})`;
-			}
-		}
 		case "toggle":
 			return `<details><summary>${content}</summary></details>`;
 		case "callout":
@@ -83,64 +68,6 @@ export function blockToMarkdown(type: string, content: string): string {
 		default:
 			return content;
 	}
-}
-
-// ── Record as markdown ───────────────────────────────────────────────────────
-
-/**
- * The body of a record's page as markdown, and its acceptance criteria: the
- * to-do items on that page, in order. A record never opened as a page has
- * neither.
- */
-export function recordAsMarkdown(pageId: string | null) {
-	return Effect.gen(function* () {
-		if (!pageId) return { body: "", criteria: [] };
-		const blocks = yield* listBlocks(pageId);
-		return {
-			body: blocks.map((b) => blockToMarkdown(b.type, b.content)).join("\n\n"),
-			criteria: blocks
-				.filter((b) => b.type === "todo")
-				.flatMap((b) =>
-					todoItems(b.content).map((item, n) => ({
-						id: `${b.id}:${n}`,
-						...item,
-					})),
-				),
-		};
-	});
-}
-
-/**
- * Ticks or unticks criterion `id` (`<blockId>:<n>`, as `recordAsMarkdown`
- * names it) on the record page `pageId`. Fails with NotFoundError when the
- * page has no such criterion.
- */
-export function tickCriterion(req: {
-	pageId: string | null;
-	id: string;
-	checked: boolean;
-	workspaceId: string;
-	/** Whose tick this is: other viewers are told, this one is not. */
-	actorUserId: string;
-}) {
-	return Effect.gen(function* () {
-		const missing = () => new NotFoundError({ resource: "block", id: req.id });
-		const [, blockId, n] = /^(.+):(\d+)$/.exec(req.id) ?? [];
-		if (!req.pageId || !blockId) return yield* missing();
-		const block = (yield* listBlocks(req.pageId)).find(
-			(b) => b.id === blockId && b.type === "todo",
-		);
-		const content =
-			block && setTodoChecked(block.content, Number(n), req.checked);
-		if (!content) return yield* missing();
-		yield* updateBlock({
-			id: blockId,
-			content,
-			workspaceId: req.workspaceId,
-			actorUserId: req.actorUserId,
-		});
-		return { id: req.id, ...todoItems(content)[Number(n)] };
-	});
 }
 
 // ── CSV escaping ─────────────────────────────────────────────────────────────
@@ -263,7 +190,7 @@ export function exportPageFull(pageId: string) {
 
 		// Find inline databases on this page
 		const dbRows = yield* sql`
-      SELECT ${sql.unsafe(DB_COLS)}
+      SELECT id, page_id as "pageId", name, is_deleted as "isDeleted", sort_order as "sortOrder"
       FROM databases WHERE page_id = ${pageId} AND is_deleted = 0
       ORDER BY sort_order ASC
     `;
@@ -298,7 +225,7 @@ export function exportDatabaseAsCsv(dbId: string) {
 
 		// Fetch database
 		const dbRows = yield* sql`
-      SELECT ${sql.unsafe(DB_COLS)}
+      SELECT id, page_id as "pageId", name, is_deleted as "isDeleted", sort_order as "sortOrder"
       FROM databases WHERE id = ${dbId} AND is_deleted = 0
     `;
 		if (dbRows.length === 0) {
@@ -316,7 +243,8 @@ export function exportDatabaseAsCsv(dbId: string) {
 
 		// Fetch records
 		const recordRows = yield* sql`
-      SELECT ${sql.unsafe(RECORD_COLS)}
+      SELECT id, database_id as "databaseId", title,
+             is_deleted as "isDeleted", created_at as "createdAt"
       FROM database_records WHERE database_id = ${dbId} AND is_deleted = 0
       ORDER BY sort_order ASC
     `;
@@ -417,7 +345,7 @@ export function exportAllToDirectory(outputDir: string) {
 
 		// Export all databases as separate CSV files (including those in pages)
 		const allDbRows = yield* sql`
-      SELECT ${sql.unsafe(DB_COLS)}
+      SELECT id, page_id as "pageId", name, is_deleted as "isDeleted", sort_order as "sortOrder"
       FROM databases WHERE is_deleted = 0
       ORDER BY sort_order ASC
     `;

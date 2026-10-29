@@ -7,6 +7,31 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.2.0] - 2026-10-20
+
+Notara stays what it set out to be: a minimalist Notion you own, in one SQLite file.
+
+### Added
+
+- **Public pages.** Publish a page as a read-only link; database blocks render on it.
+- **Read or write API keys.** A key can be scoped to read only (NOT-124).
+- **Mobile layouts.** Board and calendar get narrow layouts, pickers open as sheets, the
+  sidebar is a drawer, and the database footer shows its aggregations.
+- **Design system for database views.** One toolbar, one active-state language.
+
+### Fixed
+
+- **Trashing a page left its subpages behind.** The whole subtree goes to the trash now.
+- **Block edits could land on the wrong block.** Operations address blocks by id and
+  apply locally before the network round-trip.
+- **Notion import lost numbered lists** and added a trailing newline to code blocks.
+- **A database route could act on another database's records or fields.**
+- **Attachments the browser cannot display are served as downloads**, not inline.
+- **The server died after a redeploy.**
+- **Menus were not keyboard-navigable**, the CSS reset never applied, and the filter
+  panel and view menu were hidden on mobile.
+- **The PWA kept serving an old version** instead of taking the update.
+
 ### Changed
 
 - **Effect 4.0.0 (LTS) across the workspace.** `shared`, `server` and `app` moved off
@@ -301,7 +326,8 @@ Defects found and fixed during pre-release development:
 - Admin user deletion left orphaned workspaces.
 - Added missing database indexes on hot query paths.
 
-[Unreleased]: https://github.com/dnzzl/notara/compare/v0.1.3...HEAD
+[Unreleased]: https://github.com/dnzzl/notara/compare/v0.2.0...HEAD
+[0.2.0]: https://github.com/dnzzl/notara/compare/v0.1.4...v0.2.0
 [0.1.3]: https://github.com/dnzzl/notara/compare/v0.1.2...v0.1.3
 [0.1.2]: https://github.com/dnzzl/notara/compare/v0.1.1...v0.1.2
 [0.1.1]: https://github.com/dnzzl/notara/compare/v0.1.0...v0.1.1

@@ -153,12 +153,7 @@ function ReadOnlyBlock({
 
 	if (block.type === "divider") return <hr className="my-4 border-border" />;
 
-	if (
-		block.type === "image" ||
-		block.type === "pdf" ||
-		block.type === "file" ||
-		block.type === "artifact"
-	)
+	if (block.type === "image" || block.type === "pdf" || block.type === "file")
 		return <MediaBlock block={block} token={token} />;
 
 	if (!editor) return null;

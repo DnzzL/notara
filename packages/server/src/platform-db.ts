@@ -3,7 +3,6 @@ import fs from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { Context, Layer } from "effect";
-import { backfillHandles } from "./member-handles.js";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
@@ -63,18 +62,14 @@ export const applyMigrations = (db: Database, dir: string): void => {
 	}
 };
 
-/**
- * Apply the platform-DB migrations to a given Database, then fill in what SQL
- * cannot: the handles of members who joined before handles existed.
- */
+/** Apply the platform-DB migrations to a given Database (used by tests). */
 export const runPlatformMigrations = (db: Database): void => {
 	applyMigrations(db, platformMigrationsDir);
-	backfillHandles(db);
 };
 
 /** Single shared Database instance for platform.db (users, workspaces, auth). */
 export const platformDb = new Database(platformDbPath);
-runPlatformMigrations(platformDb);
+applyMigrations(platformDb, platformMigrationsDir);
 
 export const PlatformDbLive = Layer.succeed(PlatformDb, platformDb);
 

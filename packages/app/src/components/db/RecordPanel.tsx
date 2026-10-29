@@ -3,8 +3,7 @@ import { selectPageByIdWithCascade } from "../../lib/page-loader.js";
 import { api } from "../../rpc-client.js";
 import { usePageStore } from "../../stores/pageStore.js";
 import { Button, IconButton } from "../ui/index.js";
-import { RecordProperties } from "./RecordProperties.js";
-import { ShortId } from "./ShortId.js";
+import { CellDisplay, InlineCellEditor } from "./CellComponents.js";
 
 export function RecordPanel({
 	databaseId,
@@ -21,7 +20,6 @@ export function RecordPanel({
 		id: string;
 		title: string;
 		description: string;
-		shortId: string;
 		pageId?: string | null;
 	};
 	values: Record<string, unknown>;
@@ -38,6 +36,7 @@ export function RecordPanel({
 	onChanged: () => Promise<void> | void;
 }) {
 	const [title, setTitle] = useState(record.title || "");
+	const [editingFieldId, setEditingFieldId] = useState<string | null>(null);
 	const [pageId, setPageId] = useState<string | null>(record.pageId ?? null);
 	const [openingPage, setOpeningPage] = useState(false);
 	const loadPages = usePageStore((s) => s.loadPages);
@@ -58,6 +57,12 @@ export function RecordPanel({
 	const saveTitle = async () => {
 		if (title === record.title) return;
 		await api.updateRecord({ id: record.id, title });
+		await onChanged();
+	};
+
+	const setFieldValue = async (fieldId: string, value: string) => {
+		await api.updateFieldValue({ recordId: record.id, fieldId, value });
+		setEditingFieldId(null);
 		await onChanged();
 	};
 
@@ -87,8 +92,7 @@ export function RecordPanel({
 				role="dialog"
 				aria-label="Record details"
 			>
-				<header className="flex justify-between items-center mb-0.5">
-					<ShortId id={record.shortId} />
+				<header className="flex justify-end mb-0.5">
 					<IconButton
 						variant="ghost"
 						size="sm"
@@ -139,14 +143,47 @@ export function RecordPanel({
 					</Button>
 				)}
 
-				<RecordProperties
-					recordId={record.id}
-					fields={fields}
-					values={values}
-					databases={databases}
-					allRecords={allRecords}
-					onChanged={onChanged}
-				/>
+				<section className="grid grid-cols-[130px_1fr] gap-y-1.5 gap-x-3 items-start mb-6">
+					{fields.map((field) => {
+						const val = values[field.name] ?? "";
+						const isEditing = editingFieldId === field.id;
+						return (
+							<div key={field.id} className="contents">
+								<div className="text-text-3 text-[12.5px] pt-[7px]">
+									{field.name}
+								</div>
+								<div className="record-panel-prop-value relative min-h-[28px]">
+									{isEditing ? (
+										<InlineCellEditor
+											field={field as any}
+											value={val}
+											onSave={(v) => setFieldValue(field.id, v)}
+											onCancel={() => setEditingFieldId(null)}
+											allRecords={allRecords}
+										/>
+									) : (
+										<div
+											className="px-[7px] py-1 rounded cursor-pointer min-h-[24px] pointer-coarse:min-h-11 pointer-coarse:flex pointer-coarse:items-center pointer-coarse:bg-surface-2 text-text-2 transition-[background,color] duration-[var(--t)] ease-[var(--ease)] hover:bg-surface-3 hover:text-text"
+											onClick={() => setEditingFieldId(field.id)}
+										>
+											<CellDisplay
+												field={field as any}
+												value={val}
+												databases={databases}
+												allRecords={allRecords}
+											/>
+										</div>
+									)}
+								</div>
+							</div>
+						);
+					})}
+					{fields.length === 0 && (
+						<div className="col-span-2 text-text-3 text-[13px] pt-2">
+							No properties yet. Add one from the table header.
+						</div>
+					)}
+				</section>
 			</aside>
 		</div>
 	);

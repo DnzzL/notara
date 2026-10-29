@@ -51,7 +51,6 @@ import {
 import { MobileRuler } from "./db/MobileRuler.js";
 import { FilterBar, makeDefaultFilter, SortBar } from "./db/QueryBar.js";
 import { RecordPanel } from "./db/RecordPanel.js";
-import { ShortId } from "./db/ShortId.js";
 import { ViewSwitcher } from "./db/ViewSwitcher.js";
 import { VIEW_TYPES, type ViewType } from "./db/viewTypes.js";
 import { Button, IconButton, MenuItem } from "./ui/index.js";
@@ -299,7 +298,6 @@ function DraggableColumnHeader({
 
 function TitleCell({
 	title,
-	shortId,
 	onSave,
 	editing,
 	onEditingChange,
@@ -307,7 +305,6 @@ function TitleCell({
 	isFocused,
 }: {
 	title: string;
-	shortId: string;
 	onSave: (t: string) => Promise<void> | void;
 	editing: boolean;
 	onEditingChange: (on: boolean) => void;
@@ -333,7 +330,6 @@ function TitleCell({
 				}}
 				onDoubleClick={() => onEditingChange(true)}
 			>
-				<ShortId id={shortId} />
 				{title || <span style={{ color: "var(--text-3)" }}>Untitled</span>}
 			</div>
 		);
@@ -1441,7 +1437,6 @@ export function DatabaseView({
 														>
 															<TitleCell
 																title={record.title}
-																shortId={record.shortId}
 																isFocused={isFocused}
 																editing={
 																	editingCell?.recordId === record.id &&

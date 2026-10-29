@@ -15,6 +15,8 @@ if [ -z "$staged_files" ]; then
     exit 0
 fi
 
-bunx @biomejs/biome check --write --unsafe --staged --no-errors-on-unmatched
+# Through the repo's own `fmt` script, so the formatter and its flags live in one
+# place (package.json) and the hook cannot drift from `bun fmt`.
+bun fmt --staged --no-errors-on-unmatched
 
 echo "$staged_files" | xargs -r git add
