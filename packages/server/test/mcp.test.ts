@@ -327,6 +327,19 @@ describe("both protocol eras on the one endpoint", () => {
 		);
 		expect(expectedTools("read")).not.toContain("createPage");
 	});
+
+	test("the block, search and trash tools are listed (NOT-169.3)", async () => {
+		expect(await toolNames(stateless(writeKey))).toEqual(
+			expect.arrayContaining([
+				"listBlocks",
+				"createBlock",
+				"updateBlock",
+				"deleteBlock",
+				"search",
+				"listTrash",
+			]),
+		);
+	});
 });
 
 describe("tool calls behave like the REST operations they are", () => {
