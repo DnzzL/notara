@@ -140,6 +140,25 @@ describe("the OpenAPI document describes the routes that exist", () => {
 		]);
 	});
 
+	test("block, search and trash operations are documented from their Schemas", () => {
+		// Bounds and fields that only the shared RPC Schemas carry: the content
+		// cap, the query cap, and a trashed page's always-present deletedAt.
+		const doc = JSON.parse(JSON.stringify(spec));
+		const blocks = doc.paths["/workspaces/{workspaceId}/pages/{pageId}/blocks"];
+		const body =
+			blocks.post.requestBody.content["application/json"].schema.properties;
+		expect(body.content.maxLength).toBe(1_048_576);
+		const search = doc.paths["/workspaces/{workspaceId}/search"].get;
+		const q = search.parameters.find((p: { name: string }) => p.name === "q");
+		expect(q).toMatchObject({ in: "query", required: true });
+		expect(q.schema.maxLength).toBe(500);
+		const trashedPageRef: string =
+			doc.components.schemas.TrashContents.properties.pages.items.$ref;
+		const trashedPage =
+			doc.components.schemas[trashedPageRef.split("/").pop()!];
+		expect(trashedPage.required).toContain("deletedAt");
+	});
+
 	test("every documented path is actually served", () => {
 		const missing = documented.filter((e) => !registered.includes(e));
 		expect(

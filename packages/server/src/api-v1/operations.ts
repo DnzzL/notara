@@ -1,9 +1,14 @@
 import {
 	type AuthError,
+	Block,
+	BlockContent,
 	type ConflictError,
 	type NotFoundError,
 	Page,
+	SearchQuery,
+	SearchResult,
 	TitleString,
+	TrashContents,
 	ValidationError,
 } from "@notara/shared";
 import {
@@ -45,8 +50,8 @@ import type { ApiKeyScope } from "./scope.js";
  * so route and document cannot drift for any operation declared here.
  *
  * Two forms live side by side while the resources migrate (NOT-169): the
- * typed `TypedOperation` (pages so far) and the untyped `Operation` (blocks,
- * databases, fields, records, search, trash). `GET /api/v1/workspaces` stays hand-registered in
+ * typed `TypedOperation` (pages, blocks, search, trash so far) and the untyped
+ * `Operation` (databases, fields, records). `GET /api/v1/workspaces` stays hand-registered in
  * routes.ts: it has no workspace-scoped layer or permission check to merge,
  * so the table buys it nothing. RPC (rpc-handlers.ts) is a separate surface,
  * not covered here.
@@ -135,22 +140,6 @@ const jsonResponse = (description: string, schema: object) => ({
 });
 
 // ── Path params (canonical; also imported by openapi.ts) ─────────────────────
-
-export const pageParam = {
-	name: "pageId",
-	in: "path" as const,
-	required: true,
-	schema: { type: "string" },
-	description: "Page ID",
-};
-
-export const blockParam = {
-	name: "blockId",
-	in: "path" as const,
-	required: true,
-	schema: { type: "string" },
-	description: "Block ID",
-};
 
 export const dbParam = {
 	name: "dbId",
@@ -384,166 +373,124 @@ export const pageOperations = [
 
 // ── Blocks ─────────────────────────────────────────────────────────────────────
 
+const BlockId = Schema.String.annotate({ description: "Block ID" });
+/** The RPC `Block`, as the plain JSON object the handlers return. */
+const BlockJson = Schema.Struct(Block.fields).annotate({ identifier: "Block" });
 /**
  * Block content crosses this boundary exactly as it is stored: a string whose
- * reading depends on the block type. The contract, and why this adapter no
- * longer parses or coerces it, lives in handlers/blocks.ts.
+ * reading depends on the block type. The contract lives in handlers/blocks.ts.
  */
-const requireBlockContent = (raw: unknown) =>
-	Blocks.isValidContent(raw)
-		? Effect.succeed(raw)
-		: Effect.fail(
-				new ApiError({ status: 400, message: Blocks.CONTENT_CONTRACT }),
-			);
+const BlockContentInput = BlockContent.annotate({
+	description: Blocks.CONTENT_CONTRACT,
+});
 
-export const blockOperations: readonly Operation[] = [
-	{
+/** The page must exist (and not be trashed) for its blocks to be reached. */
+const requirePage = (pageId: string) =>
+	Pages.getPage(pageId).pipe(Effect.asVoid);
+
+/**
+ * The block's page ACL. Run as `run`'s first step rather than as
+ * `checkPermission`: an unknown block is a NotFoundError, which the seam's
+ * `checkPermission` does not declare. Still under the one layer acquisition.
+ */
+const blockPermission = (
+	ctx: Omit<OperationContext, "params">,
+	blockId: string,
+) =>
+	Permissions.checkBlockPermission(
+		ctx.userId,
+		ctx.workspaceId,
+		blockId,
+		"editor",
+	).pipe(
+		Effect.catch((e) =>
+			e._tag === "AuthError" || e._tag === "NotFoundError"
+				? Effect.fail(e)
+				: Effect.die(e),
+		),
+	);
+
+export const blockOperations = [
+	typedOperation({
 		method: "GET",
 		path: "/api/v1/workspaces/:workspaceId/pages/:pageId/blocks",
 		operationId: "listBlocks",
 		tag: "Blocks",
-		pathParams: [pageParam],
-		checkPermission: (ctx) =>
-			Effect.gen(function* () {
-				const pageId = yield* requireParam(ctx.params, "pageId");
-				yield* Permissions.checkPagePermission(
-					ctx.userId,
-					ctx.workspaceId,
-					pageId,
-					"viewer",
-				);
-			}),
-		run: (ctx) =>
-			Effect.gen(function* () {
-				const pageId = yield* requireParam(ctx.params, "pageId");
-				const blocks = yield* Blocks.listBlocks(pageId);
-				return ok(blocks);
-			}),
-		openapi: {
-			summary: "List blocks in a page",
-			responses: {
-				200: jsonResponse("Blocks ordered by index", {
-					type: "array",
-					items: jsonSchema("Block"),
-				}),
-				...errorResponses,
-			},
-		},
-	},
-	{
+		summary: "List blocks in a page",
+		scope: "read",
+		input: Schema.Struct({ pageId: PageId }),
+		output: Schema.Array(BlockJson),
+		checkPermission: pagePermission("viewer"),
+		run: (_, input) =>
+			requirePage(input.pageId).pipe(
+				Effect.andThen(Blocks.listBlocks(input.pageId)),
+				sqlDefect,
+			),
+	}),
+	typedOperation({
 		method: "POST",
 		path: "/api/v1/workspaces/:workspaceId/pages/:pageId/blocks",
 		operationId: "createBlock",
 		tag: "Blocks",
-		pathParams: [pageParam],
-		checkPermission: (ctx) =>
-			Effect.gen(function* () {
-				const pageId = yield* requireParam(ctx.params, "pageId");
-				yield* Permissions.checkPagePermission(
-					ctx.userId,
-					ctx.workspaceId,
-					pageId,
-					"editor",
-				);
-			}),
-		run: (ctx) =>
-			Effect.gen(function* () {
-				const pageId = yield* requireParam(ctx.params, "pageId");
-				const body = yield* parseBody;
-				const b = body as Record<string, unknown>;
-				const type = yield* requireField(body, "type");
-				const content = yield* requireBlockContent(b.content);
-				const index = typeof b.index === "number" ? b.index : 0;
-				const parentId = optionalField(body, "parentId");
-				const block = yield* Blocks.createBlock({
-					pageId,
-					type,
-					content,
-					index,
-					parentId,
-				});
-				return created(block);
-			}),
-		openapi: {
-			summary: "Create a block",
-			requestBody: jsonBody("BlockCreate"),
-			responses: {
-				201: jsonResponse("Created block", jsonSchema("Block")),
-				...errorResponses,
-			},
-		},
-	},
-	{
+		summary: "Create a block",
+		successStatus: 201,
+		scope: "write",
+		input: Schema.Struct({
+			pageId: PageId,
+			type: Block.fields.type,
+			content: BlockContentInput,
+			index: Schema.optional(Schema.Number),
+			parentId: Schema.optional(Schema.NullOr(Schema.String)),
+		}),
+		output: BlockJson,
+		checkPermission: pagePermission("editor"),
+		run: (_, input) =>
+			requirePage(input.pageId).pipe(
+				Effect.andThen(
+					Blocks.createBlock({
+						pageId: input.pageId,
+						type: input.type,
+						content: input.content,
+						index: input.index ?? 0,
+						parentId: input.parentId ?? null,
+					}),
+				),
+				sqlDefect,
+			),
+	}),
+	typedOperation({
 		method: "PATCH",
 		path: "/api/v1/workspaces/:workspaceId/blocks/:blockId",
 		operationId: "updateBlock",
 		tag: "Blocks",
-		pathParams: [blockParam],
-		checkPermission: (ctx) =>
-			Effect.gen(function* () {
-				const blockId = yield* requireParam(ctx.params, "blockId");
-				yield* Permissions.checkBlockPermission(
-					ctx.userId,
-					ctx.workspaceId,
-					blockId,
-					"editor",
-				);
-			}),
-		run: (ctx) =>
-			Effect.gen(function* () {
-				const blockId = yield* requireParam(ctx.params, "blockId");
-				const body = yield* parseBody;
-				const b = body as Record<string, unknown>;
-				if (!("content" in b)) {
-					return yield* Effect.fail(
-						new ApiError({
-							status: 422,
-							message: 'Field "content" is required',
-						}),
-					);
-				}
-				const block = yield* Blocks.updateBlock({
-					id: blockId,
-					content: yield* requireBlockContent(b.content),
-				}).pipe(Effect.mapError(() => notFound("Block", blockId)));
-				return ok(block);
-			}),
-		openapi: {
-			summary: "Update a block's content",
-			requestBody: jsonBody("BlockUpdate"),
-			responses: {
-				200: jsonResponse("Updated block", jsonSchema("Block")),
-				...errorResponses,
-			},
-		},
-	},
-	{
+		summary: "Update a block's content",
+		scope: "write",
+		input: Schema.Struct({ blockId: BlockId, content: BlockContentInput }),
+		output: BlockJson,
+		run: (ctx, input) =>
+			blockPermission(ctx, input.blockId).pipe(
+				Effect.andThen(
+					Blocks.updateBlock({ id: input.blockId, content: input.content }),
+				),
+				sqlDefect,
+			),
+	}),
+	typedOperation({
 		method: "DELETE",
 		path: "/api/v1/workspaces/:workspaceId/blocks/:blockId",
 		operationId: "deleteBlock",
 		tag: "Blocks",
-		pathParams: [blockParam],
-		checkPermission: (ctx) =>
-			Effect.gen(function* () {
-				const blockId = yield* requireParam(ctx.params, "blockId");
-				yield* Permissions.checkBlockPermission(
-					ctx.userId,
-					ctx.workspaceId,
-					blockId,
-					"editor",
-				);
-			}),
-		run: (ctx) =>
-			Effect.gen(function* () {
-				const blockId = yield* requireParam(ctx.params, "blockId");
-				yield* Blocks.deleteBlock(blockId);
-				return noContent();
-			}),
-		openapi: {
-			summary: "Delete a block",
-			responses: { 204: { description: "Block deleted" }, ...errorResponses },
-		},
-	},
+		summary: "Delete a block",
+		successStatus: 204,
+		scope: "write",
+		input: Schema.Struct({ blockId: BlockId }),
+		output: Schema.Void,
+		run: (ctx, input) =>
+			blockPermission(ctx, input.blockId).pipe(
+				Effect.andThen(Blocks.deleteBlock(input.blockId)),
+				sqlDefect,
+			),
+	}),
 ];
 
 // ── Databases ──────────────────────────────────────────────────────────────────
@@ -1113,25 +1060,31 @@ export const recordOperations: readonly Operation[] = [
 
 // ── Search + Trash ─────────────────────────────────────────────────────────────
 
-export const searchOperations: readonly Operation[] = [
-	{
+const SearchResultJson = Schema.Struct(SearchResult.fields).annotate({
+	identifier: "SearchResult",
+});
+const TrashContentsJson = Schema.Struct(TrashContents.fields).annotate({
+	identifier: "TrashContents",
+});
+
+export const searchOperations = [
+	typedOperation({
 		method: "GET",
 		path: "/api/v1/workspaces/:workspaceId/search",
 		operationId: "search",
 		tag: "Search",
-		pathParams: [],
-		run: (ctx) =>
+		summary: "Full-text search",
+		scope: "read",
+		input: Schema.Struct({
+			// Blank is refused, as before: it would only ever match nothing.
+			q: SearchQuery.pipe(Schema.check(Schema.isPattern(/\S/))).annotate({
+				description: "Search query",
+			}),
+		}),
+		output: Schema.Array(SearchResultJson),
+		run: (ctx, input) =>
 			Effect.gen(function* () {
-				const q = yield* queryParam("q");
-				if (!q?.trim()) {
-					return yield* Effect.fail(
-						new ApiError({
-							status: 422,
-							message: 'Query parameter "q" is required',
-						}),
-					);
-				}
-				const hits = yield* Search.globalSearch(q);
+				const hits = yield* Search.globalSearch(input.q);
 				const allPages = yield* Pages.listPages;
 				const visible = yield* Permissions.filterPagesByPermission(
 					ctx.userId,
@@ -1140,71 +1093,42 @@ export const searchOperations: readonly Operation[] = [
 					allPages,
 				);
 				const visibleIds = new Set(visible.map((p) => p.id));
-				const results = hits.filter((r) =>
+				return hits.filter((r) =>
 					visibleIds.has(r.type === "page" ? r.id : r.pageId),
 				);
-				return ok(results);
-			}),
-		openapi: {
-			summary: "Full-text search",
-			parameters: [
-				{
-					name: "q",
-					in: "query" as const,
-					required: true,
-					schema: { type: "string" },
-					description: "Search query",
-					example: "meeting notes",
-				},
-			],
-			responses: {
-				200: jsonResponse("Search results", {
-					type: "array",
-					items: jsonSchema("SearchResult"),
-				}),
-				...errorResponses,
-			},
-		},
-	},
+			}).pipe(sqlDefect),
+	}),
 ];
 
-export const trashOperations: readonly Operation[] = [
-	{
+export const trashOperations = [
+	typedOperation({
 		method: "GET",
 		path: "/api/v1/workspaces/:workspaceId/trash",
 		operationId: "listTrash",
 		tag: "Trash",
-		pathParams: [],
-		run: () =>
-			Effect.gen(function* () {
-				const trash = yield* Databases.listTrash;
-				return ok(trash);
-			}),
-		openapi: {
-			summary: "List trashed items",
-			description:
-				"Returns explicitly-trashed pages, databases and records, newest first. Restore via the corresponding `…/restore` endpoint, or purge with `DELETE …?permanent=true`.",
-			responses: {
-				200: jsonResponse("Trash contents", jsonSchema("TrashContents")),
-				...errorResponses,
-			},
-		},
-	},
+		summary: "List trashed items",
+		description:
+			"Returns explicitly-trashed pages, databases and records, newest first. Restore via the corresponding `…/restore` endpoint, or purge with `DELETE …?permanent=true`.",
+		scope: "read",
+		input: Schema.Struct({}),
+		output: TrashContentsJson,
+		run: () => Databases.listTrash.pipe(sqlDefect),
+	}),
 ];
 
 /** Every untyped REST operation, in registration/OpenAPI order. */
 export const restOperations: readonly Operation[] = [
-	...blockOperations,
 	...databaseOperations,
 	...fieldOperations,
 	...recordOperations,
-	...searchOperations,
-	...trashOperations,
 ];
 
 /** Every typed operation, in registration/OpenAPI order. */
 export const typedOperations: ReadonlyArray<TypedOperation<any, any>> = [
 	...pageOperations,
+	...blockOperations,
+	...searchOperations,
+	...trashOperations,
 ];
 
 /**

@@ -27,8 +27,6 @@ import { BLOCK_COLS, blockFromRow } from "../mappers.js";
  * refused with a message saying what to send, rather than accepted and quietly
  * corrupted.
  */
-export const isValidContent = (raw: unknown): raw is string =>
-	typeof raw === "string";
 
 /** Why a rejected content payload was rejected, in terms a caller can act on. */
 export const CONTENT_CONTRACT =
