@@ -131,7 +131,7 @@ packages/app/src/
   routes/{privacy,terms}.tsx  GDPR + ToS
 
 packages/shared/src/api.ts  RPC schema + bounded string types
-docs/adr/                   Decision log — append, don't rewrite
+docs/adr/                   Live decisions only — a superseded ADR is deleted (git keeps it)
 ```
 
 ## 7. Known Debt (don't surprise me)

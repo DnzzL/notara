@@ -20,7 +20,6 @@ get resolved.
 ├── CONTEXT.md          ← created lazily by /domain-modeling; not present yet
 ├── docs/adr/
 │   ├── 001-file-attachments.md
-│   ├── 004-fair-source-fsl.md
 │   └── 005-agpl.md
 ├── packages/
 └── ...
