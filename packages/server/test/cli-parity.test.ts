@@ -11,7 +11,7 @@ import type { Command } from "effect/cli";
 import { OperationId, root } from "../../cli/src/commands.js";
 import { typedOperations } from "../src/api-v1/operations.js";
 
-const declaredOperationIds = (cmd: Command.Any): string[] => [
+const declaredOperationIds = (cmd: Command.Command.Any): string[] => [
 	...Context.getOption(cmd.annotations, OperationId).pipe((o) =>
 		o._tag === "Some" ? [o.value] : [],
 	),
