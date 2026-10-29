@@ -460,3 +460,79 @@ describe("tool calls behave like the REST operations they are", () => {
 		expect(res.body.result.content[0].text).toContain("Not a member");
 	});
 });
+
+describe("an agent's block edit meets the editor's lock and presence (#26)", () => {
+	const BLOCKS = (pageId: string) => `${PAGES}/${pageId}/blocks`;
+	const BLOCK = (blockId: string) =>
+		`/api/v1/workspaces/${ws.id}/blocks/${blockId}`;
+
+	const pageWithBlock = async (title: string) => {
+		const { body: page } = await call(writeKey, "POST", PAGES, { title });
+		const { body: block } = await call(writeKey, "POST", BLOCKS(page.id), {
+			type: "paragraph",
+			content: "before",
+		});
+		return { pageId: page.id as string, blockId: block.id as string };
+	};
+
+	/** The member focuses a block in the editor, which locks it for others. */
+	const focus = (pageId: string, blockId: string) =>
+		fetch(`${BASE}/api/presence/heartbeat`, {
+			method: "POST",
+			headers: { "Content-Type": "application/json", Cookie: member.cookie },
+			body: JSON.stringify({
+				workspaceId: ws.id,
+				pageId,
+				focusedBlockId: blockId,
+			}),
+		});
+
+	test("REST and MCP refuse to edit or delete a block another user holds", async () => {
+		const { pageId, blockId } = await pageWithBlock("Locked");
+		expect((await focus(pageId, blockId)).status).toBe(200);
+
+		const patched = await call(writeKey, "PATCH", BLOCK(blockId), {
+			content: "agent",
+		});
+		expect(patched.status).toBe(409);
+		expect((await call(writeKey, "DELETE", BLOCK(blockId))).status).toBe(409);
+
+		const viaMcp = await callTool(stateless(writeKey), "updateBlock", {
+			workspaceId: ws.id,
+			blockId,
+			content: "agent",
+		});
+		expect(viaMcp.body.result.isError).toBe(true);
+
+		const { body: blocks } = await call(readKey, "GET", BLOCKS(pageId));
+		expect(blocks.map((b: { content: string }) => b.content)).toEqual([
+			"before",
+		]);
+	});
+
+	test("a REST edit reaches an editor watching the page", async () => {
+		const { pageId, blockId } = await pageWithBlock("Watched");
+		const stream = await fetch(
+			`${BASE}/api/presence/stream?workspaceId=${ws.id}&pageId=${pageId}`,
+			{ headers: { Cookie: member.cookie } },
+		);
+		expect(stream.status).toBe(200);
+		const reader = (stream.body as ReadableStream<Uint8Array>).getReader();
+		let text = "";
+		const seen = (async () => {
+			while (!text.includes("event: block.updated")) {
+				const { value, done } = await reader.read();
+				if (done) return;
+				text += new TextDecoder().decode(value);
+			}
+		})();
+
+		await Bun.sleep(100);
+		await call(writeKey, "PATCH", BLOCK(blockId), { content: "after" });
+		await Promise.race([seen, Bun.sleep(3000)]);
+		await reader.cancel();
+
+		expect(text).toContain("event: block.updated");
+		expect(text).toContain('"content":"after"');
+	});
+});

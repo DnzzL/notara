@@ -2,6 +2,7 @@ import {
 	type AuthError,
 	Block,
 	BlockContent,
+	BlockLockedError,
 	type ConflictError,
 	Database,
 	DatabaseField,
@@ -34,6 +35,7 @@ import * as Permissions from "../handlers/permissions.js";
 import * as Search from "../handlers/search.js";
 import * as Workspaces from "../handlers/workspaces.js";
 import type { PlatformDb } from "../platform-db.js";
+import { presence } from "../presence/index.js";
 import { ApiError, requireWorkspaceMember, resolveApiUser } from "./auth.js";
 import { created, handle, noContent, ok, requireParam } from "./response.js";
 import type { ApiKeyScope } from "./scope.js";
@@ -98,6 +100,7 @@ export type OperationError =
 	| NotFoundError
 	| ValidationError
 	| ConflictError
+	| BlockLockedError
 	| AuthError;
 
 export interface TypedOperation<I, O> {
@@ -254,8 +257,23 @@ export const pageOperations = [
 		}),
 		output: PageJson,
 		checkPermission: pagePermission("editor"),
-		run: (_, { pageId, ...patch }) =>
-			Pages.updatePage({ id: pageId, ...patch }).pipe(sqlDefect),
+		run: (ctx, { pageId, ...patch }) =>
+			Pages.updatePage({ id: pageId, ...patch }).pipe(
+				Effect.tap((page) =>
+					Effect.sync(() =>
+						presence.broadcast(ctx.workspaceId, pageId, {
+							type: "page.metaUpdated",
+							actorUserId: ctx.userId,
+							fields: {
+								title: page.title,
+								icon: page.icon,
+								coverUrl: page.coverUrl,
+							},
+						}),
+					),
+				),
+				sqlDefect,
+			),
 	}),
 	typedOperation({
 		method: "DELETE",
@@ -326,6 +344,21 @@ const blockPermission = (ctx: OperationContext, blockId: string) =>
 		),
 	);
 
+/**
+ * The block's page, refusing when another user holds the block in the editor:
+ * an agent must not overwrite what someone is typing, as the RPC door refuses.
+ */
+const unlockedBlockPage = (ctx: OperationContext, blockId: string) =>
+	Effect.gen(function* () {
+		const pageId = yield* Blocks.getBlockPageId(blockId);
+		const holder = pageId
+			? presence.lockHolder(ctx.workspaceId, pageId, blockId)
+			: null;
+		if (holder && holder !== ctx.userId)
+			return yield* Effect.fail(new BlockLockedError({ holderUserId: holder }));
+		return pageId;
+	});
+
 export const blockOperations = [
 	typedOperation({
 		method: "GET",
@@ -360,7 +393,7 @@ export const blockOperations = [
 		}),
 		output: BlockJson,
 		checkPermission: pagePermission("editor"),
-		run: (_, input) =>
+		run: (ctx, input) =>
 			requirePage(input.pageId).pipe(
 				Effect.andThen(
 					Blocks.createBlock({
@@ -370,6 +403,15 @@ export const blockOperations = [
 						index: input.index ?? 0,
 						parentId: input.parentId ?? null,
 					}),
+				),
+				Effect.tap((block) =>
+					Effect.sync(() =>
+						presence.broadcast(ctx.workspaceId, input.pageId, {
+							type: "block.created",
+							actorUserId: ctx.userId,
+							block,
+						}),
+					),
 				),
 				sqlDefect,
 			),
@@ -384,12 +426,22 @@ export const blockOperations = [
 		input: Schema.Struct({ blockId: BlockId, content: BlockContentInput }),
 		output: BlockJson,
 		run: (ctx, input) =>
-			blockPermission(ctx, input.blockId).pipe(
-				Effect.andThen(
-					Blocks.updateBlock({ id: input.blockId, content: input.content }),
-				),
-				sqlDefect,
-			),
+			Effect.gen(function* () {
+				yield* blockPermission(ctx, input.blockId);
+				const pageId = yield* unlockedBlockPage(ctx, input.blockId);
+				const block = yield* Blocks.updateBlock({
+					id: input.blockId,
+					content: input.content,
+				});
+				if (pageId)
+					presence.broadcast(ctx.workspaceId, pageId, {
+						type: "block.updated",
+						actorUserId: ctx.userId,
+						blockId: input.blockId,
+						content: input.content,
+					});
+				return block;
+			}).pipe(sqlDefect),
 	}),
 	typedOperation({
 		method: "DELETE",
@@ -402,10 +454,17 @@ export const blockOperations = [
 		input: Schema.Struct({ blockId: BlockId }),
 		output: Schema.Void,
 		run: (ctx, input) =>
-			blockPermission(ctx, input.blockId).pipe(
-				Effect.andThen(Blocks.deleteBlock(input.blockId)),
-				sqlDefect,
-			),
+			Effect.gen(function* () {
+				yield* blockPermission(ctx, input.blockId);
+				const pageId = yield* unlockedBlockPage(ctx, input.blockId);
+				yield* Blocks.deleteBlock(input.blockId);
+				if (pageId)
+					presence.broadcast(ctx.workspaceId, pageId, {
+						type: "block.deleted",
+						actorUserId: ctx.userId,
+						blockId: input.blockId,
+					});
+			}).pipe(sqlDefect),
 	}),
 ];
 
