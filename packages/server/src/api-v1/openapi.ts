@@ -1,22 +1,12 @@
 // ── Inline OpenAPI 3.1 spec ───────────────────────────────────────────────────
 // A plain TypeScript object; typed operations add the entries generated from their Schemas.
-import {
-	operationsOpenApiPaths,
-	restOperations,
-	typedOperations,
-	typedOperationsOpenApi,
-} from "./operations.js";
+import { typedOperations, typedOperationsOpenApi } from "./operations.js";
 
 const schemas = {
 	Error: {
 		type: "object",
 		required: ["error"],
 		properties: { error: { type: "string", example: "Not found" } },
-	},
-
-	RestoreResult: {
-		type: "object",
-		properties: { restored: { type: "boolean", example: true } },
 	},
 
 	Workspace: {
@@ -177,11 +167,8 @@ blank. If you have blocks created that way, rewrite them as HTML.
 		// ── Pages, Blocks, Databases, Search, Trash ──────────────────────────────
 		// Derived from the operation table in api-v1/operations.ts — the REST
 		// router is registered from the same list, so route and document cannot
-		// drift apart for these operations. See NOT-122 / TASK-23. Typed
-		// operations (pages, blocks, search, trash) are generated from their
-		// Schemas (NOT-169).
+		// drift apart. Generated from the operations' Schemas (NOT-169).
 		...typed.paths,
-		...operationsOpenApiPaths(restOperations, wsParam),
 	},
 };
 

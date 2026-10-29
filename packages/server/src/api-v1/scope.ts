@@ -7,14 +7,14 @@
  * can. See ADR-008 for why this is the one axis that does not reduce to a
  * relation, and NOT-124 for why it is two values rather than six.
  *
- * ENFORCEMENT IS ONE CHOKEPOINT. The v1 router refuses any mutating request
- * carried by a read key, rather than each operation checking for itself.
- * Twenty-eight opportunities to forget a guard is precisely the shape of
- * NOT-102, where one handler never wrote the check its neighbours had.
+ * ENFORCEMENT IS ONE CHOKEPOINT. Every v1 route goes through `handle`, which
+ * refuses a write-scoped route carried by a read key, rather than each
+ * operation checking for itself. Twenty-eight opportunities to forget a guard
+ * is precisely the shape of NOT-102, where one handler never wrote the check
+ * its neighbours had.
  *
- * The chokepoint is sound only while **a GET never mutates**. That is true
- * today and nothing enforces it on its own, so `api-key-scopes.test.ts` asserts
- * it rather than trusting it.
+ * The scope a route needs is what its operation declares (NOT-169), never what
+ * its HTTP method suggests: MCP has no method, and both doors must agree.
  */
 
 import { Effect } from "effect";
@@ -23,18 +23,6 @@ import { PlatformDb } from "../platform-db.js";
 import { ApiError, sha256 } from "./auth.js";
 
 export type ApiKeyScope = "read" | "write";
-
-/** Methods that only read. Everything else is treated as a mutation. */
-const READ_METHODS = new Set(["GET", "HEAD", "OPTIONS"]);
-
-/**
- * Does this request change state?
- *
- * Fails closed: a method nobody anticipated counts as a mutation, so an
- * unfamiliar verb cannot become the way a read key gets to write.
- */
-export const mutates = (method: string): boolean =>
-	!READ_METHODS.has(method.toUpperCase());
 
 /** The refusal, worded so the holder knows what to do about it. */
 export const SCOPE_REFUSAL =
@@ -48,9 +36,7 @@ export const SCOPE_REFUSAL =
  * Runs from `handle`, which every v1 route already goes through, so a new route
  * is covered the moment it is registered rather than when someone remembers.
  *
- * `needed` is the scope a typed operation declares (NOT-169): with MCP there is
- * no HTTP method to read it from. Untyped operations omit it and keep the scope
- * their method implies.
+ * `needed` is the scope the operation declares.
  *
  * Deliberately narrow: it answers "may this credential mutate", not "who is
  * this". Resolving the caller stays in resolveApiUser, where ADR-008 put it.
@@ -59,16 +45,15 @@ export const SCOPE_REFUSAL =
  * whatever they may do through the UI they may do here.
  */
 export const enforceScope = (
-	needed?: ApiKeyScope,
+	needed: ApiKeyScope,
 ): Effect.Effect<
 	void,
 	ApiError,
 	HttpServerRequest.HttpServerRequest | PlatformDb
 > =>
 	Effect.gen(function* () {
+		if (needed === "read") return;
 		const request = yield* HttpServerRequest.HttpServerRequest;
-		if ((needed ?? (mutates(request.method) ? "write" : "read")) === "read")
-			return;
 
 		const header = request.headers.authorization as string | undefined;
 		if (!header?.startsWith("Bearer ")) return;

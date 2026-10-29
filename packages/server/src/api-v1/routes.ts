@@ -4,12 +4,7 @@ import * as HttpServerResponse from "effect/http/HttpServerResponse";
 import * as Workspaces from "../handlers/workspaces.js";
 import { resolveApiUser } from "./auth.js";
 import { spec as openApiSpec, swaggerHtml } from "./openapi.js";
-import {
-	registerOperations,
-	registerTypedOperations,
-	restOperations,
-	typedOperations,
-} from "./operations.js";
+import { registerTypedOperations, typedOperations } from "./operations.js";
 import { handle, ok } from "./response.js";
 
 // ── Route registration ────────────────────────────────────────────────────────
@@ -57,6 +52,7 @@ export const registerV1Routes = Effect.gen(function* () {
 					})),
 				);
 			}),
+			"read",
 		),
 	);
 
@@ -65,8 +61,7 @@ export const registerV1Routes = Effect.gen(function* () {
 	// See api-v1/operations.ts — every route below (pages, blocks, databases,
 	// fields, records, search, trash) is declared once there, each running its
 	// permission check and its mutation inside a single workspace-layer
-	// acquisition. Pages use the typed form; the rest move to it in turn.
+	// acquisition.
 
 	yield* registerTypedOperations(router, typedOperations);
-	yield* registerOperations(router, restOperations);
 });

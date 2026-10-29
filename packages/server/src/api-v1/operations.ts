@@ -25,7 +25,6 @@ import {
 } from "effect";
 import * as HttpRouter from "effect/http/HttpRouter";
 import * as HttpServerRequest from "effect/http/HttpServerRequest";
-import type * as HttpServerResponse from "effect/http/HttpServerResponse";
 import { type SqlClient, SqlError } from "effect/sql";
 import { WorkspaceDb } from "../db.js";
 import * as Blocks from "../handlers/blocks.js";
@@ -39,65 +38,22 @@ import { created, handle, noContent, ok, requireParam } from "./response.js";
 import type { ApiKeyScope } from "./scope.js";
 
 /**
- * One entry declares a REST operation's shape once: the route it answers and
- * how it runs. `registerOperations` derives the router registration from it;
- * `operationsOpenApiPaths` derives the OpenAPI document from the same list —
- * so route and document cannot drift for any operation declared here.
+ * One entry declares an operation once: its route, its scope, its input and
+ * output Schemas and how it runs. `registerTypedOperations` derives the REST
+ * routes from it, `typedOperationsOpenApi` the OpenAPI document and mcp.ts the
+ * MCP tools — so no door can drift from another (NOT-169).
  *
- * Two forms live side by side while the resources migrate (NOT-169): the
- * typed `TypedOperation` (every resource now) and the untyped `Operation`
- * (empty, removed in NOT-169.5). `GET /api/v1/workspaces` stays hand-registered in
+ * `GET /api/v1/workspaces` stays hand-registered in
  * routes.ts: it has no workspace-scoped layer or permission check to merge,
  * so the table buys it nothing. RPC (rpc-handlers.ts) is a separate surface,
  * not covered here.
  */
-
-/** Path parameters resolved by the router for the matched route. */
-type RouteParams = Readonly<Record<string, string | undefined>>;
 
 /** Everything an operation's `run` needs once auth and layer are settled. */
 export interface OperationContext {
 	readonly userId: string;
 	readonly workspaceId: string;
 	readonly role: "owner" | "member";
-	readonly params: RouteParams;
-}
-
-export interface Operation {
-	readonly method: "GET" | "POST" | "PATCH" | "PUT" | "DELETE";
-	/** Router-spelled path, e.g. "/api/v1/workspaces/:workspaceId/pages/:pageId". */
-	readonly path: `/${string}`;
-	readonly operationId: string;
-	readonly tag: string;
-	/**
-	 * Runs before `run`, under the same already-acquired workspace layer, and
-	 * blocks the mutation on failure — the fix for AC4: the permission check
-	 * and the mutation it guards share one workspace-layer acquisition instead
-	 * of two. Omit for workspace-membership-only operations (list operations
-	 * that filter by `ctx.role` instead of a single ACL check), or when the
-	 * check's resource id comes from the body rather than a path param
-	 * (createDatabase): there, `run` does its own check as its first step —
-	 * still under the one layer, since the layer wraps `run` either way.
-	 */
-	readonly checkPermission?: (
-		ctx: Pick<OperationContext, "userId" | "workspaceId" | "params">,
-	) => Effect.Effect<void, unknown, any>;
-	/**
-	 * `R` is `any` because each handler needs a different slice of the
-	 * per-workspace context; it's always satisfied by the time this runs.
-	 */
-	readonly run: (
-		ctx: OperationContext,
-	) => Effect.Effect<HttpServerResponse.HttpServerResponse, unknown, any>;
-	/** Path params beyond `workspaceId`, for the OpenAPI `parameters` array. */
-	readonly pathParams: readonly object[];
-	readonly openapi: {
-		readonly summary: string;
-		readonly description?: string;
-		readonly requestBody?: object;
-		readonly parameters?: readonly object[];
-		readonly responses: Readonly<Record<number, object>>;
-	};
 }
 
 const errorRef = { $ref: "#/components/schemas/Error" };
@@ -134,8 +90,7 @@ const jsonResponse = (description: string, schema: object) => ({
 // The form every operation moves to: input and output are Schemas, scope is
 // declared, and `run` returns data that can fail only with the shared tagged
 // errors. The REST door below decodes, encodes and maps errors for it; the
-// OpenAPI entry is generated from the same Schemas. The untyped `Operation`
-// above stays until every resource has moved (NOT-169.5).
+// OpenAPI entry is generated from the same Schemas.
 
 /** The per-workspace services an operation runs with. */
 export type WorkspaceServices = SqlClient.SqlClient | PlatformDb;
@@ -153,7 +108,7 @@ export interface TypedOperation<I, O> {
 	readonly summary: string;
 	readonly description?: string;
 	/** REST door only. Path params, then query (GET, DELETE) or body, fill `input`. */
-	readonly method: Operation["method"];
+	readonly method: "GET" | "POST" | "PATCH" | "PUT" | "DELETE";
 	readonly path: `/${string}`;
 	/** REST door only; 200 when omitted. */
 	readonly successStatus?: 201 | 204;
@@ -164,11 +119,11 @@ export interface TypedOperation<I, O> {
 	readonly output: Schema.Codec<O, unknown>;
 	/** Runs before `run`, under the same workspace-layer acquisition. */
 	readonly checkPermission?: (
-		ctx: Omit<OperationContext, "params">,
+		ctx: OperationContext,
 		input: I,
 	) => Effect.Effect<void, AuthError | NotFoundError, WorkspaceServices>;
 	readonly run: (
-		ctx: Omit<OperationContext, "params">,
+		ctx: OperationContext,
 		input: I,
 	) => Effect.Effect<O, OperationError, WorkspaceServices>;
 }
@@ -201,7 +156,7 @@ const Permanent = Schema.optional(
 
 const pagePermission =
 	(relation: Permissions.AclRelation) =>
-	(ctx: Omit<OperationContext, "params">, input: { pageId: string }) =>
+	(ctx: OperationContext, input: { pageId: string }) =>
 		Permissions.checkPagePermission(
 			ctx.userId,
 			ctx.workspaceId,
@@ -342,10 +297,7 @@ const requirePage = (pageId: string) =>
  * `checkPermission`: an unknown block is a NotFoundError, which the seam's
  * `checkPermission` does not declare. Still under the one layer acquisition.
  */
-const blockPermission = (
-	ctx: Omit<OperationContext, "params">,
-	blockId: string,
-) =>
+const blockPermission = (ctx: OperationContext, blockId: string) =>
 	Permissions.checkBlockPermission(
 		ctx.userId,
 		ctx.workspaceId,
@@ -479,7 +431,7 @@ const CellJson = Schema.Struct(RecordFieldValue.fields).annotate({
 const databasePermission =
 	(relation: Permissions.AclRelation) =>
 	(
-		ctx: Omit<OperationContext, "params">,
+		ctx: OperationContext,
 		input: { dbId: string; recordId?: string; fieldId?: string },
 	) =>
 		Permissions.checkDatabasePermission(
@@ -863,9 +815,6 @@ export const trashOperations = [
 	}),
 ];
 
-/** Every untyped REST operation, in registration/OpenAPI order. */
-export const restOperations: readonly Operation[] = [];
-
 /** Every typed operation, in registration/OpenAPI order. */
 export const typedOperations: ReadonlyArray<TypedOperation<any, any>> = [
 	...pageOperations,
@@ -875,28 +824,11 @@ export const typedOperations: ReadonlyArray<TypedOperation<any, any>> = [
 	...trashOperations,
 ];
 
-/**
- * Auth, membership and the workspace layer, shared by both operation forms:
- * `f` runs inside a single `WorkspaceDb` layer acquisition, so the permission
- * check and the work it guards cannot see two different databases.
- */
-const inWorkspace = <A, E>(
-	f: (ctx: OperationContext) => Effect.Effect<A, E, any>,
-) =>
-	Effect.gen(function* () {
-		const { userId } = yield* resolveApiUser;
-		const params = yield* HttpRouter.params;
-		const workspaceId = yield* requireParam(params, "workspaceId");
-		return yield* withWorkspace(userId, workspaceId, (ctx) =>
-			f({ ...ctx, params }),
-		);
-	});
-
 /** Membership, then `f` under one acquisition of the workspace's layer. */
 const withWorkspace = <A, E, R>(
 	userId: string,
 	workspaceId: string,
-	f: (ctx: Omit<OperationContext, "params">) => Effect.Effect<A, E, R>,
+	f: (ctx: OperationContext) => Effect.Effect<A, E, R>,
 ) =>
 	Effect.gen(function* () {
 		const role = yield* requireWorkspaceMember(workspaceId, userId);
@@ -928,34 +860,8 @@ export const runOperation = <I, O>(
 		}),
 	);
 
-/**
- * Registers every declared operation against `router`. Auth, membership, the
- * resource-level permission check and the operation's own work all run inside
- * a single `WorkspaceDb` layer acquisition.
- */
-export const registerOperations = (
-	router: typeof HttpRouter.HttpRouter.Service,
-	operations: readonly Operation[],
-) =>
-	Effect.forEach(operations, (op) =>
-		router.add(
-			op.method,
-			op.path,
-			handle(
-				inWorkspace((ctx) =>
-					Effect.gen(function* () {
-						const { userId, workspaceId, params } = ctx;
-						if (op.checkPermission)
-							yield* op.checkPermission({ userId, workspaceId, params });
-						return yield* op.run(ctx);
-					}),
-				),
-			),
-		),
-	);
-
 /** GET and DELETE carry their non-path input in the query; the rest in the body. */
-const inQuery = (method: Operation["method"]) =>
+const inQuery = (method: TypedOperation<unknown, unknown>["method"]) =>
 	method === "GET" || method === "DELETE";
 
 /** The JSON body as an object; an absent body is an empty one. */
@@ -1026,39 +932,6 @@ export const registerTypedOperations = (
 			),
 		),
 	);
-
-/**
- * The OpenAPI `paths` fragment for every operation in `operations`, grouped by
- * path — the same list the router registers, so route and document cannot
- * drift apart.
- */
-export const operationsOpenApiPaths = (
-	operations: readonly Operation[],
-	wsParam: object,
-) => {
-	const toDocPath = (routerPath: string) =>
-		routerPath.replace("/api/v1", "").replace(/:([a-zA-Z]+)/g, "{$1}");
-
-	const paths: Record<string, Record<string, unknown>> = {};
-	for (const op of operations) {
-		const docPath = toDocPath(op.path);
-		paths[docPath] ??= { parameters: [wsParam, ...op.pathParams] };
-		paths[docPath][op.method.toLowerCase()] = {
-			tags: [op.tag],
-			operationId: op.operationId,
-			summary: op.openapi.summary,
-			...(op.openapi.description
-				? { description: op.openapi.description }
-				: {}),
-			...(op.openapi.requestBody
-				? { requestBody: op.openapi.requestBody }
-				: {}),
-			...(op.openapi.parameters ? { parameters: op.openapi.parameters } : {}),
-			responses: op.openapi.responses,
-		};
-	}
-	return paths;
-};
 
 /**
  * The OpenAPI `paths` and component schemas for typed operations, generated
