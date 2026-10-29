@@ -1,6 +1,5 @@
 // ── Inline OpenAPI 3.1 spec ───────────────────────────────────────────────────
 // A plain TypeScript object; typed operations add the entries generated from their Schemas.
-import { FIELD_TYPE_SPECS } from "@notara/shared";
 import {
 	operationsOpenApiPaths,
 	restOperations,
@@ -26,10 +25,6 @@ const BLOCK_TYPES = [
 	"toggle",
 	"callout",
 ] as const;
-
-// Derived, not restated. This list was a third independent declaration of the
-// field-type union and had already fallen behind — it was missing "people".
-const FIELD_TYPES = FIELD_TYPE_SPECS.map((s) => s.type);
 
 const schemas = {
 	Error: {
@@ -82,158 +77,6 @@ const schemas = {
 				description:
 					"Replacement payload as a string, in the same format the block type stores.",
 				example: "<p>Updated text</p>",
-			},
-		},
-	},
-
-	Database: {
-		type: "object",
-		required: ["id", "pageId", "name"],
-		properties: {
-			id: { type: "string" },
-			pageId: { type: "string" },
-			name: { type: "string", example: "Tasks" },
-			isDeleted: { type: "boolean" },
-			sortOrder: { type: "number" },
-			titleLabel: { type: "string", example: "Name" },
-			titleHidden: { type: "boolean" },
-			deletedAt: { type: "string", format: "date-time", nullable: true },
-		},
-	},
-
-	DatabaseCreate: {
-		type: "object",
-		required: ["pageId", "name"],
-		properties: {
-			pageId: {
-				type: "string",
-				description: "Page the database is hosted on",
-				example: "01JV2RXHK00000000000000000",
-			},
-			name: { type: "string", example: "Tasks" },
-		},
-	},
-
-	DatabaseUpdate: {
-		type: "object",
-		properties: {
-			name: { type: "string", example: "Renamed DB" },
-			titleLabel: {
-				type: "string",
-				example: "Name",
-				description: "Label of the built-in title column",
-			},
-			titleHidden: { type: "boolean", description: "Hide the title column" },
-		},
-	},
-
-	DatabaseField: {
-		type: "object",
-		required: ["id", "databaseId", "name", "type"],
-		properties: {
-			id: { type: "string" },
-			databaseId: { type: "string" },
-			name: { type: "string", example: "Status" },
-			type: { type: "string", enum: [...FIELD_TYPES], example: "select" },
-			options: {
-				type: "array",
-				items: { type: "string" },
-				nullable: true,
-				example: ["Todo", "Doing", "Done"],
-			},
-			relationTargetDbId: {
-				type: "string",
-				nullable: true,
-				description: "Target database id for a relation field",
-			},
-			formula: {
-				type: "string",
-				nullable: true,
-				description: "Expression for a formula field",
-			},
-			sortOrder: { type: "number" },
-		},
-	},
-
-	FieldCreate: {
-		type: "object",
-		required: ["name", "type"],
-		properties: {
-			name: { type: "string", example: "Priority" },
-			type: { type: "string", enum: [...FIELD_TYPES], example: "select" },
-			options: {
-				type: "array",
-				items: { type: "string" },
-				nullable: true,
-				example: ["Low", "High"],
-			},
-			relationTargetDbId: { type: "string", nullable: true },
-			formula: { type: "string", nullable: true },
-		},
-	},
-
-	FieldUpdate: {
-		type: "object",
-		properties: {
-			name: { type: "string" },
-			type: { type: "string", enum: [...FIELD_TYPES] },
-			options: { type: "array", items: { type: "string" }, nullable: true },
-			relationTargetDbId: { type: "string", nullable: true },
-			formula: { type: "string", nullable: true },
-		},
-	},
-
-	DatabaseRecord: {
-		type: "object",
-		required: ["id", "databaseId", "title"],
-		properties: {
-			id: { type: "string" },
-			databaseId: { type: "string" },
-			title: { type: "string", example: "Fix the login bug" },
-			description: { type: "string", nullable: true },
-			pageId: {
-				type: "string",
-				nullable: true,
-				description:
-					"Backing page id once the record has been opened as a page; null otherwise.",
-			},
-			isDeleted: { type: "boolean" },
-			createdAt: { type: "string", format: "date-time" },
-			deletedAt: { type: "string", format: "date-time", nullable: true },
-			fields: {
-				type: "object",
-				description: "Map of field names to their values for this record",
-				additionalProperties: { type: "string" },
-				example: { Status: "In progress", Priority: "High" },
-			},
-		},
-	},
-
-	RecordCreate: {
-		type: "object",
-		required: ["title"],
-		properties: {
-			title: { type: "string", example: "Fix the login bug" },
-		},
-	},
-
-	RecordUpdate: {
-		type: "object",
-		properties: {
-			title: { type: "string", example: "Updated title" },
-			description: { type: "string", example: "More detail" },
-		},
-	},
-
-	CellUpdate: {
-		type: "object",
-		required: ["value"],
-		properties: {
-			value: {
-				type: "string",
-				description:
-					'Cell value as a string. Number: "42". Checkbox: "true"/"false". multiSelect: a JSON array string like \'["a","b"]\'.',
-				example: "In progress",
 			},
 		},
 	},
