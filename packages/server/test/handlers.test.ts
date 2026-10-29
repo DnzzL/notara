@@ -1134,7 +1134,7 @@ describe("Trash lifecycle", () => {
 			expect(pages.length).toBe(0);
 
 			// Should appear in trash
-			const trash = await Databases.listTrash.pipe(
+			const trash = await Databases.listTrash("owner", "ws", "owner").pipe(
 				Effect.provide(TestDbLayer(filename)),
 				Effect.runPromise,
 			);
@@ -1177,7 +1177,7 @@ describe("Trash lifecycle", () => {
 			expect(pages[0].isDeleted).toBe(false);
 
 			// Should be gone from trash
-			const trash = await Databases.listTrash.pipe(
+			const trash = await Databases.listTrash("owner", "ws", "owner").pipe(
 				Effect.provide(TestDbLayer(filename)),
 				Effect.runPromise,
 			);
@@ -1216,10 +1216,11 @@ describe("Trash lifecycle", () => {
 			);
 
 			// Record should be in trash
-			const trashBefore = await Databases.listTrash.pipe(
-				Effect.provide(TestDbLayer(filename)),
-				Effect.runPromise,
-			);
+			const trashBefore = await Databases.listTrash(
+				"owner",
+				"ws",
+				"owner",
+			).pipe(Effect.provide(TestDbLayer(filename)), Effect.runPromise);
 			expect(trashBefore.records.length).toBe(1);
 
 			// Restore the record (should also restore its backing page)
@@ -1459,7 +1460,7 @@ describe("Trash lifecycle", () => {
 			);
 
 			// Should show in trash
-			const trash = await Databases.listTrash.pipe(
+			const trash = await Databases.listTrash("owner", "ws", "owner").pipe(
 				Effect.provide(TestDbLayer(filename)),
 				Effect.runPromise,
 			);
@@ -1495,7 +1496,7 @@ describe("Trash lifecycle", () => {
 			}).pipe(Effect.provide(TestDbLayer(filename)), Effect.runPromise);
 
 			// Active page should not show in trash
-			const trash = await Databases.listTrash.pipe(
+			const trash = await Databases.listTrash("owner", "ws", "owner").pipe(
 				Effect.provide(TestDbLayer(filename)),
 				Effect.runPromise,
 			);
