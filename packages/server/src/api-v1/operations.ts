@@ -3,8 +3,13 @@ import {
 	Block,
 	BlockContent,
 	type ConflictError,
+	Database,
+	DatabaseField,
+	DatabaseFieldType,
+	DatabaseRecord,
 	type NotFoundError,
 	Page,
+	RecordFieldValue,
 	SearchQuery,
 	SearchResult,
 	TitleString,
@@ -30,17 +35,7 @@ import * as Permissions from "../handlers/permissions.js";
 import * as Search from "../handlers/search.js";
 import type { PlatformDb } from "../platform-db.js";
 import { ApiError, requireWorkspaceMember, resolveApiUser } from "./auth.js";
-import {
-	created,
-	handle,
-	noContent,
-	ok,
-	optionalField,
-	parseBody,
-	queryParam,
-	requireField,
-	requireParam,
-} from "./response.js";
+import { created, handle, noContent, ok, requireParam } from "./response.js";
 import type { ApiKeyScope } from "./scope.js";
 
 /**
@@ -50,8 +45,8 @@ import type { ApiKeyScope } from "./scope.js";
  * so route and document cannot drift for any operation declared here.
  *
  * Two forms live side by side while the resources migrate (NOT-169): the
- * typed `TypedOperation` (pages, blocks, search, trash so far) and the untyped
- * `Operation` (databases, fields, records). `GET /api/v1/workspaces` stays hand-registered in
+ * typed `TypedOperation` (every resource now) and the untyped `Operation`
+ * (empty, removed in NOT-169.5). `GET /api/v1/workspaces` stays hand-registered in
  * routes.ts: it has no workspace-scoped layer or permission check to merge,
  * so the table buys it nothing. RPC (rpc-handlers.ts) is a separate surface,
  * not covered here.
@@ -129,54 +124,10 @@ const errorResponses = {
 	},
 };
 
-const jsonSchema = (name: string) => ({ $ref: `#/components/schemas/${name}` });
-const jsonBody = (name: string) => ({
-	required: true,
-	content: { "application/json": { schema: jsonSchema(name) } },
-});
 const jsonResponse = (description: string, schema: object) => ({
 	description,
 	content: { "application/json": { schema } },
 });
-
-// ── Path params (canonical; also imported by openapi.ts) ─────────────────────
-
-export const dbParam = {
-	name: "dbId",
-	in: "path" as const,
-	required: true,
-	schema: { type: "string" },
-	description: "Database ID",
-};
-
-export const fieldParam = {
-	name: "fieldId",
-	in: "path" as const,
-	required: true,
-	schema: { type: "string" },
-	description: "Field ID",
-};
-
-export const recordParam = {
-	name: "recordId",
-	in: "path" as const,
-	required: true,
-	schema: { type: "string" },
-	description: "Record ID",
-};
-
-const permanentQuery = {
-	name: "permanent",
-	in: "query" as const,
-	required: false,
-	schema: { type: "boolean" },
-	description:
-		"When `true`, permanently purge instead of moving to trash. Irreversible.",
-};
-
-/** The 404 mapping the old hand-written routes gave getPage/updatePage. */
-const notFound = (resource: string, id: string) =>
-	new ApiError({ status: 404, message: `${resource} ${id} not found` });
 
 // ── Typed operations (NOT-169) ─────────────────────────────────────────────────
 //
@@ -215,7 +166,7 @@ export interface TypedOperation<I, O> {
 	readonly checkPermission?: (
 		ctx: Omit<OperationContext, "params">,
 		input: I,
-	) => Effect.Effect<void, AuthError, WorkspaceServices>;
+	) => Effect.Effect<void, AuthError | NotFoundError, WorkspaceServices>;
 	readonly run: (
 		ctx: Omit<OperationContext, "params">,
 		input: I,
@@ -241,6 +192,12 @@ const PageId = Schema.String.annotate({ description: "Page ID" });
 /** The RPC `Page`, as the plain JSON object the handlers return. */
 const PageJson = Schema.Struct(Page.fields).annotate({ identifier: "Page" });
 const RestoreResult = Schema.Struct({ restored: Schema.Boolean });
+const Permanent = Schema.optional(
+	Schema.Literals(["true", "false"]).annotate({
+		description:
+			"When `true`, permanently purge instead of moving to trash. Irreversible.",
+	}),
+);
 
 const pagePermission =
 	(relation: Permissions.AclRelation) =>
@@ -340,15 +297,7 @@ export const pageOperations = [
 			"Moves the page to trash by default. Pass `?permanent=true` to purge it permanently along with its blocks, databases and records.",
 		successStatus: 204,
 		scope: "write",
-		input: Schema.Struct({
-			pageId: PageId,
-			permanent: Schema.optional(
-				Schema.Literals(["true", "false"]).annotate({
-					description:
-						"When `true`, permanently purge instead of moving to trash. Irreversible.",
-				}),
-			),
-		}),
+		input: Schema.Struct({ pageId: PageId, permanent: Permanent }),
 		output: Schema.Void,
 		checkPermission: pagePermission("editor"),
 		run: (_, input) =>
@@ -493,569 +442,364 @@ export const blockOperations = [
 	}),
 ];
 
-// ── Databases ──────────────────────────────────────────────────────────────────
+// ── Databases, fields, records ─────────────────────────────────────────────────
 
-export const databaseOperations: readonly Operation[] = [
-	{
+const DatabaseId = Schema.String.annotate({ description: "Database ID" });
+const FieldId = Schema.String.annotate({ description: "Field ID" });
+const RecordId = Schema.String.annotate({ description: "Record ID" });
+/** The RPC entities, as the plain JSON objects the handlers return. */
+const DatabaseJson = Schema.Struct(Database.fields).annotate({
+	identifier: "Database",
+});
+const FieldJson = Schema.Struct(DatabaseField.fields).annotate({
+	identifier: "DatabaseField",
+});
+const RecordJson = Schema.Struct(DatabaseRecord.fields).annotate({
+	identifier: "DatabaseRecord",
+});
+const record = DatabaseRecord.fields;
+/** A record flattened with its cells, keyed by field name. */
+const RecordWithValuesJson = Schema.Struct({
+	id: record.id,
+	databaseId: record.databaseId,
+	title: record.title,
+	description: record.description,
+	isDeleted: record.isDeleted,
+	createdAt: record.createdAt,
+	fields: Schema.Record(Schema.String, Schema.Unknown),
+}).annotate({ identifier: "DatabaseRecordWithValues" });
+const CellJson = Schema.Struct(RecordFieldValue.fields).annotate({
+	identifier: "RecordFieldValue",
+});
+
+/**
+ * The permission check is on the database, so a record or field named next to
+ * it must be that database's: a grant on one database never reaches another's.
+ */
+const databasePermission =
+	(relation: Permissions.AclRelation) =>
+	(
+		ctx: Omit<OperationContext, "params">,
+		input: { dbId: string; recordId?: string; fieldId?: string },
+	) =>
+		Permissions.checkDatabasePermission(
+			ctx.userId,
+			ctx.workspaceId,
+			input.dbId,
+			relation,
+		).pipe(
+			Effect.andThen(
+				Databases.requireInDatabase(input.dbId, {
+					recordId: input.recordId,
+					fieldId: input.fieldId,
+				}),
+			),
+			Effect.catch((e) =>
+				e._tag === "AuthError" || e._tag === "NotFoundError"
+					? Effect.fail(e)
+					: Effect.die(e),
+			),
+		);
+
+export const databaseOperations = [
+	typedOperation({
 		method: "GET",
 		path: "/api/v1/workspaces/:workspaceId/databases",
 		operationId: "listDatabases",
 		tag: "Databases",
-		pathParams: [],
+		summary: "List all databases in the workspace",
+		scope: "read",
+		input: Schema.Struct({}),
+		output: Schema.Array(DatabaseJson),
 		run: (ctx) =>
 			Effect.gen(function* () {
 				const all = yield* Databases.listAllDatabases;
-				const allPages = yield* Pages.listPages;
 				const visible = yield* Permissions.filterPagesByPermission(
 					ctx.userId,
 					ctx.workspaceId,
 					ctx.role,
-					allPages,
+					yield* Pages.listPages,
 				);
 				const visibleIds = new Set(visible.map((p) => p.id));
-				const dbs = all.filter((db) => visibleIds.has(db.pageId));
-				return ok(dbs);
-			}),
-		openapi: {
-			summary: "List all databases in the workspace",
-			responses: {
-				200: jsonResponse("Databases", {
-					type: "array",
-					items: jsonSchema("Database"),
-				}),
-				...errorResponses,
-			},
-		},
-	},
-	{
+				return all.filter((db) => visibleIds.has(db.pageId));
+			}).pipe(sqlDefect),
+	}),
+	typedOperation({
 		method: "POST",
 		path: "/api/v1/workspaces/:workspaceId/databases",
 		operationId: "createDatabase",
 		tag: "Databases",
-		pathParams: [],
-		// No `pageId` path param to key a declarative checkPermission off — the
-		// target page comes from the body instead, so the check runs as the
-		// first step of `run`, still inside the one workspace-layer acquisition.
-		run: (ctx) =>
-			Effect.gen(function* () {
-				const body = yield* parseBody;
-				const pageId = yield* requireField(body, "pageId");
-				const name = yield* requireField(body, "name");
-				yield* Permissions.checkPagePermission(
-					ctx.userId,
-					ctx.workspaceId,
-					pageId,
-					"editor",
-				);
-				const db = yield* Databases.createDatabase({ pageId, name });
-				return created(db);
+		summary: "Create a database",
+		successStatus: 201,
+		scope: "write",
+		input: Schema.Struct({
+			pageId: PageId.annotate({
+				description: "Page the database is hosted on",
 			}),
-		openapi: {
-			summary: "Create a database",
-			requestBody: jsonBody("DatabaseCreate"),
-			responses: {
-				201: jsonResponse("Created database", jsonSchema("Database")),
-				...errorResponses,
-			},
-		},
-	},
-	{
+			name: Schema.NonEmptyString,
+		}),
+		output: DatabaseJson,
+		checkPermission: pagePermission("editor"),
+		run: (_, input) => Databases.createDatabase(input).pipe(sqlDefect),
+	}),
+	typedOperation({
 		method: "PATCH",
 		path: "/api/v1/workspaces/:workspaceId/databases/:dbId",
 		operationId: "updateDatabase",
 		tag: "Databases",
-		pathParams: [dbParam],
-		checkPermission: (ctx) =>
+		summary: "Update a database",
+		scope: "write",
+		input: Schema.Struct({
+			dbId: DatabaseId,
+			name: Schema.optional(Schema.String),
+			titleLabel: Schema.optional(
+				Schema.String.annotate({
+					description: "Label of the built-in title column",
+				}),
+			),
+			titleHidden: Schema.optional(
+				Schema.Boolean.annotate({ description: "Hide the title column" }),
+			),
+		}),
+		output: DatabaseJson,
+		checkPermission: databasePermission("editor"),
+		run: (_, { dbId, name, titleLabel, titleHidden }) =>
 			Effect.gen(function* () {
-				const dbId = yield* requireParam(ctx.params, "dbId");
-				yield* Permissions.checkDatabasePermission(
-					ctx.userId,
-					ctx.workspaceId,
-					dbId,
-					"editor",
-				);
-			}),
-		run: (ctx) =>
-			Effect.gen(function* () {
-				const dbId = yield* requireParam(ctx.params, "dbId");
-				const body = yield* parseBody;
-				const b = body as Record<string, unknown>;
-				const db = yield* Effect.gen(function* () {
-					if (typeof b.name === "string")
-						yield* Databases.renameDatabase({ id: dbId, name: b.name });
-					return yield* Databases.updateDatabase({
-						id: dbId,
-						titleLabel:
-							typeof b.titleLabel === "string" ? b.titleLabel : undefined,
-						titleHidden:
-							"titleHidden" in b ? Boolean(b.titleHidden) : undefined,
-					});
-				}).pipe(Effect.mapError(() => notFound("Database", dbId)));
-				return ok(db);
-			}),
-		openapi: {
-			summary: "Update a database",
-			requestBody: jsonBody("DatabaseUpdate"),
-			responses: {
-				200: jsonResponse("Updated database", jsonSchema("Database")),
-				...errorResponses,
-			},
-		},
-	},
-	{
+				if (name !== undefined)
+					yield* Databases.renameDatabase({ id: dbId, name });
+				return yield* Databases.updateDatabase({
+					id: dbId,
+					titleLabel,
+					titleHidden,
+				});
+			}).pipe(sqlDefect),
+	}),
+	typedOperation({
 		method: "DELETE",
 		path: "/api/v1/workspaces/:workspaceId/databases/:dbId",
 		operationId: "deleteDatabase",
 		tag: "Databases",
-		pathParams: [dbParam],
-		checkPermission: (ctx) =>
-			Effect.gen(function* () {
-				const dbId = yield* requireParam(ctx.params, "dbId");
-				yield* Permissions.checkDatabasePermission(
-					ctx.userId,
-					ctx.workspaceId,
-					dbId,
-					"editor",
-				);
-			}),
-		run: (ctx) =>
-			Effect.gen(function* () {
-				const dbId = yield* requireParam(ctx.params, "dbId");
-				const permanent = (yield* queryParam("permanent")) === "true";
-				if (permanent) yield* Databases.purgeDatabase(dbId);
-				else yield* Databases.deleteDatabase(dbId);
-				return noContent();
-			}),
-		openapi: {
-			summary: "Delete a database",
-			description:
-				"Moves the database to trash by default. Pass `?permanent=true` to purge it with all its records, fields and views.",
-			parameters: [permanentQuery],
-			responses: {
-				204: { description: "Database deleted" },
-				...errorResponses,
-			},
-		},
-	},
-	{
+		summary: "Delete a database",
+		description:
+			"Moves the database to trash by default. Pass `?permanent=true` to purge it with all its records, fields and views.",
+		successStatus: 204,
+		scope: "write",
+		input: Schema.Struct({ dbId: DatabaseId, permanent: Permanent }),
+		output: Schema.Void,
+		checkPermission: databasePermission("editor"),
+		run: (_, input) =>
+			(input.permanent === "true"
+				? Effect.asVoid(Databases.purgeDatabase(input.dbId))
+				: Effect.asVoid(Databases.deleteDatabase(input.dbId))
+			).pipe(sqlDefect),
+	}),
+	typedOperation({
 		method: "POST",
 		path: "/api/v1/workspaces/:workspaceId/databases/:dbId/restore",
 		operationId: "restoreDatabase",
 		tag: "Databases",
-		pathParams: [dbParam],
-		checkPermission: (ctx) =>
-			Effect.gen(function* () {
-				const dbId = yield* requireParam(ctx.params, "dbId");
-				yield* Permissions.checkDatabasePermission(
-					ctx.userId,
-					ctx.workspaceId,
-					dbId,
-					"editor",
-				);
-			}),
-		run: (ctx) =>
-			Effect.gen(function* () {
-				const dbId = yield* requireParam(ctx.params, "dbId");
-				const result = yield* Databases.restoreDatabase(dbId);
-				return ok(result);
-			}),
-		openapi: {
-			summary: "Restore a trashed database",
-			responses: {
-				200: jsonResponse("Restore result", jsonSchema("RestoreResult")),
-				...errorResponses,
-			},
-		},
-	},
-];
-
-// ── Fields ─────────────────────────────────────────────────────────────────────
-
-export const fieldOperations: readonly Operation[] = [
-	{
+		summary: "Restore a trashed database",
+		scope: "write",
+		input: Schema.Struct({ dbId: DatabaseId }),
+		output: RestoreResult,
+		checkPermission: databasePermission("editor"),
+		run: (_, input) => Databases.restoreDatabase(input.dbId).pipe(sqlDefect),
+	}),
+	typedOperation({
 		method: "GET",
 		path: "/api/v1/workspaces/:workspaceId/databases/:dbId/fields",
 		operationId: "listFields",
 		tag: "Databases",
-		pathParams: [dbParam],
-		checkPermission: (ctx) =>
-			Effect.gen(function* () {
-				const dbId = yield* requireParam(ctx.params, "dbId");
-				yield* Permissions.checkDatabasePermission(
-					ctx.userId,
-					ctx.workspaceId,
-					dbId,
-					"viewer",
-				);
-			}),
-		run: (ctx) =>
-			Effect.gen(function* () {
-				const dbId = yield* requireParam(ctx.params, "dbId");
-				const fields = yield* Databases.listFields(dbId);
-				return ok(fields);
-			}),
-		openapi: {
-			summary: "List a database's fields (columns)",
-			responses: {
-				200: jsonResponse("Fields", {
-					type: "array",
-					items: jsonSchema("DatabaseField"),
-				}),
-				...errorResponses,
-			},
-		},
-	},
-	{
+		summary: "List a database's fields (columns)",
+		scope: "read",
+		input: Schema.Struct({ dbId: DatabaseId }),
+		output: Schema.Array(FieldJson),
+		checkPermission: databasePermission("viewer"),
+		run: (_, input) => Databases.listFields(input.dbId).pipe(sqlDefect),
+	}),
+	typedOperation({
 		method: "POST",
 		path: "/api/v1/workspaces/:workspaceId/databases/:dbId/fields",
 		operationId: "createField",
 		tag: "Databases",
-		pathParams: [dbParam],
-		checkPermission: (ctx) =>
-			Effect.gen(function* () {
-				const dbId = yield* requireParam(ctx.params, "dbId");
-				yield* Permissions.checkDatabasePermission(
-					ctx.userId,
-					ctx.workspaceId,
-					dbId,
-					"editor",
-				);
-			}),
-		run: (ctx) =>
-			Effect.gen(function* () {
-				const dbId = yield* requireParam(ctx.params, "dbId");
-				const body = yield* parseBody;
-				const b = body as Record<string, unknown>;
-				const name = yield* requireField(body, "name");
-				const type = yield* requireField(body, "type");
-				const field = yield* Databases.createField({
-					databaseId: dbId,
-					name,
-					type,
-					options: Array.isArray(b.options) ? (b.options as string[]) : null,
-					relationTargetDbId: optionalField(body, "relationTargetDbId"),
-					formula: optionalField(body, "formula"),
-				});
-				return created(field);
-			}),
-		openapi: {
-			summary: "Create a field (column)",
-			requestBody: jsonBody("FieldCreate"),
-			responses: {
-				201: jsonResponse("Created field", jsonSchema("DatabaseField")),
-				...errorResponses,
-			},
-		},
-	},
-	{
+		summary: "Create a field (column)",
+		successStatus: 201,
+		scope: "write",
+		input: Schema.Struct({
+			dbId: DatabaseId,
+			name: Schema.NonEmptyString,
+			type: DatabaseFieldType,
+			options: Schema.optional(Schema.NullOr(Schema.Array(Schema.String))),
+			relationTargetDbId: Schema.optional(Schema.NullOr(Schema.String)),
+			formula: Schema.optional(Schema.NullOr(Schema.String)),
+		}),
+		output: FieldJson,
+		checkPermission: databasePermission("editor"),
+		run: (_, { dbId, options, relationTargetDbId, ...field }) =>
+			Databases.createField({
+				...field,
+				databaseId: dbId,
+				options: options ? [...options] : null,
+				relationTargetDbId: relationTargetDbId ?? null,
+			}).pipe(sqlDefect),
+	}),
+	typedOperation({
 		method: "PATCH",
 		path: "/api/v1/workspaces/:workspaceId/databases/:dbId/fields/:fieldId",
 		operationId: "updateField",
 		tag: "Databases",
-		pathParams: [dbParam, fieldParam],
-		checkPermission: (ctx) =>
-			Effect.gen(function* () {
-				const dbId = yield* requireParam(ctx.params, "dbId");
-				yield* Permissions.checkDatabasePermission(
-					ctx.userId,
-					ctx.workspaceId,
-					dbId,
-					"editor",
-				);
-			}),
-		run: (ctx) =>
-			Effect.gen(function* () {
-				const fieldId = yield* requireParam(ctx.params, "fieldId");
-				const body = yield* parseBody;
-				const b = body as Record<string, unknown>;
-				const field = yield* Databases.updateField({
-					id: fieldId,
-					name: typeof b.name === "string" ? b.name : undefined,
-					type: typeof b.type === "string" ? b.type : undefined,
-					options:
-						"options" in b
-							? Array.isArray(b.options)
-								? (b.options as string[])
-								: null
-							: undefined,
-					relationTargetDbId:
-						"relationTargetDbId" in b
-							? (b.relationTargetDbId as string | null)
-							: undefined,
-					formula: "formula" in b ? (b.formula as string | null) : undefined,
-				}).pipe(Effect.mapError(() => notFound("Field", fieldId)));
-				return ok(field);
-			}),
-		openapi: {
-			summary: "Update a field",
-			requestBody: jsonBody("FieldUpdate"),
-			responses: {
-				200: jsonResponse("Updated field", jsonSchema("DatabaseField")),
-				...errorResponses,
-			},
-		},
-	},
-	{
+		summary: "Update a field",
+		scope: "write",
+		input: Schema.Struct({
+			dbId: DatabaseId,
+			fieldId: FieldId,
+			name: Schema.optional(Schema.String),
+			type: Schema.optional(DatabaseFieldType),
+			options: Schema.optional(Schema.NullOr(Schema.Array(Schema.String))),
+			relationTargetDbId: Schema.optional(Schema.NullOr(Schema.String)),
+			formula: Schema.optional(Schema.NullOr(Schema.String)),
+		}),
+		output: FieldJson,
+		checkPermission: databasePermission("editor"),
+		run: (_, { dbId: _db, fieldId, options, ...patch }) =>
+			Databases.updateField({
+				...patch,
+				id: fieldId,
+				options: options ? [...options] : options,
+			}).pipe(sqlDefect),
+	}),
+	typedOperation({
 		method: "DELETE",
 		path: "/api/v1/workspaces/:workspaceId/databases/:dbId/fields/:fieldId",
 		operationId: "deleteField",
 		tag: "Databases",
-		pathParams: [dbParam, fieldParam],
-		checkPermission: (ctx) =>
-			Effect.gen(function* () {
-				const dbId = yield* requireParam(ctx.params, "dbId");
-				yield* Permissions.checkDatabasePermission(
-					ctx.userId,
-					ctx.workspaceId,
-					dbId,
-					"editor",
-				);
-			}),
-		run: (ctx) =>
-			Effect.gen(function* () {
-				const fieldId = yield* requireParam(ctx.params, "fieldId");
-				yield* Databases.deleteField(fieldId);
-				return noContent();
-			}),
-		openapi: {
-			summary: "Delete a field",
-			responses: { 204: { description: "Field deleted" }, ...errorResponses },
-		},
-	},
-];
-
-// ── Records ────────────────────────────────────────────────────────────────────
-
-export const recordOperations: readonly Operation[] = [
-	{
+		summary: "Delete a field",
+		successStatus: 204,
+		scope: "write",
+		input: Schema.Struct({ dbId: DatabaseId, fieldId: FieldId }),
+		output: Schema.Void,
+		checkPermission: databasePermission("editor"),
+		run: (_, input) =>
+			Databases.deleteField(input.fieldId).pipe(Effect.asVoid, sqlDefect),
+	}),
+	typedOperation({
 		method: "GET",
 		path: "/api/v1/workspaces/:workspaceId/databases/:dbId/records",
 		operationId: "listDatabaseRecords",
 		tag: "Databases",
-		pathParams: [dbParam],
-		checkPermission: (ctx) =>
-			Effect.gen(function* () {
-				const dbId = yield* requireParam(ctx.params, "dbId");
-				yield* Permissions.checkDatabasePermission(
-					ctx.userId,
-					ctx.workspaceId,
-					dbId,
-					"viewer",
-				);
-			}),
-		run: (ctx) =>
-			Effect.gen(function* () {
-				const dbId = yield* requireParam(ctx.params, "dbId");
-				// `listRecordsWithValues` yields `{ record, values }`, where `values`
-				// is already a field-name → parsed-value map. Flatten it for REST
-				// consumers.
-				const raw = yield* Databases.listRecordsWithValues(dbId);
-				const records = (
-					raw as Array<{ record: any; values: Record<string, unknown> }>
-				).map(({ record, values }) => ({
-					id: record.id,
-					databaseId: record.databaseId,
-					title: record.title,
-					description: record.description ?? null,
-					isDeleted: record.isDeleted,
-					createdAt: record.createdAt,
-					fields: values ?? {},
-				}));
-				return ok(records);
-			}),
-		openapi: {
-			summary: "List records in a database",
-			responses: {
-				200: jsonResponse("Records with field values", {
-					type: "array",
-					items: jsonSchema("DatabaseRecord"),
-				}),
-				...errorResponses,
-			},
-		},
-	},
-	{
+		summary: "List records in a database",
+		scope: "read",
+		input: Schema.Struct({ dbId: DatabaseId }),
+		output: Schema.Array(RecordWithValuesJson),
+		checkPermission: databasePermission("viewer"),
+		run: (_, input) =>
+			Databases.listRecordsWithValues(input.dbId).pipe(
+				Effect.map((rows) =>
+					rows.map(({ record, values }) => ({ ...record, fields: values })),
+				),
+				sqlDefect,
+			),
+	}),
+	typedOperation({
 		method: "POST",
 		path: "/api/v1/workspaces/:workspaceId/databases/:dbId/records",
 		operationId: "createRecord",
 		tag: "Databases",
-		pathParams: [dbParam],
-		checkPermission: (ctx) =>
-			Effect.gen(function* () {
-				const dbId = yield* requireParam(ctx.params, "dbId");
-				yield* Permissions.checkDatabasePermission(
-					ctx.userId,
-					ctx.workspaceId,
-					dbId,
-					"editor",
-				);
-			}),
-		run: (ctx) =>
-			Effect.gen(function* () {
-				const dbId = yield* requireParam(ctx.params, "dbId");
-				const body = yield* parseBody;
-				const title = yield* requireField(body, "title");
-				const record = yield* Databases.createRecord({
-					databaseId: dbId,
-					title,
-				});
-				return created(record);
-			}),
-		openapi: {
-			summary: "Create a record (row)",
-			requestBody: jsonBody("RecordCreate"),
-			responses: {
-				201: jsonResponse("Created record", jsonSchema("DatabaseRecord")),
-				...errorResponses,
-			},
-		},
-	},
-	{
+		summary: "Create a record (row)",
+		successStatus: 201,
+		scope: "write",
+		input: Schema.Struct({ dbId: DatabaseId, title: Schema.NonEmptyString }),
+		output: RecordJson,
+		checkPermission: databasePermission("editor"),
+		run: (_, input) =>
+			Databases.createRecord({
+				databaseId: input.dbId,
+				title: input.title,
+			}).pipe(sqlDefect),
+	}),
+	typedOperation({
 		method: "PATCH",
 		path: "/api/v1/workspaces/:workspaceId/databases/:dbId/records/:recordId",
 		operationId: "updateRecord",
 		tag: "Databases",
-		pathParams: [dbParam, recordParam],
-		checkPermission: (ctx) =>
-			Effect.gen(function* () {
-				const dbId = yield* requireParam(ctx.params, "dbId");
-				yield* Permissions.checkDatabasePermission(
-					ctx.userId,
-					ctx.workspaceId,
-					dbId,
-					"editor",
-				);
-			}),
-		run: (ctx) =>
-			Effect.gen(function* () {
-				const recordId = yield* requireParam(ctx.params, "recordId");
-				const body = yield* parseBody;
-				const b = body as Record<string, unknown>;
-				const result = yield* Databases.updateRecord({
-					id: recordId,
-					title: typeof b.title === "string" ? b.title : undefined,
-					description:
-						typeof b.description === "string" ? b.description : undefined,
-				});
-				return ok(result);
-			}),
-		openapi: {
-			summary: "Update a record's title or description",
-			requestBody: jsonBody("RecordUpdate"),
-			responses: {
-				200: jsonResponse("Updated record", jsonSchema("DatabaseRecord")),
-				...errorResponses,
-			},
-		},
-	},
-	{
+		summary: "Update a record's title or description",
+		scope: "write",
+		input: Schema.Struct({
+			dbId: DatabaseId,
+			recordId: RecordId,
+			title: Schema.optional(Schema.String),
+			description: Schema.optional(Schema.String),
+		}),
+		output: Schema.Struct({ updated: Schema.Boolean }),
+		checkPermission: databasePermission("editor"),
+		run: (_, { recordId, title, description }) =>
+			Databases.updateRecord({ id: recordId, title, description }).pipe(
+				sqlDefect,
+			),
+	}),
+	typedOperation({
 		method: "DELETE",
 		path: "/api/v1/workspaces/:workspaceId/databases/:dbId/records/:recordId",
 		operationId: "deleteRecord",
 		tag: "Databases",
-		pathParams: [dbParam, recordParam],
-		checkPermission: (ctx) =>
-			Effect.gen(function* () {
-				const dbId = yield* requireParam(ctx.params, "dbId");
-				yield* Permissions.checkDatabasePermission(
-					ctx.userId,
-					ctx.workspaceId,
-					dbId,
-					"editor",
-				);
-			}),
-		run: (ctx) =>
-			Effect.gen(function* () {
-				const recordId = yield* requireParam(ctx.params, "recordId");
-				const permanent = (yield* queryParam("permanent")) === "true";
-				yield* permanent
-					? Databases.purgeRecord(recordId)
-					: Databases.deleteRecord(recordId);
-				return noContent();
-			}),
-		openapi: {
-			summary: "Delete a record",
-			description:
-				"Moves the record to trash by default. Pass `?permanent=true` to purge it.",
-			parameters: [permanentQuery],
-			responses: { 204: { description: "Record deleted" }, ...errorResponses },
-		},
-	},
-	{
+		summary: "Delete a record",
+		description:
+			"Moves the record to trash by default. Pass `?permanent=true` to purge it.",
+		successStatus: 204,
+		scope: "write",
+		input: Schema.Struct({
+			dbId: DatabaseId,
+			recordId: RecordId,
+			permanent: Permanent,
+		}),
+		output: Schema.Void,
+		checkPermission: databasePermission("editor"),
+		run: (_, input) =>
+			(input.permanent === "true"
+				? Databases.purgeRecord(input.recordId)
+				: Databases.deleteRecord(input.recordId)
+			).pipe(Effect.asVoid, sqlDefect),
+	}),
+	typedOperation({
 		method: "POST",
 		path: "/api/v1/workspaces/:workspaceId/databases/:dbId/records/:recordId/restore",
 		operationId: "restoreRecord",
 		tag: "Databases",
-		pathParams: [dbParam, recordParam],
-		checkPermission: (ctx) =>
-			Effect.gen(function* () {
-				const dbId = yield* requireParam(ctx.params, "dbId");
-				yield* Permissions.checkDatabasePermission(
-					ctx.userId,
-					ctx.workspaceId,
-					dbId,
-					"editor",
-				);
-			}),
-		run: (ctx) =>
-			Effect.gen(function* () {
-				const recordId = yield* requireParam(ctx.params, "recordId");
-				const result = yield* Databases.restoreRecord(recordId);
-				return ok(result);
-			}),
-		openapi: {
-			summary: "Restore a trashed record",
-			responses: {
-				200: jsonResponse("Restore result", jsonSchema("RestoreResult")),
-				...errorResponses,
-			},
-		},
-	},
-	{
+		summary: "Restore a trashed record",
+		scope: "write",
+		input: Schema.Struct({ dbId: DatabaseId, recordId: RecordId }),
+		output: RestoreResult,
+		checkPermission: databasePermission("editor"),
+		run: (_, input) => Databases.restoreRecord(input.recordId).pipe(sqlDefect),
+	}),
+	typedOperation({
 		method: "PUT",
 		path: "/api/v1/workspaces/:workspaceId/databases/:dbId/records/:recordId/fields/:fieldId",
 		operationId: "setCell",
 		tag: "Databases",
-		pathParams: [dbParam, recordParam, fieldParam],
-		checkPermission: (ctx) =>
-			Effect.gen(function* () {
-				const dbId = yield* requireParam(ctx.params, "dbId");
-				yield* Permissions.checkDatabasePermission(
-					ctx.userId,
-					ctx.workspaceId,
-					dbId,
-					"editor",
-				);
+		summary: "Set a single cell value",
+		scope: "write",
+		input: Schema.Struct({
+			dbId: DatabaseId,
+			recordId: RecordId,
+			fieldId: FieldId,
+			value: Schema.Unknown.annotate({
+				description:
+					'Cell value, stored as text: a string is kept as is, anything else as its JSON. Number: "42". Checkbox: "true"/"false". multiSelect: a JSON array string like \'["a","b"]\'.',
 			}),
-		run: (ctx) =>
-			Effect.gen(function* () {
-				const recordId = yield* requireParam(ctx.params, "recordId");
-				const fieldId = yield* requireParam(ctx.params, "fieldId");
-				const body = yield* parseBody;
-				const b = body as Record<string, unknown>;
-				if (!("value" in b)) {
-					return yield* Effect.fail(
-						new ApiError({ status: 422, message: 'Field "value" is required' }),
-					);
-				}
-				const value =
-					typeof b.value === "string" ? b.value : JSON.stringify(b.value);
-				const result = yield* Databases.updateFieldValue({
-					recordId,
-					fieldId,
-					value,
-				});
-				return ok(result);
-			}),
-		openapi: {
-			summary: "Set a single cell value",
-			requestBody: jsonBody("CellUpdate"),
-			responses: {
-				200: jsonResponse("Updated value", { type: "object" }),
-				...errorResponses,
-			},
-		},
-	},
+		}),
+		output: CellJson,
+		checkPermission: databasePermission("editor"),
+		run: (_, { recordId, fieldId, value }) =>
+			Databases.updateFieldValue({
+				recordId,
+				fieldId,
+				value: typeof value === "string" ? value : JSON.stringify(value),
+			}).pipe(
+				Effect.map((row) => row as unknown as typeof CellJson.Type),
+				sqlDefect,
+			),
+	}),
 ];
 
 // ── Search + Trash ─────────────────────────────────────────────────────────────
@@ -1117,15 +861,12 @@ export const trashOperations = [
 ];
 
 /** Every untyped REST operation, in registration/OpenAPI order. */
-export const restOperations: readonly Operation[] = [
-	...databaseOperations,
-	...fieldOperations,
-	...recordOperations,
-];
+export const restOperations: readonly Operation[] = [];
 
 /** Every typed operation, in registration/OpenAPI order. */
 export const typedOperations: ReadonlyArray<TypedOperation<any, any>> = [
 	...pageOperations,
+	...databaseOperations,
 	...blockOperations,
 	...searchOperations,
 	...trashOperations,
@@ -1203,23 +944,6 @@ export const registerOperations = (
 						const { userId, workspaceId, params } = ctx;
 						if (op.checkPermission)
 							yield* op.checkPermission({ userId, workspaceId, params });
-						// The permission check above is on the database: a record or
-						// field of another one is not this route's to touch.
-						const { dbId, recordId, fieldId } = params;
-						if (dbId)
-							yield* Databases.requireInDatabase(dbId, {
-								recordId,
-								fieldId,
-							}).pipe(
-								Effect.catchTag("NotFoundError", (e) =>
-									Effect.fail(
-										new ApiError({
-											status: 404,
-											message: `${e.resource} ${e.id} not found`,
-										}),
-									),
-								),
-							);
 						return yield* op.run(ctx);
 					}),
 				),
