@@ -34,6 +34,7 @@ import * as Pages from "../handlers/pages.js";
 import * as Permissions from "../handlers/permissions.js";
 import * as Search from "../handlers/search.js";
 import * as Workspaces from "../handlers/workspaces.js";
+import type { WorkspaceRole } from "../membership.js";
 import type { PlatformDb } from "../platform-db.js";
 import { presence } from "../presence/index.js";
 import { ApiError, requireWorkspaceMember, resolveApiUser } from "./auth.js";
@@ -53,7 +54,7 @@ import { type ApiKeyScope, enforceScope } from "./scope.js";
 export interface OperationContext {
 	readonly userId: string;
 	readonly workspaceId: string;
-	readonly role: "owner" | "member";
+	readonly role: WorkspaceRole;
 }
 
 const errorRef = { $ref: "#/components/schemas/Error" };
@@ -829,10 +830,7 @@ export const databaseOperations = [
 				recordId,
 				fieldId,
 				value: typeof value === "string" ? value : JSON.stringify(value),
-			}).pipe(
-				Effect.map((row) => row as unknown as typeof CellJson.Type),
-				sqlDefect,
-			),
+			}).pipe(sqlDefect),
 	}),
 ];
 

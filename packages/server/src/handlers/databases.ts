@@ -19,6 +19,7 @@ import {
 	VIEW_COLS,
 	viewFromRow,
 } from "../mappers.js";
+import type { WorkspaceRole } from "../membership.js";
 import { publishViewConfigChange } from "../view-config-stream.js";
 import * as Permissions from "./permissions.js";
 
@@ -301,6 +302,8 @@ export const createRecord = (req: { databaseId: string; title: string }) =>
 		return recordFromRow(rows[0]);
 	});
 
+type CellRow = { id: string; recordId: string; fieldId: string; value: string };
+
 export const updateFieldValue = (req: {
 	recordId: string;
 	fieldId: string;
@@ -322,7 +325,7 @@ export const updateFieldValue = (req: {
       WHERE record_id = ${req.recordId} AND field_id = ${req.fieldId}
     `;
 		if (existing.length > 0) {
-			const rows = yield* sql`
+			const rows = yield* sql<CellRow>`
         UPDATE record_field_values SET value = ${value}
         WHERE record_id = ${req.recordId} AND field_id = ${req.fieldId}
         RETURNING id, record_id as "recordId", field_id as "fieldId", value
@@ -330,7 +333,7 @@ export const updateFieldValue = (req: {
 			return rows[0];
 		} else {
 			const id = ulid();
-			const rows = yield* sql`
+			const rows = yield* sql<CellRow>`
         INSERT INTO record_field_values (id, record_id, field_id, value)
         VALUES (${id}, ${req.recordId}, ${req.fieldId}, ${value})
         RETURNING id, record_id as "recordId", field_id as "fieldId", value
@@ -775,7 +778,7 @@ export const purgePage = (
 export const listTrash = (
 	userId: string,
 	workspaceId: string,
-	role: "owner" | "member",
+	role: WorkspaceRole,
 ) =>
 	Effect.gen(function* () {
 		const sql = yield* SqlClient.SqlClient;
