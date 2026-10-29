@@ -1,9 +1,8 @@
-import { isApiError } from "@notara/shared";
-import { Cause, Effect, Layer, Option } from "effect";
+import { Effect, Layer } from "effect";
 import * as HttpServerRequest from "effect/http/HttpServerRequest";
 import * as HttpServerResponse from "effect/http/HttpServerResponse";
 import { type WorkspaceDb, WorkspaceDbLive } from "../db.js";
-import { failureResponse } from "../http-error.js";
+import { causeResponse } from "../http-error.js";
 import { corsHeaders } from "../middleware.js";
 import { type PlatformDb, PlatformDbLive } from "../platform-db.js";
 import { ApiError } from "./auth.js";
@@ -92,10 +91,9 @@ export const queryParam = (name: string) =>
 /**
  * Wraps a handler Effect so that:
  *  - `ApiError` failures become proper JSON 4xx/5xx responses
- *  - the shared typed failures raised by the RPC handlers this surface reuses
- *    (NotFoundError, ConflictError, ...) keep their own status too
- *  - Any other error becomes a 500 JSON response
- *  - Unexpected defects also return a 500 JSON response
+ *  - everything else goes through `causeResponse`, the server's one error
+ *    boundary: a declared failure (NotFoundError, ConflictError, ...) keeps its
+ *    own status, anything undeclared is reported and answered with a 500
  */
 export const handle = <R>(
 	handler: Effect.Effect<HttpServerResponse.HttpServerResponse, unknown, R>,
@@ -105,23 +103,11 @@ export const handle = <R>(
 	Exclude<R, PlatformDb | WorkspaceDb>
 > =>
 	handler.pipe(
-		Effect.catch((e) => {
-			if (e instanceof ApiError)
-				return Effect.succeed(apiError(e.status, e.message));
-			if (isApiError(e)) return Effect.succeed(failureResponse(e));
-			return Effect.succeed(apiError(500, String(e)));
-		}),
-		Effect.catchCause((cause) =>
-			Effect.succeed(
-				apiError(
-					500,
-					Option.match(Cause.findErrorOption(cause), {
-						onSome: (error) => String(error),
-						onNone: () => "Internal server error",
-					}),
-				),
-			),
+		Effect.catchIf(
+			(e): e is ApiError => e instanceof ApiError,
+			(e) => Effect.succeed(apiError(e.status, e.message)),
 		),
+		Effect.catchCause(causeResponse),
 		Effect.provide(RequestServices),
 	);
 
