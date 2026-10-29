@@ -350,6 +350,39 @@ describe("the MCP tool list is the operation table", () => {
 	});
 });
 
+describe("an MCP-only agent finds its workspace (NOT-169.7)", () => {
+	test("read and write keys both list listWorkspaces", async () => {
+		expect(await toolNames(stateless(readKey))).toContain("listWorkspaces");
+		expect(await toolNames(stateless(writeKey))).toContain("listWorkspaces");
+	});
+
+	test("it returns the REST answer: only the key owner's workspaces", async () => {
+		const outsider = await signUp("lister@example.com");
+		await rpc(outsider.cookie, "createWorkspace", {
+			name: "Elsewhere",
+			slug: "elsewhere",
+		});
+		const res = await callTool(stateless(memberKey), "listWorkspaces", {});
+		expect(res.body.result.isError).toBe(false);
+		expect(res.body.result.structuredContent).toEqual([
+			{ id: ws.id, name: "Mcp", slug: "mcp", role: "member" },
+		]);
+		const viaRest = await call(memberKey, "GET", "/api/v1/workspaces");
+		expect(viaRest.status).toBe(200);
+		expect(viaRest.body).toEqual(res.body.result.structuredContent);
+	});
+
+	test("a listed workspace id works in the other tools", async () => {
+		const client = stateless(readKey);
+		const listed = await callTool(client, "listWorkspaces", {});
+		const [first] = listed.body.result.structuredContent;
+		const pages = await callTool(client, "listPages", {
+			workspaceId: first.id,
+		});
+		expect(pages.body.result.isError).toBe(false);
+	});
+});
+
 describe("tool calls behave like the REST operations they are", () => {
 	test("a tool result equals the REST response for the same operation", async () => {
 		const client = stateless(writeKey);

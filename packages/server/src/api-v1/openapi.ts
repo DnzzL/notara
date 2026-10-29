@@ -8,17 +8,6 @@ const schemas = {
 		required: ["error"],
 		properties: { error: { type: "string", example: "Not found" } },
 	},
-
-	Workspace: {
-		type: "object",
-		required: ["id", "name", "slug", "role"],
-		properties: {
-			id: { type: "string" },
-			name: { type: "string", example: "Acme" },
-			slug: { type: "string", example: "acme" },
-			role: { type: "string", enum: ["owner", "member"] },
-		},
-	},
 } as const;
 
 // ── Path parameters ───────────────────────────────────────────────────────────
@@ -29,25 +18,6 @@ const wsParam = {
 	required: true,
 	schema: { type: "string" },
 	description: "Workspace ID",
-};
-
-// ── Helpers ───────────────────────────────────────────────────────────────────
-
-const ref = (name: keyof typeof schemas) => ({
-	$ref: `#/components/schemas/${name}`,
-});
-
-const jsonResponse = (description: string, schema: object) => ({
-	description,
-	content: { "application/json": { schema } },
-});
-
-const errors = {
-	401: jsonResponse("Unauthorized", ref("Error")),
-	403: jsonResponse("Forbidden", ref("Error")),
-	404: jsonResponse("Not found", ref("Error")),
-	422: jsonResponse("Validation error", ref("Error")),
-	500: jsonResponse("Server error", ref("Error")),
 };
 
 // ── Spec ──────────────────────────────────────────────────────────────────────
@@ -148,23 +118,7 @@ blank. If you have blocks created that way, rewrite them as HTML.
 		schemas: { ...schemas, ...typed.schemas },
 	},
 	paths: {
-		// ── Workspaces ──────────────────────────────────────────────────────────
-		"/workspaces": {
-			get: {
-				tags: ["Workspaces"],
-				summary: "List workspaces",
-				operationId: "listWorkspaces",
-				responses: {
-					200: jsonResponse("List of workspaces", {
-						type: "array",
-						items: ref("Workspace"),
-					}),
-					...errors,
-				},
-			},
-		},
-
-		// ── Pages, Blocks, Databases, Search, Trash ──────────────────────────────
+		// ── Workspaces, Pages, Blocks, Databases, Search, Trash ──────────────────
 		// Derived from the operation table in api-v1/operations.ts — the REST
 		// router is registered from the same list, so route and document cannot
 		// drift apart. Generated from the operations' Schemas (NOT-169).

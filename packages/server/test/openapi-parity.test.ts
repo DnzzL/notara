@@ -171,8 +171,6 @@ describe("the OpenAPI document describes the routes that exist", () => {
 
 describe("the OpenAPI document is the operation table", () => {
 	test("each documented operation is a table entry, with its method, path, tag and summary", () => {
-		// listWorkspaces is the one route outside the table: it names no
-		// workspace, so it has no workspace layer to run under (routes.ts).
 		const documented = Object.entries(spec.paths)
 			.flatMap(([specPath, item]) =>
 				Object.entries(item as Record<string, unknown>)
@@ -192,7 +190,6 @@ describe("the OpenAPI document is the operation table", () => {
 						};
 					}),
 			)
-			.filter((op) => op.operationId !== "listWorkspaces")
 			.sort((a, b) => a.operationId.localeCompare(b.operationId));
 		const table = typedOperations
 			.map(({ operationId, method, path, tag, summary }) => ({

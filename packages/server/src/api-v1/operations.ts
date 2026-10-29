@@ -32,6 +32,7 @@ import * as Databases from "../handlers/databases.js";
 import * as Pages from "../handlers/pages.js";
 import * as Permissions from "../handlers/permissions.js";
 import * as Search from "../handlers/search.js";
+import * as Workspaces from "../handlers/workspaces.js";
 import type { PlatformDb } from "../platform-db.js";
 import { ApiError, requireWorkspaceMember, resolveApiUser } from "./auth.js";
 import { created, handle, noContent, ok, requireParam } from "./response.js";
@@ -43,10 +44,7 @@ import type { ApiKeyScope } from "./scope.js";
  * routes from it, `typedOperationsOpenApi` the OpenAPI document and mcp.ts the
  * MCP tools — so no door can drift from another (NOT-169).
  *
- * `GET /api/v1/workspaces` stays hand-registered in
- * routes.ts: it has no workspace-scoped layer or permission check to merge,
- * so the table buys it nothing. RPC (rpc-handlers.ts) is a separate surface,
- * not covered here.
+ * RPC (rpc-handlers.ts) is a separate surface, not covered here.
  */
 
 /** Everything an operation's `run` needs once auth and layer are settled. */
@@ -127,6 +125,23 @@ export interface TypedOperation<I, O> {
 		input: I,
 	) => Effect.Effect<O, OperationError, WorkspaceServices>;
 }
+
+/**
+ * An operation that names no workspace (listWorkspaces): it runs as the
+ * caller, outside any workspace layer, so it has no membership or permission
+ * check to make. Its path has no `:workspaceId`, its MCP tool no `workspaceId`.
+ */
+export interface UserOperation<I, O>
+	extends Omit<TypedOperation<I, O>, "checkPermission" | "run"> {
+	readonly workspace: "none";
+	readonly run: (
+		ctx: { readonly userId: string },
+		input: I,
+	) => Effect.Effect<O, OperationError, PlatformDb>;
+}
+
+/** An entry of the operation table, workspace-scoped or not. */
+export type AnyOperation = TypedOperation<any, any> | UserOperation<any, any>;
 
 /** Checks one entry against the seam while keeping its own `I` and `O`. */
 const typedOperation = <I, O>(op: TypedOperation<I, O>) => op;
@@ -812,8 +827,41 @@ export const trashOperations = [
 	}),
 ];
 
+// ── Workspaces ─────────────────────────────────────────────────────────────────
+
+const WorkspaceJson = Schema.Struct({
+	id: Schema.String,
+	name: Schema.String,
+	slug: Schema.String,
+	role: Schema.Literals(["owner", "member"]),
+}).annotate({ identifier: "Workspace" });
+
+const listWorkspaces: UserOperation<
+	Record<string, never>,
+	ReadonlyArray<typeof WorkspaceJson.Type>
+> = {
+	workspace: "none",
+	method: "GET",
+	path: "/api/v1/workspaces",
+	operationId: "listWorkspaces",
+	tag: "Workspaces",
+	summary: "List workspaces",
+	description:
+		"Returns the workspaces the authenticated user belongs to. Use an `id` from here as `workspaceId` everywhere else.",
+	scope: "read",
+	input: Schema.Struct({}),
+	output: Schema.Array(WorkspaceJson),
+	run: (ctx) =>
+		Workspaces.getMyWorkspaces(ctx.userId).pipe(
+			Effect.map((ws) =>
+				ws.map(({ id, name, slug, role }) => ({ id, name, slug, role })),
+			),
+		),
+};
+
 /** Every typed operation, in registration/OpenAPI order. */
-export const typedOperations: ReadonlyArray<TypedOperation<any, any>> = [
+export const typedOperations: ReadonlyArray<AnyOperation> = [
+	listWorkspaces,
 	...pageOperations,
 	...databaseOperations,
 	...blockOperations,
@@ -842,23 +890,28 @@ const withWorkspace = <A, E, R>(
  * workspace-layer acquisition. Every door goes through here, so none can skip
  * a check another makes. `input` is an effect so a door that decodes late
  * (REST) still refuses a non-member before it says anything about the input.
+ * A user-level operation skips the workspace part: it has none to check.
  */
-export const runOperation = <I, O>(
-	op: TypedOperation<I, O>,
+export const runOperation = <I, O, E, R>(
+	op: TypedOperation<I, O> | UserOperation<I, O>,
 	userId: string,
-	workspaceId: string,
+	workspaceId: Effect.Effect<string, E, R>,
 	input: Effect.Effect<I, ValidationError>,
 ) =>
-	withWorkspace(userId, workspaceId, (ctx) =>
-		Effect.gen(function* () {
-			const decoded = yield* input;
-			if (op.checkPermission) yield* op.checkPermission(ctx, decoded);
-			return yield* op.run(ctx, decoded);
-		}),
-	);
+	"workspace" in op
+		? Effect.flatMap(input, (decoded) => op.run({ userId }, decoded))
+		: Effect.flatMap(workspaceId, (id) =>
+				withWorkspace(userId, id, (ctx) =>
+					Effect.gen(function* () {
+						const decoded = yield* input;
+						if (op.checkPermission) yield* op.checkPermission(ctx, decoded);
+						return yield* op.run(ctx, decoded);
+					}),
+				),
+			);
 
 /** GET and DELETE carry their non-path input in the query; the rest in the body. */
-const inQuery = (method: TypedOperation<unknown, unknown>["method"]) =>
+const inQuery = (method: AnyOperation["method"]) =>
 	method === "GET" || method === "DELETE";
 
 /** The JSON body as an object; an absent body is an empty one. */
@@ -888,7 +941,7 @@ const bodyObject = Effect.gen(function* () {
  */
 export const registerTypedOperations = (
 	router: typeof HttpRouter.HttpRouter.Service,
-	operations: ReadonlyArray<TypedOperation<any, any>>,
+	operations: ReadonlyArray<AnyOperation>,
 ) =>
 	Effect.forEach(operations, (op) =>
 		router.add(
@@ -905,7 +958,7 @@ export const registerTypedOperations = (
 					const output = yield* runOperation(
 						op,
 						userId,
-						yield* requireParam({ workspaceId }, "workspaceId"),
+						requireParam({ workspaceId }, "workspaceId"),
 						Schema.decodeUnknownEffect(op.input)({
 							...rest,
 							...pathParams,
@@ -936,7 +989,7 @@ export const registerTypedOperations = (
  * describes what the server accepts, not what someone wrote down.
  */
 export const typedOperationsOpenApi = (
-	operations: ReadonlyArray<TypedOperation<any, any>>,
+	operations: ReadonlyArray<AnyOperation>,
 	wsParam: object,
 ) => {
 	const split = operations.map((op) => {
@@ -985,7 +1038,10 @@ export const typedOperationsOpenApi = (
 		const status = op.successStatus ?? 200;
 		const hasRest = Object.keys(restSchema.properties ?? {}).length > 0;
 		paths[docPath] ??= {
-			parameters: [wsParam, ...asParams(pathSchema, "path")],
+			parameters: [
+				...("workspace" in op ? [] : [wsParam]),
+				...asParams(pathSchema, "path"),
+			],
 		};
 		paths[docPath][op.method.toLowerCase()] = {
 			tags: [op.tag],

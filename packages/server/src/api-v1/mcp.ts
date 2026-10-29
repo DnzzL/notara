@@ -4,7 +4,8 @@
  *
  * Tools are derived from `typedOperations`, so an operation that moves to the
  * typed table appears here with no change to this file. A tool's name is the
- * operation id, its input the operation's input plus `workspaceId`, its result
+ * operation id, its input the operation's input plus `workspaceId` (unless the
+ * operation names no workspace, like listWorkspaces), its result
  * the operation's encoded output — the same JSON the REST door answers with.
  *
  * Auth is the API key and nothing else (no cookie session): the route
@@ -44,13 +45,20 @@ const callerScope = () => {
 	return fiber && Context.getOrUndefined(fiber.context, McpCaller)?.scope;
 };
 
-const tools = typedOperations.map((op) =>
-	Tool.make(op.operationId, {
+const workspaceIdField = {
+	workspaceId: Schema.String.annotate({ description: "Workspace ID" }),
+};
+
+const tools = typedOperations.map((op) => {
+	const fields =
+		"workspace" in op
+			? op.input.fields
+			: { ...workspaceIdField, ...op.input.fields };
+	return Tool.make(op.operationId, {
 		description: op.description ?? op.summary,
-		parameters: Schema.Struct({
-			workspaceId: Schema.String.annotate({ description: "Workspace ID" }),
-			...op.input.fields,
-		}),
+		// MCP wants an object schema; an empty Struct does not encode to one.
+		parameters:
+			Object.keys(fields).length > 0 ? Schema.Struct(fields) : Tool.EmptyParams,
 		success: op.output,
 		failure: ApiError,
 	})
@@ -60,8 +68,8 @@ const tools = typedOperations.map((op) =>
 			op.scope === "read"
 				? callerScope() !== undefined
 				: callerScope() === "write",
-		),
-);
+		);
+});
 
 const NotaraTools = Toolkit.make(...tools);
 
@@ -69,7 +77,7 @@ const handlers = NotaraTools.toLayer(
 	Object.fromEntries(
 		typedOperations.map((op) => [
 			op.operationId,
-			({ workspaceId, ...input }: { workspaceId: string }) =>
+			({ workspaceId, ...input }: { workspaceId?: string }) =>
 				Effect.gen(function* () {
 					const caller = yield* Effect.serviceOption(McpCaller);
 					if (Option.isNone(caller))
@@ -79,7 +87,7 @@ const handlers = NotaraTools.toLayer(
 					return yield* runOperation(
 						op,
 						caller.value.userId,
-						workspaceId,
+						Effect.succeed(workspaceId as string),
 						Effect.succeed(input),
 					);
 				}),
