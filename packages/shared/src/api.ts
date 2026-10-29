@@ -21,8 +21,10 @@ const Email = Schema.String.pipe(
 	Schema.check(Schema.isPattern(/^[^\s@]+@[^\s@]+\.[^\s@]+$/)),
 	Schema.check(Schema.isMaxLength(254)),
 );
-const SearchQuery = Schema.String.pipe(Schema.check(Schema.isMaxLength(500)));
-const BlockContent = Schema.String.pipe(
+export const SearchQuery = Schema.String.pipe(
+	Schema.check(Schema.isMaxLength(500)),
+);
+export const BlockContent = Schema.String.pipe(
 	Schema.check(Schema.isMaxLength(1_048_576)),
 );
 
