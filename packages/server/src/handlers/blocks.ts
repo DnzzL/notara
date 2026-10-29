@@ -26,9 +26,10 @@ import { BLOCK_COLS, blockFromRow } from "../mappers.js";
  * block that renders blank. That coercion is gone: a non-string content is now
  * refused with a message saying what to send, rather than accepted and quietly
  * corrupted.
+ *
+ * This constant states the contract in words a caller can act on; the API
+ * documents `content` with it, and its input Schema refuses a non-string.
  */
-
-/** Why a rejected content payload was rejected, in terms a caller can act on. */
 export const CONTENT_CONTRACT =
 	'Block content must be a string. Text blocks hold HTML (e.g. "<p>Hello</p>"); ' +
 	"image, pdf, file, pageLink, database, viewReference and people blocks hold a " +

@@ -1,10 +1,10 @@
 /**
  * The OpenAPI document and the routes it describes must agree.
  *
- * `api-v1/openapi.ts` says so in its own opening line: it is a hand-written
- * object, derived from nothing. Until this file, the eighteen paths it declares
- * matched the routes actually registered by discipline alone, and nothing
- * asserted it.
+ * The document's paths are generated from the operation table in
+ * `api-v1/operations.ts`, the same table the REST router registers from
+ * (NOT-169). This file asserts that they still agree, so a route registered
+ * outside the table, or a table entry the document leaves out, cannot pass.
  *
  * A published REST API whose document silently drifts is worse than one with no
  * document: consumers build against paths that do not exist, or never learn
