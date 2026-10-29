@@ -13,6 +13,7 @@ import * as HttpServerRequest from "effect/http/HttpServerRequest";
 import * as HttpServerResponse from "effect/http/HttpServerResponse";
 import * as RpcSerialization from "effect/rpc/RpcSerialization";
 import * as RpcServer from "effect/rpc/RpcServer";
+import { McpLive } from "./api-v1/mcp.js";
 import { registerV1Routes } from "./api-v1/routes.js";
 import { auth } from "./auth.js";
 import { startBackupScheduler } from "./backup-scheduler.js";
@@ -774,7 +775,12 @@ const RpcRouterLive = RpcServer.layerHttp({
 });
 
 // Combine all layers: RPC + static files + handlers + serialization + database
-const AppLive = Layer.mergeAll(RpcRouterLive, StaticFilesLive, ApiV1Live).pipe(
+const AppLive = Layer.mergeAll(
+	RpcRouterLive,
+	StaticFilesLive,
+	ApiV1Live,
+	McpLive,
+).pipe(
 	Layer.provide(rpcHandlersLayer),
 	Layer.provide(RpcSerialization.layerJson),
 	Layer.provide(SqliteLive),

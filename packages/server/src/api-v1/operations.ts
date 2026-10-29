@@ -1219,13 +1219,46 @@ const inWorkspace = <A, E>(
 		const { userId } = yield* resolveApiUser;
 		const params = yield* HttpRouter.params;
 		const workspaceId = yield* requireParam(params, "workspaceId");
+		return yield* withWorkspace(userId, workspaceId, (ctx) =>
+			f({ ...ctx, params }),
+		);
+	});
+
+/** Membership, then `f` under one acquisition of the workspace's layer. */
+const withWorkspace = <A, E, R>(
+	userId: string,
+	workspaceId: string,
+	f: (ctx: Omit<OperationContext, "params">) => Effect.Effect<A, E, R>,
+) =>
+	Effect.gen(function* () {
 		const role = yield* requireWorkspaceMember(workspaceId, userId);
 		const wdb = yield* WorkspaceDb;
 		return yield* Effect.provide(
-			f({ userId, workspaceId, role, params }),
+			f({ userId, workspaceId, role }),
 			wdb.getLayer(workspaceId),
 		);
 	});
+
+/**
+ * Runs one typed operation for a caller already resolved by its door: the
+ * membership check, `input`, the permission check and `run`, all under one
+ * workspace-layer acquisition. Every door goes through here, so none can skip
+ * a check another makes. `input` is an effect so a door that decodes late
+ * (REST) still refuses a non-member before it says anything about the input.
+ */
+export const runOperation = <I, O>(
+	op: TypedOperation<I, O>,
+	userId: string,
+	workspaceId: string,
+	input: Effect.Effect<I, ValidationError>,
+) =>
+	withWorkspace(userId, workspaceId, (ctx) =>
+		Effect.gen(function* () {
+			const decoded = yield* input;
+			if (op.checkPermission) yield* op.checkPermission(ctx, decoded);
+			return yield* op.run(ctx, decoded);
+		}),
+	);
 
 /**
  * Registers every declared operation against `router`. Auth, membership, the
@@ -1313,26 +1346,26 @@ export const registerTypedOperations = (
 					const rest = inQuery(op.method)
 						? Object.fromEntries(new URL(req.url, "http://x").searchParams)
 						: yield* bodyObject;
-					return yield* inWorkspace(({ params, ...ctx }) =>
-						Effect.gen(function* () {
-							const { workspaceId: _, ...pathParams } = params;
-							const input = yield* Schema.decodeUnknownEffect(op.input)({
-								...rest,
-								...pathParams,
-							}).pipe(
-								Effect.mapError(
-									(e) => new ValidationError({ message: e.message }),
-								),
-							);
-							if (op.checkPermission) yield* op.checkPermission(ctx, input);
-							const output = yield* op.run(ctx, input);
-							const encoded = yield* Schema.encodeUnknownEffect(op.output)(
-								output,
-							).pipe(Effect.orDie);
-							if (op.successStatus === 204) return noContent();
-							return op.successStatus === 201 ? created(encoded) : ok(encoded);
-						}),
+					const { userId } = yield* resolveApiUser;
+					const { workspaceId, ...pathParams } = yield* HttpRouter.params;
+					const output = yield* runOperation(
+						op,
+						userId,
+						yield* requireParam({ workspaceId }, "workspaceId"),
+						Schema.decodeUnknownEffect(op.input)({
+							...rest,
+							...pathParams,
+						}).pipe(
+							Effect.mapError(
+								(e) => new ValidationError({ message: e.message }),
+							),
+						),
 					);
+					const encoded = yield* Schema.encodeUnknownEffect(op.output)(
+						output,
+					).pipe(Effect.orDie);
+					if (op.successStatus === 204) return noContent();
+					return op.successStatus === 201 ? created(encoded) : ok(encoded);
 				}).pipe(
 					Effect.catchTag("ValidationError", (e) =>
 						Effect.fail(new ApiError({ status: 422, message: e.message })),
