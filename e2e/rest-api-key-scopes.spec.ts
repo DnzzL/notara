@@ -1,11 +1,10 @@
 /**
  * A read key cannot write, and a write key still can.
  *
- * Enforcement is one chokepoint — the v1 router refuses any non-GET carried by
- * a read key — rather than a check written into each of the twenty-eight
- * operations. `test/api-key-scopes.test.ts` asserts the invariant that makes
- * that sound (no GET mutates); these tests assert the refusal actually reaches
- * a real request, over the wire, against a running server.
+ * Enforcement is one chokepoint — the v1 router refuses any operation declared
+ * `write` when a read key carries it — rather than a check written into each
+ * operation. These tests assert the refusal actually reaches a real request,
+ * over the wire, against a running server.
  *
  * The requests here carry the key and no cookie. A cookie session is unscoped
  * by construction — it is the user themselves — so a browser context would

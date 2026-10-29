@@ -21,7 +21,7 @@
 import { AuthError } from "@notara/shared";
 import { type Context, Effect, Layer } from "effect";
 import { HttpServerRequest } from "effect/http";
-import { sha256 } from "./api-v1/auth.js";
+import { resolveApiKey } from "./api-v1/auth.js";
 import { auth } from "./auth.js";
 import { PlatformDb } from "./platform-db.js";
 import { CurrentUser } from "./policy.js";
@@ -55,28 +55,15 @@ export const fromApiKey: Effect.Effect<
 	const header = request.headers.authorization as string | undefined;
 	if (!header?.startsWith("Bearer ")) return null;
 
+	const key = yield* resolveApiKey(request);
 	const db = yield* PlatformDb;
-	const key = db
-		.prepare("SELECT id, user_id FROM api_keys WHERE key_hash = ?")
-		.get(sha256(header.slice(7))) as { id: string; user_id: string } | null;
-
-	if (!key) {
-		return yield* Effect.fail(
-			new AuthError({ status: 401, message: "Invalid API key" }),
-		);
-	}
-
-	db.prepare("UPDATE api_keys SET last_used_at = ? WHERE id = ?").run(
-		new Date().toISOString(),
-		key.id,
-	);
 
 	// The principal carries an email because the admin gate compares one. A key
 	// whose user has since been deleted resolves to nothing rather than to a
 	// principal with a blank identity.
 	const user = db
 		.prepare('SELECT email FROM "user" WHERE id = ?')
-		.get(key.user_id) as { email: string } | null;
+		.get(key.userId) as { email: string } | null;
 
 	if (!user) {
 		return yield* Effect.fail(
@@ -84,7 +71,7 @@ export const fromApiKey: Effect.Effect<
 		);
 	}
 
-	return { userId: key.user_id, email: user.email };
+	return { userId: key.userId, email: user.email, scope: key.scope };
 });
 
 /** The Better Auth session cookie. Null when there is no valid session. */

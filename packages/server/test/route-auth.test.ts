@@ -114,6 +114,18 @@ describe("anonymous callers are refused", () => {
 	}
 });
 
+describe("a v1 route asks who is calling before it reads the body", () => {
+	test("no key and a broken body is a 401, not a 400", async () => {
+		const res = await fetch(`${BASE}/api/v1/workspaces/${WORKSPACE}/pages`, {
+			method: "POST",
+			headers: { "Content-Type": "application/json" },
+			body: "{not json",
+			signal: AbortSignal.timeout(5000),
+		});
+		expect(res.status).toBe(401);
+	});
+});
+
 describe("public routes stay reachable", () => {
 	test("GET /health", async () => {
 		expect((await call("GET", "/health")).status).toBe(200);
