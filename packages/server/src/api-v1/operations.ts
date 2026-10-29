@@ -808,7 +808,10 @@ export const trashOperations = [
 		scope: "read",
 		input: Schema.Struct({}),
 		output: TrashContentsJson,
-		run: () => Databases.listTrash.pipe(sqlDefect),
+		run: (ctx) =>
+			Databases.listTrash(ctx.userId, ctx.workspaceId, ctx.role).pipe(
+				sqlDefect,
+			),
 	}),
 ];
 

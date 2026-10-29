@@ -648,7 +648,9 @@ export const rpcHandlersLayer = AppRpc.toLayer({
 
 	// Trash: list / restore / permanent purge
 	listTrash: () =>
-		withAuthedWorkspace(() => Databases.listTrash).pipe(dieUnlessApiError),
+		withAuthedWorkspace(({ userId, workspaceId, role }) =>
+			Databases.listTrash(userId, workspaceId, role),
+		).pipe(dieUnlessApiError),
 	restorePage: ({ id }) =>
 		withAuthedWorkspace(({ userId, workspaceId }) =>
 			Effect.gen(function* () {
