@@ -324,6 +324,17 @@ describe("database operations through REST", () => {
 		expect(restored).toEqual({ status: 200, body: { restored: true } });
 	});
 
+	test("a record never given a description lists with an empty one", async () => {
+		// The column is NOT NULL DEFAULT '' and the mapper reads null as '', so
+		// the answer is the string main gave, never null.
+		const { db, rec } = await database();
+		const listed = await call(readKey, "GET", `${DBS}/${db}/records`);
+		expect(listed.status).toBe(200);
+		expect(listed.body).toEqual([
+			expect.objectContaining({ id: rec, description: "" }),
+		]);
+	});
+
 	test("a non-string cell value is stored as its JSON", async () => {
 		const { db, rec, field } = await database();
 		const res = await call(
