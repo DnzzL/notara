@@ -38,7 +38,7 @@ import type { PlatformDb } from "../platform-db.js";
 import { presence } from "../presence/index.js";
 import { ApiError, requireWorkspaceMember, resolveApiUser } from "./auth.js";
 import { created, handle, noContent, ok, requireParam } from "./response.js";
-import type { ApiKeyScope } from "./scope.js";
+import { type ApiKeyScope, enforceScope } from "./scope.js";
 
 /**
  * One entry declares an operation once: its route, its scope, its input and
@@ -1013,7 +1013,8 @@ export const registerTypedOperations = (
 				Effect.gen(function* () {
 					// Who is calling comes first: a stranger learns nothing, not even
 					// that their body was malformed.
-					const { userId } = yield* resolveApiUser;
+					const caller = yield* resolveApiUser;
+					yield* enforceScope(caller.scope, op.scope);
 					const req = yield* HttpServerRequest.HttpServerRequest;
 					const rest = inQuery(op.method)
 						? Object.fromEntries(new URL(req.url, "http://x").searchParams)
@@ -1021,7 +1022,7 @@ export const registerTypedOperations = (
 					const { workspaceId, ...pathParams } = yield* HttpRouter.params;
 					const output = yield* runOperation(
 						op,
-						userId,
+						caller.userId,
 						requireParam({ workspaceId }, "workspaceId"),
 						Schema.decodeUnknownEffect(op.input)({
 							...rest,
@@ -1042,7 +1043,6 @@ export const registerTypedOperations = (
 						Effect.fail(new ApiError({ status: 422, message: e.message })),
 					),
 				),
-				op.scope,
 			),
 		),
 	);

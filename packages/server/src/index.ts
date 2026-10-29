@@ -15,7 +15,7 @@ import * as RpcSerialization from "effect/rpc/RpcSerialization";
 import * as RpcServer from "effect/rpc/RpcServer";
 import { McpLive } from "./api-v1/mcp.js";
 import { registerV1Routes } from "./api-v1/routes.js";
-import { type ApiKeyScope, SCOPE_REFUSAL } from "./api-v1/scope.js";
+import { type ApiKeyScope, allows, SCOPE_REFUSAL } from "./api-v1/scope.js";
 import { auth } from "./auth.js";
 import { startBackupScheduler } from "./backup-scheduler.js";
 import {
@@ -202,9 +202,9 @@ const staticFilesRoute = Effect.gen(function* () {
 		inner.pipe(
 			withPolicy(
 				Effect.flatMap(CurrentUser, (user) =>
-					needed === "write" && user.scope === "read"
-						? Effect.fail(forbidden(SCOPE_REFUSAL))
-						: Effect.void,
+					allows(user.scope, needed)
+						? Effect.void
+						: Effect.fail(forbidden(SCOPE_REFUSAL)),
 				),
 			),
 			withPolicy(Policies.instanceAdmin),

@@ -33,6 +33,7 @@ import { failureResponse } from "../http-error.js";
 import { PlatformDbLive } from "../platform-db.js";
 import { type ApiKey, resolveApiKey } from "./auth.js";
 import { runOperation, typedOperations } from "./operations.js";
+import { allows } from "./scope.js";
 
 /** The API key behind the current /mcp request. */
 class McpCaller extends Context.Service<McpCaller, ApiKey>()(
@@ -64,11 +65,10 @@ const tools = typedOperations.map((op) => {
 	})
 		.annotate(Tool.Readonly, op.scope === "read")
 		.annotate(Tool.Destructive, op.scope === "write")
-		.annotate(McpSchema.EnabledWhen, () =>
-			op.scope === "read"
-				? callerScope() !== undefined
-				: callerScope() === "write",
-		);
+		.annotate(McpSchema.EnabledWhen, () => {
+			const scope = callerScope();
+			return scope !== undefined && allows(scope, op.scope);
+		});
 });
 
 const NotaraTools = Toolkit.make(...tools);

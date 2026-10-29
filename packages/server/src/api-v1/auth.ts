@@ -31,7 +31,12 @@ export const generateApiKey = (): {
 
 // ── Authenticated user ────────────────────────────────────────────────────────
 
-export type ApiUser = { userId: string; keyId: string | null };
+/** `scope` is absent for a cookie session, which is unscoped. */
+export type ApiUser = {
+	userId: string;
+	keyId: string | null;
+	scope?: ApiKeyScope;
+};
 
 /** The caller behind an API key, and what the key may do. */
 export type ApiKey = { userId: string; keyId: string; scope: ApiKeyScope };
@@ -98,8 +103,7 @@ export const resolveApiUser: Effect.Effect<
 	if (
 		(req.headers.authorization as string | undefined)?.startsWith("Bearer ")
 	) {
-		const { userId, keyId } = yield* resolveApiKey(req);
-		return { userId, keyId };
+		return yield* resolveApiKey(req);
 	}
 
 	const headers = new Headers(req.headers as Record<string, string>);
