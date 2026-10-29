@@ -7,7 +7,7 @@ import { failureResponse } from "../http-error.js";
 import { corsHeaders } from "../middleware.js";
 import { type PlatformDb, PlatformDbLive } from "../platform-db.js";
 import { ApiError } from "./auth.js";
-import { enforceScope } from "./scope.js";
+import { type ApiKeyScope, enforceScope } from "./scope.js";
 
 /**
  * Singleton services the v1 handlers need at request time. The HttpLayerRouter
@@ -100,6 +100,7 @@ export const queryParam = (name: string) =>
  */
 export const handle = <R>(
 	handler: Effect.Effect<HttpServerResponse.HttpServerResponse, unknown, R>,
+	scope?: ApiKeyScope,
 ): Effect.Effect<
 	HttpServerResponse.HttpServerResponse,
 	never,
@@ -110,7 +111,7 @@ export const handle = <R>(
 	// The scope check runs before the handler, and before anything it might do.
 	// Here rather than per route: every v1 route already goes through handle, so
 	// a new one is covered the moment it is registered.
-	Effect.andThen(enforceScope, handler).pipe(
+	Effect.andThen(enforceScope(scope), handler).pipe(
 		Effect.catch((e) => {
 			if (e instanceof ApiError)
 				return Effect.succeed(apiError(e.status, e.message));

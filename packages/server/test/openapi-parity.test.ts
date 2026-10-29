@@ -113,6 +113,33 @@ describe("the OpenAPI document describes the routes that exist", () => {
 		).toEqual([]);
 	});
 
+	test("page operations are documented from the Schemas they decode with", () => {
+		// The RPC bound on a title (500 chars) and the Page fields that are always
+		// present (deletedAt included) appear only when the document is generated
+		// from the operation's Schemas: the hand-written entries said neither.
+		// Walked as plain JSON, the way a client reads the served document.
+		const doc = JSON.parse(JSON.stringify(spec));
+		const pages = doc.paths["/workspaces/{workspaceId}/pages"];
+		const body =
+			pages.post.requestBody.content["application/json"].schema.properties;
+		expect(body.title.maxLength).toBe(500);
+		expect(doc.components.schemas.Page?.required).toContain("deletedAt");
+
+		const pageOps = Object.values(spec.paths)
+			.flatMap((item) => Object.values(item as Record<string, unknown>))
+			.map((op) => (op as { operationId?: string }).operationId)
+			.filter((id) => id?.endsWith("Page") || id === "listPages")
+			.sort();
+		expect(pageOps).toEqual([
+			"createPage",
+			"deletePage",
+			"getPage",
+			"listPages",
+			"restorePage",
+			"updatePage",
+		]);
+	});
+
 	test("every documented path is actually served", () => {
 		const missing = documented.filter((e) => !registered.includes(e));
 		expect(

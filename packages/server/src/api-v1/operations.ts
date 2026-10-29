@@ -1,12 +1,29 @@
-import { Effect } from "effect";
+import {
+	type AuthError,
+	type ConflictError,
+	type NotFoundError,
+	Page,
+	TitleString,
+	ValidationError,
+} from "@notara/shared";
+import {
+	Effect,
+	JsonSchema,
+	Schema,
+	type SchemaAST,
+	SchemaRepresentation,
+} from "effect";
 import * as HttpRouter from "effect/http/HttpRouter";
+import * as HttpServerRequest from "effect/http/HttpServerRequest";
 import type * as HttpServerResponse from "effect/http/HttpServerResponse";
+import { type SqlClient, SqlError } from "effect/sql";
 import { WorkspaceDb } from "../db.js";
 import * as Blocks from "../handlers/blocks.js";
 import * as Databases from "../handlers/databases.js";
 import * as Pages from "../handlers/pages.js";
 import * as Permissions from "../handlers/permissions.js";
 import * as Search from "../handlers/search.js";
+import type { PlatformDb } from "../platform-db.js";
 import { ApiError, requireWorkspaceMember, resolveApiUser } from "./auth.js";
 import {
 	created,
@@ -19,6 +36,7 @@ import {
 	requireField,
 	requireParam,
 } from "./response.js";
+import type { ApiKeyScope } from "./scope.js";
 
 /**
  * One entry declares a REST operation's shape once: the route it answers and
@@ -26,8 +44,9 @@ import {
  * `operationsOpenApiPaths` derives the OpenAPI document from the same list —
  * so route and document cannot drift for any operation declared here.
  *
- * Covers every REST resource (pages, blocks, databases, fields, records,
- * search, trash). `GET /api/v1/workspaces` stays hand-registered in
+ * Two forms live side by side while the resources migrate (NOT-169): the
+ * typed `TypedOperation` (pages so far) and the untyped `Operation` (blocks,
+ * databases, fields, records, search, trash). `GET /api/v1/workspaces` stays hand-registered in
  * routes.ts: it has no workspace-scoped layer or permission check to merge,
  * so the table buys it nothing. RPC (rpc-handlers.ts) is a separate surface,
  * not covered here.
@@ -170,193 +189,197 @@ const permanentQuery = {
 const notFound = (resource: string, id: string) =>
 	new ApiError({ status: 404, message: `${resource} ${id} not found` });
 
+// ── Typed operations (NOT-169) ─────────────────────────────────────────────────
+//
+// The form every operation moves to: input and output are Schemas, scope is
+// declared, and `run` returns data that can fail only with the shared tagged
+// errors. The REST door below decodes, encodes and maps errors for it; the
+// OpenAPI entry is generated from the same Schemas. The untyped `Operation`
+// above stays until every resource has moved (NOT-169.5).
+
+/** The per-workspace services an operation runs with. */
+export type WorkspaceServices = SqlClient.SqlClient | PlatformDb;
+
+/** The failures an operation may declare; anything else is a reported 500. */
+export type OperationError =
+	| NotFoundError
+	| ValidationError
+	| ConflictError
+	| AuthError;
+
+export interface TypedOperation<I, O> {
+	readonly operationId: string;
+	readonly tag: string;
+	readonly summary: string;
+	readonly description?: string;
+	/** REST door only. Path params, then query (GET, DELETE) or body, fill `input`. */
+	readonly method: Operation["method"];
+	readonly path: `/${string}`;
+	/** REST door only; 200 when omitted. */
+	readonly successStatus?: 201 | 204;
+	readonly scope: ApiKeyScope;
+	readonly input: Schema.Codec<I, unknown> & {
+		readonly fields: Schema.Struct.Fields;
+	};
+	readonly output: Schema.Codec<O, unknown>;
+	/** Runs before `run`, under the same workspace-layer acquisition. */
+	readonly checkPermission?: (
+		ctx: Omit<OperationContext, "params">,
+		input: I,
+	) => Effect.Effect<void, AuthError, WorkspaceServices>;
+	readonly run: (
+		ctx: Omit<OperationContext, "params">,
+		input: I,
+	) => Effect.Effect<O, OperationError, WorkspaceServices>;
+}
+
+/** Checks one entry against the seam while keeping its own `I` and `O`. */
+const typedOperation = <I, O>(op: TypedOperation<I, O>) => op;
+
+/** A SQL failure is an incident, not an answer: it leaves the seam as a defect. */
+const sqlDefect = <A, E, R>(
+	self: Effect.Effect<A, E, R>,
+): Effect.Effect<A, Exclude<E, SqlError.SqlError>, R> =>
+	Effect.catch(self, (e) =>
+		SqlError.isSqlError(e)
+			? Effect.die(e)
+			: Effect.fail(e as Exclude<E, SqlError.SqlError>),
+	);
+
 // ── Pages ──────────────────────────────────────────────────────────────────────
 
-export const pageOperations: readonly Operation[] = [
-	{
+const PageId = Schema.String.annotate({ description: "Page ID" });
+/** The RPC `Page`, as the plain JSON object the handlers return. */
+const PageJson = Schema.Struct(Page.fields).annotate({ identifier: "Page" });
+const RestoreResult = Schema.Struct({ restored: Schema.Boolean });
+
+const pagePermission =
+	(relation: Permissions.AclRelation) =>
+	(ctx: Omit<OperationContext, "params">, input: { pageId: string }) =>
+		Permissions.checkPagePermission(
+			ctx.userId,
+			ctx.workspaceId,
+			input.pageId,
+			relation,
+		).pipe(
+			// Declared as the whole ApiError union; it only ever refuses.
+			Effect.catch((e) =>
+				e._tag === "AuthError" ? Effect.fail(e) : Effect.die(e),
+			),
+		);
+
+export const pageOperations = [
+	typedOperation({
 		method: "GET",
 		path: "/api/v1/workspaces/:workspaceId/pages",
 		operationId: "listPages",
 		tag: "Pages",
-		pathParams: [],
+		summary: "List all pages",
+		scope: "read",
+		input: Schema.Struct({}),
+		output: Schema.Array(PageJson),
 		run: (ctx) =>
-			Effect.gen(function* () {
-				const all = yield* Pages.listPages;
-				const pages = yield* Permissions.filterPagesByPermission(
-					ctx.userId,
-					ctx.workspaceId,
-					ctx.role,
-					all,
-				);
-				return ok(pages);
-			}),
-		openapi: {
-			summary: "List all pages",
-			responses: {
-				200: jsonResponse("All non-deleted pages", {
-					type: "array",
-					items: jsonSchema("Page"),
-				}),
-				...errorResponses,
-			},
-		},
-	},
-	{
+			Pages.listPages.pipe(
+				Effect.flatMap((all) =>
+					Permissions.filterPagesByPermission(
+						ctx.userId,
+						ctx.workspaceId,
+						ctx.role,
+						all,
+					),
+				),
+				sqlDefect,
+			),
+	}),
+	typedOperation({
 		method: "POST",
 		path: "/api/v1/workspaces/:workspaceId/pages",
 		operationId: "createPage",
 		tag: "Pages",
-		pathParams: [],
-		run: () =>
-			Effect.gen(function* () {
-				const body = yield* parseBody;
-				const title = yield* requireField(body, "title");
-				const parentId = optionalField(body, "parentId");
-				const page = yield* Pages.createPage({ title, parentId });
-				return created(page);
-			}),
-		openapi: {
-			summary: "Create a page",
-			requestBody: jsonBody("PageCreate"),
-			responses: {
-				201: jsonResponse("Created page", jsonSchema("Page")),
-				...errorResponses,
-			},
-		},
-	},
-	{
+		summary: "Create a page",
+		successStatus: 201,
+		scope: "write",
+		input: Schema.Struct({
+			title: TitleString,
+			parentId: Schema.optional(Schema.NullOr(Schema.String)),
+		}),
+		output: PageJson,
+		run: (_, input) =>
+			Pages.createPage({
+				title: input.title,
+				parentId: input.parentId ?? null,
+			}).pipe(sqlDefect),
+	}),
+	typedOperation({
 		method: "GET",
 		path: "/api/v1/workspaces/:workspaceId/pages/:pageId",
 		operationId: "getPage",
 		tag: "Pages",
-		pathParams: [pageParam],
-		checkPermission: (ctx) =>
-			Effect.gen(function* () {
-				const pageId = yield* requireParam(ctx.params, "pageId");
-				yield* Permissions.checkPagePermission(
-					ctx.userId,
-					ctx.workspaceId,
-					pageId,
-					"viewer",
-				);
-			}),
-		run: (ctx) =>
-			Effect.gen(function* () {
-				const pageId = yield* requireParam(ctx.params, "pageId");
-				const page = yield* Pages.getPage(pageId).pipe(
-					Effect.mapError(() => notFound("Page", pageId)),
-				);
-				return ok(page);
-			}),
-		openapi: {
-			summary: "Get a page",
-			responses: {
-				200: jsonResponse("Page", jsonSchema("Page")),
-				...errorResponses,
-			},
-		},
-	},
-	{
+		summary: "Get a page",
+		scope: "read",
+		input: Schema.Struct({ pageId: PageId }),
+		output: PageJson,
+		checkPermission: pagePermission("viewer"),
+		run: (_, input) => Pages.getPage(input.pageId).pipe(sqlDefect),
+	}),
+	typedOperation({
 		method: "PATCH",
 		path: "/api/v1/workspaces/:workspaceId/pages/:pageId",
 		operationId: "updatePage",
 		tag: "Pages",
-		pathParams: [pageParam],
-		checkPermission: (ctx) =>
-			Effect.gen(function* () {
-				const pageId = yield* requireParam(ctx.params, "pageId");
-				yield* Permissions.checkPagePermission(
-					ctx.userId,
-					ctx.workspaceId,
-					pageId,
-					"editor",
-				);
-			}),
-		run: (ctx) =>
-			Effect.gen(function* () {
-				const pageId = yield* requireParam(ctx.params, "pageId");
-				const body = yield* parseBody;
-				const b = body as Record<string, unknown>;
-				const page = yield* Pages.updatePage({
-					id: pageId,
-					title: typeof b.title === "string" ? b.title : undefined,
-					icon: "icon" in b ? (b.icon as string | null) : undefined,
-					coverUrl: "coverUrl" in b ? (b.coverUrl as string | null) : undefined,
-					isFavorite: "isFavorite" in b ? Boolean(b.isFavorite) : undefined,
-				}).pipe(Effect.mapError(() => notFound("Page", pageId)));
-				return ok(page);
-			}),
-		openapi: {
-			summary: "Update a page",
-			requestBody: jsonBody("PageUpdate"),
-			responses: {
-				200: jsonResponse("Updated page", jsonSchema("Page")),
-				...errorResponses,
-			},
-		},
-	},
-	{
+		summary: "Update a page",
+		scope: "write",
+		input: Schema.Struct({
+			pageId: PageId,
+			title: Schema.optional(Schema.NullOr(TitleString)),
+			icon: Schema.optional(Schema.NullOr(Schema.String)),
+			coverUrl: Schema.optional(Schema.NullOr(Schema.String)),
+			isFavorite: Schema.optional(Schema.NullOr(Schema.Boolean)),
+		}),
+		output: PageJson,
+		checkPermission: pagePermission("editor"),
+		run: (_, { pageId, ...patch }) =>
+			Pages.updatePage({ id: pageId, ...patch }).pipe(sqlDefect),
+	}),
+	typedOperation({
 		method: "DELETE",
 		path: "/api/v1/workspaces/:workspaceId/pages/:pageId",
 		operationId: "deletePage",
 		tag: "Pages",
-		pathParams: [pageParam],
-		checkPermission: (ctx) =>
-			Effect.gen(function* () {
-				const pageId = yield* requireParam(ctx.params, "pageId");
-				yield* Permissions.checkPagePermission(
-					ctx.userId,
-					ctx.workspaceId,
-					pageId,
-					"editor",
-				);
-			}),
-		run: (ctx) =>
-			Effect.gen(function* () {
-				const pageId = yield* requireParam(ctx.params, "pageId");
-				const permanent = (yield* queryParam("permanent")) === "true";
-				if (permanent) yield* Databases.purgePage(pageId);
-				else yield* Pages.deletePage(pageId);
-				return noContent();
-			}),
-		openapi: {
-			summary: "Delete a page",
-			description:
-				"Moves the page to trash by default. Pass `?permanent=true` to purge it permanently along with its blocks, databases and records.",
-			parameters: [permanentQuery],
-			responses: { 204: { description: "Page deleted" }, ...errorResponses },
-		},
-	},
-	{
+		summary: "Delete a page",
+		description:
+			"Moves the page to trash by default. Pass `?permanent=true` to purge it permanently along with its blocks, databases and records.",
+		successStatus: 204,
+		scope: "write",
+		input: Schema.Struct({
+			pageId: PageId,
+			permanent: Schema.optional(
+				Schema.Literals(["true", "false"]).annotate({
+					description:
+						"When `true`, permanently purge instead of moving to trash. Irreversible.",
+				}),
+			),
+		}),
+		output: Schema.Void,
+		checkPermission: pagePermission("editor"),
+		run: (_, input) =>
+			(input.permanent === "true"
+				? Databases.purgePage(input.pageId)
+				: Pages.deletePage(input.pageId)
+			).pipe(Effect.asVoid, sqlDefect),
+	}),
+	typedOperation({
 		method: "POST",
 		path: "/api/v1/workspaces/:workspaceId/pages/:pageId/restore",
 		operationId: "restorePage",
 		tag: "Pages",
-		pathParams: [pageParam],
-		checkPermission: (ctx) =>
-			Effect.gen(function* () {
-				const pageId = yield* requireParam(ctx.params, "pageId");
-				yield* Permissions.checkPagePermission(
-					ctx.userId,
-					ctx.workspaceId,
-					pageId,
-					"editor",
-				);
-			}),
-		run: (ctx) =>
-			Effect.gen(function* () {
-				const pageId = yield* requireParam(ctx.params, "pageId");
-				const result = yield* Pages.restorePage(pageId);
-				return ok(result);
-			}),
-		openapi: {
-			summary: "Restore a trashed page",
-			responses: {
-				200: jsonResponse("Restore result", jsonSchema("RestoreResult")),
-				...errorResponses,
-			},
-		},
-	},
+		summary: "Restore a trashed page",
+		scope: "write",
+		input: Schema.Struct({ pageId: PageId }),
+		output: RestoreResult,
+		checkPermission: pagePermission("editor"),
+		run: (_, input) => Pages.restorePage(input.pageId).pipe(sqlDefect),
+	}),
 ];
 
 // ── Blocks ─────────────────────────────────────────────────────────────────────
@@ -1169,9 +1192,8 @@ export const trashOperations: readonly Operation[] = [
 	},
 ];
 
-/** Every REST operation the table covers, in registration/OpenAPI order. */
+/** Every untyped REST operation, in registration/OpenAPI order. */
 export const restOperations: readonly Operation[] = [
-	...pageOperations,
 	...blockOperations,
 	...databaseOperations,
 	...fieldOperations,
@@ -1179,6 +1201,31 @@ export const restOperations: readonly Operation[] = [
 	...searchOperations,
 	...trashOperations,
 ];
+
+/** Every typed operation, in registration/OpenAPI order. */
+export const typedOperations: ReadonlyArray<TypedOperation<any, any>> = [
+	...pageOperations,
+];
+
+/**
+ * Auth, membership and the workspace layer, shared by both operation forms:
+ * `f` runs inside a single `WorkspaceDb` layer acquisition, so the permission
+ * check and the work it guards cannot see two different databases.
+ */
+const inWorkspace = <A, E>(
+	f: (ctx: OperationContext) => Effect.Effect<A, E, any>,
+) =>
+	Effect.gen(function* () {
+		const { userId } = yield* resolveApiUser;
+		const params = yield* HttpRouter.params;
+		const workspaceId = yield* requireParam(params, "workspaceId");
+		const role = yield* requireWorkspaceMember(workspaceId, userId);
+		const wdb = yield* WorkspaceDb;
+		return yield* Effect.provide(
+			f({ userId, workspaceId, role, params }),
+			wdb.getLayer(workspaceId),
+		);
+	});
 
 /**
  * Registers every declared operation against `router`. Auth, membership, the
@@ -1194,38 +1241,104 @@ export const registerOperations = (
 			op.method,
 			op.path,
 			handle(
-				Effect.gen(function* () {
-					const { userId } = yield* resolveApiUser;
-					const params = yield* HttpRouter.params;
-					const workspaceId = yield* requireParam(params, "workspaceId");
-					const role = yield* requireWorkspaceMember(workspaceId, userId);
-					const wdb = yield* WorkspaceDb;
-					return yield* Effect.provide(
-						Effect.gen(function* () {
-							if (op.checkPermission)
-								yield* op.checkPermission({ userId, workspaceId, params });
-							// The permission check above is on the database: a record or
-							// field of another one is not this route's to touch.
-							const { dbId, recordId, fieldId } = params;
-							if (dbId)
-								yield* Databases.requireInDatabase(dbId, {
-									recordId,
-									fieldId,
-								}).pipe(
-									Effect.catchTag("NotFoundError", (e) =>
-										Effect.fail(
-											new ApiError({
-												status: 404,
-												message: `${e.resource} ${e.id} not found`,
-											}),
-										),
+				inWorkspace((ctx) =>
+					Effect.gen(function* () {
+						const { userId, workspaceId, params } = ctx;
+						if (op.checkPermission)
+							yield* op.checkPermission({ userId, workspaceId, params });
+						// The permission check above is on the database: a record or
+						// field of another one is not this route's to touch.
+						const { dbId, recordId, fieldId } = params;
+						if (dbId)
+							yield* Databases.requireInDatabase(dbId, {
+								recordId,
+								fieldId,
+							}).pipe(
+								Effect.catchTag("NotFoundError", (e) =>
+									Effect.fail(
+										new ApiError({
+											status: 404,
+											message: `${e.resource} ${e.id} not found`,
+										}),
 									),
-								);
-							return yield* op.run({ userId, workspaceId, role, params });
+								),
+							);
+						return yield* op.run(ctx);
+					}),
+				),
+			),
+		),
+	);
+
+/** GET and DELETE carry their non-path input in the query; the rest in the body. */
+const inQuery = (method: Operation["method"]) =>
+	method === "GET" || method === "DELETE";
+
+/** The JSON body as an object; an absent body is an empty one. */
+const bodyObject = Effect.gen(function* () {
+	const req = yield* HttpServerRequest.HttpServerRequest;
+	const text = yield* req.text;
+	if (text.trim() === "") return {};
+	let body: unknown;
+	try {
+		body = JSON.parse(text);
+	} catch {
+		return yield* Effect.fail(
+			new ApiError({ status: 400, message: "Invalid JSON body" }),
+		);
+	}
+	if (typeof body !== "object" || body === null || Array.isArray(body))
+		return yield* Effect.fail(
+			new ValidationError({ message: "Request body must be a JSON object" }),
+		);
+	return body as Record<string, unknown>;
+});
+
+/**
+ * The REST door for typed operations: path params, then query or body, are
+ * decoded into `input` once; `output` is encoded; a declared failure keeps its
+ * status (ValidationError is 422 here), anything else is a reported 500.
+ */
+export const registerTypedOperations = (
+	router: typeof HttpRouter.HttpRouter.Service,
+	operations: ReadonlyArray<TypedOperation<any, any>>,
+) =>
+	Effect.forEach(operations, (op) =>
+		router.add(
+			op.method,
+			op.path,
+			handle(
+				Effect.gen(function* () {
+					const req = yield* HttpServerRequest.HttpServerRequest;
+					const rest = inQuery(op.method)
+						? Object.fromEntries(new URL(req.url, "http://x").searchParams)
+						: yield* bodyObject;
+					return yield* inWorkspace(({ params, ...ctx }) =>
+						Effect.gen(function* () {
+							const { workspaceId: _, ...pathParams } = params;
+							const input = yield* Schema.decodeUnknownEffect(op.input)({
+								...rest,
+								...pathParams,
+							}).pipe(
+								Effect.mapError(
+									(e) => new ValidationError({ message: e.message }),
+								),
+							);
+							if (op.checkPermission) yield* op.checkPermission(ctx, input);
+							const output = yield* op.run(ctx, input);
+							const encoded = yield* Schema.encodeUnknownEffect(op.output)(
+								output,
+							).pipe(Effect.orDie);
+							if (op.successStatus === 204) return noContent();
+							return op.successStatus === 201 ? created(encoded) : ok(encoded);
 						}),
-						wdb.getLayer(workspaceId),
 					);
-				}),
+				}).pipe(
+					Effect.catchTag("ValidationError", (e) =>
+						Effect.fail(new ApiError({ status: 422, message: e.message })),
+					),
+				),
+				op.scope,
 			),
 		),
 	);
@@ -1261,4 +1374,89 @@ export const operationsOpenApiPaths = (
 		};
 	}
 	return paths;
+};
+
+/**
+ * The OpenAPI `paths` and component schemas for typed operations, generated
+ * from the Schemas the REST door decodes and encodes with — so the document
+ * describes what the server accepts, not what someone wrote down.
+ */
+export const typedOperationsOpenApi = (
+	operations: ReadonlyArray<TypedOperation<any, any>>,
+	wsParam: object,
+) => {
+	const split = operations.map((op) => {
+		const pathNames = [...op.path.matchAll(/:([a-zA-Z]+)/g)]
+			.map((m) => m[1])
+			.filter((name) => name !== "workspaceId");
+		const pick = (inPath: boolean) =>
+			Schema.Struct(
+				Object.fromEntries(
+					Object.entries(op.input.fields).filter(
+						([name]) => pathNames.includes(name) === inPath,
+					),
+				),
+			);
+		return [pick(true).ast, pick(false).ast, op.output.ast];
+	});
+	const generated = JsonSchema.toMultiDocumentOpenApi3_1(
+		SchemaRepresentation.toJsonSchemaMultiDocument(
+			SchemaRepresentation.toRepresentations(
+				split.flat() as [SchemaAST.AST, ...SchemaAST.AST[]],
+			),
+		),
+	);
+
+	type ObjectSchema = {
+		properties?: Record<string, object>;
+		required?: string[];
+	};
+	const asParams = (schema: ObjectSchema, where: "path" | "query") =>
+		Object.entries(schema.properties ?? {}).map(([name, s]) => ({
+			name,
+			in: where,
+			required: schema.required?.includes(name) ?? false,
+			schema: s,
+		}));
+
+	const paths: Record<string, Record<string, unknown>> = {};
+	operations.forEach((op, i) => {
+		const [pathSchema, restSchema, outputSchema] = generated.schemas.slice(
+			i * 3,
+			i * 3 + 3,
+		) as [ObjectSchema, ObjectSchema, object];
+		const docPath = op.path
+			.replace("/api/v1", "")
+			.replace(/:([a-zA-Z]+)/g, "{$1}");
+		const status = op.successStatus ?? 200;
+		const hasRest = Object.keys(restSchema.properties ?? {}).length > 0;
+		paths[docPath] ??= {
+			parameters: [wsParam, ...asParams(pathSchema, "path")],
+		};
+		paths[docPath][op.method.toLowerCase()] = {
+			tags: [op.tag],
+			operationId: op.operationId,
+			summary: op.summary,
+			...(op.description ? { description: op.description } : {}),
+			...(hasRest && inQuery(op.method)
+				? { parameters: asParams(restSchema, "query") }
+				: {}),
+			...(hasRest && !inQuery(op.method)
+				? {
+						requestBody: {
+							required: true,
+							content: { "application/json": { schema: restSchema } },
+						},
+					}
+				: {}),
+			responses: {
+				[status]:
+					status === 204
+						? { description: "No content" }
+						: jsonResponse("Success", outputSchema),
+				...errorResponses,
+			},
+		};
+	});
+	return { paths, schemas: generated.definitions };
 };

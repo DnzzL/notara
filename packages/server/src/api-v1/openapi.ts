@@ -1,7 +1,12 @@
-// ── Inline OpenAPI 3.0.3 spec ─────────────────────────────────────────────────
-// This is a plain TypeScript object — no code generation, full type clarity.
+// ── Inline OpenAPI 3.1 spec ───────────────────────────────────────────────────
+// A plain TypeScript object; typed operations add the entries generated from their Schemas.
 import { FIELD_TYPE_SPECS } from "@notara/shared";
-import { operationsOpenApiPaths, restOperations } from "./operations.js";
+import {
+	operationsOpenApiPaths,
+	restOperations,
+	typedOperations,
+	typedOperationsOpenApi,
+} from "./operations.js";
 
 const BLOCK_TYPES = [
 	"paragraph",
@@ -31,56 +36,6 @@ const schemas = {
 		type: "object",
 		required: ["error"],
 		properties: { error: { type: "string", example: "Not found" } },
-	},
-
-	Page: {
-		type: "object",
-		required: [
-			"id",
-			"title",
-			"sortOrder",
-			"isDeleted",
-			"isFavorite",
-			"createdAt",
-			"updatedAt",
-		],
-		properties: {
-			id: { type: "string", example: "01JV2RXHK00000000000000000" },
-			title: { type: "string", example: "Meeting notes" },
-			parentId: { type: "string", nullable: true, example: null },
-			icon: { type: "string", nullable: true, example: "📝" },
-			coverUrl: { type: "string", nullable: true, example: null },
-			sortOrder: { type: "number", example: 1 },
-			isDeleted: { type: "boolean", example: false },
-			isFavorite: { type: "boolean", example: false },
-			createdAt: { type: "string", format: "date-time" },
-			updatedAt: { type: "string", format: "date-time" },
-			deletedAt: {
-				type: "string",
-				format: "date-time",
-				nullable: true,
-				description: "When the page was trashed, or null if not deleted.",
-			},
-		},
-	},
-
-	PageCreate: {
-		type: "object",
-		required: ["title"],
-		properties: {
-			title: { type: "string", example: "New page" },
-			parentId: { type: "string", nullable: true, example: null },
-		},
-	},
-
-	PageUpdate: {
-		type: "object",
-		properties: {
-			title: { type: "string", example: "Updated title" },
-			icon: { type: "string", nullable: true, example: "🚀" },
-			coverUrl: { type: "string", nullable: true, example: null },
-			isFavorite: { type: "boolean", example: true },
-		},
 	},
 
 	Block: {
@@ -386,8 +341,10 @@ const errors = {
 
 // ── Spec ──────────────────────────────────────────────────────────────────────
 
+const typed = typedOperationsOpenApi(typedOperations, wsParam);
+
 export const spec = {
-	openapi: "3.0.3",
+	openapi: "3.1.0",
 	info: {
 		title: "Notara REST API",
 		version: "1.0.0",
@@ -477,7 +434,7 @@ blank. If you have blocks created that way, rewrite them as HTML.
 					"API key with `ntr_` prefix. Generate one in workspace settings. A read-scoped key is refused with `403` on any request that changes state.",
 			},
 		},
-		schemas,
+		schemas: { ...schemas, ...typed.schemas },
 	},
 	paths: {
 		// ── Workspaces ──────────────────────────────────────────────────────────
@@ -499,7 +456,9 @@ blank. If you have blocks created that way, rewrite them as HTML.
 		// ── Pages, Blocks, Databases, Search, Trash ──────────────────────────────
 		// Derived from the operation table in api-v1/operations.ts — the REST
 		// router is registered from the same list, so route and document cannot
-		// drift apart for these operations. See NOT-122 / TASK-23.
+		// drift apart for these operations. See NOT-122 / TASK-23. Typed
+		// operations (pages) are generated from their Schemas (NOT-169).
+		...typed.paths,
 		...operationsOpenApiPaths(restOperations, wsParam),
 	},
 };

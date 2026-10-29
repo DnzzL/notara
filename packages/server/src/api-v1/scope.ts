@@ -36,10 +36,6 @@ const READ_METHODS = new Set(["GET", "HEAD", "OPTIONS"]);
 export const mutates = (method: string): boolean =>
 	!READ_METHODS.has(method.toUpperCase());
 
-/** May a caller holding `scope` issue this request? */
-export const scopeAllows = (scope: ApiKeyScope, method: string): boolean =>
-	scope === "write" || !mutates(method);
-
 /** The refusal, worded so the holder knows what to do about it. */
 export const SCOPE_REFUSAL =
 	"This API key is read-only. Create a key with write scope to make changes.";
@@ -52,35 +48,43 @@ export const SCOPE_REFUSAL =
  * Runs from `handle`, which every v1 route already goes through, so a new route
  * is covered the moment it is registered rather than when someone remembers.
  *
+ * `needed` is the scope a typed operation declares (NOT-169): with MCP there is
+ * no HTTP method to read it from. Untyped operations omit it and keep the scope
+ * their method implies.
+ *
  * Deliberately narrow: it answers "may this credential mutate", not "who is
  * this". Resolving the caller stays in resolveApiUser, where ADR-008 put it.
  *
  * A cookie session is unscoped by construction — it is the user themselves, and
  * whatever they may do through the UI they may do here.
  */
-export const enforceScope: Effect.Effect<
+export const enforceScope = (
+	needed?: ApiKeyScope,
+): Effect.Effect<
 	void,
 	ApiError,
 	HttpServerRequest.HttpServerRequest | PlatformDb
-> = Effect.gen(function* () {
-	const request = yield* HttpServerRequest.HttpServerRequest;
-	if (!mutates(request.method)) return;
+> =>
+	Effect.gen(function* () {
+		const request = yield* HttpServerRequest.HttpServerRequest;
+		if ((needed ?? (mutates(request.method) ? "write" : "read")) === "read")
+			return;
 
-	const header = request.headers.authorization as string | undefined;
-	if (!header?.startsWith("Bearer ")) return;
+		const header = request.headers.authorization as string | undefined;
+		if (!header?.startsWith("Bearer ")) return;
 
-	const db = yield* PlatformDb;
-	const key = db
-		.prepare("SELECT scope FROM api_keys WHERE key_hash = ?")
-		.get(sha256(header.slice(7))) as { scope: ApiKeyScope } | null;
+		const db = yield* PlatformDb;
+		const key = db
+			.prepare("SELECT scope FROM api_keys WHERE key_hash = ?")
+			.get(sha256(header.slice(7))) as { scope: ApiKeyScope } | null;
 
-	// An unknown key is resolveApiUser's 401 to give, not ours. Saying nothing
-	// here keeps one answer for one question.
-	if (!key) return;
+		// An unknown key is resolveApiUser's 401 to give, not ours. Saying nothing
+		// here keeps one answer for one question.
+		if (!key) return;
 
-	if (!scopeAllows(key.scope, request.method)) {
-		return yield* Effect.fail(
-			new ApiError({ status: 403, message: SCOPE_REFUSAL }),
-		);
-	}
-});
+		if (key.scope !== "write") {
+			return yield* Effect.fail(
+				new ApiError({ status: 403, message: SCOPE_REFUSAL }),
+			);
+		}
+	});
