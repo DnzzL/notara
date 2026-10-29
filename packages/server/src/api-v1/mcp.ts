@@ -20,8 +20,8 @@
  * a documented contract — the read-key tests in mcp.test.ts pin it.
  */
 
-import { ApiError, AuthError } from "@notara/shared";
-import { Context, Effect, Fiber, Layer, Option, Schema } from "effect";
+import { ApiError } from "@notara/shared";
+import { Context, Effect, Fiber, Layer, Schema } from "effect";
 import * as McpProtocol from "effect/ai/McpProtocol";
 import * as McpSchema from "effect/ai/McpSchema";
 import * as McpServer from "effect/ai/McpServer";
@@ -79,14 +79,11 @@ const handlers = NotaraTools.toLayer(
 			op.operationId,
 			({ workspaceId, ...input }: { workspaceId?: string }) =>
 				Effect.gen(function* () {
-					const caller = yield* Effect.serviceOption(McpCaller);
-					if (Option.isNone(caller))
-						return yield* Effect.fail(
-							new AuthError({ status: 401, message: "Invalid API key" }),
-						);
+					// McpAuth refuses a request without a key before any tool runs.
+					const caller = yield* McpCaller;
 					return yield* runOperation(
 						op,
-						caller.value.userId,
+						caller.userId,
 						Effect.succeed(workspaceId as string),
 						Effect.succeed(input),
 					);
