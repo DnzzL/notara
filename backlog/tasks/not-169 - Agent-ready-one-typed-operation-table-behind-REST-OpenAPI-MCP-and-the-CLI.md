@@ -1,10 +1,10 @@
 ---
 id: NOT-169
 title: 'Agent-ready: one typed operation table behind REST, OpenAPI, MCP and the CLI'
-status: ready-for-agent
+status: done
 assignee: []
 created_date: '2026-10-29 17:16'
-updated_date: '2026-10-29 19:55'
+updated_date: '2026-10-29 21:37'
 labels:
   - enhancement
 dependencies: []
@@ -111,3 +111,9 @@ Adding or changing an operation updates REST, OpenAPI and MCP at once; a read-on
 - MCP is the only new public surface; it inherits every guarantee of the REST door by sharing its auth, scope and permission path. Anything that reaches `/mcp` without going through that path is a bug.
 - The REST contract is a published seam the CLI (on JSR) depends on: status codes and the error shape may tighten (500 → 422/404), but existing successful responses must not change shape.
 <!-- SECTION:DESCRIPTION:END -->
+
+## Final Summary
+
+<!-- SECTION:FINAL_SUMMARY:BEGIN -->
+One typed operation table (TypedOperation + UserOperation) behind REST /api/v1, generated OpenAPI 3.1, MCP at /mcp (Effect McpServer, stateless 2026-07-28 + session 2025-11-25/06-18, Bearer keys, tools filtered by scope) and the CLI (parity test). One scope predicate for REST, MCP and admin routes. REST/MCP block edits broadcast to presence and honour edit locks.
+<!-- SECTION:FINAL_SUMMARY:END -->
