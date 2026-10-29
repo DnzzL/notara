@@ -59,6 +59,7 @@ const workspacesList = Command.make("list", globals, (o) =>
 		);
 	}),
 ).pipe(
+	Command.annotate(OperationId, "listWorkspaces"),
 	Command.withDescription(
 		"List workspaces you belong to (works without --workspace)",
 	),
