@@ -31,17 +31,24 @@
  */
 import { AuthError } from "@notara/shared";
 import { Context, Effect } from "effect";
+import type { ApiKeyScope } from "./api-v1/scope.js";
 
 /**
  * The authenticated caller.
  *
  * Deliberately thin: an id and the email the admin gate compares against.
  * Everything else about what this caller may do is a question for a policy,
- * answered against stored relations rather than carried on the principal.
+ * answered against stored relations rather than carried on the principal —
+ * except an API key's scope, which belongs to the credential, not the user.
+ * Absent for a cookie session, which is unscoped.
  */
 export class CurrentUser extends Context.Service<
 	CurrentUser,
-	{ readonly userId: string; readonly email: string }
+	{
+		readonly userId: string;
+		readonly email: string;
+		readonly scope?: ApiKeyScope;
+	}
 >()("CurrentUser") {}
 
 /**
