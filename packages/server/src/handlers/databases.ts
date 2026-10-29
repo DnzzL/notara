@@ -20,6 +20,7 @@ import {
 	viewFromRow,
 } from "../mappers.js";
 import { publishViewConfigChange } from "../view-config-stream.js";
+import * as Permissions from "./permissions.js";
 
 /**
  * Decode a stored cell for the API.
@@ -766,49 +767,77 @@ export const purgePage = (
  *  databases, and records. Pages swept up by an ancestor's deletion carry that
  *  ancestor's id in `trashed_with` and are left out — one delete should put one
  *  entry in the trash, and restoring that entry brings the subtree back with
- *  it. Newest first. */
-export const listTrash = Effect.gen(function* () {
-	const sql = yield* SqlClient.SqlClient;
-	const pages = yield* sql`
-    SELECT id, title, deleted_at as "deletedAt" FROM pages
-    WHERE is_deleted = 1 AND trashed_with IS NULL ORDER BY deleted_at DESC
-  `;
-	const databases = yield* sql`
-    SELECT id, name, deleted_at as "deletedAt" FROM databases
-    WHERE is_deleted = 1 ORDER BY deleted_at DESC
-  `;
-	const records = yield* sql`
-    SELECT id, database_id as "databaseId", title, deleted_at as "deletedAt" FROM database_records
-    WHERE is_deleted = 1 ORDER BY deleted_at DESC
-  `;
-	return new TrashContents({
-		pages: pages.map(
-			(r: any) =>
-				new TrashedPage({
-					id: r.id as string,
-					title: r.title as string,
-					deletedAt: (r.deletedAt as string | null) ?? null,
-				}),
-		),
-		databases: databases.map(
-			(r: any) =>
-				new TrashedDatabase({
-					id: r.id as string,
-					name: r.name as string,
-					deletedAt: (r.deletedAt as string | null) ?? null,
-				}),
-		),
-		records: records.map(
-			(r: any) =>
-				new TrashedRecord({
-					id: r.id as string,
-					databaseId: r.databaseId as string,
-					title: r.title as string,
-					deletedAt: (r.deletedAt as string | null) ?? null,
-				}),
-		),
+ *  it. Newest first.
+ *
+ *  Only what the caller can read: a page by its own ACL, a database by its
+ *  host page's, a record by its database's host page's. Trashed pages resolve
+ *  like live ones — the lock walk climbs through trashed ancestors too. */
+export const listTrash = (
+	userId: string,
+	workspaceId: string,
+	role: "owner" | "member",
+) =>
+	Effect.gen(function* () {
+		const sql = yield* SqlClient.SqlClient;
+		const allPages = (yield* sql`
+      SELECT id, parent_id as "parentId" FROM pages
+    `) as unknown as { id: string; parentId: string | null }[];
+		const readable = new Set(
+			(yield* Permissions.filterPagesByPermission(
+				userId,
+				workspaceId,
+				role,
+				allPages,
+			)).map((p) => p.id),
+		);
+		const pages = yield* sql`
+      SELECT id, title, deleted_at as "deletedAt" FROM pages
+      WHERE is_deleted = 1 AND trashed_with IS NULL ORDER BY deleted_at DESC
+    `;
+		const databases = yield* sql`
+      SELECT id, name, page_id as "pageId", deleted_at as "deletedAt" FROM databases
+      WHERE is_deleted = 1 ORDER BY deleted_at DESC
+    `;
+		const records = yield* sql`
+      SELECT r.id, r.database_id as "databaseId", r.title, d.page_id as "pageId",
+        r.deleted_at as "deletedAt"
+      FROM database_records r JOIN databases d ON d.id = r.database_id
+      WHERE r.is_deleted = 1 ORDER BY r.deleted_at DESC
+    `;
+		return new TrashContents({
+			pages: pages
+				.filter((r: any) => readable.has(r.id))
+				.map(
+					(r: any) =>
+						new TrashedPage({
+							id: r.id as string,
+							title: r.title as string,
+							deletedAt: (r.deletedAt as string | null) ?? null,
+						}),
+				),
+			databases: databases
+				.filter((r: any) => readable.has(r.pageId))
+				.map(
+					(r: any) =>
+						new TrashedDatabase({
+							id: r.id as string,
+							name: r.name as string,
+							deletedAt: (r.deletedAt as string | null) ?? null,
+						}),
+				),
+			records: records
+				.filter((r: any) => readable.has(r.pageId))
+				.map(
+					(r: any) =>
+						new TrashedRecord({
+							id: r.id as string,
+							databaseId: r.databaseId as string,
+							title: r.title as string,
+							deletedAt: (r.deletedAt as string | null) ?? null,
+						}),
+				),
+		});
 	});
-});
 
 /** Lazily creates a full page for a database record.
  *  On first call: creates a page (child of the database's host page) with the
