@@ -461,6 +461,32 @@ describe("tool calls behave like the REST operations they are", () => {
 	});
 });
 
+describe("a revoked key is cut off at every door (#21)", () => {
+	test("REST, a new MCP request and an open MCP session all refuse it", async () => {
+		const created = await rpc<{ id: string; rawKey: string }>(
+			owner.cookie,
+			"createApiKey",
+			{ name: "to revoke", scope: "write" },
+		);
+		const open = await session(created.rawKey, "2025-11-25");
+		expect((await call(created.rawKey, "GET", PAGES)).status).toBe(200);
+		expect(
+			(await callTool(open, "listPages", { workspaceId: ws.id })).body.result
+				.isError,
+		).toBe(false);
+
+		await rpc(owner.cookie, "revokeApiKey", { id: created.id });
+
+		expect((await call(created.rawKey, "GET", PAGES)).status).toBe(401);
+		const fresh = await callTool(stateless(created.rawKey), "listPages", {
+			workspaceId: ws.id,
+		});
+		expect(fresh.status).toBe(401);
+		const reused = await callTool(open, "listPages", { workspaceId: ws.id });
+		expect(reused.status).toBe(401);
+	});
+});
+
 describe("an agent's block edit meets the editor's lock and presence (#26)", () => {
 	const BLOCKS = (pageId: string) => `${PAGES}/${pageId}/blocks`;
 	const BLOCK = (blockId: string) =>
