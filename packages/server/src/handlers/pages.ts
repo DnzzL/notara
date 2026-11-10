@@ -182,20 +182,23 @@ export const searchPages = (query: string) =>
 		return rows.map(pageFromRow);
 	});
 
-const getDescendants = (pageId: string) =>
+/**
+ * True when `ancestorId` sits on the parent chain above `pageId`. Walks up one
+ * row per level, so the cost is the page's depth, not the size of the tree.
+ */
+const isAncestorOf = (ancestorId: string, pageId: string) =>
 	Effect.gen(function* () {
 		const sql = yield* SqlClient.SqlClient;
-		const cteRows = yield* sql`
-      WITH RECURSIVE descendants AS (
-        SELECT id FROM pages WHERE id = ${pageId}
-        UNION ALL
-        SELECT p.id FROM pages p
-        INNER JOIN descendants d ON p.parent_id = d.id
-        WHERE p.is_deleted = 0
+		const rows = yield* sql`
+      WITH RECURSIVE ancestors AS (
+        SELECT id, parent_id FROM pages WHERE id = ${pageId}
+        UNION
+        SELECT p.id, p.parent_id FROM pages p
+        INNER JOIN ancestors a ON p.id = a.parent_id
       )
-      SELECT id FROM descendants WHERE id != ${pageId}
+      SELECT 1 FROM ancestors WHERE id = ${ancestorId} LIMIT 1
     `;
-		return new Set(cteRows.map((r) => r.id as string));
+		return rows.length > 0;
 	});
 
 export const movePage = (req: { id: string; parentId: string | null }) =>
@@ -206,8 +209,7 @@ export const movePage = (req: { id: string; parentId: string | null }) =>
 				message: "Cannot move a page into itself",
 			});
 		if (req.parentId) {
-			const descendants = yield* getDescendants(req.id);
-			if (descendants.has(req.parentId))
+			if (yield* isAncestorOf(req.id, req.parentId))
 				return yield* new ConflictError({
 					message: "Cannot move a page into one of its descendants",
 				});

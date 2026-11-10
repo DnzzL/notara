@@ -4,7 +4,7 @@
  * HTTP edge. Everything else must remain a defect.
  */
 import { Database } from "bun:sqlite";
-import { describe, expect, test } from "bun:test";
+import { afterAll, beforeAll, describe, expect, test } from "bun:test";
 import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
@@ -28,10 +28,17 @@ const migrationsDir = path.join(
 	"../migrations",
 );
 
-function makeTestDb() {
-	const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), "notara-apierr-"));
-	const filename = path.join(tmpDir, "test.db");
-	const db = new Database(filename);
+/**
+ * Migrations run once into a template file; each test gets a copy. Replaying
+ * every migration per test cost fsync-bound disk I/O that stalled under CI load.
+ */
+let templateDir: string;
+let templateFile: string;
+
+beforeAll(() => {
+	templateDir = fs.mkdtempSync(path.join(os.tmpdir(), "notara-apierr-"));
+	templateFile = path.join(templateDir, "template.db");
+	const db = new Database(templateFile);
 	try {
 		for (const file of fs
 			.readdirSync(migrationsDir)
@@ -42,6 +49,16 @@ function makeTestDb() {
 	} finally {
 		db.close();
 	}
+});
+
+afterAll(() => {
+	fs.rmSync(templateDir, { recursive: true, force: true });
+});
+
+function makeTestDb() {
+	const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), "notara-apierr-"));
+	const filename = path.join(tmpDir, "test.db");
+	fs.copyFileSync(templateFile, filename);
 	return { filename, tmpDir };
 }
 
@@ -76,6 +93,23 @@ describe("typed handler failures", () => {
 		const error = await failureOf(Pages.movePage({ id: "p1", parentId: "p1" }));
 		expect(error).toBeInstanceOf(ConflictError);
 		expect(error.message).toBe("Cannot move a page into itself");
+	});
+
+	test("moving a page into its own descendant fails with ConflictError", async () => {
+		const error = await failureOf(
+			Effect.gen(function* () {
+				const parent = yield* Pages.createPage({ title: "a", parentId: null });
+				const child = yield* Pages.createPage({
+					title: "b",
+					parentId: parent.id,
+				});
+				return yield* Pages.movePage({ id: parent.id, parentId: child.id });
+			}),
+		);
+		expect(error).toBeInstanceOf(ConflictError);
+		expect(error.message).toBe(
+			"Cannot move a page into one of its descendants",
+		);
 	});
 
 	test("reordering pages outside their sibling group fails with ValidationError", async () => {
