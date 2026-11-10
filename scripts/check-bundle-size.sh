@@ -18,9 +18,12 @@
 #     be found FAILS rather than warns — an asset nobody measured is not a pass.
 #
 # Usage:  bash scripts/check-bundle-size.sh [threshold_percent]
+#         bash scripts/check-bundle-size.sh --update   (rewrite the baseline)
 
 set -euo pipefail
 
+MODE=check
+[ "${1:-}" = "--update" ] && { MODE=update; shift; }
 THRESHOLD="${1:-10}"
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 BASELINE="$ROOT/.github/bundle-sizes.json"
@@ -36,9 +39,10 @@ gzip_size() {
 }
 
 # A built asset is `index-<hash>.js`; the baseline names it `index.js`. Find
-# whichever file the current build produced for a logical name.
+# the one file the current build produced for a logical name. Zero or 2+
+# matches is an error: never guess which file to measure.
 resolve() {
-  local logical="$1" dir base ext found
+  local logical="$1" dir base ext matches f
   if [ -f "$ROOT/$logical" ]; then
     printf '%s' "$ROOT/$logical"
     return 0
@@ -46,13 +50,34 @@ resolve() {
   dir="$(dirname "$logical")"
   ext="${logical##*.}"
   base="$(basename "$logical" ".$ext")"
-  found="$(ls "$ROOT/$dir/$base"-*."$ext" 2>/dev/null | head -1 || true)"
-  if [ -n "$found" ]; then
-    printf '%s' "$found"
+  matches=()
+  for f in "$ROOT/$dir/$base"-*."$ext"; do
+    [ -f "$f" ] && matches+=("$f")
+  done
+  if [ "${#matches[@]}" -gt 1 ]; then
+    echo "  ✗ $logical — AMBIGUOUS, ${#matches[@]} files match: $(basename -a "${matches[@]}" | tr '\n' ' ')" >&2
+    return 2
+  fi
+  if [ "${#matches[@]}" -eq 1 ]; then
+    printf '%s' "${matches[0]}"
     return 0
   fi
   return 1
 }
+
+# --update: rewrite the baseline from the current build, under the same
+# logical keys the check reads.
+if [ "$MODE" = "update" ]; then
+  out="{}"
+  while IFS= read -r logical; do
+    path=$(resolve "$logical") || { echo "✗ cannot resolve $logical" >&2; exit 1; }
+    size=$(stat -c%s "$path" 2>/dev/null || stat -f%z "$path")
+    out=$(echo "$out" | jq --arg k "$logical" --argjson s "$size" --argjson g "$(gzip_size "$path")" '.[$k] = {size: $s, gzip: $g}')
+  done < <(jq -r 'keys[] | select(. != "timestamp")' "$BASELINE")
+  echo "$out" | jq --tab --arg t "$(date -u +%FT%TZ)" '.timestamp = $t' > "$BASELINE"
+  echo "✓ Baseline updated"
+  exit 0
+fi
 
 # Growth as a percentage, absolute. awk, not bc: a tool that is not installed
 # must not read as "no growth".
@@ -71,8 +96,12 @@ while IFS= read -r tracked; do
   logical=$(echo "$tracked" | jq -r '.file')
   baseline_size=$(echo "$tracked" | jq -r '.size // 0')
 
-  if ! path=$(resolve "$logical"); then
+  rc=0
+  path=$(resolve "$logical") || rc=$?
+  if [ "$rc" -eq 1 ]; then
     echo "  ✗ $logical — NOT FOUND in the build; nothing was measured"
+  fi
+  if [ "$rc" -ne 0 ]; then
     FAIL=$((FAIL + 1))
     continue
   fi

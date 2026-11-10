@@ -134,6 +134,6 @@ Run before merging to catch regressions: `bun run pre-merge`
 - Builds packages/app (Vite) + packages/shared (tsc) and compares output sizes
   against the baseline in `.github/bundle-sizes.json`.
 - Fails if any tracked file grows by more than **10%** (configurable as first arg).
-- Update baseline: rebuild and overwrite `.github/bundle-sizes.json`.
+- Update baseline: `bash scripts/check-bundle-size.sh --update` (keys stay hash-free, e.g. `packages/app/dist/assets/index.js`).
 
 Be kind; assume good intent. Reviews are about the change, not the person.
