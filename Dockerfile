@@ -81,4 +81,9 @@ ENV DATA_DIR=/data
 
 EXPOSE 3000
 
+# Readiness: /health answers 200 only when the DB responds. bun is already in
+# the image, so no curl/wget needed. start-period covers first-boot migrations.
+HEALTHCHECK --interval=30s --timeout=5s --start-period=20s --retries=3 \
+  CMD bun -e "const r=await fetch('http://127.0.0.1:'+(process.env.PORT||3000)+'/health');process.exit(r.ok?0:1)"
+
 CMD ["bun", "run", "packages/server/dist/index.js"]
