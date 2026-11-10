@@ -180,7 +180,8 @@ export function LandingPage({ demoMode }: { demoMode: boolean }) {
 								A Notion you own, with few features done well. Block editor,
 								inline databases, real-time collaboration — all backed by a
 								single SQLite file on your own server. One command to self-host,
-								and every action open to your scripts and agents.
+								and your pages, databases and records open to scripts and
+								agents.
 							</p>
 							<div
 								className="landing-hero-ctas lp-reveal"
@@ -294,7 +295,7 @@ export function LandingPage({ demoMode }: { demoMode: boolean }) {
 							<span className="lp-kicker">
 								<b>03</b> · Agent-ready
 							</span>
-							<h3>Drive every action from the CLI, REST or MCP.</h3>
+							<h3>Drive your notes from the CLI, REST or MCP.</h3>
 							<pre className="lp-code">
 								<code>{`claude mcp add --transport http notara \\
   https://notes.example.com/mcp \\

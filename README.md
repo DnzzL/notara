@@ -16,8 +16,9 @@ all working. That's Notara, in three pillars:
 1. **Minimalist** — a Notion you own: block editor, inline databases and real-time
    collaboration, *few features done well*.
 2. **Self-host in 1 minute** — one `docker run`, one SQLite file, AGPL-3.0-or-later, free.
-3. **Agent-ready** — every action is drivable from the `notara` CLI, the REST API
-   (OpenAPI) and an MCP server, with scoped read/write API keys.
+3. **Agent-ready** — pages, blocks, databases, records, search and trash are drivable from
+   the `notara` CLI, the REST API (OpenAPI) and an MCP server, with scoped read/write API
+   keys.
 
 It's built and maintained by one person ([me](https://thomas.legrand.sh)), on purpose, so
 the list below is deliberately short.
@@ -43,6 +44,9 @@ Open `http://localhost:3000` and create your account. Your data lives in the
 
 | | |
 |---|---|
+| **Minimalist** | A Notion you own: few features, done well |
+| **Self-host in 1 minute** | One `docker run` ([Quick start](#quick-start)); free, AGPL-3.0-or-later, no licence key |
+| **Agent-ready** | Pages, blocks, databases, records, search and trash from the `notara` CLI, the REST API (OpenAPI) or an MCP server at `/mcp`; read/write-scoped API keys |
 | **Block editor** | Paragraphs, headings, todos, code, toggles, callouts, images, PDFs and more |
 | **Inline databases** | Table and board views with fields, relations and custom views |
 | **Real-time collaboration** | Invite by email or link, see who's on the page, edit together |
@@ -52,8 +56,6 @@ Open `http://localhost:3000` and create your account. Your data lives in the
 | **S3 backups** | Optional scheduled backups to any S3-compatible bucket |
 | **Desktop app** | Native Electron app for macOS — plus the web client |
 | **Own your data** | One SQLite file per workspace, on infrastructure you control |
-| **Self-host in 1 minute** | One `docker run` ([Quick start](#quick-start)); free, AGPL-3.0-or-later, no licence key |
-| **Agent-ready** | Every action from the `notara` CLI, the REST API (OpenAPI) or an MCP server at `/mcp`; read/write-scoped API keys |
 
 ## What it looks like
 
