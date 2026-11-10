@@ -30,6 +30,7 @@ import * as PublicPage from "./handlers/public-page.js";
 import { restoreBackup } from "./handlers/restore.js";
 import { loadSettings, saveSettings } from "./handlers/settings.js";
 import * as Upload from "./handlers/upload.js";
+import { healthResponse } from "./health.js";
 import { causeResponse, failureResponse } from "./http-error.js";
 import {
 	checkRateLimit,
@@ -180,7 +181,7 @@ const staticFilesRoute = Effect.gen(function* () {
 	yield* router.add(
 		"GET",
 		"/health",
-		Effect.succeed(HttpServerResponse.text("ok", { status: 200 })),
+		Effect.suspend(() => healthResponse(platformDb)),
 	);
 
 	// ── Admin gate ────────────────────────────────────────────────────────────
