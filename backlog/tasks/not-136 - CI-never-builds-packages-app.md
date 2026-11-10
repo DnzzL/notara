@@ -4,7 +4,7 @@ title: CI never builds packages/app
 status: done
 assignee: []
 created_date: 2026-08-29 17:33
-updated_date: '2026-11-10T17:03:00Z'
+updated_date: '2026-11-10T17:06:00Z'
 labels:
   - bug
 dependencies: []
@@ -22,6 +22,7 @@ ci.yml runs install, shared build, typecheck, tests and e2e — but never 'bun r
 <!-- AC:BEGIN -->
 - [x] #1 CI builds packages/app on every push
 - [x] #2 App build passes from a clean checkout with CI's command sequence
+- [x] #3 CI jobs pinned to ubuntu-24.04 (Playwright cannot install chromium on ubuntu26.04)
 <!-- AC:END -->
 
 ## Final Summary
