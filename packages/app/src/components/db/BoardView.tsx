@@ -43,6 +43,173 @@ import { VIEW_TYPES } from "./viewTypes.js";
 /** The single column a board shows when it has no group-by field. */
 const UNGROUPED = "All";
 
+function SortableColumn({
+	colName,
+	children,
+}: {
+	colName: string;
+	children: React.ReactNode;
+}) {
+	const {
+		attributes,
+		listeners,
+		setNodeRef,
+		transform,
+		transition,
+		isDragging,
+	} = useSortable({ id: `column-${colName}` });
+	const style: React.CSSProperties = {
+		transform: CSS.Transform.toString(transform),
+		transition,
+		opacity: isDragging ? 0.5 : 1,
+	};
+	return (
+		<div
+			ref={setNodeRef}
+			style={style}
+			className="group min-w-[268px] max-w-[300px] bg-surface-2 border border-border rounded px-2.5 py-3 flex flex-col max-h-[62vh] transition-[background,border-color] duration-[var(--t)] ease-[var(--ease)] relative"
+			data-column-id={colName}
+		>
+			<div
+				className="absolute top-2.5 right-2 opacity-0 transition-opacity duration-[var(--t)] ease-[var(--ease)] cursor-grab p-[3px] rounded-sm text-text-3 flex items-center touch-action-none group-hover:opacity-100 hover:bg-surface-3 hover:text-text-2 hover:opacity-100"
+				{...listeners}
+				{...attributes}
+				title="Drag to reorder column"
+			>
+				<svg
+					width="12"
+					height="12"
+					viewBox="0 0 16 16"
+					fill="currentColor"
+					style={{ opacity: 0.4 }}
+				>
+					<circle cx="5" cy="3" r="1.5" />
+					<circle cx="11" cy="3" r="1.5" />
+					<circle cx="5" cy="8" r="1.5" />
+					<circle cx="11" cy="8" r="1.5" />
+					<circle cx="5" cy="13" r="1.5" />
+					<circle cx="11" cy="13" r="1.5" />
+				</svg>
+			</div>
+			{children}
+		</div>
+	);
+}
+
+function SortableCard({
+	record,
+	isDragging,
+	fields,
+	groupField,
+	boardHiddenFieldIds,
+	databases,
+	allRecords,
+	onOpenRecord,
+}: {
+	record: any;
+	isDragging: boolean;
+	fields: any[];
+	groupField: any;
+	boardHiddenFieldIds: string[];
+	databases: any[];
+	allRecords: Record<string, any[]>;
+	onOpenRecord?: (record: any) => void;
+}) {
+	const {
+		attributes,
+		listeners,
+		setNodeRef,
+		transform,
+		transition,
+		isDragging: sd,
+	} = useSortable({ id: record.record.id });
+	const style: React.CSSProperties = {
+		transform: CSS.Transform.toString(transform),
+		transition,
+		opacity: sd ? 0.3 : 1,
+	};
+	const hasPage = !!record.record.pageId;
+
+	return (
+		<div ref={setNodeRef} style={style}>
+			<div
+				className={cn(
+					"group bg-surface border border-border rounded py-2.5 px-3 cursor-pointer transition-[border-color,box-shadow] duration-[var(--t)] ease-[var(--ease)] relative hover:border-[var(--accent-glow)] hover:shadow-sm",
+					(isDragging || sd) && "opacity-30",
+				)}
+			>
+				<div
+					className="absolute top-2 left-1 opacity-0 transition-opacity duration-[var(--t)] ease-[var(--ease)] cursor-grab p-1 rounded-sm text-text-3 flex items-center touch-action-none group-hover:opacity-100 hover:bg-surface-3 hover:text-text-2"
+					{...listeners}
+					{...attributes}
+				>
+					<svg width="14" height="14" viewBox="0 0 16 16" fill="currentColor">
+						<circle cx="5" cy="3" r="1.5" />
+						<circle cx="11" cy="3" r="1.5" />
+						<circle cx="5" cy="8" r="1.5" />
+						<circle cx="11" cy="8" r="1.5" />
+						<circle cx="5" cy="13" r="1.5" />
+						<circle cx="11" cy="13" r="1.5" />
+					</svg>
+				</div>
+				<IconButton
+					variant="ghost"
+					className={cn(
+						"absolute top-1.5 right-1.5 text-[13px] z-[1] hover:text-accent",
+						hasPage ? "opacity-100" : "opacity-0 group-hover:opacity-100",
+					)}
+					onClick={() => onOpenRecord?.(record.record)}
+					title={hasPage ? "Open page" : "Open record"}
+				>
+					{hasPage ? "📄" : "↗"}
+				</IconButton>
+				<span
+					className={cn(
+						"text-[13.5px] font-medium text-text block leading-[1.45]",
+						hasPage ? "pl-5 pr-[22px]" : "pl-5",
+					)}
+				>
+					{record.record.title}
+				</span>
+				<div
+					style={{
+						marginTop: 8,
+						display: "flex",
+						flexDirection: "column",
+						gap: 4,
+					}}
+				>
+					{fields
+						.filter(
+							(f: any) =>
+								f.id !== groupField?.id && !boardHiddenFieldIds.includes(f.id),
+						)
+						.map((f: any) => {
+							const val = record.values[f.name];
+							if (!val && f.type !== "checkbox") return null;
+							return (
+								<div
+									key={f.id}
+									className="flex items-baseline gap-[5px] text-[12px]"
+								>
+									<span className="font-medium text-text-3 shrink-0">
+										{f.name}
+									</span>
+									<CellDisplay
+										field={f}
+										value={val}
+										databases={databases}
+										allRecords={allRecords}
+									/>
+								</div>
+							);
+						})}
+				</div>
+			</div>
+		</div>
+	);
+}
+
 export function BoardView({
 	database,
 	fields,
@@ -333,162 +500,6 @@ export function BoardView({
 		],
 	);
 
-	const SortableColumn = ({
-		colName,
-		children,
-	}: {
-		colName: string;
-		children: React.ReactNode;
-	}) => {
-		const {
-			attributes,
-			listeners,
-			setNodeRef,
-			transform,
-			transition,
-			isDragging,
-		} = useSortable({ id: `column-${colName}` });
-		const style: React.CSSProperties = {
-			transform: CSS.Transform.toString(transform),
-			transition,
-			opacity: isDragging ? 0.5 : 1,
-		};
-		return (
-			<div
-				ref={setNodeRef}
-				style={style}
-				className="group min-w-[268px] max-w-[300px] bg-surface-2 border border-border rounded px-2.5 py-3 flex flex-col max-h-[62vh] transition-[background,border-color] duration-[var(--t)] ease-[var(--ease)] relative"
-				data-column-id={colName}
-			>
-				<div
-					className="absolute top-2.5 right-2 opacity-0 transition-opacity duration-[var(--t)] ease-[var(--ease)] cursor-grab p-[3px] rounded-sm text-text-3 flex items-center touch-action-none group-hover:opacity-100 hover:bg-surface-3 hover:text-text-2 hover:opacity-100"
-					{...listeners}
-					{...attributes}
-					title="Drag to reorder column"
-				>
-					<svg
-						width="12"
-						height="12"
-						viewBox="0 0 16 16"
-						fill="currentColor"
-						style={{ opacity: 0.4 }}
-					>
-						<circle cx="5" cy="3" r="1.5" />
-						<circle cx="11" cy="3" r="1.5" />
-						<circle cx="5" cy="8" r="1.5" />
-						<circle cx="11" cy="8" r="1.5" />
-						<circle cx="5" cy="13" r="1.5" />
-						<circle cx="11" cy="13" r="1.5" />
-					</svg>
-				</div>
-				{children}
-			</div>
-		);
-	};
-
-	const SortableCard = ({
-		record,
-		isDragging,
-	}: {
-		record: any;
-		isDragging: boolean;
-	}) => {
-		const {
-			attributes,
-			listeners,
-			setNodeRef,
-			transform,
-			transition,
-			isDragging: sd,
-		} = useSortable({ id: record.record.id });
-		const style: React.CSSProperties = {
-			transform: CSS.Transform.toString(transform),
-			transition,
-			opacity: sd ? 0.3 : 1,
-		};
-		const hasPage = !!record.record.pageId;
-
-		return (
-			<div ref={setNodeRef} style={style}>
-				<div
-					className={cn(
-						"group bg-surface border border-border rounded py-2.5 px-3 cursor-pointer transition-[border-color,box-shadow] duration-[var(--t)] ease-[var(--ease)] relative hover:border-[var(--accent-glow)] hover:shadow-sm",
-						(isDragging || sd) && "opacity-30",
-					)}
-				>
-					<div
-						className="absolute top-2 left-1 opacity-0 transition-opacity duration-[var(--t)] ease-[var(--ease)] cursor-grab p-1 rounded-sm text-text-3 flex items-center touch-action-none group-hover:opacity-100 hover:bg-surface-3 hover:text-text-2"
-						{...listeners}
-						{...attributes}
-					>
-						<svg width="14" height="14" viewBox="0 0 16 16" fill="currentColor">
-							<circle cx="5" cy="3" r="1.5" />
-							<circle cx="11" cy="3" r="1.5" />
-							<circle cx="5" cy="8" r="1.5" />
-							<circle cx="11" cy="8" r="1.5" />
-							<circle cx="5" cy="13" r="1.5" />
-							<circle cx="11" cy="13" r="1.5" />
-						</svg>
-					</div>
-					<IconButton
-						variant="ghost"
-						className={cn(
-							"absolute top-1.5 right-1.5 text-[13px] z-[1] hover:text-accent",
-							hasPage ? "opacity-100" : "opacity-0 group-hover:opacity-100",
-						)}
-						onClick={() => onOpenRecord?.(record.record)}
-						title={hasPage ? "Open page" : "Open record"}
-					>
-						{hasPage ? "📄" : "↗"}
-					</IconButton>
-					<span
-						className={cn(
-							"text-[13.5px] font-medium text-text block leading-[1.45]",
-							hasPage ? "pl-5 pr-[22px]" : "pl-5",
-						)}
-					>
-						{record.record.title}
-					</span>
-					<div
-						style={{
-							marginTop: 8,
-							display: "flex",
-							flexDirection: "column",
-							gap: 4,
-						}}
-					>
-						{fields
-							.filter(
-								(f: any) =>
-									f.id !== groupField?.id &&
-									!boardHiddenFieldIds.includes(f.id),
-							)
-							.map((f: any) => {
-								const val = record.values[f.name];
-								if (!val && f.type !== "checkbox") return null;
-								return (
-									<div
-										key={f.id}
-										className="flex items-baseline gap-[5px] text-[12px]"
-									>
-										<span className="font-medium text-text-3 shrink-0">
-											{f.name}
-										</span>
-										<CellDisplay
-											field={f}
-											value={val}
-											databases={databases}
-											allRecords={allRecords}
-										/>
-									</div>
-								);
-							})}
-					</div>
-				</div>
-			</div>
-		);
-	};
-
 	return (
 		<DndContext
 			sensors={sensors}
@@ -694,6 +705,12 @@ export function BoardView({
 													key={item.record.id}
 													record={item}
 													isDragging={activeRecordId === item.record.id}
+													fields={fields}
+													groupField={groupField}
+													boardHiddenFieldIds={boardHiddenFieldIds}
+													databases={databases}
+													allRecords={allRecords}
+													onOpenRecord={onOpenRecord}
 												/>
 											))}
 										</ColumnBody>
