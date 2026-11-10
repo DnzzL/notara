@@ -4,10 +4,11 @@ title: 'BackupStore: a real seam with S3 and local filesystem adapters'
 status: done
 assignee:
   - '@thomas'
-created_date: '2026-08-26 11:11'
-updated_date: '2026-08-26 14:44'
+created_date: 2026-08-26 11:11
+updated_date: '2026-11-10T17:05:00Z'
 labels:
   - enhancement
+milestone: m-1
 dependencies: []
 priority: medium
 ordinal: 107000

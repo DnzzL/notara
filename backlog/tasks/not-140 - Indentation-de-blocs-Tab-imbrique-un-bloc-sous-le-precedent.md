@@ -1,11 +1,13 @@
 ---
 id: NOT-140
 title: Indentation de blocs (Tab imbrique un bloc sous le precedent)
-status: needs-triage
+status: ready-for-human
 assignee: []
-created_date: '2026-08-30 18:49'
+created_date: 2026-08-30 18:49
+updated_date: '2026-11-10T17:05:00Z'
 labels:
   - enhancement
+milestone: m-2
 dependencies: []
 priority: medium
 ordinal: 135000
@@ -22,3 +24,9 @@ Tab indente aujourd'hui a l'interieur d'un bloc (liste multi-items) et, a defaut
 - [ ] #1 Decider si le nesting de blocs entre au perimetre
 - [ ] #2 Si oui : rendu hierarchique, Tab/Shift-Tab reparentent, drag-and-drop et numerotation suivent
 <!-- AC:END -->
+
+## Implementation Notes
+
+<!-- SECTION:NOTES:BEGIN -->
+Triage: AC #1 is a product decision (does block nesting enter scope?) - needs a human call before an agent builds the tree rendering.
+<!-- SECTION:NOTES:END -->
