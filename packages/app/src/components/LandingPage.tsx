@@ -48,7 +48,7 @@ const features = [
 	},
 	{
 		title: "Open REST API",
-		desc: "Full HTTP API with API-key auth. Automate from scripts, CI, or any client. OpenAPI spec included.",
+		desc: "Full HTTP API with scoped read/write API keys. Automate from scripts, CI, or any client. OpenAPI spec included.",
 		docsHref: "/api/docs",
 	},
 	{
@@ -177,10 +177,10 @@ export function LandingPage({ demoMode }: { demoMode: boolean }) {
 					<div className="lp-hero-lower">
 						<div className="lp-hero-text">
 							<p className="lp-reveal" style={{ animationDelay: ".24s" }}>
-								A Notion alternative you can touch. Desktop app, block editor,
+								A Notion you own, with few features done well. Block editor,
 								inline databases, real-time collaboration — all backed by a
-								single SQLite file on your own server. Free to self-host. Keep
-								the source. Walk away whenever you like.
+								single SQLite file on your own server. One command to self-host,
+								and every action open to your scripts and agents.
 							</p>
 							<div
 								className="landing-hero-ctas lp-reveal"
@@ -251,6 +251,62 @@ export function LandingPage({ demoMode }: { demoMode: boolean }) {
 							100<span className="u">%</span>
 						</div>
 						<div className="lbl">Open source · AGPL-3.0</div>
+					</div>
+				</div>
+			</section>
+
+			{/* Pillars */}
+			<section className="lp-pillars">
+				<div className="lp-wrap">
+					<h2 className="lp-pillars-title">
+						Small on purpose. Quick to run. Open to your agents.
+					</h2>
+					<div className="lp-pillars-grid">
+						<div className="lp-pillar">
+							<span className="lp-kicker">
+								<b>01</b> · Minimalist
+							</span>
+							<h3>A Notion you own, few features done well.</h3>
+							<p>
+								Block editor, inline databases, real-time collaboration, and
+								little else. One person can keep all of it working, so it stays
+								fast and readable. Everything you write lives in one SQLite
+								file.
+							</p>
+						</div>
+						<div className="lp-pillar">
+							<span className="lp-kicker">
+								<b>02</b> · Self-host in 1 minute
+							</span>
+							<h3>One command, one SQLite file.</h3>
+							<pre className="lp-code">
+								<code>{`docker run -d --name notara -p 3000:3000 \\
+  -v notara-data:/data \\
+  -e BETTER_AUTH_SECRET="$(openssl rand -base64 32)" \\
+  ghcr.io/dnzzl/notara:latest`}</code>
+							</pre>
+							<p>
+								Free, AGPL-3.0-or-later, no licence key. Your data stays in the{" "}
+								<code>notara-data</code> volume.
+							</p>
+						</div>
+						<div className="lp-pillar">
+							<span className="lp-kicker">
+								<b>03</b> · Agent-ready
+							</span>
+							<h3>Drive every action from the CLI, REST or MCP.</h3>
+							<pre className="lp-code">
+								<code>{`claude mcp add --transport http notara \\
+  https://notes.example.com/mcp \\
+  --header "Authorization: Bearer ntr_…"`}</code>
+							</pre>
+							<p>
+								The <code>notara</code> CLI, the REST API (OpenAPI) and an MCP
+								server at <code>/mcp</code> run the same operations, one MCP
+								tool each. A read or write API key decides what a client may do:
+								a read key only sees the read tools.
+							</p>
+						</div>
 					</div>
 				</div>
 			</section>
@@ -386,21 +442,21 @@ export function LandingPage({ demoMode }: { demoMode: boolean }) {
 						</div>
 						<div className="lp-dev-ex">
 							<div className="lp-dev-cmd">
-								curl -X POST $HOST/api/pages \<br />
-								&nbsp;&nbsp;-H "X-Api-Key: $KEY" -d '{"{"}
-								&quot;title&quot;:&quot;...&quot;{"}"}
+								curl $HOST/api/v1/workspaces/$WS/pages \<br />
+								&nbsp;&nbsp;-H "Authorization: Bearer $KEY"
 							</div>
 							<div className="lp-dev-desc">
-								Create pages from CI/CD, scripts, or bots
+								Read and write from CI/CD, scripts, or bots
 							</div>
 						</div>
 						<div className="lp-dev-ex">
 							<div className="lp-dev-cmd">
-								<span className="lp-dev-openapi">openapi.yaml</span> &middot;
-								30+ endpoints
+								<span className="lp-dev-openapi">openapi.json</span> &middot;{" "}
+								<span className="lp-dev-openapi">/mcp</span>
 							</div>
 							<div className="lp-dev-desc">
-								Full REST API &mdash; read, write, search, manage. API-key auth.
+								Full REST API and MCP server &mdash; read, write, search,
+								manage. Read or write API keys.
 							</div>
 						</div>
 						<div className="lp-dev-ex">
