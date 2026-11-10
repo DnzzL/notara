@@ -166,24 +166,37 @@ Everything lives in `/data` (`platform.db`, `workspaces/*.db`, `attachments/`). 
 one zip of exactly that. These steps are exercised end to end by
 `packages/server/test/upgrade-restore.test.ts`.
 
-**Pick a backup target** (admin = an email listed in `ADMIN_EMAILS`):
+**Pick a backup target.** Admin = an email listed in `ADMIN_EMAILS`.
 
 | Target | Set | Notes |
 |--------|-----|-------|
-| Local filesystem | `BACKUP_DIR=/backups` | Mount `/backups` from **outside** the `/data` volume, e.g. `-v /srv/notara-backups:/backups`. |
-| S3-compatible | `S3_BUCKET`, `S3_ACCESS_KEY`, `S3_SECRET_KEY`, optional `S3_REGION`, `S3_ENDPOINT`, `S3_PREFIX` | Or in ⚙ **Settings → Backups** (S3 only; the local directory is env-only). |
+| Local filesystem | `BACKUP_DIR=/backups` | Mount `/backups` from **outside** the `/data` volume, e.g. `-v /srv/notara-backups:/backups`. Wins over S3 if both are set. |
+| S3-compatible | `S3_BUCKET`, `S3_ACCESS_KEY`, `S3_SECRET_KEY`, optional `S3_REGION`, `S3_ENDPOINT`, `S3_PREFIX` | Or in the workspace menu → **Settings → Backups** (S3 only). |
 
-**Back up.** ⚙ **Settings → Backups → Backup Now**, or `POST /api/backup/trigger` as an
-admin. Scheduled backups and retention (`S3_KEEP_LAST`) use the same target.
+With Docker Compose, `docker-compose.yml` only forwards the variables it lists: add
+`BACKUP_DIR` (and `S3_PREFIX`) to `environment:` and the `/backups` volume yourself.
 
-**Upgrade.** Take a backup, pull the new image, recreate the container. Pending
-migrations run on boot; `/health` answers 200 once the database is open.
+**Back up.** `POST /api/backup/trigger` as an admin (the Settings → Backups → **Backup
+Now** button does the same, S3 only). Scheduled backups and retention (`S3_KEEP_LAST`) use
+the same target.
 
 ```bash
-# trigger a backup first (Settings → Backups → Backup Now), then:
+# $SESSION: your session cookie, copied from the browser's dev tools after signing in
+# as an admin (e.g. "better-auth.session_token=…").
+curl -X POST -H "Cookie: $SESSION" http://localhost:3000/api/backup/trigger
+```
+
+**Upgrade.** Take a backup, then replace the container. Pending migrations run on boot;
+`/health` answers 200 once the database is open.
+
+```bash
+# Prebuilt image
 docker pull ghcr.io/dnzzl/notara:latest        # or pin a tag, e.g. :0.1.4
-docker rm -f notara && docker run -d --name notara …   # same flags as before
-# Compose: docker compose pull && docker compose up -d
+docker rm -f notara && docker run -d --restart unless-stopped --name notara …   # same flags as before
+# Compose (builds from source)
+git pull && docker compose up -d --build
+# Quadlet (local build)
+git pull && podman build -t notara . && systemctl --user restart notara
 ```
 
 **Roll back.** Migrations only move forward, so an older image may not open a migrated
@@ -191,10 +204,12 @@ database. Go back to the backup taken before the upgrade:
 
 1. Stop the new container; start the **previous tag** on an empty `/data` volume (same
    `BETTER_AUTH_SECRET`, `ADMIN_EMAILS` and backup target settings).
-2. Create your admin account on that fresh instance.
+2. Create an admin account on that fresh instance.
 3. Restore (below), picking the backup taken before the upgrade.
 
-**Restore.** ⚙ **Settings → Backups → Restore from backup**, or as an admin:
+**Restore.** As an admin, list the backups, then restore one by its key (copy it exactly
+from the list; S3 keys carry your prefix, e.g. `backups/backup-….zip`). In the UI, with S3:
+workspace menu → **Settings → Backups → Restore from backup**.
 
 ```bash
 curl -H "Cookie: $SESSION" http://localhost:3000/api/backup/list           # keys, newest first

@@ -4,7 +4,7 @@ title: Document and test the upgrade and backup-restore procedure
 status: done
 assignee: []
 created_date: '2026-11-10T17:05:00Z'
-updated_date: '2026-11-10T21:04:00Z'
+updated_date: '2026-11-10T21:08:00Z'
 labels:
   - enhancement
 milestone: m-1
@@ -35,4 +35,6 @@ README Self-host: new 'Upgrade, backup and restore' section (BACKUP_DIR / S3 tar
 Tests (packages/server/test/upgrade-restore.test.ts) boot the real server: backup via /api/backup/trigger -> fresh dir -> /api/backup/restore -> process exits 0 -> reboot, data+admin login intact; and a v0.1.4 data dir (fixtures/v0.1.4/migrations) boots on current migrations, with a guard that released migrations are unchanged.
 Checks: bun test packages/server/test (288 pass), server tsc, biome ci green.
 Not covered: live S3 (same BackupStore seam, covered in backup-store.test.ts); offline restore without a running server.
+
+Review round: doc corrected (Compose/Quadlet upgrade, BACKUP_DIR forwarding, S3-only UI, key prefix, $SESSION); tests use distinct admin accounts and open the workspace db through the server's own lazy-open path. Rollback onto an older build is documented but not exercised (restore itself is).
 <!-- SECTION:FINAL_SUMMARY:END -->
