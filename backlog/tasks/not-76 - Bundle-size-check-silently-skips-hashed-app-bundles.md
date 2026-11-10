@@ -3,8 +3,8 @@ id: NOT-76
 title: Bundle-size check silently skips hashed app bundles
 status: ready-for-agent
 assignee: []
-created_date: '2026-07-30 12:36'
-updated_date: '2026-08-22 12:28'
+created_date: 2026-07-30 12:36
+updated_date: '2026-11-10T17:00:00Z'
 labels:
   - bug
 dependencies: []
@@ -20,9 +20,9 @@ scripts/check-bundle-size.sh stores baselines keyed by Vite content-hashed filen
 
 ## Acceptance Criteria
 <!-- AC:BEGIN -->
-- [ ] #1 Bundle-size check matches app JS/CSS bundles regardless of Vite content hash
-- [ ] #2 A real size regression above the 10% threshold makes the script exit non-zero
-- [ ] #3 No baseline entry is reported as MISSING on a clean build
+- [x] #1 Bundle-size check matches app JS/CSS bundles regardless of Vite content hash
+- [x] #2 A real size regression above the 10% threshold makes the script exit non-zero
+- [x] #3 No baseline entry is reported as MISSING on a clean build
 <!-- AC:END -->
 
 ## Comments
@@ -66,3 +66,9 @@ The check resolves hash-bearing bundles by a hash-independent identity, compares
 - Reducing bundle size
 ---
 <!-- COMMENTS:END -->
+
+## Final Summary
+
+<!-- SECTION:FINAL_SUMMARY:BEGIN -->
+check-bundle-size.sh: glob resolving to 2+ files or none now fails with a named error (was first-match/skip); added --update regenerating baseline with hash-free keys; baseline refreshed (shared index.js shrank 239→180B); CONTRIBUTING updated. Verified: clean build 4 pass; baseline lowered → exit 1 naming index.js; extra index-*.js → AMBIGUOUS; bogus key → NOT FOUND exit 1.
+<!-- SECTION:FINAL_SUMMARY:END -->
