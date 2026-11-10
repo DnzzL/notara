@@ -160,6 +160,55 @@ fly secrets set BETTER_AUTH_SECRET=$(openssl rand -base64 32)
 fly deploy
 ```
 
+### Upgrade, backup and restore
+
+Everything lives in `/data` (`platform.db`, `workspaces/*.db`, `attachments/`). A backup is
+one zip of exactly that. These steps are exercised end to end by
+`packages/server/test/upgrade-restore.test.ts`.
+
+**Pick a backup target** (admin = an email listed in `ADMIN_EMAILS`):
+
+| Target | Set | Notes |
+|--------|-----|-------|
+| Local filesystem | `BACKUP_DIR=/backups` | Mount `/backups` from **outside** the `/data` volume, e.g. `-v /srv/notara-backups:/backups`. |
+| S3-compatible | `S3_BUCKET`, `S3_ACCESS_KEY`, `S3_SECRET_KEY`, optional `S3_REGION`, `S3_ENDPOINT`, `S3_PREFIX` | Or in ⚙ **Settings → Backups** (S3 only; the local directory is env-only). |
+
+**Back up.** ⚙ **Settings → Backups → Backup Now**, or `POST /api/backup/trigger` as an
+admin. Scheduled backups and retention (`S3_KEEP_LAST`) use the same target.
+
+**Upgrade.** Take a backup, pull the new image, recreate the container. Pending
+migrations run on boot; `/health` answers 200 once the database is open.
+
+```bash
+# trigger a backup first (Settings → Backups → Backup Now), then:
+docker pull ghcr.io/dnzzl/notara:latest        # or pin a tag, e.g. :0.1.4
+docker rm -f notara && docker run -d --name notara …   # same flags as before
+# Compose: docker compose pull && docker compose up -d
+```
+
+**Roll back.** Migrations only move forward, so an older image may not open a migrated
+database. Go back to the backup taken before the upgrade:
+
+1. Stop the new container; start the **previous tag** on an empty `/data` volume (same
+   `BETTER_AUTH_SECRET`, `ADMIN_EMAILS` and backup target settings).
+2. Create your admin account on that fresh instance.
+3. Restore (below), picking the backup taken before the upgrade.
+
+**Restore.** ⚙ **Settings → Backups → Restore from backup**, or as an admin:
+
+```bash
+curl -H "Cookie: $SESSION" http://localhost:3000/api/backup/list           # keys, newest first
+curl -H "Cookie: $SESSION" -H 'Content-Type: application/json' \
+  -d '{"key":"backup-2026-01-01T00-00-00-000Z.zip"}' \
+  http://localhost:3000/api/backup/restore
+```
+
+Restore first snapshots the current state (a new backup in the same target), then
+overwrites `platform.db`, every workspace database and `attachments/`, and **exits the
+process with code 0**. Your orchestrator restarts it (`restart: unless-stopped` in the
+Compose file, `Restart=always` in the Quadlet unit, `--restart unless-stopped` for plain
+`docker run`). Accounts, sessions and passwords come from the backup too.
+
 ## The notara toolchain
 
 Notara is scriptable end to end — the app is one way in, not the only one.
