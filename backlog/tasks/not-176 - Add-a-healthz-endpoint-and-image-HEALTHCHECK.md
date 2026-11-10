@@ -1,9 +1,10 @@
 ---
 id: NOT-176
-title: Add a /healthz endpoint and image HEALTHCHECK
+title: Make /health check the DB and back a Docker HEALTHCHECK
 status: ready-for-agent
 assignee: []
 created_date: '2026-11-10T17:05:00Z'
+updated_date: '2026-11-10T17:08:00Z'
 labels:
   - enhancement
 milestone: m-1
@@ -15,13 +16,13 @@ ordinal: 148000
 ## Description
 
 <!-- SECTION:DESCRIPTION:BEGIN -->
-Why: orchestrators and uptime checks need a cheap liveness/readiness probe.
-Agent brief: unauthenticated GET /healthz, no PII, outside the rate limiter; returns 200 JSON when the DB answers a trivial query, 503 otherwise. Wire it as the Dockerfile HEALTHCHECK.
+Why: orchestrators need a real readiness probe. GET /health already exists (packages/server/src/index.ts, plain 'ok', used by Electron and BackupsPanel): extend it, do not add /healthz. The Dockerfile has no HEALTHCHECK today.
+Agent brief: unauthenticated /health runs a trivial DB query; 200 when OK (keep body compatible with existing callers), 503 otherwise; no PII; outside the rate limiter. Wire it as the Dockerfile HEALTHCHECK.
 <!-- SECTION:DESCRIPTION:END -->
 
 ## Acceptance Criteria
 <!-- AC:BEGIN -->
-- [ ] #1 GET /healthz returns 200 and JSON status when the DB is reachable, without auth
-- [ ] #2 Returns 503 when the DB query fails (tested)
-- [ ] #3 Dockerfile HEALTHCHECK uses it; container reports healthy in docker ps
+- [ ] #1 Returns 503 when the DB query fails (tested)
+- [ ] #2 Dockerfile HEALTHCHECK uses it; container reports healthy in docker ps
+- [ ] #3 GET /health returns 200 when the DB is reachable, existing callers (Electron, BackupsPanel) keep working
 <!-- AC:END -->

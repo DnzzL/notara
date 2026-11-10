@@ -4,6 +4,7 @@ title: Serve llms.txt and an agents doc page with MCP snippets and key scopes
 status: ready-for-agent
 assignee: []
 created_date: '2026-11-10T17:05:00Z'
+updated_date: '2026-11-10T17:07:00Z'
 labels:
   - enhancement
 milestone: m-0
@@ -27,3 +28,9 @@ Agent brief: serve /llms.txt from the app (generated from the operation table, n
 - [ ] #3 Agents doc page explains key scopes (read vs write) and which operations each allows
 - [ ] #4 A test asserts /llms.txt content type and that it references the OpenAPI and MCP endpoints
 <!-- AC:END -->
+
+## Implementation Notes
+
+<!-- SECTION:NOTES:BEGIN -->
+Prior art: an earlier /llms.txt shipped as NOT-164 (81e023f, af26134) and was reverted in da389bc. Gotcha fixed in af26134: the static app served index.html at /llms.txt. Back now because it is generated from the operation table.
+<!-- SECTION:NOTES:END -->

@@ -1,9 +1,10 @@
 ---
 id: NOT-174
-title: Record which API key made an API or MCP edit in page history
-status: ready-for-agent
+title: 'Page history: record which API key (by name) made an API or MCP edit'
+status: ready-for-human
 assignee: []
 created_date: '2026-11-10T17:05:00Z'
+updated_date: '2026-11-10T17:07:00Z'
 labels:
   - enhancement
 milestone: m-0
@@ -15,9 +16,8 @@ ordinal: 146000
 ## Description
 
 <!-- SECTION:DESCRIPTION:BEGIN -->
-Depends on PR #33 (feat/agent-ready-ops: typed operation table behind REST, OpenAPI, MCP, CLI) landing first.
-Why: when agents edit pages, the owner must see which key (by name) did it.
-Agent brief: carry the API key name in the operation context; store it as the actor on page history entries and block edits made via REST/MCP; show it in the history UI. Never store the key secret, only its name; UI edits keep the user as actor.
+Depends on PR #33 (feat/agent-ready-ops) landing first.
+Why: when agents edit pages, the owner must see which key made it. Caveat: no page-history table, handler or UI exists on main, so this needs a schema decision first (versions table vs updated_by on pages/blocks), recorded as an ADR. Human picks the shape; then split into slices (history exists / key name recorded).
 <!-- SECTION:DESCRIPTION:END -->
 
 ## Acceptance Criteria
