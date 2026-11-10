@@ -4,7 +4,7 @@ title: A server test times out under CI load
 status: ready-for-agent
 assignee: []
 created_date: 2026-08-27 15:45
-updated_date: '2026-11-10T20:02:00Z'
+updated_date: '2026-11-10T20:04:00Z'
 labels:
   - bug
 milestone: m-2
@@ -39,4 +39,6 @@ Cause: the named test never reached the cycle check (self-move returns before an
 Also fixed a real handler problem found while timing: movePage's descendant check walked the whole subtree (recursive CTE down). Moving a page with 20k children took 25.1s; now walks up the ancestor chain from the target parent: 7.3ms.
 
 Tests: bun test packages/server/test 283 pass; tsc server OK; bun lint OK. Added a descendant-move ConflictError test.
+
+Follow-up (not in this change): handlers.test.ts, trash-subtree.test.ts, import-ledger.test.ts still replay all migrations per test; same fix applies.
 <!-- SECTION:FINAL_SUMMARY:END -->

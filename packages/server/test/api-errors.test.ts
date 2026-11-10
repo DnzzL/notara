@@ -95,7 +95,7 @@ describe("typed handler failures", () => {
 		expect(error.message).toBe("Cannot move a page into itself");
 	});
 
-	test("moving a page into its own descendant fails with ConflictError", async () => {
+	test("moving a page under its own grandchild fails with ConflictError", async () => {
 		const error = await failureOf(
 			Effect.gen(function* () {
 				const parent = yield* Pages.createPage({ title: "a", parentId: null });
@@ -103,7 +103,14 @@ describe("typed handler failures", () => {
 					title: "b",
 					parentId: parent.id,
 				});
-				return yield* Pages.movePage({ id: parent.id, parentId: child.id });
+				const grandchild = yield* Pages.createPage({
+					title: "c",
+					parentId: child.id,
+				});
+				return yield* Pages.movePage({
+					id: parent.id,
+					parentId: grandchild.id,
+				});
 			}),
 		);
 		expect(error).toBeInstanceOf(ConflictError);
