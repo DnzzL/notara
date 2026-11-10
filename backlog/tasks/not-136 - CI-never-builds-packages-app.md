@@ -1,9 +1,10 @@
 ---
 id: NOT-136
 title: CI never builds packages/app
-status: needs-triage
+status: done
 assignee: []
-created_date: '2026-08-29 17:33'
+created_date: 2026-08-29 17:33
+updated_date: '2026-11-10T17:03:00Z'
 labels:
   - bug
 dependencies: []
@@ -19,5 +20,18 @@ ci.yml runs install, shared build, typecheck, tests and e2e — but never 'bun r
 
 ## Acceptance Criteria
 <!-- AC:BEGIN -->
-- [ ] #1 CI builds packages/app on every push
+- [x] #1 CI builds packages/app on every push
+- [x] #2 App build passes from a clean checkout with CI's command sequence
 <!-- AC:END -->
+
+## Final Summary
+
+<!-- SECTION:FINAL_SUMMARY:BEGIN -->
+CI job 'check' now runs 'bun run --filter @notara/app build' right after the shared build, so a Vite-only breakage fails the PR instead of reaching the release Docker build.
+
+Changes:
+- .github/workflows/ci.yml: one step 'build app'; no new deps.
+
+Tests:
+- Local clean sequence: install --frozen-lockfile --ignore-scripts, apply-patches, shared build, app build → exit 0 (only existing chunk-size/dynamic-import warnings). No pre-existing failure to fix.
+<!-- SECTION:FINAL_SUMMARY:END -->
