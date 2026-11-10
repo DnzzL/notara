@@ -25,8 +25,8 @@ async function withDb<T>(
 	db.close();
 	const layer = SqliteClient.layer({ filename });
 	try {
-		return await fn(
-			(e) => e.pipe(Effect.provide(layer), Effect.runPromise) as any,
+		return await fn((e) =>
+			Effect.runPromise(Effect.provide(e, layer) as Effect.Effect<any>),
 		);
 	} finally {
 		fs.rmSync(tmpDir, { recursive: true, force: true });
