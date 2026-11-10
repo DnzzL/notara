@@ -1,11 +1,13 @@
 ---
 id: NOT-127
 title: Does the todo markdown shortcut actually work?
-status: needs-triage
+status: ready-for-agent
 assignee: []
-created_date: '2026-08-27 15:30'
+created_date: 2026-08-27 15:30
+updated_date: '2026-11-10T17:05:00Z'
 labels:
   - bug
+milestone: m-2
 dependencies: []
 priority: medium
 ordinal: 122000

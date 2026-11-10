@@ -4,10 +4,11 @@ title: 'ImportLedger: re-importing a Notion export updates instead of cloning'
 status: done
 assignee:
   - '@thomas'
-created_date: '2026-08-26 11:11'
-updated_date: '2026-08-26 14:36'
+created_date: 2026-08-26 11:11
+updated_date: '2026-11-10T17:05:00Z'
 labels:
   - bug
+milestone: m-1
 dependencies: []
 priority: high
 ordinal: 104000

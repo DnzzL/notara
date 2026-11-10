@@ -1,11 +1,13 @@
 ---
 id: NOT-129
 title: A server test times out under CI load
-status: needs-triage
+status: ready-for-agent
 assignee: []
-created_date: '2026-08-27 15:45'
+created_date: 2026-08-27 15:45
+updated_date: '2026-11-10T17:05:00Z'
 labels:
   - bug
+milestone: m-2
 dependencies: []
 priority: low
 ordinal: 124000
