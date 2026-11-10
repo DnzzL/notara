@@ -17,12 +17,17 @@ async function withDb<T>(
 	const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), "notara-search-"));
 	const filename = path.join(tmpDir, "test.db");
 	const db = new Database(filename);
-	for (const f of fs.readdirSync(migrationsDir).filter((f) => f.endsWith(".sql")).sort())
+	for (const f of fs
+		.readdirSync(migrationsDir)
+		.filter((f) => f.endsWith(".sql"))
+		.sort())
 		db.exec(fs.readFileSync(path.join(migrationsDir, f), "utf-8"));
 	db.close();
 	const layer = SqliteClient.layer({ filename });
 	try {
-		return await fn((e) => e.pipe(Effect.provide(layer), Effect.runPromise) as any);
+		return await fn(
+			(e) => e.pipe(Effect.provide(layer), Effect.runPromise) as any,
+		);
 	} finally {
 		fs.rmSync(tmpDir, { recursive: true, force: true });
 	}
@@ -30,7 +35,13 @@ async function withDb<T>(
 
 const mkPage = (title: string) => Pages.createPage({ title, parentId: null });
 const mkBlock = (pageId: string, content: string) =>
-	Blocks.createBlock({ pageId, type: "paragraph", content, index: 0, parentId: null });
+	Blocks.createBlock({
+		pageId,
+		type: "paragraph",
+		content,
+		index: 0,
+		parentId: null,
+	});
 
 describe("globalSearch", () => {
 	test("page title match returns the page", async () => {
@@ -38,7 +49,9 @@ describe("globalSearch", () => {
 			const p = await run(mkPage("Engineering Notes"));
 			await run(mkPage("Design Ideas"));
 			const res = await run(globalSearch("engineer"));
-			expect(res.filter((r) => r.type === "page").map((r) => r.id)).toEqual([p.id]);
+			expect(res.filter((r) => r.type === "page").map((r) => r.id)).toEqual([
+				p.id,
+			]);
 		});
 	});
 
@@ -64,7 +77,18 @@ describe("globalSearch", () => {
 		await withDb(async (run) => {
 			const p = await run(mkPage("agent-browser setup"));
 			const b = await run(mkBlock(p.id, "use agent-browser here"));
-			for (const q of ["agent-browser", "foo:bar", "a OR", "NOT", "x*y", "^z", '"', "-", "a+b", "{a}"]) {
+			for (const q of [
+				"agent-browser",
+				"foo:bar",
+				"a OR",
+				"NOT",
+				"x*y",
+				"^z",
+				'"',
+				"-",
+				"a+b",
+				"{a}",
+			]) {
 				await run(globalSearch(q));
 			}
 			const res = await run(globalSearch("agent-browser"));
@@ -81,7 +105,9 @@ describe("globalSearch", () => {
 			expect(await run(globalSearch("zebra"))).toHaveLength(0);
 			await run(Pages.restorePage(p.id));
 			await run(Blocks.deleteBlock(b.id));
-			expect((await run(globalSearch("zebra"))).map((r) => r.type)).toEqual(["page"]);
+			expect((await run(globalSearch("zebra"))).map((r) => r.type)).toEqual([
+				"page",
+			]);
 		});
 	});
 });
