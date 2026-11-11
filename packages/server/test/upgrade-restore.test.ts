@@ -15,10 +15,12 @@
  * The S3 target shares the BackupStore seam (see backup-store.test.ts); only
  * the transport differs, so it is not re-tested against a live bucket.
  *
- * Previous-release fixture: test/fixtures/<tag>/migrations is a copy of
- * packages/server/migrations at the last release tag. Refresh it at each
- * release: `git archive <tag> packages/server/migrations | tar -x -C
- * packages/server/test/fixtures/<tag> --strip-components=2`, then update PREV.
+ * Release fixtures: test/fixtures/<tag>/migrations is a copy of
+ * packages/server/migrations at a release tag. Every v*\/ directory is
+ * upgraded to the current migrations below. Add one per new minor, at release
+ * time: `mkdir -p packages/server/test/fixtures/<tag> && git archive <tag>
+ * packages/server/migrations | tar -x -C packages/server/test/fixtures/<tag>
+ * --strip-components=2`. No test edit needed.
  */
 import { Database } from "bun:sqlite";
 import { afterAll, describe, expect, test } from "bun:test";
@@ -27,10 +29,13 @@ import os from "node:os";
 import path from "node:path";
 import { applyMigrations } from "../src/platform-db.js";
 
-const PREV = "v0.1.4";
 const SERVER_ENTRY = path.join(import.meta.dir, "..", "src", "index.ts");
 const CURRENT = path.join(import.meta.dir, "..", "migrations");
-const PREVIOUS = path.join(import.meta.dir, "fixtures", PREV, "migrations");
+const FIXTURES = path.join(import.meta.dir, "fixtures");
+const TAGS = fs
+	.readdirSync(FIXTURES)
+	.filter((d) => /^v\d/.test(d))
+	.sort();
 
 const tmpDirs: string[] = [];
 const tmp = (label: string) => {
@@ -195,84 +200,86 @@ describe("backup then restore into a fresh data dir", () => {
 	}, 60_000);
 });
 
-describe(`a data dir from ${PREV} boots on the current migrations`, () => {
-	test("every previous migration is a prefix of the current set", () => {
-		// Released migrations are immutable: editing one would skip it on
-		// instances that already applied it.
-		for (const sub of ["", "platform"]) {
-			const files = (d: string) =>
-				fs.readdirSync(path.join(d, sub)).filter((f) => f.endsWith(".sql"));
-			for (const f of files(PREVIOUS)) {
-				expect(fs.readFileSync(path.join(CURRENT, sub, f), "utf-8")).toBe(
-					fs.readFileSync(path.join(PREVIOUS, sub, f), "utf-8"),
-				);
+for (const PREV of TAGS)
+	describe(`a data dir from ${PREV} boots on the current migrations`, () => {
+		const PREVIOUS = path.join(FIXTURES, PREV, "migrations");
+		test("every previous migration is a prefix of the current set", () => {
+			// Released migrations are immutable: editing one would skip it on
+			// instances that already applied it.
+			for (const sub of ["", "platform"]) {
+				const files = (d: string) =>
+					fs.readdirSync(path.join(d, sub)).filter((f) => f.endsWith(".sql"));
+				for (const f of files(PREVIOUS)) {
+					expect(fs.readFileSync(path.join(CURRENT, sub, f), "utf-8")).toBe(
+						fs.readFileSync(path.join(PREVIOUS, sub, f), "utf-8"),
+					);
+				}
 			}
-		}
-	});
+		});
 
-	test("the server migrates it on boot and the data survives", async () => {
-		const dir = tmp("data-prev");
-		fs.mkdirSync(dir, { recursive: true });
+		test("the server migrates it on boot and the data survives", async () => {
+			const dir = tmp("data-prev");
+			fs.mkdirSync(dir, { recursive: true });
 
-		// Build the data dir exactly as the previous release left it.
-		const platform = new Database(path.join(dir, "platform.db"));
-		applyMigrations(platform, path.join(PREVIOUS, "platform"));
-		platform.run(
-			`INSERT INTO "user" (id, name, email, createdAt, updatedAt)
+			// Build the data dir exactly as the previous release left it.
+			const platform = new Database(path.join(dir, "platform.db"));
+			applyMigrations(platform, path.join(PREVIOUS, "platform"));
+			platform.run(
+				`INSERT INTO "user" (id, name, email, createdAt, updatedAt)
 			 VALUES ('u1', 'Old', 'old@example.test', 'x', 'x')`,
-		);
-		platform.close();
-		seedWorkspace(dir, PREVIOUS);
+			);
+			platform.close();
+			seedWorkspace(dir, PREVIOUS);
 
-		const s = await boot(port(), dir);
+			const s = await boot(port(), dir);
 
-		// Platform DB: user kept, newer migrations recorded.
-		const p = new Database(path.join(dir, "platform.db"), { readonly: true });
-		expect(
-			(p.query(`SELECT email FROM "user" WHERE id='u1'`).get() as any).email,
-		).toBe("old@example.test");
-		const applied = (
-			p.query("SELECT name FROM _migrations").all() as { name: string }[]
-		).map((r) => r.name);
-		p.close();
-		const latestPlatform = fs
-			.readdirSync(path.join(CURRENT, "platform"))
-			.sort()
-			.pop()!;
-		expect(applied).toContain(latestPlatform);
-		s.proc.kill();
+			// Platform DB: user kept, newer migrations recorded.
+			const p = new Database(path.join(dir, "platform.db"), { readonly: true });
+			expect(
+				(p.query(`SELECT email FROM "user" WHERE id='u1'`).get() as any).email,
+			).toBe("old@example.test");
+			const applied = (
+				p.query("SELECT name FROM _migrations").all() as { name: string }[]
+			).map((r) => r.name);
+			p.close();
+			const latestPlatform = fs
+				.readdirSync(path.join(CURRENT, "platform"))
+				.sort()
+				.pop()!;
+			expect(applied).toContain(latestPlatform);
+			s.proc.kill();
 
-		// Workspace DB: opened lazily on first use, through the server's own
-		// code path (WorkspaceDbLive), in a process pointed at the same data dir.
-		const open = Bun.spawnSync(
-			[
-				"bun",
-				"-e",
-				`import { Effect } from "effect";
+			// Workspace DB: opened lazily on first use, through the server's own
+			// code path (WorkspaceDbLive), in a process pointed at the same data dir.
+			const open = Bun.spawnSync(
+				[
+					"bun",
+					"-e",
+					`import { Effect } from "effect";
 				import { WorkspaceDb, WorkspaceDbLive } from ${JSON.stringify(path.join(import.meta.dir, "..", "src", "db.ts"))};
 				await Effect.runPromise(Effect.gen(function* () { (yield* WorkspaceDb).getLayer("ws-seed"); }).pipe(Effect.provide(WorkspaceDbLive)));`,
-			],
-			{
-				cwd: path.join(import.meta.dir, ".."),
-				env: { ...process.env, DATA_DIR: dir },
-			},
-		);
-		expect(open.stderr.toString()).toBe("");
-		expect(open.exitCode).toBe(0);
-		const ws = new Database(path.join(dir, "workspaces", "ws-seed.db"), {
-			readonly: true,
-		});
-		const wsApplied = (
-			ws.query("SELECT name FROM _migrations").all() as { name: string }[]
-		).map((r) => r.name);
-		ws.close();
-		expect(wsApplied).toContain(
-			fs
-				.readdirSync(CURRENT)
-				.filter((f) => f.endsWith(".sql"))
-				.sort()
-				.pop()!,
-		);
-		expect(pageTitle(dir)).toBe("Seeded page");
-	}, 60_000);
-});
+				],
+				{
+					cwd: path.join(import.meta.dir, ".."),
+					env: { ...process.env, DATA_DIR: dir },
+				},
+			);
+			expect(open.stderr.toString()).toBe("");
+			expect(open.exitCode).toBe(0);
+			const ws = new Database(path.join(dir, "workspaces", "ws-seed.db"), {
+				readonly: true,
+			});
+			const wsApplied = (
+				ws.query("SELECT name FROM _migrations").all() as { name: string }[]
+			).map((r) => r.name);
+			ws.close();
+			expect(wsApplied).toContain(
+				fs
+					.readdirSync(CURRENT)
+					.filter((f) => f.endsWith(".sql"))
+					.sort()
+					.pop()!,
+			);
+			expect(pageTitle(dir)).toBe("Seeded page");
+		}, 60_000);
+	});
