@@ -11,41 +11,18 @@ import { rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { typedOperations } from "../src/api-v1/operations.js";
+import { bootServer } from "./boot-server.js";
 
-const PORT = 3461;
-const BASE = `http://localhost:${PORT}`;
 const DATA_DIR = join(tmpdir(), `notara-mcp-${process.pid}`);
 
 // Booted at module scope, as in route-auth.test.ts: hooks carry bun's 5s
 // default timeout, and a cold runner needs longer to migrate and listen.
-const server = Bun.spawn(
-	["bun", join(import.meta.dir, "..", "src", "index.ts")],
-	{
-		env: {
-			...process.env,
-			PORT: String(PORT),
-			DATA_DIR,
-			BETTER_AUTH_SECRET: "test-secret-for-mcp-checks-only",
-			BETTER_AUTH_URL: BASE,
-			ADMIN_EMAILS: "",
-		},
-		stdout: "pipe",
-		stderr: "pipe",
-	},
-);
-
-let up = false;
-for (let i = 0; i < 300 && !up; i++) {
-	try {
-		up = (await fetch(`${BASE}/health`)).ok;
-	} catch {}
-	if (!up) await Bun.sleep(100);
-}
-if (!up) {
-	const stderr = await new Response(server.stderr as ReadableStream).text();
-	server.kill();
-	throw new Error(`server did not come up in 30s:\n${stderr}`);
-}
+const { proc: server, base: BASE } = await bootServer((base) => ({
+	DATA_DIR,
+	BETTER_AUTH_SECRET: "test-secret-for-mcp-checks-only",
+	BETTER_AUTH_URL: base,
+	ADMIN_EMAILS: "",
+}));
 
 afterAll(() => {
 	server?.kill();

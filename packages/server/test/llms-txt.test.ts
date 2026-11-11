@@ -12,39 +12,16 @@ import {
 	type AnyOperation,
 	typedOperations,
 } from "../src/api-v1/operations.js";
+import { bootServer } from "./boot-server.js";
 
-const PORT = 3466;
-const BASE = `http://localhost:${PORT}`;
 const DATA_DIR = join(tmpdir(), `notara-llms-${process.pid}`);
 
-const server = Bun.spawn(
-	["bun", join(import.meta.dir, "..", "src", "index.ts")],
-	{
-		env: {
-			...process.env,
-			PORT: String(PORT),
-			DATA_DIR,
-			BASE_URL: BASE,
-			BETTER_AUTH_SECRET: "test-secret-for-llms-txt-checks-only",
-			ADMIN_EMAILS: "",
-		},
-		stdout: "pipe",
-		stderr: "pipe",
-	},
-);
-
-let up = false;
-for (let i = 0; i < 300 && !up; i++) {
-	try {
-		up = (await fetch(`${BASE}/health`)).ok;
-	} catch {}
-	if (!up) await Bun.sleep(100);
-}
-if (!up) {
-	const stderr = await new Response(server.stderr as ReadableStream).text();
-	server.kill();
-	throw new Error(`server did not come up in 30s:\n${stderr}`);
-}
+const { proc: server, base: BASE } = await bootServer((base) => ({
+	DATA_DIR,
+	BASE_URL: base,
+	BETTER_AUTH_SECRET: "test-secret-for-llms-txt-checks-only",
+	ADMIN_EMAILS: "",
+}));
 
 afterAll(() => {
 	server?.kill();

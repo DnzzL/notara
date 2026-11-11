@@ -28,8 +28,8 @@ import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
 import { applyMigrations } from "../src/platform-db.js";
+import { bootServer, freePort } from "./boot-server.js";
 
-const SERVER_ENTRY = path.join(import.meta.dir, "..", "src", "index.ts");
 const CURRENT = path.join(import.meta.dir, "..", "migrations");
 const FIXTURES = path.join(import.meta.dir, "fixtures");
 const TAGS = fs
@@ -43,10 +43,8 @@ const tmp = (label: string) => {
 	tmpDirs.push(d);
 	return d;
 };
-const procs: Bun.Subprocess[] = [];
 
 afterAll(() => {
-	for (const p of procs) p.kill();
 	for (const d of tmpDirs) fs.rmSync(d, { recursive: true, force: true });
 });
 
@@ -61,41 +59,23 @@ const ADMIN_B = {
 };
 type Account = typeof ADMIN_A;
 
-// Random ports: a fixed one collides with a parallel run.
-const port = () => 20000 + Math.floor(Math.random() * 30000);
-
 /** Boot the real server, as the container's CMD does, and wait for /health. */
-async function boot(
+const boot = (
 	port: number,
 	dataDir: string,
 	extra: Record<string, string> = {},
-) {
-	const proc = Bun.spawn(["bun", SERVER_ENTRY], {
-		env: {
-			...process.env,
-			PORT: String(port),
+) =>
+	bootServer(
+		(base) => ({
 			DATA_DIR: dataDir,
 			BETTER_AUTH_SECRET: SECRET,
-			BASE_URL: `http://localhost:${port}`,
-			TRUSTED_ORIGINS: `http://localhost:${port}`,
+			BASE_URL: base,
+			TRUSTED_ORIGINS: base,
 			ADMIN_EMAILS: `${ADMIN_A.email},${ADMIN_B.email}`,
 			...extra,
-		},
-		stdout: "pipe",
-		stderr: "pipe",
-	});
-	procs.push(proc);
-	const base = `http://localhost:${port}`;
-	for (let i = 0; i < 300; i++) {
-		try {
-			if ((await fetch(`${base}/health`)).ok) return { proc, base };
-		} catch {}
-		await Bun.sleep(100);
-	}
-	const stderr = await new Response(proc.stderr as ReadableStream).text();
-	proc.kill();
-	throw new Error(`server did not come up in 30s:\n${stderr}`);
-}
+		}),
+		port,
+	);
 
 const json = (cookie: string, body?: unknown): RequestInit => ({
 	method: body === undefined ? "GET" : "POST",
@@ -158,7 +138,7 @@ describe("backup then restore into a fresh data dir", () => {
 
 		// 1. Instance A: an admin, a workspace db, an attachment → backup.
 		const dirA = tmp("data-a");
-		const a = await boot(port(), dirA, { BACKUP_DIR: backups });
+		const a = await boot(freePort(), dirA, { BACKUP_DIR: backups });
 		const cookieA = await signUp(a.base, ADMIN_A);
 		seedWorkspace(dirA, CURRENT);
 		const trig = await fetch(`${a.base}/api/backup/trigger`, json(cookieA, {}));
@@ -171,7 +151,7 @@ describe("backup then restore into a fresh data dir", () => {
 		// 2. Instance B: fresh dir, same backup target, its own admin account.
 		//    Restore from the backup written by A.
 		const dirB = tmp("data-b");
-		const portB = port();
+		const portB = freePort();
 		const b = await boot(portB, dirB, { BACKUP_DIR: backups });
 		const cookieB = await signUp(b.base, ADMIN_B);
 		const list = await fetch(`${b.base}/api/backup/list`, json(cookieB));
@@ -233,7 +213,6 @@ for (const PREV of TAGS)
 			platform.close();
 			seedWorkspace(dir, PREVIOUS);
 
-			const s = await boot(port(), dir);
 
 			// Platform DB: user kept, newer migrations recorded.
 			const p = new Database(path.join(dir, "platform.db"), { readonly: true });
