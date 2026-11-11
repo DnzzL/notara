@@ -1312,6 +1312,9 @@ const databasesCmd = Command.make("databases").pipe(
 		databasesUpdateView,
 		databasesDeleteView,
 		databasesExport,
+		databasesReorder,
+		databasesReorderFields,
+		databasesReorderRecords,
 	]),
 );
 
