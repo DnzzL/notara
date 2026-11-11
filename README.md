@@ -99,15 +99,17 @@ git clone https://github.com/dnzzl/notara
 cd notara
 cp .env.example .env
 # in .env set DOMAIN=notes.example.com and BETTER_AUTH_SECRET (openssl rand -hex 32)
-docker compose up -d
+docker compose -f compose.https.yml up -d
 ```
+
+The default `docker-compose.yml` is for platforms that bring their own proxy (Dokploy, Coolify, Portainer).
 
 Open `https://notes.example.com` and create your account. Data lives in the `notara-data` volume (`/data`), local backups in `notara-backups`
 (`/backups`, see [Backups](#upgrade-backup-and-restore)). To build from source
-instead of pulling the published image: `docker compose up -d --build`.
+instead of pulling the published image: `docker compose -f compose.https.yml up -d --build`.
 
-Upgrading from the older compose file (services `server` + `app`)? It is now one `notara`
-service plus `caddy`: run `docker compose up -d --remove-orphans`. Data in `notara-data` is kept.
+Upgrading from the older compose file (services `server` + `app`)? `compose.https.yml` is one `notara`
+service plus `caddy`: run `docker compose -f compose.https.yml up -d --remove-orphans`. Data in `notara-data` is kept.
 
 Trying it locally? `DOMAIN=localhost` makes Caddy use its own internal CA: `curl -k https://localhost/health`.
 

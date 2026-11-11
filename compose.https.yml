@@ -1,0 +1,56 @@
+# One-command install: set DOMAIN and BETTER_AUTH_SECRET in .env, then `docker compose -f compose.https.yml up -d`.
+# Caddy gets and renews the TLS certificate for $DOMAIN by itself (ports 80 + 443 must be open).
+services:
+  notara:
+    image: ghcr.io/dnzzl/notara:latest
+    build:
+      context: .
+      dockerfile: Dockerfile
+    restart: unless-stopped
+    volumes:
+      - notara-data:/data
+      - notara-backups:/backups
+    environment:
+      - NODE_ENV=production
+      - DATA_DIR=/data
+      - TRUSTED_ORIGINS
+      - BACKUP_DIR=${BACKUP_DIR-/backups}
+      - BASE_URL=https://${DOMAIN:?set DOMAIN in .env}
+      - BETTER_AUTH_SECRET=${BETTER_AUTH_SECRET:?set BETTER_AUTH_SECRET in .env}
+      - SMTP_HOST
+      - SMTP_PORT
+      - SMTP_USER
+      - SMTP_PASS
+      - SMTP_FROM
+      - SMTP_SECURE
+      - ADMIN_EMAILS
+      - GOOGLE_CLIENT_ID
+      - GOOGLE_CLIENT_SECRET
+      - S3_BUCKET
+      - S3_REGION
+      - S3_ACCESS_KEY
+      - S3_SECRET_KEY
+      - S3_ENDPOINT
+      - S3_KEEP_LAST
+
+  caddy:
+    image: caddy:2-alpine
+    restart: unless-stopped
+    depends_on:
+      notara:
+        condition: service_healthy
+    ports:
+      - "80:80"
+      - "443:443"
+    environment:
+      - DOMAIN
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy-data:/data
+      - caddy-config:/config
+
+volumes:
+  notara-data:
+  caddy-data:
+  caddy-config:
+  notara-backups:
