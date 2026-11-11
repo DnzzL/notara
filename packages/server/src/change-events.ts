@@ -20,7 +20,7 @@ import { requireWorkspaceMember, resolveApiUser } from "./api-v1/auth.js";
 import type { WorkspaceDb } from "./db.js";
 import * as Blocks from "./handlers/blocks.js";
 import * as Permissions from "./handlers/permissions.js";
-import { PlatformDbLive } from "./platform-db.js";
+import { PlatformDb, PlatformDbLive } from "./platform-db.js";
 import { refuse, sseChannel } from "./sse-channel.js";
 
 type WorkspaceDbService = Context.Service.Shape<typeof WorkspaceDb>;
@@ -51,11 +51,18 @@ export type ChangeEvent = {
 	updatedBy: string;
 };
 
-type Subscriber = (event: ChangeEvent) => void;
+type Subscriber = { userId: string; push: (event: ChangeEvent) => void };
 const subscribers = new Map<string, Set<Subscriber>>();
 
+/**
+ * Bun never tells us a client left (see sse-channel.ts), so a gone subscriber
+ * would stay and cost a permission check on every edit. Past this many streams
+ * for one user in a workspace the oldest is dropped.
+ */
+const MAX_STREAMS_PER_USER = 10;
+
 export const publishChange = (event: ChangeEvent) => {
-	for (const push of subscribers.get(event.workspaceId) ?? []) push(event);
+	for (const sub of subscribers.get(event.workspaceId) ?? []) sub.push(event);
 };
 
 type Io = Record<string, any> | undefined;
@@ -108,6 +115,7 @@ export const makeChangeStreamHandler = (wdb: WorkspaceDbService) =>
 	sseChannel<{
 		workspaceId: string;
 		userId: string;
+		keyId: string | null;
 		rootPageId: string | null;
 	}>({
 		name: "change-events",
@@ -134,25 +142,36 @@ export const makeChangeStreamHandler = (wdb: WorkspaceDbService) =>
 			return {
 				workspaceId,
 				userId: caller.success.userId,
+				keyId: caller.success.keyId,
 				rootPageId: caller.success.rootPageId ?? null,
 			};
 		}),
 		// Flushes the headers, and tells the client it is subscribed: an edit made
 		// after this frame cannot be missed.
 		initial: () => ({ type: "ready" }),
-		subscribe: ({ workspaceId, userId, rootPageId }, send) => {
+		subscribe: ({ workspaceId, userId, keyId, rootPageId }, send) => {
 			// One chain per subscriber keeps events in the order they were published
 			// even though each waits on an async permission check.
 			let tail = Promise.resolve();
-			const push: Subscriber = (event) => {
+			const push = (event: ChangeEvent) => {
 				tail = tail
 					.then(async () => {
-						const visible = await Permissions.canAccessPage(
-							userId,
-							workspaceId,
-							event.pageId,
-							"viewer",
-						).pipe(
+						const visible = await Effect.gen(function* () {
+							// A revoked key stops hearing at once, not at disconnect.
+							if (keyId) {
+								const db = yield* PlatformDb;
+								if (
+									!db.prepare("SELECT 1 FROM api_keys WHERE id = ?").get(keyId)
+								)
+									return false;
+							}
+							return yield* Permissions.canAccessPage(
+								userId,
+								workspaceId,
+								event.pageId,
+								"viewer",
+							);
+						}).pipe(
 							Effect.provide(
 								Layer.merge(wdb.getLayer(workspaceId), PlatformDbLive),
 							),
@@ -163,11 +182,14 @@ export const makeChangeStreamHandler = (wdb: WorkspaceDbService) =>
 					})
 					.catch(() => {});
 			};
+			const me: Subscriber = { userId, push };
 			const set = subscribers.get(workspaceId) ?? new Set<Subscriber>();
 			subscribers.set(workspaceId, set);
-			set.add(push);
+			set.add(me);
+			const mine = [...set].filter((s) => s.userId === userId);
+			for (const old of mine.slice(0, -MAX_STREAMS_PER_USER)) set.delete(old);
 			return () => {
-				set.delete(push);
+				set.delete(me);
 				if (set.size === 0) subscribers.delete(workspaceId);
 			};
 		},

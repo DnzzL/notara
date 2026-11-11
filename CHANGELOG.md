@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- **Change events over SSE.** `GET /api/v1/workspaces/:id/events` streams every page, block and record change (kind, op, id, editor) to an API key or session, filtered by what it may read, so agents react instead of polling (ADR-015).
+
 ## [0.3.0] - 2026-11-11
 
 Agent-ready: everything you can do in the app, an agent can do through an API.

@@ -24,7 +24,8 @@ A webhook makes the server call out to an address the caller supplies: an SSRF s
 
 - No replay: an event missed while disconnected is gone; a reconnecting client re-reads. Add `id:` frames and `Last-Event-ID` only if that bites.
 - In-process subscribers (mono-instance, like presence).
-- Bun does not run the stream finalizer on disconnect (see `sse-channel.ts`): a dead subscriber stays in the set until the process restarts; sending to it is a no-op.
-- A permanent purge is delivered only to subscribers who still resolve access to the removed page.
+- Bun does not run the stream finalizer on disconnect (see `sse-channel.ts`), so a gone subscriber would stay and cost a permission check per edit. Capped instead: past 10 streams per user per workspace the oldest goes silent.
+- A revoked key stops hearing at the next event (its row is re-read per delivery); a removed member likewise, through the ACL check.
+- A permanent purge removes the page row, so its event reaches only subscribers who still resolve access to it: never a key limited to a subtree. A purge through the UI (`purgePage`, `purgeRecord`) emits nothing; through REST (`?permanent=true`) it does.
 - Block, page and record writes that bypass operations and RPC (import, onboarding, reorder, database/field/view edits) emit nothing.
 - A UI edit costs one extra session and membership lookup (the wrapper authenticates beside the handler).

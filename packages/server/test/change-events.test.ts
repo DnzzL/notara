@@ -253,3 +253,60 @@ describe("GET /workspaces/:id/events", () => {
 		stream.close();
 	});
 });
+
+describe("what the stream filters and reports", () => {
+	test("record edits are emitted, through REST and through the UI's RPC", async () => {
+		const page = (await call(all, "POST", PAGES, { title: "DB page" })).body;
+		const db = (
+			await call(all, "POST", `${WS}/databases`, {
+				pageId: page.id,
+				name: "Tasks",
+			})
+		).body;
+		const stream = await listen(bearer(all));
+		const rec = (
+			await call(all, "POST", `${WS}/databases/${db.id}/records`, {
+				title: "Row",
+			})
+		).body;
+		expect(await stream.next!()).toMatchObject({
+			kind: "record",
+			op: "create",
+			id: rec.id,
+		});
+		await call(all, "DELETE", `${WS}/databases/${db.id}/records/${rec.id}`);
+		expect(await stream.next!()).toMatchObject({
+			kind: "record",
+			op: "delete",
+			id: rec.id,
+			pageId: page.id,
+		});
+		await rpc(cookie, "updateRecord", { id: rec.id, title: "Row 2" }, ws.id);
+		expect(await stream.next!()).toMatchObject({
+			kind: "record",
+			op: "update",
+			id: rec.id,
+		});
+		stream.close();
+	});
+
+	test("a revoked key stops hearing at once", async () => {
+		const doomed = await keyOf("doomed");
+		const stream = await listen(bearer(doomed));
+		const keys = await rpc<Array<{ id: string; name: string }>>(
+			cookie,
+			"listApiKeys",
+			null,
+			ws.id,
+		);
+		await rpc(
+			cookie,
+			"revokeApiKey",
+			{ id: keys.find((k) => k.name === "doomed")!.id },
+			ws.id,
+		);
+		await call(all, "POST", PAGES, { title: "After revoke" });
+		await expect(stream.next!()).rejects.toThrow("no event");
+		stream.close();
+	});
+});
