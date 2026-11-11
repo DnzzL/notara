@@ -559,3 +559,128 @@ describe("each operation runs under its declared scope", () => {
 		expect(attempts.map((r) => r.status)).toEqual(Array(12).fill(403));
 	});
 });
+
+describe("database reads, views and record pages through REST (NA-16)", () => {
+	test("getDatabase returns the database; a read key can", async () => {
+		const { db } = await database();
+		const res = await call(readKey, "GET", `${DBS}/${db}`);
+		expect(res.status).toBe(200);
+		expect(res.body).toMatchObject({ id: db, name: "Tasks" });
+	});
+
+	test("getRecordWithValues returns the record flattened with its cells", async () => {
+		const { db, rec, field } = await database();
+		await call(writeKey, "PUT", `${DBS}/${db}/records/${rec}/fields/${field}`, {
+			value: "Doing",
+		});
+		const res = await call(readKey, "GET", `${DBS}/${db}/records/${rec}`);
+		expect(res.status).toBe(200);
+		expect(res.body).toMatchObject({
+			id: rec,
+			databaseId: db,
+			fields: { Status: "Doing" },
+		});
+	});
+
+	test("openRecordAsPage creates the page once and returns it again", async () => {
+		const { db, rec } = await database();
+		const url = `${DBS}/${db}/records/${rec}/page`;
+		const first = await call(writeKey, "POST", url);
+		expect(first.status).toBe(200);
+		expect(first.body.pageId).toEqual(expect.any(String));
+		const again = await call(writeKey, "POST", url);
+		expect(again.body).toEqual(first.body);
+		const page = await call(readKey, "GET", `${PAGES}/${first.body.pageId}`);
+		expect(page.status).toBe(200);
+	});
+
+	test("create, list, update and delete a view", async () => {
+		const { db } = await database();
+		const views = `${DBS}/${db}/views`;
+		const created = await call(writeKey, "POST", views, {
+			name: "Board",
+			type: "board",
+		});
+		expect(created.status).toBe(201);
+		expect(created.body).toMatchObject({
+			databaseId: db,
+			name: "Board",
+			type: "board",
+			groupByFieldId: null,
+			isDefault: false,
+		});
+		const id = created.body.id as string;
+
+		const updated = await call(writeKey, "PATCH", `${views}/${id}`, {
+			name: "Kanban",
+			isDefault: true,
+		});
+		expect(updated.status).toBe(200);
+		expect(updated.body).toMatchObject({ name: "Kanban", isDefault: true });
+
+		const listed = await call(readKey, "GET", views);
+		expect(listed.status).toBe(200);
+		expect(listed.body.map((v: { id: string }) => v.id)).toContain(id);
+
+		const deleted = await call(writeKey, "DELETE", `${views}/${id}`);
+		expect(deleted).toEqual({ status: 200, body: { deleted: true } });
+		const after = await call(readKey, "GET", views);
+		expect(after.body.map((v: { id: string }) => v.id)).not.toContain(id);
+	});
+
+	test("another database's view is not found through this one", async () => {
+		const a = await database();
+		const b = await database();
+		const { body: view } = await call(
+			writeKey,
+			"POST",
+			`${DBS}/${b.db}/views`,
+			{
+				name: "V",
+				type: "table",
+			},
+		);
+		const res = await call(
+			writeKey,
+			"PATCH",
+			`${DBS}/${a.db}/views/${view.id}`,
+			{ name: "hijacked" },
+		);
+		expect(res.status).toBe(404);
+		const still = await call(readKey, "GET", `${DBS}/${b.db}/views`);
+		expect(still.body.map((v: { name: string }) => v.name)).not.toContain(
+			"hijacked",
+		);
+	});
+
+	test("a read key cannot create, update or delete a view, or open a record as a page", async () => {
+		const { db, rec } = await database();
+		const { body: view } = await call(writeKey, "POST", `${DBS}/${db}/views`, {
+			name: "V",
+			type: "table",
+		});
+		const attempts = [
+			await call(readKey, "POST", `${DBS}/${db}/views`, {
+				name: "x",
+				type: "table",
+			}),
+			await call(readKey, "PATCH", `${DBS}/${db}/views/${view.id}`, {
+				name: "x",
+			}),
+			await call(readKey, "DELETE", `${DBS}/${db}/views/${view.id}`),
+			await call(readKey, "POST", `${DBS}/${db}/records/${rec}/page`),
+		];
+		expect(attempts.map((r) => r.status)).toEqual([403, 403, 403, 403]);
+	});
+
+	test("a database the caller cannot see refuses its views and records", async () => {
+		const { db, rec } = await database(await lockedPage());
+		const res = [
+			await call(memberKey, "GET", `${DBS}/${db}`),
+			await call(memberKey, "GET", `${DBS}/${db}/views`),
+			await call(memberKey, "GET", `${DBS}/${db}/records/${rec}`),
+			await call(memberKey, "POST", `${DBS}/${db}/records/${rec}/page`),
+		];
+		expect(res.map((r) => r.status)).toEqual([403, 403, 403, 403]);
+	});
+});

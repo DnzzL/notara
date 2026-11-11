@@ -266,7 +266,7 @@ export const getRecordWithValues = (recordId: string) =>
  */
 export const requireInDatabase = (
 	databaseId: string,
-	ids: { recordId?: string; fieldId?: string },
+	ids: { recordId?: string; fieldId?: string; viewId?: string },
 ) =>
 	Effect.gen(function* () {
 		const sql = yield* SqlClient.SqlClient;
@@ -286,6 +286,13 @@ export const requireInDatabase = (
       `;
 			if (rows.length === 0)
 				return yield* new NotFoundError({ resource: "field", id: ids.fieldId });
+		}
+		if (ids.viewId !== undefined) {
+			const rows = yield* sql`
+        SELECT 1 FROM database_views WHERE id = ${ids.viewId} AND database_id = ${databaseId}
+      `;
+			if (rows.length === 0)
+				return yield* new NotFoundError({ resource: "view", id: ids.viewId });
 		}
 	});
 

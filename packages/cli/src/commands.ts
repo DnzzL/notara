@@ -829,6 +829,222 @@ const databasesSet = Command.make(
 	Command.withDescription("Set a single cell value on a record"),
 );
 
+const viewId = Argument.String("viewId").pipe(
+	Argument.withDescription("View id"),
+);
+
+const databasesGet = Command.make("get", { ...globals, dbId }, (o) =>
+	Effect.gen(function* () {
+		const cfg = toCfg(o);
+		const base = yield* wsPath(cfg);
+		const data = yield* request(cfg, "GET", `${base}/databases/${o.dbId}`);
+		yield* print(
+			o.json,
+			data,
+			(d: { id: string; name: string; pageId: string }) =>
+				`${d.id} — ${d.name} (page ${d.pageId})`,
+		);
+	}),
+).pipe(
+	Command.annotate(OperationId, "getDatabase"),
+	Command.withDescription("Show one database"),
+);
+
+const databasesRecord = Command.make(
+	"record",
+	{ ...globals, dbId, recordId },
+	(o) =>
+		Effect.gen(function* () {
+			const cfg = toCfg(o);
+			const base = yield* wsPath(cfg);
+			const data = yield* request(
+				cfg,
+				"GET",
+				`${base}/databases/${o.dbId}/records/${o.recordId}`,
+			);
+			yield* print(
+				o.json,
+				data,
+				(r: { id: string; title: string; fields: unknown }) =>
+					`${r.id} — ${r.title}\n${JSON.stringify(r.fields)}`,
+			);
+		}),
+).pipe(
+	Command.annotate(OperationId, "getRecordWithValues"),
+	Command.withDescription("Show one record with its field values"),
+);
+
+const databasesOpenRecord = Command.make(
+	"open-record",
+	{ ...globals, dbId, recordId },
+	(o) =>
+		Effect.gen(function* () {
+			const cfg = toCfg(o);
+			const base = yield* wsPath(cfg);
+			const data = yield* request(
+				cfg,
+				"POST",
+				`${base}/databases/${o.dbId}/records/${o.recordId}/page`,
+			);
+			yield* print(
+				o.json,
+				data,
+				(p: { pageId: string }) => `Record page ${p.pageId}`,
+			);
+		}),
+).pipe(
+	Command.annotate(OperationId, "openRecordAsPage"),
+	Command.withDescription("Open a record as a page (created on first call)"),
+);
+
+const databasesViews = Command.make("views", { ...globals, dbId }, (o) =>
+	Effect.gen(function* () {
+		const cfg = toCfg(o);
+		const base = yield* wsPath(cfg);
+		const data = yield* request(
+			cfg,
+			"GET",
+			`${base}/databases/${o.dbId}/views`,
+		);
+		yield* print(o.json, data, (views: Array<Record<string, unknown>>) =>
+			table(views, ["id", "name", "type", "isDefault"]),
+		);
+	}),
+).pipe(
+	Command.annotate(OperationId, "listViews"),
+	Command.withDescription("List a database's views"),
+);
+
+const viewTypeDesc = "View type: table, board, calendar";
+
+const databasesAddView = Command.make(
+	"add-view",
+	{
+		...globals,
+		dbId,
+		name: Flag.String("name").pipe(Flag.withDescription("View name")),
+		type: Flag.String("type").pipe(Flag.withDescription(viewTypeDesc)),
+		groupBy: Flag.String("group-by").pipe(
+			Flag.optional,
+			Flag.withDescription("Field id to group by (board)"),
+		),
+		config: Flag.String("config").pipe(
+			Flag.optional,
+			Flag.withDescription("View settings as a JSON string"),
+		),
+		isDefault: Flag.Boolean("default").pipe(
+			Flag.withDefault(false),
+			Flag.withDescription("Make this the database's default view"),
+		),
+	},
+	(o) =>
+		Effect.gen(function* () {
+			const cfg = toCfg(o);
+			const base = yield* wsPath(cfg);
+			const body: Record<string, unknown> = {
+				name: o.name,
+				type: o.type,
+				isDefault: o.isDefault,
+			};
+			if (o.groupBy._tag === "Some") body.groupByFieldId = o.groupBy.value;
+			if (o.config._tag === "Some") body.config = o.config.value;
+			const data = yield* request(
+				cfg,
+				"POST",
+				`${base}/databases/${o.dbId}/views`,
+				{ body },
+			);
+			yield* print(
+				o.json,
+				data,
+				(v: { id: string; name: string; type: string }) =>
+					`Created view ${v.id} — ${v.name} (${v.type})`,
+			);
+		}),
+).pipe(
+	Command.annotate(OperationId, "createView"),
+	Command.withDescription("Add a view to a database"),
+);
+
+const databasesUpdateView = Command.make(
+	"update-view",
+	{
+		...globals,
+		dbId,
+		viewId,
+		name: Flag.String("name").pipe(
+			Flag.optional,
+			Flag.withDescription("New view name"),
+		),
+		type: Flag.String("type").pipe(
+			Flag.optional,
+			Flag.withDescription(viewTypeDesc),
+		),
+		groupBy: Flag.String("group-by").pipe(
+			Flag.optional,
+			Flag.withDescription("Field id to group by"),
+		),
+		config: Flag.String("config").pipe(
+			Flag.optional,
+			Flag.withDescription("View settings as a JSON string"),
+		),
+		isDefault: Flag.Boolean("default").pipe(
+			Flag.optional,
+			Flag.withDescription("Make default (--default) or not (--no-default)"),
+		),
+	},
+	(o) =>
+		Effect.gen(function* () {
+			const cfg = toCfg(o);
+			const base = yield* wsPath(cfg);
+			const body: Record<string, unknown> = {};
+			if (o.name._tag === "Some") body.name = o.name.value;
+			if (o.type._tag === "Some") body.type = o.type.value;
+			if (o.groupBy._tag === "Some") body.groupByFieldId = o.groupBy.value;
+			if (o.config._tag === "Some") body.config = o.config.value;
+			if (o.isDefault._tag === "Some") body.isDefault = o.isDefault.value;
+			if (Object.keys(body).length === 0) {
+				return yield* new NotaraError({
+					message:
+						"Nothing to update. Pass --name, --type, --group-by, --config, and/or --default.",
+				});
+			}
+			const data = yield* request(
+				cfg,
+				"PATCH",
+				`${base}/databases/${o.dbId}/views/${o.viewId}`,
+				{ body },
+			);
+			yield* print(o.json, data, () => `Updated view ${o.viewId}`);
+		}),
+).pipe(
+	Command.annotate(OperationId, "updateView"),
+	Command.withDescription("Update a view"),
+);
+
+const databasesDeleteView = Command.make(
+	"delete-view",
+	{ ...globals, dbId, viewId },
+	(o) =>
+		Effect.gen(function* () {
+			const cfg = toCfg(o);
+			const base = yield* wsPath(cfg);
+			yield* request(
+				cfg,
+				"DELETE",
+				`${base}/databases/${o.dbId}/views/${o.viewId}`,
+			);
+			yield* Console.log(
+				o.json
+					? JSON.stringify({ deleted: o.viewId })
+					: `Deleted view ${o.viewId}`,
+			);
+		}),
+).pipe(
+	Command.annotate(OperationId, "deleteView"),
+	Command.withDescription("Delete a view"),
+);
+
 const databasesCmd = Command.make("databases").pipe(
 	Command.withDescription("Create and edit databases, fields, and records"),
 	Command.withSubcommands([
@@ -847,6 +1063,13 @@ const databasesCmd = Command.make("databases").pipe(
 		databasesDeleteRecord,
 		databasesRestoreRecord,
 		databasesSet,
+		databasesGet,
+		databasesRecord,
+		databasesOpenRecord,
+		databasesViews,
+		databasesAddView,
+		databasesUpdateView,
+		databasesDeleteView,
 	]),
 );
 
