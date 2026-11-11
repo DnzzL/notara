@@ -26,7 +26,6 @@ Why: CLAUDE.md §7 known debt: the FK pragma is OFF, so ON DELETE CASCADE never 
 - [ ] #2 Hard-deletes still remove all children
 - [ ] #3 The full server test suite passes with the pragma on
 - [ ] #4 The migration reports orphan rows; the DB opener sets PRAGMA foreign_keys=ON on every connection (the pragma is per-connection and a no-op inside a transaction)
-- [ ] #5 The full server test suite passes with the pragma on
 <!-- AC:END -->
 
 ## Comments
