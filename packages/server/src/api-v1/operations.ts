@@ -187,6 +187,7 @@ const PageId = Schema.String.annotate({ description: "Page ID" });
 /** The RPC `Page`, as the plain JSON object the handlers return. */
 const PageJson = Schema.Struct(Page.fields).annotate({ identifier: "Page" });
 const RestoreResult = Schema.Struct({ restored: Schema.Boolean });
+const ReorderResult = Schema.Struct({ reordered: Schema.Boolean });
 const Permanent = Schema.optional(
 	Schema.Literals(["true", "false"]).annotate({
 		description:
@@ -328,6 +329,45 @@ export const pageOperations = [
 		checkPermission: pagePermission("editor"),
 		run: (_, input) => Pages.restorePage(input.pageId).pipe(sqlDefect),
 	}),
+	typedOperation({
+		method: "POST",
+		path: "/api/v1/workspaces/:workspaceId/pages/:pageId/move",
+		operationId: "movePage",
+		tag: "Pages",
+		summary: "Move a page under another parent",
+		description: "`parentId: null` moves the page to the top level.",
+		scope: "write",
+		input: Schema.Struct({
+			pageId: PageId,
+			parentId: Schema.NullOr(Schema.String),
+		}),
+		output: PageJson,
+		checkPermission: pagePermission("editor"),
+		run: (_, { pageId, parentId }) =>
+			Pages.movePage({ id: pageId, parentId }).pipe(sqlDefect),
+	}),
+	typedOperation({
+		method: "POST",
+		path: "/api/v1/workspaces/:workspaceId/pages/reorder",
+		operationId: "reorderPages",
+		tag: "Pages",
+		summary: "Reorder the child pages of a parent",
+		description:
+			"`pageIds` lists every sibling in the new order; `parentId: null` reorders the top level.",
+		scope: "write",
+		input: Schema.Struct({
+			parentId: Schema.NullOr(Schema.String),
+			pageIds: Schema.Array(Schema.String),
+		}),
+		output: ReorderResult,
+		// As the RPC: the parent's ACL, none at the top level.
+		checkPermission: (ctx, { parentId }) =>
+			parentId === null
+				? Effect.void
+				: pagePermission("editor")(ctx, { pageId: parentId }),
+		run: (_, { parentId, pageIds }) =>
+			Pages.reorderPages({ parentId, pageIds: [...pageIds] }).pipe(sqlDefect),
+	}),
 ];
 
 // ── Blocks ─────────────────────────────────────────────────────────────────────
@@ -443,9 +483,17 @@ export const blockOperations = [
 		path: "/api/v1/workspaces/:workspaceId/blocks/:blockId",
 		operationId: "updateBlock",
 		tag: "Blocks",
-		summary: "Update a block's content",
+		summary: "Update a block's content, and optionally its type",
 		scope: "write",
-		input: Schema.Struct({ blockId: BlockId, content: BlockContentInput }),
+		input: Schema.Struct({
+			blockId: BlockId,
+			content: BlockContentInput,
+			type: Schema.optional(
+				Block.fields.type.annotate({
+					description: "New block type (turn into); kept when omitted",
+				}),
+			),
+		}),
 		output: BlockJson,
 		run: (ctx, input) =>
 			Effect.gen(function* () {
@@ -454,6 +502,7 @@ export const blockOperations = [
 				const block = yield* Blocks.updateBlock({
 					id: input.blockId,
 					content: input.content,
+					type: input.type,
 				});
 				if (pageId)
 					presence.broadcast(ctx.workspaceId, pageId, {
@@ -487,6 +536,34 @@ export const blockOperations = [
 						blockId: input.blockId,
 					});
 			}).pipe(sqlDefect),
+	}),
+	typedOperation({
+		method: "POST",
+		path: "/api/v1/workspaces/:workspaceId/pages/:pageId/blocks/reorder",
+		operationId: "reorderBlocks",
+		tag: "Blocks",
+		summary: "Reorder a page's blocks",
+		description: "`blockIds` lists the page's blocks in the new order.",
+		scope: "write",
+		input: Schema.Struct({
+			pageId: PageId,
+			blockIds: Schema.Array(BlockId),
+		}),
+		output: Schema.Array(BlockJson),
+		checkPermission: pagePermission("editor"),
+		run: (ctx, { pageId, blockIds }) =>
+			Blocks.reorderBlocks(pageId, [...blockIds]).pipe(
+				Effect.tap(() =>
+					Effect.sync(() =>
+						presence.broadcast(ctx.workspaceId, pageId, {
+							type: "block.reordered",
+							actorUserId: ctx.userId,
+							blockIds: [...blockIds],
+						}),
+					),
+				),
+				sqlDefect,
+			),
 	}),
 ];
 
@@ -602,6 +679,25 @@ export const databaseOperations = [
 		run: (_, input) => Databases.createDatabase(input).pipe(sqlDefect),
 	}),
 	typedOperation({
+		method: "POST",
+		path: "/api/v1/workspaces/:workspaceId/databases/reorder",
+		operationId: "reorderDatabases",
+		tag: "Databases",
+		summary: "Reorder the databases hosted on a page",
+		scope: "write",
+		input: Schema.Struct({
+			pageId: PageId.annotate({ description: "Page hosting the databases" }),
+			databaseIds: Schema.Array(DatabaseId),
+		}),
+		output: ReorderResult,
+		checkPermission: pagePermission("editor"),
+		run: (_, { pageId, databaseIds }) =>
+			Databases.reorderDatabases({
+				pageId,
+				databaseIds: [...databaseIds],
+			}).pipe(sqlDefect),
+	}),
+	typedOperation({
 		method: "PATCH",
 		path: "/api/v1/workspaces/:workspaceId/databases/:dbId",
 		operationId: "updateDatabase",
@@ -703,6 +799,25 @@ export const databaseOperations = [
 			}).pipe(sqlDefect),
 	}),
 	typedOperation({
+		method: "POST",
+		path: "/api/v1/workspaces/:workspaceId/databases/:dbId/fields/reorder",
+		operationId: "reorderFields",
+		tag: "Databases",
+		summary: "Reorder a database's fields (columns)",
+		scope: "write",
+		input: Schema.Struct({
+			dbId: DatabaseId,
+			fieldIds: Schema.Array(FieldId),
+		}),
+		output: ReorderResult,
+		checkPermission: databasePermission("editor"),
+		run: (_, { dbId, fieldIds }) =>
+			Databases.reorderFields({
+				databaseId: dbId,
+				fieldIds: [...fieldIds],
+			}).pipe(sqlDefect),
+	}),
+	typedOperation({
 		method: "PATCH",
 		path: "/api/v1/workspaces/:workspaceId/databases/:dbId/fields/:fieldId",
 		operationId: "updateField",
@@ -774,6 +889,25 @@ export const databaseOperations = [
 			Databases.createRecord({
 				databaseId: input.dbId,
 				title: input.title,
+			}).pipe(sqlDefect),
+	}),
+	typedOperation({
+		method: "POST",
+		path: "/api/v1/workspaces/:workspaceId/databases/:dbId/records/reorder",
+		operationId: "reorderRecords",
+		tag: "Databases",
+		summary: "Reorder a database's records (rows)",
+		scope: "write",
+		input: Schema.Struct({
+			dbId: DatabaseId,
+			recordIds: Schema.Array(RecordId),
+		}),
+		output: ReorderResult,
+		checkPermission: databasePermission("editor"),
+		run: (_, { dbId, recordIds }) =>
+			Databases.reorderRecords({
+				databaseId: dbId,
+				recordIds: [...recordIds],
 			}).pipe(sqlDefect),
 	}),
 	typedOperation({

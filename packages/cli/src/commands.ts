@@ -270,6 +270,65 @@ const pagesExport = Command.make(
 	Command.withDescription("Export a page as Markdown"),
 );
 
+const pagesMove = Command.make(
+	"move",
+	{
+		...globals,
+		pageId,
+		parent: Flag.String("parent").pipe(
+			Flag.optional,
+			Flag.withDescription("New parent page id (omit for the top level)"),
+		),
+	},
+	(o) =>
+		Effect.gen(function* () {
+			const cfg = toCfg(o);
+			const base = yield* wsPath(cfg);
+			const data = yield* request(
+				cfg,
+				"POST",
+				`${base}/pages/${o.pageId}/move`,
+				{
+					body: { parentId: o.parent._tag === "Some" ? o.parent.value : null },
+				},
+			);
+			yield* print(o.json, data, (p: { id: string }) => `Moved page ${p.id}`);
+		}),
+).pipe(
+	Command.annotate(OperationId, "movePage"),
+	Command.withDescription("Move a page under another parent (or to the top)"),
+);
+
+const pagesReorder = Command.make(
+	"reorder",
+	{
+		...globals,
+		parent: Flag.String("parent").pipe(
+			Flag.optional,
+			Flag.withDescription("Parent page id (omit for the top level)"),
+		),
+		pageIds: Argument.String("pageIds").pipe(
+			Argument.withDescription("Every sibling page id, in the new order"),
+			Argument.variadic({ min: 1 }),
+		),
+	},
+	(o) =>
+		Effect.gen(function* () {
+			const cfg = toCfg(o);
+			const base = yield* wsPath(cfg);
+			const data = yield* request(cfg, "POST", `${base}/pages/reorder`, {
+				body: {
+					parentId: o.parent._tag === "Some" ? o.parent.value : null,
+					pageIds: o.pageIds,
+				},
+			});
+			yield* print(o.json, data, () => "Reordered pages");
+		}),
+).pipe(
+	Command.annotate(OperationId, "reorderPages"),
+	Command.withDescription("Reorder the child pages of a parent"),
+);
+
 const pagesShareStatus = Command.make(
 	"share-status",
 	{ ...globals, pageId },
@@ -385,6 +444,8 @@ const pagesCmd = Command.make("pages").pipe(
 		pagesUpdate,
 		pagesDelete,
 		pagesRestore,
+		pagesMove,
+		pagesReorder,
 		pagesBacklinks,
 		pagesExport,
 		pagesShareStatus,
@@ -470,13 +531,20 @@ const blocksUpdate = Command.make(
 		content: Flag.String("content").pipe(
 			Flag.withDescription("New block content"),
 		),
+		type: Flag.String("type").pipe(
+			Flag.optional,
+			Flag.withDescription("Turn the block into this type (e.g. heading1)"),
+		),
 	},
 	(o) =>
 		Effect.gen(function* () {
 			const cfg = toCfg(o);
 			const base = yield* wsPath(cfg);
 			const data = yield* request(cfg, "PATCH", `${base}/blocks/${o.blockId}`, {
-				body: { content: o.content },
+				body: {
+					content: o.content,
+					...(o.type._tag === "Some" ? { type: o.type.value } : {}),
+				},
 			});
 			yield* print(
 				o.json,
@@ -486,7 +554,7 @@ const blocksUpdate = Command.make(
 		}),
 ).pipe(
 	Command.annotate(OperationId, "updateBlock"),
-	Command.withDescription("Replace a block's content"),
+	Command.withDescription("Replace a block's content, and optionally its type"),
 );
 
 const blocksDelete = Command.make("delete", { ...globals, blockId }, (o) =>
@@ -505,6 +573,33 @@ const blocksDelete = Command.make("delete", { ...globals, blockId }, (o) =>
 	Command.withDescription("Delete a block"),
 );
 
+const blocksReorder = Command.make(
+	"reorder",
+	{
+		...globals,
+		pageId,
+		blockIds: Argument.String("blockIds").pipe(
+			Argument.withDescription("Block ids, in the new order"),
+			Argument.variadic({ min: 1 }),
+		),
+	},
+	(o) =>
+		Effect.gen(function* () {
+			const cfg = toCfg(o);
+			const base = yield* wsPath(cfg);
+			const data = yield* request(
+				cfg,
+				"POST",
+				`${base}/pages/${o.pageId}/blocks/reorder`,
+				{ body: { blockIds: o.blockIds } },
+			);
+			yield* print(o.json, data, () => `Reordered blocks of ${o.pageId}`);
+		}),
+).pipe(
+	Command.annotate(OperationId, "reorderBlocks"),
+	Command.withDescription("Reorder a page's blocks"),
+);
+
 const blocksCmd = Command.make("blocks").pipe(
 	Command.withDescription("Manage the blocks within a page"),
 	Command.withSubcommands([
@@ -512,6 +607,7 @@ const blocksCmd = Command.make("blocks").pipe(
 		blocksCreate,
 		blocksUpdate,
 		blocksDelete,
+		blocksReorder,
 	]),
 );
 
@@ -1220,6 +1316,86 @@ const databasesDeleteView = Command.make(
 	Command.withDescription("Delete a view"),
 );
 
+const databasesReorderFields = Command.make(
+	"reorder-fields",
+	{
+		...globals,
+		dbId,
+		fieldIds: Argument.String("fieldIds").pipe(
+			Argument.withDescription("Field ids, in the new order"),
+			Argument.variadic({ min: 1 }),
+		),
+	},
+	(o) =>
+		Effect.gen(function* () {
+			const cfg = toCfg(o);
+			const base = yield* wsPath(cfg);
+			const data = yield* request(
+				cfg,
+				"POST",
+				`${base}/databases/${o.dbId}/fields/reorder`,
+				{ body: { fieldIds: o.fieldIds } },
+			);
+			yield* print(o.json, data, () => `Reordered fields of ${o.dbId}`);
+		}),
+).pipe(
+	Command.annotate(OperationId, "reorderFields"),
+	Command.withDescription("Reorder a database's fields (columns)"),
+);
+
+const databasesReorderRecords = Command.make(
+	"reorder-records",
+	{
+		...globals,
+		dbId,
+		recordIds: Argument.String("recordIds").pipe(
+			Argument.withDescription("Record ids, in the new order"),
+			Argument.variadic({ min: 1 }),
+		),
+	},
+	(o) =>
+		Effect.gen(function* () {
+			const cfg = toCfg(o);
+			const base = yield* wsPath(cfg);
+			const data = yield* request(
+				cfg,
+				"POST",
+				`${base}/databases/${o.dbId}/records/reorder`,
+				{ body: { recordIds: o.recordIds } },
+			);
+			yield* print(o.json, data, () => `Reordered records of ${o.dbId}`);
+		}),
+).pipe(
+	Command.annotate(OperationId, "reorderRecords"),
+	Command.withDescription("Reorder a database's records (rows)"),
+);
+
+const databasesReorder = Command.make(
+	"reorder",
+	{
+		...globals,
+		pageId: Flag.String("page").pipe(
+			Flag.withDescription("Page hosting the databases"),
+		),
+		databaseIds: Argument.String("databaseIds").pipe(
+			Argument.withDescription("Database ids, in the new order"),
+			Argument.variadic({ min: 1 }),
+		),
+	},
+	(o) =>
+		Effect.gen(function* () {
+			const cfg = toCfg(o);
+			const base = yield* wsPath(cfg);
+			const data = yield* request(cfg, "POST", `${base}/databases/reorder`, {
+				body: { pageId: o.pageId, databaseIds: o.databaseIds },
+			});
+			yield* print(o.json, data, () => `Reordered databases of ${o.pageId}`);
+		}),
+).pipe(
+	Command.annotate(OperationId, "reorderDatabases"),
+	Command.withDescription("Reorder the databases hosted on a page"),
+);
+
 const databasesCmd = Command.make("databases").pipe(
 	Command.withDescription("Create and edit databases, fields, and records"),
 	Command.withSubcommands([
@@ -1246,6 +1422,9 @@ const databasesCmd = Command.make("databases").pipe(
 		databasesUpdateView,
 		databasesDeleteView,
 		databasesExport,
+		databasesReorder,
+		databasesReorderFields,
+		databasesReorderRecords,
 	]),
 );
 

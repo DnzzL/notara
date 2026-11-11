@@ -5,10 +5,10 @@ status: done
 assignee:
   - '@thomas'
 created_date: 2026-08-26 11:11
-updated_date: '2026-11-10T17:05:00Z'
+updated_date: '2026-11-11T13:21:00Z'
 labels:
   - bug
-milestone: m-1
+milestone: m-3
 dependencies: []
 priority: high
 ordinal: 104000

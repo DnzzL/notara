@@ -32,6 +32,8 @@ notara pages create --title "Notes" [--parent <pageId>]
 notara pages update <pageId> [--title ...] [--icon 📝] [--favorite]
 notara pages delete <pageId> [--permanent]
 notara pages restore <pageId>
+notara pages move <pageId> [--parent <pageId>]      # no --parent = top level
+notara pages reorder [--parent <pageId>] <pageId>...  # siblings, in the new order
 notara pages backlinks <pageId>
 notara pages export <pageId> [--include-databases]   # Markdown
 notara pages share-status <pageId>              # public share token, if any
@@ -41,8 +43,9 @@ notara pages set-permissions <pageId> --body '{"set":[...],"remove":[...],"ifRev
 
 notara blocks list <pageId>
 notara blocks create <pageId> --type paragraph --content "<p>Hello</p>" [--index 0]
-notara blocks update <blockId> --content "<p>Edited</p>"
+notara blocks update <blockId> --content "<p>Edited</p>" [--type heading1]   # --type turns it into another type
 notara blocks delete <blockId>
+notara blocks reorder <pageId> <blockId>...      # new order
 
 notara databases list
 notara databases create --page <pageId> --name "Tasks"
@@ -67,6 +70,9 @@ notara databases add-view <dbId> --name "Board" --type board [--group-by <fieldI
 notara databases update-view <dbId> <viewId> [--name ...] [--type ...] [--group-by ...] [--config ...] [--default|--no-default]
 notara databases delete-view <dbId> <viewId>
 notara databases export <dbId>                  # CSV
+notara databases reorder --page <pageId> <dbId>...   # databases hosted on a page
+notara databases reorder-fields <dbId> <fieldId>...
+notara databases reorder-records <dbId> <recordId>...
 
 notara members list
 notara members remove <userId>                  # owner only

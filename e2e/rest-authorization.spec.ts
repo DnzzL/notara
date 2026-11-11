@@ -28,6 +28,32 @@ type Route = {
 const ROUTES: Route[] = [
 	{ method: "get", path: "/pages" },
 	{ method: "post", path: "/pages", body: { title: "Intruder" } },
+	{ method: "post", path: "/pages/:pageId/move", body: { parentId: null } },
+	{
+		method: "post",
+		path: "/pages/reorder",
+		body: { parentId: null, pageIds: [] },
+	},
+	{
+		method: "post",
+		path: "/pages/:pageId/blocks/reorder",
+		body: { blockIds: [] },
+	},
+	{
+		method: "post",
+		path: "/databases/reorder",
+		body: { pageId: ":pageId", databaseIds: [] },
+	},
+	{
+		method: "post",
+		path: "/databases/:dbId/fields/reorder",
+		body: { fieldIds: [] },
+	},
+	{
+		method: "post",
+		path: "/databases/:dbId/records/reorder",
+		body: { recordIds: [] },
+	},
 	{ method: "get", path: "/pages/:pageId" },
 	{ method: "patch", path: "/pages/:pageId", body: { title: "Renamed" } },
 	{ method: "delete", path: "/pages/:pageId" },
