@@ -18,8 +18,12 @@ afterEach(() => {
 /** Flat blocks a..e on one page, all at the top level, in that order. */
 const run = async <A>(
 	body: (
-		parents: () => Effect.Effect<Record<string, string | null>, any, any>,
-	) => Effect.Effect<A, any, any>,
+		parents: () => Effect.Effect<
+			Record<string, string | null>,
+			any,
+			SqlClient.SqlClient
+		>,
+	) => Effect.Effect<A, any, SqlClient.SqlClient>,
 ) => {
 	const d = fs.mkdtempSync(path.join(os.tmpdir(), "notara-nest-"));
 	dirs.push(d);
