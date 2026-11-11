@@ -4,7 +4,7 @@ title: Does the todo markdown shortcut actually work?
 status: ready-for-agent
 assignee: []
 created_date: 2026-08-27 15:30
-updated_date: '2026-11-11T21:57:00Z'
+updated_date: '2026-11-11T21:58:00Z'
 labels:
   - bug
 milestone: m-2
@@ -29,9 +29,9 @@ Consequence either way: the todo half of the NOT-96 fix has no automated coverag
 
 ## Acceptance Criteria
 <!-- AC:BEGIN -->
-- [ ] #1 Established by manual check whether the shortcut works for a real user
-- [ ] #2 If it is a product defect, typing the shortcut creates a todo
-- [ ] #3 If it is a harness artifact, the todo split has an e2e that genuinely exercises the todo branch
+- [ ] #1 If it is a product defect, typing the shortcut creates a todo
+- [ ] #2 If it is a harness artifact, the todo split has an e2e that genuinely exercises the todo branch
+- [ ] #3 Established by manual check in a real browser (not Playwright typing) whether the shortcut works for a real user
 <!-- AC:END -->
 
 ## Implementation Notes

@@ -4,7 +4,7 @@ title: Audit log of API and MCP actions
 status: ready-for-agent
 assignee: []
 created_date: '2026-11-11T13:21:00Z'
-updated_date: '2026-11-11T21:57:00Z'
+updated_date: '2026-11-11T21:58:00Z'
 labels:
   - enhancement
 milestone: m-5
@@ -26,6 +26,7 @@ Why: once agents write through keys, owners need to see what each key did. Build
 - [ ] #2 Workspace owners can list the log, filtered by key
 - [ ] #3 Retention of the log is defined and enforced
 - [ ] #4 No secret or page content is written to the log
+- [ ] #5 An ADR settles storage, retention and who can read the log before the build (updated_by keeps only the last editor, so the log needs its own store)
 <!-- AC:END -->
 
 ## Comments

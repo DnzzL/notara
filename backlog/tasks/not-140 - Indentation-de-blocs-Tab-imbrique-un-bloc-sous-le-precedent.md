@@ -4,7 +4,7 @@ title: Indentation de blocs (Tab imbrique un bloc sous le precedent)
 status: ready-for-agent
 assignee: []
 created_date: 2026-08-30 18:49
-updated_date: '2026-11-11T21:57:00Z'
+updated_date: '2026-11-11T21:58:00Z'
 labels:
   - enhancement
 milestone: m-2
@@ -21,7 +21,7 @@ Tab indente aujourd'hui a l'interieur d'un bloc (liste multi-items) et, a defaut
 
 ## Acceptance Criteria
 <!-- AC:BEGIN -->
-- [ ] #1 Slice 1: blocks.parent_block_id, Tab/Shift-Tab nest/un-nest a block under the previous one, rendered hierarchically with indentation
+- [ ] #1 Slice 1: nesting via the existing blocks.parent_id column (the brief's 'parent_block_id'; do not add a second column), Tab/Shift-Tab nest/un-nest under the previous block, rendered hierarchically with indentation
 <!-- AC:END -->
 
 ## Implementation Notes
