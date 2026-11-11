@@ -21,12 +21,19 @@ export function WorkspaceSettingsModal({ workspace, onClose }: Props) {
 
 	const [audit, setAudit] = useState<AuditEntry[]>([]);
 	const [auditKey, setAuditKey] = useState("");
+	const [auditKeys, setAuditKeys] = useState<Record<string, string>>({});
 
 	useEffect(() => {
 		if (workspace.role !== "owner") return;
 		api
 			.listAuditLog({ keyId: auditKey || undefined })
-			.then(setAudit)
+			.then((rows) => {
+				setAudit(rows);
+				setAuditKeys((prev) => ({
+					...prev,
+					...Object.fromEntries(rows.map((a) => [a.keyId, a.keyName])),
+				}));
+			})
 			.catch(() => setAudit([]));
 	}, [workspace.role, auditKey]);
 
@@ -183,13 +190,11 @@ export function WorkspaceSettingsModal({ workspace, onClose }: Props) {
 						className="mb-2 px-2 py-1 border border-border rounded-lg text-[12px] bg-surface-2 text-text"
 					>
 						<option value="">All keys</option>
-						{[...new Map(audit.map((a) => [a.keyId, a.keyName]))].map(
-							([id, name]) => (
-								<option key={id} value={id}>
-									{name}
-								</option>
-							),
-						)}
+						{Object.entries(auditKeys).map(([id, name]) => (
+							<option key={id} value={id}>
+								{name}
+							</option>
+						))}
 					</select>
 					{audit.length === 0 ? (
 						<p className="text-[12px] text-text-3">No API writes yet.</p>

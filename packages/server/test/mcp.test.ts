@@ -581,6 +581,33 @@ describe("audit log", () => {
 		expect(await list(owner.cookie, "no-such-key")).toEqual([]);
 	});
 
+	test("deleteRecord and setCell target the record, not the database", async () => {
+		const db = await call(
+			writeKey,
+			"POST",
+			`/api/v1/workspaces/${ws.id}/databases`,
+			{
+				title: "Audit db",
+			},
+		);
+		const rec = await call(
+			writeKey,
+			"POST",
+			`/api/v1/workspaces/${ws.id}/databases/${db.body.id}/records`,
+			{},
+		);
+		const recId = rec.body.id ?? rec.body.record?.id;
+		await call(
+			writeKey,
+			"DELETE",
+			`/api/v1/workspaces/${ws.id}/databases/${db.body.id}/records/${recId}`,
+		);
+		const del = (await list(owner.cookie)).find(
+			(e) => e.operation === "deleteRecord",
+		);
+		expect(del?.target).toBe(recId);
+	});
+
 	test("rows hold no secret and no page content", async () => {
 		await call(writeKey, "POST", PAGES, { title: "Secret-title-xyz" });
 		const dump = JSON.stringify(await list(owner.cookie));
@@ -589,6 +616,6 @@ describe("audit log", () => {
 	});
 
 	test("a non-owner member cannot read the log", async () => {
-		await expect(list(member.cookie)).rejects.toThrow();
+		await expect(list(member.cookie)).rejects.toThrow(/owner role required/i);
 	});
 });

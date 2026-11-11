@@ -1627,20 +1627,27 @@ const requireParentInSubtree = (
 				)
 			: Effect.fail(OUTSIDE_SUBTREE);
 
-/** The id a write touched (ADR-015): the output's id, else the first id in the input. Never content. */
+/** Inputs naming the thing a write touched, most specific first (ADR-015). */
+const AUDIT_TARGET_KEYS = [
+	"recordId",
+	"blockId",
+	"pageId",
+	"fieldId",
+	"viewId",
+];
+
+/** The id a write touched: a specific input id, else the output's id, else any input id. Never content. */
 const auditTarget = (input: unknown, output: unknown): string | null => {
-	const id = (o: unknown, pick: (k: string) => boolean) =>
-		o && typeof o === "object"
-			? Object.entries(o).find(
-					([k, v]) => pick(k) && typeof v === "string",
-				)?.[1]
+	const str = (o: unknown, k: string) =>
+		o && typeof o === "object" && typeof (o as any)[k] === "string"
+			? ((o as any)[k] as string)
 			: undefined;
-	return (
-		((id(output, (k) => k === "id") ??
-			id(input, (k) => k === "id" || k.endsWith("Id"))) as
-			| string
-			| undefined) ?? null
-	);
+	const specific = AUDIT_TARGET_KEYS.map((k) => str(input, k)).find(Boolean);
+	const anyInputId = Object.keys((input as object) ?? {})
+		.filter((k) => k === "id" || k.endsWith("Id"))
+		.map((k) => str(input, k))
+		.find(Boolean);
+	return specific ?? str(output, "id") ?? anyInputId ?? null;
 };
 
 /**
