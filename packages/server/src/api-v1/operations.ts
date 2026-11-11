@@ -1208,7 +1208,7 @@ const PagePermissionsJson = Schema.Struct(PagePermissions.fields).annotate({
 const ShareJson = Schema.Struct({
 	token: Schema.NullOr(Schema.String).annotate({
 		description:
-			"The public share token, or null when the page is not published. The public URL is `<origin>/s/<token>`.",
+			"The public share token, or null when the page is not published. The public URL is `<origin>/p/<token>`.",
 	}),
 }).annotate({ identifier: "PageShare" });
 

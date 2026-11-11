@@ -331,7 +331,6 @@ describe("page sharing and permissions", () => {
 			remove: [{ subject: entry.subject }],
 			ifRevision: before.body.revision,
 		});
-		expect(stale.status).toBeGreaterThanOrEqual(400);
-		expect(stale.status).toBeLessThan(500);
+		expect(stale.status).toBe(409);
 	});
 });
