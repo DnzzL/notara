@@ -270,6 +270,112 @@ const pagesExport = Command.make(
 	Command.withDescription("Export a page as Markdown"),
 );
 
+const pagesShareStatus = Command.make(
+	"share-status",
+	{ ...globals, pageId },
+	(o) =>
+		Effect.gen(function* () {
+			const cfg = toCfg(o);
+			const base = yield* wsPath(cfg);
+			const data = yield* request(
+				cfg,
+				"GET",
+				`${base}/pages/${o.pageId}/share`,
+			);
+			yield* print(o.json, data, (s: { token: string | null }) =>
+				s.token ? `Shared: token ${s.token}` : "Not shared",
+			);
+		}),
+).pipe(
+	Command.annotate(OperationId, "getPageShare"),
+	Command.withDescription("Show a page's public share token, if any"),
+);
+
+const pagesShare = Command.make(
+	"share",
+	{
+		...globals,
+		pageId,
+		off: Flag.Boolean("off").pipe(
+			Flag.withDescription("Revoke the public link instead of publishing"),
+		),
+	},
+	(o) =>
+		Effect.gen(function* () {
+			const cfg = toCfg(o);
+			const base = yield* wsPath(cfg);
+			const data = yield* request(
+				cfg,
+				"PUT",
+				`${base}/pages/${o.pageId}/share`,
+				{ body: { enabled: !o.off } },
+			);
+			yield* print(o.json, data, (s: { token: string | null }) =>
+				s.token ? `Shared: token ${s.token}` : "Sharing revoked",
+			);
+		}),
+).pipe(
+	Command.annotate(OperationId, "setPageSharing"),
+	Command.withDescription(
+		"Publish a page as a read-only public link (--off to revoke)",
+	),
+);
+
+const pagesPermissions = Command.make(
+	"permissions",
+	{ ...globals, pageId },
+	(o) =>
+		Effect.gen(function* () {
+			const cfg = toCfg(o);
+			const base = yield* wsPath(cfg);
+			const data = yield* request(
+				cfg,
+				"GET",
+				`${base}/pages/${o.pageId}/permissions`,
+			);
+			yield* print(o.json, data, (p: unknown) => JSON.stringify(p, null, 2));
+		}),
+).pipe(
+	Command.annotate(OperationId, "getPagePermissions"),
+	Command.withDescription("Show a page's access list and its revision"),
+);
+
+const pagesSetPermissions = Command.make(
+	"set-permissions",
+	{
+		...globals,
+		pageId,
+		body: Flag.String("body").pipe(
+			Flag.withDescription(
+				'JSON {"set":[{"subject":{"type":"user","id":"…"},"relation":"editor"}],"remove":[{"subject":{"type":"public"}}],"ifRevision":"…"}',
+			),
+		),
+	},
+	(o) =>
+		Effect.gen(function* () {
+			const cfg = toCfg(o);
+			const base = yield* wsPath(cfg);
+			const parsed = yield* Effect.try({
+				try: () => JSON.parse(o.body) as Record<string, unknown>,
+				catch: () => new NotaraError({ message: "--body is not valid JSON" }),
+			});
+			const data = yield* request(
+				cfg,
+				"PUT",
+				`${base}/pages/${o.pageId}/permissions`,
+				{ body: { set: [], remove: [], ...parsed } },
+			);
+			yield* print(
+				o.json,
+				data,
+				(r: { revision: string }) => `Revision ${r.revision}`,
+			);
+		}),
+).pipe(
+	Command.annotate(OperationId, "writePagePermissions"),
+	Command.withDescription("Change a page's access list (page owner only)"),
+);
+
 const pagesCmd = Command.make("pages").pipe(
 	Command.withDescription("Manage pages"),
 	Command.withSubcommands([
@@ -281,6 +387,10 @@ const pagesCmd = Command.make("pages").pipe(
 		pagesRestore,
 		pagesBacklinks,
 		pagesExport,
+		pagesShareStatus,
+		pagesShare,
+		pagesPermissions,
+		pagesSetPermissions,
 	]),
 );
 
@@ -1233,6 +1343,96 @@ const templatesCmd = Command.make("templates").pipe(
 	Command.withSubcommands([templatesList, templatesUse]),
 );
 
+// ── members ───────────────────────────────────────────────────────────────────
+
+const userId = Argument.String("userId").pipe(
+	Argument.withDescription("User id, from `members list`"),
+);
+
+const membersList = Command.make("list", globals, (o) =>
+	Effect.gen(function* () {
+		const cfg = toCfg(o);
+		const base = yield* wsPath(cfg);
+		const data = yield* request(cfg, "GET", `${base}/members`);
+		yield* print(o.json, data, (m: Array<Record<string, unknown>>) =>
+			table(m, ["userId", "name", "email", "role"]),
+		);
+	}),
+).pipe(
+	Command.annotate(OperationId, "getWorkspaceMembers"),
+	Command.withDescription("List workspace members"),
+);
+
+const membersRemove = Command.make("remove", { ...globals, userId }, (o) =>
+	Effect.gen(function* () {
+		const cfg = toCfg(o);
+		const base = yield* wsPath(cfg);
+		yield* request(cfg, "DELETE", `${base}/members/${o.userId}`);
+		yield* Console.log(
+			o.json
+				? JSON.stringify({ removed: o.userId })
+				: `Removed member ${o.userId}`,
+		);
+	}),
+).pipe(
+	Command.annotate(OperationId, "removeMember"),
+	Command.withDescription("Remove a member (workspace owner only)"),
+);
+
+const membersInvite = Command.make(
+	"invite",
+	{
+		...globals,
+		email: Argument.String("email").pipe(
+			Argument.withDescription("Address to mail the invite link to"),
+		),
+	},
+	(o) =>
+		Effect.gen(function* () {
+			const cfg = toCfg(o);
+			const base = yield* wsPath(cfg);
+			yield* request(cfg, "POST", `${base}/invites/email`, {
+				body: { email: o.email },
+			});
+			yield* Console.log(
+				o.json ? JSON.stringify({ invited: o.email }) : `Invited ${o.email}`,
+			);
+		}),
+).pipe(
+	Command.annotate(OperationId, "inviteMemberByEmail"),
+	Command.withDescription(
+		"Mail the workspace invite link to an address (owner only)",
+	),
+);
+
+const membersInviteLink = Command.make("invite-link", globals, (o) =>
+	Effect.gen(function* () {
+		const cfg = toCfg(o);
+		const base = yield* wsPath(cfg);
+		const data = yield* request(cfg, "POST", `${base}/invites/link`);
+		yield* print(
+			o.json,
+			data,
+			(r: { inviteToken: string }) => `Invite token ${r.inviteToken}`,
+		);
+	}),
+).pipe(
+	Command.annotate(OperationId, "regenerateInviteLink"),
+	Command.withDescription(
+		"Replace the invite link and print its new token (owner only)",
+	),
+);
+
+const membersCmd = Command.make("members").pipe(
+	Command.withDescription("Workspace members and invites"),
+	Command.withSubcommands([
+		membersList,
+		membersRemove,
+		membersInvite,
+		membersInviteLink,
+	]),
+);
+
 // ── search ──────────────────────────────────────────────────────────────────
 
 const searchCmd = Command.make(
@@ -1292,6 +1492,7 @@ export const root = Command.make("notara").pipe(
 		databasesCmd,
 		trashCmd,
 		templatesCmd,
+		membersCmd,
 		searchCmd,
 		configCmd,
 	]),

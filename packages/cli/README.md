@@ -34,6 +34,10 @@ notara pages delete <pageId> [--permanent]
 notara pages restore <pageId>
 notara pages backlinks <pageId>
 notara pages export <pageId> [--include-databases]   # Markdown
+notara pages share-status <pageId>              # public share token, if any
+notara pages share <pageId> [--off]             # publish / revoke the public link
+notara pages permissions <pageId>               # access list + revision
+notara pages set-permissions <pageId> --body '{"set":[...],"remove":[...],"ifRevision":"..."}'
 
 notara blocks list <pageId>
 notara blocks create <pageId> --type paragraph --content "<p>Hello</p>" [--index 0]
@@ -63,6 +67,11 @@ notara databases add-view <dbId> --name "Board" --type board [--group-by <fieldI
 notara databases update-view <dbId> <viewId> [--name ...] [--type ...] [--group-by ...] [--config ...] [--default|--no-default]
 notara databases delete-view <dbId> <viewId>
 notara databases export <dbId>                  # CSV
+
+notara members list
+notara members remove <userId>                  # owner only
+notara members invite <email>                   # owner only; mails the link
+notara members invite-link                      # owner only; new link token
 
 notara templates list                           # works without a workspace selected
 notara templates use <templateId> [--parent <pageId>]

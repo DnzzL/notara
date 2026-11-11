@@ -1,5 +1,7 @@
 import {
-	type AuthError,
+	AclRelation,
+	AclRevision,
+	AuthError,
 	Backlink,
 	Block,
 	BlockContent,
@@ -11,15 +13,19 @@ import {
 	DatabaseFieldType,
 	DatabaseRecord,
 	DatabaseView,
+	Email,
 	type NotFoundError,
 	Page,
 	PageExport,
+	PagePermissions,
 	RecordFieldValue,
 	SearchQuery,
 	SearchResult,
+	Subject,
 	TitleString,
 	TrashContents,
 	ValidationError,
+	WorkspaceMember,
 } from "@notara/shared";
 import {
 	Effect,
@@ -35,6 +41,7 @@ import { WorkspaceDb } from "../db.js";
 import * as Blocks from "../handlers/blocks.js";
 import * as Databases from "../handlers/databases.js";
 import * as ImportExport from "../handlers/importExport.js";
+import * as PageShares from "../handlers/page-shares.js";
 import * as Pages from "../handlers/pages.js";
 import * as Permissions from "../handlers/permissions.js";
 import * as Search from "../handlers/search.js";
@@ -1181,6 +1188,194 @@ const listTemplates: UserOperation<
 	run: () => Effect.succeed(Templates.getTemplates()),
 };
 
+// ── Members, invites and sharing ───────────────────────────────────────────────
+//
+// Admin actions run the RPC's own handlers and checks for the key's owner: the
+// role comes from `ctx.role` (the workspace membership of the key's creator),
+// the page ACL from Permissions, exactly as the session path reads them. An
+// API key never gets more than the person who made it.
+//
+// Secrets: only what the RPC already hands the same caller comes back (the
+// regenerated invite token to an owner, a page's share token to an editor).
+// `inviteMemberByEmail` returns nothing: the invite link goes by mail only.
+
+const WorkspaceMemberJson = Schema.Struct(WorkspaceMember.fields).annotate({
+	identifier: "WorkspaceMember",
+});
+const PagePermissionsJson = Schema.Struct(PagePermissions.fields).annotate({
+	identifier: "PagePermissions",
+});
+const ShareJson = Schema.Struct({
+	token: Schema.NullOr(Schema.String).annotate({
+		description:
+			"The public share token, or null when the page is not published. The public URL is `<origin>/s/<token>`.",
+	}),
+}).annotate({ identifier: "PageShare" });
+
+/** The workspace owner, as `requireWorkspaceOwner` demands in the RPC. */
+const ownerOnly = (ctx: OperationContext) =>
+	ctx.role === "owner"
+		? Effect.void
+		: Effect.fail(
+				new AuthError({
+					status: 403,
+					message: "Workspace owner role required",
+				}),
+			);
+
+export const memberOperations = [
+	typedOperation({
+		method: "GET",
+		path: "/api/v1/workspaces/:workspaceId/members",
+		operationId: "getWorkspaceMembers",
+		tag: "Members",
+		summary: "List workspace members",
+		scope: "read",
+		input: Schema.Struct({}),
+		output: Schema.Array(WorkspaceMemberJson),
+		run: (ctx) =>
+			Workspaces.getWorkspaceMembers(ctx.workspaceId).pipe(sqlDefect),
+	}),
+	typedOperation({
+		method: "DELETE",
+		path: "/api/v1/workspaces/:workspaceId/members/:userId",
+		operationId: "removeMember",
+		tag: "Members",
+		summary: "Remove a member",
+		description: "Owner only. The workspace owner cannot be removed.",
+		successStatus: 204,
+		scope: "write",
+		input: Schema.Struct({ userId: Schema.String }),
+		output: Schema.Void,
+		checkPermission: ownerOnly,
+		run: (ctx, input) =>
+			Workspaces.removeMember({
+				workspaceId: ctx.workspaceId,
+				userId: input.userId,
+			}).pipe(sqlDefect),
+	}),
+	typedOperation({
+		method: "POST",
+		path: "/api/v1/workspaces/:workspaceId/invites/email",
+		operationId: "inviteMemberByEmail",
+		tag: "Members",
+		summary: "Invite someone by email",
+		description:
+			"Owner only. Mails the workspace invite link to the address; the link is not returned.",
+		successStatus: 204,
+		scope: "write",
+		input: Schema.Struct({ email: Email }),
+		output: Schema.Void,
+		checkPermission: ownerOnly,
+		run: (ctx, input) =>
+			Workspaces.inviteMemberByEmail({
+				workspaceId: ctx.workspaceId,
+				email: input.email,
+			}).pipe(sqlDefect),
+	}),
+	typedOperation({
+		method: "POST",
+		path: "/api/v1/workspaces/:workspaceId/invites/link",
+		operationId: "regenerateInviteLink",
+		tag: "Members",
+		summary: "Regenerate the invite link",
+		description:
+			"Owner only. Invalidates the previous invite link and returns the new token (`<origin>/join/<token>`).",
+		scope: "write",
+		input: Schema.Struct({}),
+		output: Schema.Struct({ inviteToken: Schema.String }),
+		checkPermission: ownerOnly,
+		run: (ctx) =>
+			Workspaces.regenerateInviteLink(ctx.workspaceId).pipe(sqlDefect),
+	}),
+];
+
+export const sharingOperations = [
+	typedOperation({
+		method: "GET",
+		path: "/api/v1/workspaces/:workspaceId/pages/:pageId/share",
+		operationId: "getPageShare",
+		tag: "Sharing",
+		summary: "Get a page's public share token",
+		description: "Needs editor access to the page, as in the app.",
+		scope: "read",
+		input: Schema.Struct({ pageId: PageId }),
+		output: ShareJson,
+		checkPermission: pagePermission("editor"),
+		run: (ctx, input) =>
+			PageShares.get(ctx.workspaceId, input.pageId).pipe(
+				Effect.map((token) => ({ token })),
+				sqlDefect,
+			),
+	}),
+	typedOperation({
+		method: "PUT",
+		path: "/api/v1/workspaces/:workspaceId/pages/:pageId/share",
+		operationId: "setPageSharing",
+		tag: "Sharing",
+		summary: "Publish or unpublish a page",
+		description:
+			"`enabled: true` publishes the page as a read-only public link (idempotent); `false` revokes it. Needs editor access to the page.",
+		scope: "write",
+		input: Schema.Struct({ pageId: PageId, enabled: Schema.Boolean }),
+		output: ShareJson,
+		checkPermission: pagePermission("editor"),
+		run: (ctx, input) =>
+			(input.enabled
+				? PageShares.enable(ctx.workspaceId, input.pageId, ctx.userId)
+				: PageShares.disable(ctx.workspaceId, input.pageId).pipe(
+						Effect.as<string | null>(null),
+					)
+			).pipe(
+				Effect.map((token) => ({ token })),
+				sqlDefect,
+			),
+	}),
+	typedOperation({
+		method: "GET",
+		path: "/api/v1/workspaces/:workspaceId/pages/:pageId/permissions",
+		operationId: "getPagePermissions",
+		tag: "Sharing",
+		summary: "Get a page's access list",
+		description:
+			"Direct grants, plus those inherited from the nearest locked ancestor, and a revision for `writePagePermissions`.",
+		scope: "read",
+		input: Schema.Struct({ pageId: PageId }),
+		output: PagePermissionsJson,
+		checkPermission: pagePermission("viewer"),
+		run: (_, input) =>
+			Permissions.getPagePermissions(input.pageId).pipe(sqlDefect),
+	}),
+	typedOperation({
+		method: "PUT",
+		path: "/api/v1/workspaces/:workspaceId/pages/:pageId/permissions",
+		operationId: "writePagePermissions",
+		tag: "Sharing",
+		summary: "Change a page's access list",
+		description:
+			"Atomic batch of `set` upserts and `remove`s. Needs owner access to the page. `ifRevision` fails the call when the list changed since `getPagePermissions`.",
+		scope: "write",
+		input: Schema.Struct({
+			pageId: PageId,
+			set: Schema.Array(
+				Schema.Struct({ subject: Subject, relation: AclRelation }),
+			),
+			remove: Schema.Array(Schema.Struct({ subject: Subject })),
+			ifRevision: Schema.optional(AclRevision),
+		}),
+		output: Schema.Struct({ revision: AclRevision }),
+		checkPermission: pagePermission("owner"),
+		run: (ctx, { pageId, set, remove, ifRevision }) =>
+			Permissions.writePagePermissions({
+				pageId,
+				set,
+				remove,
+				ifRevision,
+				callerWorkspaceRole: ctx.role,
+			}).pipe(sqlDefect),
+	}),
+];
+
 /** Every typed operation, in registration/OpenAPI order. */
 export const typedOperations: ReadonlyArray<AnyOperation> = [
 	listWorkspaces,
@@ -1191,6 +1386,8 @@ export const typedOperations: ReadonlyArray<AnyOperation> = [
 	...searchOperations,
 	...trashOperations,
 	...exchangeOperations,
+	...memberOperations,
+	...sharingOperations,
 ];
 
 /** Membership, then `f` under one acquisition of the workspace's layer. */
