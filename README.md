@@ -237,7 +237,13 @@ Compose file, `Restart=always` in the Quadlet unit, `--restart unless-stopped` f
 Notara is scriptable end to end — the app is one way in, not the only one.
 
 **`notara` — the CLI.** The scriptable client over the REST API. Install from JSR
-(`npx jsr add @notara/cli`), then pipe your wiki into anything:
+(`npx jsr add @notara/cli`), or without Bun: download `notara-<os>-<arch>` (darwin or
+linux, arm64 or x64) and `SHA256SUMS` from the latest
+[release](https://github.com/dnzzl/notara/releases), check with `sha256sum -c SHA256SUMS
+--ignore-missing` (`shasum -a 256 -c` on macOS) and `chmod +x notara-*`, then rename it `notara` onto your `PATH`. On macOS, download with
+`curl` or `gh release download` (a browser adds a quarantine flag the unsigned binary trips on;
+`xattr -d com.apple.quarantine notara-*` clears it). Then pipe your wiki
+into anything:
 
 ```bash
 notara pages list --json | jq '.title'

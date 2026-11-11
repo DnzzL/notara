@@ -58,6 +58,18 @@ jobs:
       contents: write
     steps:
       - uses: actions/checkout@v6
+      - uses: oven-sh/setup-bun@v2
+      - run: bun install --frozen-lockfile --ignore-scripts
+
+      # Standalone CLI: no Bun or repo needed to run it. One ubuntu job
+      # cross-compiles all four targets.
+      - name: Build the CLI binaries
+        run: |
+          mkdir dist
+          for target in darwin-arm64 darwin-x64 linux-arm64 linux-x64; do
+            bun build --compile --target="bun-$target" packages/cli/src/main.ts --outfile "dist/notara-$target"
+          done
+          (cd dist && sha256sum notara-* > SHA256SUMS)
 
       - name: Extract the notes for this tag
         run: |
@@ -82,6 +94,6 @@ jobs:
             echo '```'
           } >> notes.md
 
-      - run: gh release create "$GITHUB_REF_NAME" --title "$GITHUB_REF_NAME" --notes-file notes.md --latest
+      - run: gh release create "$GITHUB_REF_NAME" --title "$GITHUB_REF_NAME" --notes-file notes.md --latest dist/notara-* dist/SHA256SUMS
         env:
           GH_TOKEN: ${{ github.token }}
