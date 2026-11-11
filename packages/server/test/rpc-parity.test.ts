@@ -39,7 +39,6 @@ const NOT_AN_OPERATION: Record<string, string> = {
 	reorderFields: "TODO: missing operation",
 	reorderRecords: "TODO: missing operation",
 	reorderDatabases: "TODO: missing operation",
-	getBacklinks: "TODO: missing operation",
 	createWorkspace: "TODO: missing operation",
 	getWorkspaceMembers: "TODO: missing operation",
 	removeMember: "TODO: missing operation",
@@ -50,12 +49,10 @@ const NOT_AN_OPERATION: Record<string, string> = {
 	setPageSharing: "TODO: missing operation",
 	getPagePermissions: "TODO: missing operation",
 	writePagePermissions: "TODO: missing operation",
-	listTemplates: "TODO: missing operation",
-	createPageFromTemplate: "TODO: missing operation",
-	importNotion: "TODO: missing operation",
-	exportPage: "TODO: missing operation",
-	exportDatabase: "TODO: missing operation",
-	exportAll: "TODO: missing operation",
+	importNotion:
+		"Takes a directory path on the server's disk; the UI uploads a zip through POST /api/import-notion instead. An operation would need an upload layer the table lacks.",
+	exportAll:
+		"Writes files into a caller-chosen directory on the server's disk; exposing that to an API key is unsafe. The per-page and per-database exports cover the data.",
 	// Not for agents.
 	startDemo:
 		"demo-session bootstrap for anonymous visitors, not a workspace action",

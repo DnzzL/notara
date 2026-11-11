@@ -1,16 +1,19 @@
 import {
 	type AuthError,
+	Backlink,
 	Block,
 	BlockContent,
 	BlockLockedError,
 	type ConflictError,
 	Database,
+	DatabaseCsvExport,
 	DatabaseField,
 	DatabaseFieldType,
 	DatabaseRecord,
 	DatabaseView,
 	type NotFoundError,
 	Page,
+	PageExport,
 	RecordFieldValue,
 	SearchQuery,
 	SearchResult,
@@ -31,9 +34,11 @@ import { type SqlClient, SqlError } from "effect/sql";
 import { WorkspaceDb } from "../db.js";
 import * as Blocks from "../handlers/blocks.js";
 import * as Databases from "../handlers/databases.js";
+import * as ImportExport from "../handlers/importExport.js";
 import * as Pages from "../handlers/pages.js";
 import * as Permissions from "../handlers/permissions.js";
 import * as Search from "../handlers/search.js";
+import * as Templates from "../handlers/templates.js";
 import * as Workspaces from "../handlers/workspaces.js";
 import type { WorkspaceRole } from "../membership.js";
 import type { PlatformDb } from "../platform-db.js";
@@ -1024,6 +1029,108 @@ export const trashOperations = [
 	}),
 ];
 
+// ── Backlinks, templates, export ───────────────────────────────────────────────
+//
+// importNotion and exportAll have no operation: see rpc-parity.test.ts.
+
+const BacklinkJson = Schema.Struct(Backlink.fields).annotate({
+	identifier: "Backlink",
+});
+const TemplateJson = Schema.Struct({
+	id: Schema.String,
+	title: Schema.String,
+	icon: Schema.String,
+	description: Schema.String,
+}).annotate({ identifier: "Template" });
+const PageExportJson = Schema.Struct(PageExport.fields).annotate({
+	identifier: "PageExport",
+});
+const DatabaseCsvExportJson = Schema.Struct(DatabaseCsvExport.fields).annotate({
+	identifier: "DatabaseCsvExport",
+});
+
+export const exchangeOperations = [
+	typedOperation({
+		method: "GET",
+		path: "/api/v1/workspaces/:workspaceId/pages/:pageId/backlinks",
+		operationId: "getBacklinks",
+		tag: "Pages",
+		summary: "List the blocks that link to a page",
+		description: "Only blocks on pages the caller can see are returned.",
+		scope: "read",
+		input: Schema.Struct({ pageId: PageId }),
+		output: Schema.Array(BacklinkJson),
+		checkPermission: pagePermission("viewer"),
+		run: (ctx, input) =>
+			Effect.gen(function* () {
+				const all = yield* Blocks.getBacklinks(input.pageId);
+				const allPages = yield* Pages.listPages;
+				const visible = yield* Permissions.filterPagesByPermission(
+					ctx.userId,
+					ctx.workspaceId,
+					ctx.role,
+					allPages,
+				);
+				const visibleIds = new Set(visible.map((p) => p.id));
+				return all.filter((b) => visibleIds.has(b.pageId));
+			}).pipe(sqlDefect),
+	}),
+	typedOperation({
+		method: "POST",
+		path: "/api/v1/workspaces/:workspaceId/templates/:templateId/pages",
+		operationId: "createPageFromTemplate",
+		tag: "Templates",
+		summary: "Create a page from a template",
+		description: "Use an `id` from `listTemplates` as `templateId`.",
+		successStatus: 201,
+		scope: "write",
+		input: Schema.Struct({
+			templateId: Schema.String,
+			parentId: Schema.optional(Schema.NullOr(Schema.String)),
+		}),
+		output: PageJson,
+		run: (_, { templateId, parentId }) =>
+			Templates.createPageFromTemplate({
+				templateId,
+				parentId: parentId ?? null,
+			}).pipe(sqlDefect),
+	}),
+	typedOperation({
+		method: "GET",
+		path: "/api/v1/workspaces/:workspaceId/pages/:pageId/export",
+		operationId: "exportPage",
+		tag: "Pages",
+		summary: "Export a page as Markdown",
+		description:
+			"Returns the Markdown in the JSON body. With `includeDatabases=true`, the page's inline databases are appended as CSV blocks.",
+		scope: "read",
+		input: Schema.Struct({
+			pageId: PageId,
+			includeDatabases: Schema.optional(Schema.Literals(["true", "false"])),
+		}),
+		output: PageExportJson,
+		checkPermission: pagePermission("viewer"),
+		run: (_, input) =>
+			ImportExport.exportPage(
+				input.pageId,
+				input.includeDatabases === "true",
+			).pipe(sqlDefect),
+	}),
+	typedOperation({
+		method: "GET",
+		path: "/api/v1/workspaces/:workspaceId/databases/:dbId/export",
+		operationId: "exportDatabase",
+		tag: "Databases",
+		summary: "Export a database as CSV",
+		description: "Returns the CSV text in the JSON body.",
+		scope: "read",
+		input: Schema.Struct({ dbId: DatabaseId }),
+		output: DatabaseCsvExportJson,
+		checkPermission: databasePermission("viewer"),
+		run: (_, input) => ImportExport.exportDatabase(input.dbId).pipe(sqlDefect),
+	}),
+];
+
 // ── Workspaces ─────────────────────────────────────────────────────────────────
 
 const WorkspaceJson = Schema.Struct({
@@ -1056,14 +1163,34 @@ const listWorkspaces: UserOperation<
 		),
 };
 
+const listTemplates: UserOperation<
+	Record<string, never>,
+	ReadonlyArray<typeof TemplateJson.Type>
+> = {
+	workspace: "none",
+	method: "GET",
+	path: "/api/v1/templates",
+	operationId: "listTemplates",
+	tag: "Templates",
+	summary: "List page templates",
+	description:
+		"The built-in catalogue, the same for every workspace. Use an `id` as `templateId` in `createPageFromTemplate`.",
+	scope: "read",
+	input: Schema.Struct({}),
+	output: Schema.Array(TemplateJson),
+	run: () => Effect.succeed(Templates.getTemplates()),
+};
+
 /** Every typed operation, in registration/OpenAPI order. */
 export const typedOperations: ReadonlyArray<AnyOperation> = [
 	listWorkspaces,
+	listTemplates,
 	...pageOperations,
 	...databaseOperations,
 	...blockOperations,
 	...searchOperations,
 	...trashOperations,
+	...exchangeOperations,
 ];
 
 /** Membership, then `f` under one acquisition of the workspace's layer. */
