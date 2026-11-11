@@ -8,6 +8,7 @@ import {
 	DatabaseField,
 	DatabaseFieldType,
 	DatabaseRecord,
+	DatabaseView,
 	type NotFoundError,
 	Page,
 	RecordFieldValue,
@@ -503,6 +504,11 @@ const RecordWithValuesJson = Schema.Struct({
 	createdAt: record.createdAt,
 	fields: Schema.Record(Schema.String, Schema.Unknown),
 }).annotate({ identifier: "DatabaseRecordWithValues" });
+const ViewJson = Schema.Struct(DatabaseView.fields).annotate({
+	identifier: "DatabaseView",
+});
+const ViewId = Schema.String.annotate({ description: "View ID" });
+const ViewType = Schema.Literals(["table", "board", "calendar"]);
 const CellJson = Schema.Struct(RecordFieldValue.fields).annotate({
 	identifier: "RecordFieldValue",
 });
@@ -515,7 +521,12 @@ const databasePermission =
 	(relation: Permissions.AclRelation) =>
 	(
 		ctx: OperationContext,
-		input: { dbId: string; recordId?: string; fieldId?: string },
+		input: {
+			dbId: string;
+			recordId?: string;
+			fieldId?: string;
+			viewId?: string;
+		},
 	) =>
 		Permissions.checkDatabasePermission(
 			ctx.userId,
@@ -527,6 +538,7 @@ const databasePermission =
 				Databases.requireInDatabase(input.dbId, {
 					recordId: input.recordId,
 					fieldId: input.fieldId,
+					viewId: input.viewId,
 				}),
 			),
 			Effect.catch((e) =>
@@ -831,6 +843,123 @@ export const databaseOperations = [
 				fieldId,
 				value: typeof value === "string" ? value : JSON.stringify(value),
 			}).pipe(sqlDefect),
+	}),
+	typedOperation({
+		method: "GET",
+		path: "/api/v1/workspaces/:workspaceId/databases/:dbId",
+		operationId: "getDatabase",
+		tag: "Databases",
+		summary: "Get a database",
+		scope: "read",
+		input: Schema.Struct({ dbId: DatabaseId }),
+		output: DatabaseJson,
+		checkPermission: databasePermission("viewer"),
+		run: (_, input) => Databases.getDatabase(input.dbId).pipe(sqlDefect),
+	}),
+	typedOperation({
+		method: "GET",
+		path: "/api/v1/workspaces/:workspaceId/databases/:dbId/records/:recordId",
+		operationId: "getRecordWithValues",
+		tag: "Databases",
+		summary: "Get a record with its cell values",
+		scope: "read",
+		input: Schema.Struct({ dbId: DatabaseId, recordId: RecordId }),
+		output: RecordWithValuesJson,
+		checkPermission: databasePermission("viewer"),
+		run: (_, input) =>
+			Databases.getRecordWithValues(input.recordId).pipe(
+				Effect.map(({ record, values }) => ({ ...record, fields: values })),
+				sqlDefect,
+			),
+	}),
+	typedOperation({
+		method: "POST",
+		path: "/api/v1/workspaces/:workspaceId/databases/:dbId/records/:recordId/page",
+		operationId: "openRecordAsPage",
+		tag: "Databases",
+		summary: "Open a record as a page",
+		description:
+			"Returns the record's page, creating it on first call. Later calls return the same page.",
+		scope: "write",
+		input: Schema.Struct({ dbId: DatabaseId, recordId: RecordId }),
+		output: Schema.Struct({ pageId: Schema.String }),
+		checkPermission: databasePermission("editor"),
+		run: (_, input) =>
+			Databases.openRecordAsPage(input.recordId).pipe(sqlDefect),
+	}),
+	typedOperation({
+		method: "GET",
+		path: "/api/v1/workspaces/:workspaceId/databases/:dbId/views",
+		operationId: "listViews",
+		tag: "Databases",
+		summary: "List a database's views",
+		scope: "read",
+		input: Schema.Struct({ dbId: DatabaseId }),
+		output: Schema.Array(ViewJson),
+		checkPermission: databasePermission("viewer"),
+		run: (_, input) => Databases.listViews(input.dbId).pipe(sqlDefect),
+	}),
+	typedOperation({
+		method: "POST",
+		path: "/api/v1/workspaces/:workspaceId/databases/:dbId/views",
+		operationId: "createView",
+		tag: "Databases",
+		summary: "Create a view",
+		successStatus: 201,
+		scope: "write",
+		input: Schema.Struct({
+			dbId: DatabaseId,
+			name: Schema.NonEmptyString,
+			type: ViewType,
+			groupByFieldId: Schema.optional(Schema.NullOr(Schema.String)),
+			config: Schema.optional(
+				Schema.String.annotate({
+					description: "View settings (filters, sorts…) as a JSON string",
+				}),
+			),
+			isDefault: Schema.optional(Schema.Boolean),
+		}),
+		output: ViewJson,
+		checkPermission: databasePermission("editor"),
+		run: (_, { dbId, groupByFieldId, ...view }) =>
+			Databases.createView({
+				...view,
+				databaseId: dbId,
+				groupByFieldId: groupByFieldId ?? null,
+			}).pipe(sqlDefect),
+	}),
+	typedOperation({
+		method: "PATCH",
+		path: "/api/v1/workspaces/:workspaceId/databases/:dbId/views/:viewId",
+		operationId: "updateView",
+		tag: "Databases",
+		summary: "Update a view",
+		scope: "write",
+		input: Schema.Struct({
+			dbId: DatabaseId,
+			viewId: ViewId,
+			name: Schema.optional(Schema.String),
+			type: Schema.optional(ViewType),
+			groupByFieldId: Schema.optional(Schema.NullOr(Schema.String)),
+			config: Schema.optional(Schema.String),
+			isDefault: Schema.optional(Schema.Boolean),
+		}),
+		output: ViewJson,
+		checkPermission: databasePermission("editor"),
+		run: (_, { dbId: _db, viewId, ...patch }) =>
+			Databases.updateView({ ...patch, id: viewId }).pipe(sqlDefect),
+	}),
+	typedOperation({
+		method: "DELETE",
+		path: "/api/v1/workspaces/:workspaceId/databases/:dbId/views/:viewId",
+		operationId: "deleteView",
+		tag: "Databases",
+		summary: "Delete a view",
+		scope: "write",
+		input: Schema.Struct({ dbId: DatabaseId, viewId: ViewId }),
+		output: Schema.Struct({ deleted: Schema.Boolean }),
+		checkPermission: databasePermission("editor"),
+		run: (_, input) => Databases.deleteView(input.viewId).pipe(sqlDefect),
 	}),
 ];
 

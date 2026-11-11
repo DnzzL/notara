@@ -53,6 +53,13 @@ notara databases update-record <dbId> <recordId> [--title ...] [--description ..
 notara databases delete-record <dbId> <recordId> [--permanent]
 notara databases restore-record <dbId> <recordId>
 notara databases set <dbId> <recordId> <fieldId> --value "Doing"
+notara databases get <dbId>
+notara databases record <dbId> <recordId>        # one record with its values
+notara databases open-record <dbId> <recordId>   # the record's page id
+notara databases views <dbId>
+notara databases add-view <dbId> --name "Board" --type board [--group-by <fieldId>] [--config <json>] [--default]
+notara databases update-view <dbId> <viewId> [--name ...] [--type ...] [--group-by ...] [--config ...] [--default|--no-default]
+notara databases delete-view <dbId> <viewId>
 
 notara trash list                               # deleted pages/databases/records
 

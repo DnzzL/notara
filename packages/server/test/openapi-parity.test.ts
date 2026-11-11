@@ -133,7 +133,11 @@ describe("the OpenAPI document describes the routes that exist", () => {
 		const pageOps = Object.values(spec.paths)
 			.flatMap((item) => Object.values(item as Record<string, unknown>))
 			.map((op) => (op as { operationId?: string }).operationId)
-			.filter((id) => id?.endsWith("Page") || id === "listPages")
+			.filter(
+				(id) =>
+					(id?.endsWith("Page") && id !== "openRecordAsPage") ||
+					id === "listPages",
+			)
 			.sort();
 		expect(pageOps).toEqual([
 			"createPage",
