@@ -29,7 +29,7 @@ Tab indente aujourd'hui a l'interieur d'un bloc (liste multi-items) et, a defaut
 <!-- SECTION:NOTES:BEGIN -->
 Triage: AC #1 is a product decision (does block nesting enter scope?) - needs a human call before an agent builds the tree rendering.
 
-Slice 1 done on branch task/42: reuses blocks.parent_id (no migration), reparentBlock op (RPC/REST/CLI), Tab/Shift-Tab, indented rendering on page + public page. ADR-014. Follow-ups filed: drag/move subtree, numbering, undo subtree.
+Slice 1 done on branch task/42: reuses blocks.parent_id (no migration), reparentBlock op (RPC/REST/CLI), Tab/Shift-Tab, indented rendering on page + public page. ADR-016. Follow-ups filed: drag/move subtree, numbering, undo subtree.
 <!-- SECTION:NOTES:END -->
 
 ## Comments

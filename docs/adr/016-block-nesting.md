@@ -1,4 +1,4 @@
-# ADR-014: Block nesting is `parent_id` over a flat, depth-first list
+# ADR-016: Block nesting is `parent_id` over a flat, depth-first list
 
 **Status:** Accepted
 **Date:** 2026-11-12

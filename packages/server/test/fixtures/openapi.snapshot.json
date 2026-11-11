@@ -48,6 +48,10 @@
 		{
 			"name": "Trash",
 			"description": "Soft-deleted items; restore or purge them"
+		},
+		{
+			"name": "Events",
+			"description": "A live stream of changes, instead of polling"
 		}
 	],
 	"components": {
@@ -8073,6 +8077,59 @@
 					},
 					"500": {
 						"description": "Server error",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/Error"
+								}
+							}
+						}
+					}
+				}
+			}
+		},
+		"/workspaces/{workspaceId}/events": {
+			"get": {
+				"operationId": "streamEvents",
+				"tags": [
+					"Events"
+				],
+				"summary": "Stream page, block and record changes",
+				"description": "Server-sent events (`text/event-stream`). A `ready` event confirms the subscription; every edit after it is delivered. Each `change` event is one JSON object: `kind` (`page`, `block` or `record`), `op` (`create`, `update` or `delete`), `id`, `pageId` (the page that owns it), `updatedBy` (user id of the editor) and `workspaceId`. A trash or restore is a `delete` or an `update`. You receive only what you could read: a key limited to a subtree hears only that subtree. Events are not replayed: a client that reconnects re-reads what it missed. Any API key may listen, a read key included.",
+				"parameters": [
+					{
+						"name": "workspaceId",
+						"in": "path",
+						"required": true,
+						"schema": {
+							"type": "string"
+						},
+						"description": "Workspace ID"
+					}
+				],
+				"responses": {
+					"200": {
+						"description": "An open event stream",
+						"content": {
+							"text/event-stream": {
+								"schema": {
+									"type": "string"
+								}
+							}
+						}
+					},
+					"401": {
+						"description": "Unauthorized",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/Error"
+								}
+							}
+						}
+					},
+					"403": {
+						"description": "Not a member of this workspace",
 						"content": {
 							"application/json": {
 								"schema": {

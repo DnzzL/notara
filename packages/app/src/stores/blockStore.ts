@@ -250,7 +250,7 @@ export const useBlockStore = create<BlockState>((set, get) => ({
 				pageId: orig.pageId,
 				type: orig.type,
 				content: orig.content,
-				index: orig.index + 1 + subtree.length,
+				index: (subtree.at(-1) ?? orig).index + 1,
 				parentId: orig.parentId,
 			});
 		} catch (e) {

@@ -14,7 +14,7 @@ ordinal: 161000
 ## Description
 
 <!-- SECTION:DESCRIPTION:BEGIN -->
-NOT-140 slice 1 nests with Tab/Shift-Tab only. Reordering (drag-and-drop, Move up/down) swaps single blocks and leaves a block's children behind; dropping a block should also be able to nest/un-nest it. See docs/adr/014-block-nesting.md.
+NOT-140 slice 1 nests with Tab/Shift-Tab only. Reordering (drag-and-drop, Move up/down) swaps single blocks and leaves a block's children behind; dropping a block should also be able to nest/un-nest it. See docs/adr/016-block-nesting.md.
 <!-- SECTION:DESCRIPTION:END -->
 
 ## Acceptance Criteria

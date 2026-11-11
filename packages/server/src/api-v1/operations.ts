@@ -605,6 +605,7 @@ export const blockOperations = [
 		method: "POST",
 		path: "/api/v1/workspaces/:workspaceId/blocks/:blockId/reparent",
 		operationId: "reparentBlock",
+		change: { kind: "block", op: "update", id: "blockId" },
 		tag: "Blocks",
 		summary: "Nest a block under its previous sibling, or lift it out",
 		description:

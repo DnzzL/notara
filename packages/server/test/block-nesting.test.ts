@@ -92,7 +92,7 @@ describe("reparentBlock", () => {
 				yield* Blocks.reparentBlock("b", "in");
 				yield* Blocks.reparentBlock("c", "in");
 				yield* Blocks.reparentBlock("c", "in"); // c under b
-				yield* Blocks.deleteBlock("a");
+				yield* Blocks.deleteBlock("a", { userId: "test-user" });
 				return yield* parents();
 			}),
 		);
