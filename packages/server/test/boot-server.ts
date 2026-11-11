@@ -1,8 +1,9 @@
 /**
  * Boot the real server for a test file, on a port the OS says is free, and
- * guarantee it dies with the file: afterAll, and process exit (Ctrl-C, timeout,
- * crash) which skips afterAll. Fixed ports leaked servers that broke the next
- * run and collided across parallel worktrees.
+ * guarantee it dies with the file: afterAll, and SIGINT/SIGTERM (Ctrl-C, timeout)
+ * which skip afterAll. A hard crash is not
+ * covered (bun test skips `exit`). Fixed ports leaked servers that broke the
+ * next run and collided across parallel worktrees.
  */
 
 import { afterAll } from "bun:test";
@@ -14,12 +15,12 @@ const live = new Set<Bun.Subprocess>();
 const killAll = () => {
 	for (const p of live) p.kill();
 };
-process.on("exit", killAll);
 for (const sig of ["SIGINT", "SIGTERM"] as const)
 	process.on(sig, () => {
 		killAll();
 		process.exit(1);
 	});
+
 // Ask the OS, then release: the server rebinds it a few ms later. The window is
 // tiny, and the retry-free alternative (port 0 in the server) needs src changes.
 export const freePort = () => {
