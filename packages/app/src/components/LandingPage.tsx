@@ -283,13 +283,13 @@ export function LandingPage({ demoMode }: { demoMode: boolean }) {
 								<b>02</b> · Self-host in one command
 							</span>
 							<h3>
-								<code>docker compose up</code> gives you HTTPS and one SQLite
-								file.
+								<code>docker compose -f compose.https.yml up -d</code> gives you
+								HTTPS and one SQLite file.
 							</h3>
 							<pre className="lp-code">
 								<code>{`git clone https://github.com/dnzzl/notara
 cd notara && cp .env.example .env
-docker compose up -d`}</code>
+docker compose -f compose.https.yml up -d`}</code>
 							</pre>
 							<p>
 								Set <code>DOMAIN</code> and <code>BETTER_AUTH_SECRET</code> in{" "}
