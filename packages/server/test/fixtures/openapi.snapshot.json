@@ -1,0 +1,7949 @@
+{
+	"openapi": "3.1.0",
+	"info": {
+		"title": "Notara REST API",
+		"version": "1.0.0",
+		"description": "Automate Notara — create and manage pages, write blocks, query databases and search content programmatically.\n\n## Authentication\n\nEvery request must be authenticated with one of:\n\n1. **API key** (recommended for scripts): set the `Authorization` header:\n   ```\n   Authorization: Bearer ntr_<your-key>\n   ```\n   Generate keys in your workspace settings → API keys. A key carries a scope,\n   and each operation declares the scope it needs: a **read** key may call the\n   operations that only read and gets `403` on one that changes state; a\n   **write** key can do anything you can. The scope is fixed when the key is\n   created.\n\n2. **Session cookie**: if you're calling from a browser that is already signed in, the session cookie is sent automatically.\n\n## Base URL\n\nAll paths below are relative to `/api/v1`. For example, `GET /workspaces` → `GET /api/v1/workspaces`.\n\n## Block content format\n\nA block's `content` is always a **string**, sent and returned exactly as stored.\nHow to read it depends on the block type.\n\nText-bearing blocks hold **HTML**, because the editor produces and consumes HTML:\n\n| Type | Example |\n|------|---------|\n| paragraph | `\"<p>Hello</p>\"` |\n| heading1/2/3 | `\"<h1>Title</h1>\"` |\n| bulletList / numberedList | `\"<ul><li>Item</li></ul>\"` |\n| todo | `\"<ul data-type=\\\"taskList\\\"><li data-checked=\\\"false\\\">Task</li></ul>\"` |\n| blockquote | `\"<blockquote>Quoted</blockquote>\"` |\n| code | `\"<pre><code>const x = 1</code></pre>\"` |\n| toggle / callout | HTML, with block-specific attributes |\n| divider | `\"\"` |\n\nStructured blocks hold a **JSON string**:\n\n| Type | Example |\n|------|---------|\n| image / pdf / file | `\"{\\\"src\\\":\\\"/attachments/01H….png\\\",\\\"fileName\\\":\\\"diagram.png\\\"}\"` |\n| pageLink | `\"{\\\"pageId\\\":\\\"01H…\\\"}\"` |\n| database | `\"{\\\"databaseId\\\":\\\"01H…\\\"}\"` |\n| viewReference | `\"{\\\"databaseId\\\":\\\"01H…\\\",\\\"viewId\\\":\\\"01H…\\\"}\"` |\n\nSending a JSON **object** rather than a string is rejected with 422. Earlier\nversions of this document described `{ \"text\": \"…\" }` objects for text blocks;\nthat was never what the server stored, and content written that way rendered\nblank. If you have blocks created that way, rewrite them as HTML.",
+		"contact": {
+			"name": "Notara",
+			"url": "https://github.com/notara"
+		},
+		"license": {
+			"name": "AGPL-3.0-or-later",
+			"identifier": "AGPL-3.0-or-later"
+		}
+	},
+	"servers": [
+		{
+			"url": "/api/v1",
+			"description": "Current instance"
+		}
+	],
+	"security": [
+		{
+			"BearerAuth": []
+		}
+	],
+	"tags": [
+		{
+			"name": "Workspaces",
+			"description": "List workspaces the authenticated user belongs to"
+		},
+		{
+			"name": "Pages",
+			"description": "Create, read, update and delete pages"
+		},
+		{
+			"name": "Blocks",
+			"description": "Read and write the content blocks inside a page"
+		},
+		{
+			"name": "Databases",
+			"description": "Create and edit inline databases, their fields, and records"
+		},
+		{
+			"name": "Search",
+			"description": "Full-text search across pages and blocks"
+		},
+		{
+			"name": "Trash",
+			"description": "Soft-deleted items; restore or purge them"
+		}
+	],
+	"components": {
+		"securitySchemes": {
+			"BearerAuth": {
+				"type": "http",
+				"scheme": "bearer",
+				"description": "API key with `ntr_` prefix. Generate one in workspace settings. A read-scoped key is refused with `403` on any request that changes state."
+			}
+		},
+		"schemas": {
+			"Error": {
+				"type": "object",
+				"required": [
+					"error"
+				],
+				"properties": {
+					"error": {
+						"type": "string",
+						"example": "Not found"
+					}
+				}
+			},
+			"Workspace": {
+				"type": "object",
+				"properties": {
+					"id": {
+						"type": "string"
+					},
+					"name": {
+						"type": "string"
+					},
+					"slug": {
+						"type": "string"
+					},
+					"role": {
+						"type": "string",
+						"enum": [
+							"owner",
+							"member"
+						]
+					}
+				},
+				"required": [
+					"id",
+					"name",
+					"slug",
+					"role"
+				],
+				"additionalProperties": true
+			},
+			"Template": {
+				"type": "object",
+				"properties": {
+					"id": {
+						"type": "string"
+					},
+					"title": {
+						"type": "string"
+					},
+					"icon": {
+						"type": "string"
+					},
+					"description": {
+						"type": "string"
+					}
+				},
+				"required": [
+					"id",
+					"title",
+					"icon",
+					"description"
+				],
+				"additionalProperties": true
+			},
+			"Page": {
+				"type": "object",
+				"properties": {
+					"id": {
+						"type": "string"
+					},
+					"title": {
+						"type": "string"
+					},
+					"parentId": {
+						"anyOf": [
+							{
+								"type": "string"
+							},
+							{
+								"type": "null"
+							}
+						]
+					},
+					"icon": {
+						"anyOf": [
+							{
+								"type": "string"
+							},
+							{
+								"type": "null"
+							}
+						]
+					},
+					"coverUrl": {
+						"anyOf": [
+							{
+								"type": "string"
+							},
+							{
+								"type": "null"
+							}
+						]
+					},
+					"sortOrder": {
+						"anyOf": [
+							{
+								"type": "number"
+							},
+							{
+								"type": "string",
+								"enum": [
+									"NaN",
+									"Infinity",
+									"-Infinity"
+								]
+							}
+						]
+					},
+					"isDeleted": {
+						"type": "boolean"
+					},
+					"isFavorite": {
+						"type": "boolean"
+					},
+					"createdAt": {
+						"type": "string"
+					},
+					"updatedAt": {
+						"type": "string"
+					},
+					"deletedAt": {
+						"anyOf": [
+							{
+								"type": "string"
+							},
+							{
+								"type": "null"
+							}
+						]
+					}
+				},
+				"required": [
+					"id",
+					"title",
+					"parentId",
+					"icon",
+					"coverUrl",
+					"sortOrder",
+					"isDeleted",
+					"isFavorite",
+					"createdAt",
+					"updatedAt",
+					"deletedAt"
+				],
+				"additionalProperties": true
+			},
+			"Database": {
+				"type": "object",
+				"properties": {
+					"id": {
+						"type": "string"
+					},
+					"pageId": {
+						"type": "string"
+					},
+					"name": {
+						"type": "string"
+					},
+					"isDeleted": {
+						"type": "boolean"
+					},
+					"sortOrder": {
+						"anyOf": [
+							{
+								"type": "number"
+							},
+							{
+								"type": "string",
+								"enum": [
+									"NaN",
+									"Infinity",
+									"-Infinity"
+								]
+							}
+						]
+					},
+					"titleLabel": {
+						"type": "string"
+					},
+					"titleHidden": {
+						"type": "boolean"
+					},
+					"deletedAt": {
+						"anyOf": [
+							{
+								"type": "string"
+							},
+							{
+								"type": "null"
+							}
+						]
+					}
+				},
+				"required": [
+					"id",
+					"pageId",
+					"name",
+					"isDeleted",
+					"sortOrder",
+					"titleLabel",
+					"titleHidden",
+					"deletedAt"
+				],
+				"additionalProperties": true
+			},
+			"DatabaseField": {
+				"type": "object",
+				"properties": {
+					"id": {
+						"type": "string"
+					},
+					"databaseId": {
+						"type": "string"
+					},
+					"name": {
+						"type": "string"
+					},
+					"type": {
+						"type": "string",
+						"enum": [
+							"text",
+							"number",
+							"select",
+							"multiSelect",
+							"date",
+							"checkbox",
+							"relation",
+							"page",
+							"formula",
+							"people"
+						]
+					},
+					"options": {
+						"anyOf": [
+							{
+								"type": "array",
+								"items": {
+									"type": "string"
+								}
+							},
+							{
+								"type": "null"
+							}
+						]
+					},
+					"relationTargetDbId": {
+						"anyOf": [
+							{
+								"type": "string"
+							},
+							{
+								"type": "null"
+							}
+						]
+					},
+					"formula": {
+						"anyOf": [
+							{
+								"type": "string"
+							},
+							{
+								"type": "null"
+							}
+						]
+					},
+					"sortOrder": {
+						"anyOf": [
+							{
+								"type": "number"
+							},
+							{
+								"type": "string",
+								"enum": [
+									"NaN",
+									"Infinity",
+									"-Infinity"
+								]
+							}
+						]
+					}
+				},
+				"required": [
+					"id",
+					"databaseId",
+					"name",
+					"type",
+					"options",
+					"relationTargetDbId",
+					"formula",
+					"sortOrder"
+				],
+				"additionalProperties": true
+			},
+			"DatabaseRecordWithValues": {
+				"type": "object",
+				"properties": {
+					"id": {
+						"type": "string"
+					},
+					"databaseId": {
+						"type": "string"
+					},
+					"title": {
+						"type": "string"
+					},
+					"description": {
+						"type": "string"
+					},
+					"isDeleted": {
+						"type": "boolean"
+					},
+					"createdAt": {
+						"type": "string"
+					},
+					"fields": {
+						"type": "object"
+					}
+				},
+				"required": [
+					"id",
+					"databaseId",
+					"title",
+					"description",
+					"isDeleted",
+					"createdAt",
+					"fields"
+				],
+				"additionalProperties": true
+			},
+			"DatabaseRecord": {
+				"type": "object",
+				"properties": {
+					"id": {
+						"type": "string"
+					},
+					"databaseId": {
+						"type": "string"
+					},
+					"title": {
+						"type": "string"
+					},
+					"description": {
+						"type": "string"
+					},
+					"pageId": {
+						"anyOf": [
+							{
+								"type": "string"
+							},
+							{
+								"type": "null"
+							}
+						]
+					},
+					"isDeleted": {
+						"type": "boolean"
+					},
+					"createdAt": {
+						"type": "string"
+					},
+					"deletedAt": {
+						"anyOf": [
+							{
+								"type": "string"
+							},
+							{
+								"type": "null"
+							}
+						]
+					}
+				},
+				"required": [
+					"id",
+					"databaseId",
+					"title",
+					"description",
+					"pageId",
+					"isDeleted",
+					"createdAt",
+					"deletedAt"
+				],
+				"additionalProperties": true
+			},
+			"RecordFieldValue": {
+				"type": "object",
+				"properties": {
+					"id": {
+						"type": "string"
+					},
+					"recordId": {
+						"type": "string"
+					},
+					"fieldId": {
+						"type": "string"
+					},
+					"value": {
+						"type": "string"
+					}
+				},
+				"required": [
+					"id",
+					"recordId",
+					"fieldId",
+					"value"
+				],
+				"additionalProperties": true
+			},
+			"DatabaseView": {
+				"type": "object",
+				"properties": {
+					"id": {
+						"type": "string"
+					},
+					"databaseId": {
+						"type": "string"
+					},
+					"name": {
+						"type": "string"
+					},
+					"type": {
+						"type": "string",
+						"enum": [
+							"table",
+							"board",
+							"calendar"
+						]
+					},
+					"groupByFieldId": {
+						"anyOf": [
+							{
+								"type": "string"
+							},
+							{
+								"type": "null"
+							}
+						]
+					},
+					"sortFieldId": {
+						"anyOf": [
+							{
+								"type": "string"
+							},
+							{
+								"type": "null"
+							}
+						]
+					},
+					"sortOrder": {
+						"type": "string",
+						"enum": [
+							"asc",
+							"desc"
+						]
+					},
+					"config": {
+						"type": "string"
+					},
+					"isDefault": {
+						"type": "boolean"
+					}
+				},
+				"required": [
+					"id",
+					"databaseId",
+					"name",
+					"type",
+					"groupByFieldId",
+					"sortFieldId",
+					"sortOrder",
+					"config",
+					"isDefault"
+				],
+				"additionalProperties": true
+			},
+			"Block": {
+				"type": "object",
+				"properties": {
+					"id": {
+						"type": "string"
+					},
+					"pageId": {
+						"type": "string"
+					},
+					"type": {
+						"type": "string",
+						"enum": [
+							"paragraph",
+							"heading1",
+							"heading2",
+							"heading3",
+							"bulletList",
+							"numberedList",
+							"todo",
+							"code",
+							"blockquote",
+							"divider",
+							"image",
+							"pdf",
+							"file",
+							"database",
+							"pageLink",
+							"toggle",
+							"callout",
+							"people",
+							"viewReference"
+						]
+					},
+					"content": {
+						"type": "string"
+					},
+					"parentId": {
+						"anyOf": [
+							{
+								"type": "string"
+							},
+							{
+								"type": "null"
+							}
+						]
+					},
+					"index": {
+						"anyOf": [
+							{
+								"type": "number"
+							},
+							{
+								"type": "string",
+								"enum": [
+									"NaN",
+									"Infinity",
+									"-Infinity"
+								]
+							}
+						]
+					}
+				},
+				"required": [
+					"id",
+					"pageId",
+					"type",
+					"content",
+					"parentId",
+					"index"
+				],
+				"additionalProperties": true
+			},
+			"SearchResult": {
+				"type": "object",
+				"properties": {
+					"type": {
+						"type": "string",
+						"enum": [
+							"page",
+							"block"
+						]
+					},
+					"id": {
+						"type": "string"
+					},
+					"title": {
+						"type": "string"
+					},
+					"content": {
+						"type": "string"
+					},
+					"pageId": {
+						"type": "string"
+					},
+					"isDeleted": {
+						"anyOf": [
+							{
+								"type": "boolean"
+							},
+							{
+								"type": "null"
+							}
+						]
+					}
+				},
+				"required": [
+					"type",
+					"id",
+					"title",
+					"content",
+					"pageId"
+				],
+				"additionalProperties": true
+			},
+			"TrashedPageEncoded": {
+				"type": "object",
+				"properties": {
+					"id": {
+						"type": "string"
+					},
+					"title": {
+						"type": "string"
+					},
+					"deletedAt": {
+						"anyOf": [
+							{
+								"type": "string"
+							},
+							{
+								"type": "null"
+							}
+						]
+					}
+				},
+				"required": [
+					"id",
+					"title",
+					"deletedAt"
+				],
+				"additionalProperties": true
+			},
+			"TrashedDatabaseEncoded": {
+				"type": "object",
+				"properties": {
+					"id": {
+						"type": "string"
+					},
+					"name": {
+						"type": "string"
+					},
+					"deletedAt": {
+						"anyOf": [
+							{
+								"type": "string"
+							},
+							{
+								"type": "null"
+							}
+						]
+					}
+				},
+				"required": [
+					"id",
+					"name",
+					"deletedAt"
+				],
+				"additionalProperties": true
+			},
+			"TrashedRecordEncoded": {
+				"type": "object",
+				"properties": {
+					"id": {
+						"type": "string"
+					},
+					"databaseId": {
+						"type": "string"
+					},
+					"title": {
+						"type": "string"
+					},
+					"deletedAt": {
+						"anyOf": [
+							{
+								"type": "string"
+							},
+							{
+								"type": "null"
+							}
+						]
+					}
+				},
+				"required": [
+					"id",
+					"databaseId",
+					"title",
+					"deletedAt"
+				],
+				"additionalProperties": true
+			},
+			"TrashContents": {
+				"type": "object",
+				"properties": {
+					"pages": {
+						"type": "array",
+						"items": {
+							"$ref": "#/components/schemas/TrashedPageEncoded"
+						}
+					},
+					"databases": {
+						"type": "array",
+						"items": {
+							"$ref": "#/components/schemas/TrashedDatabaseEncoded"
+						}
+					},
+					"records": {
+						"type": "array",
+						"items": {
+							"$ref": "#/components/schemas/TrashedRecordEncoded"
+						}
+					}
+				},
+				"required": [
+					"pages",
+					"databases",
+					"records"
+				],
+				"additionalProperties": true
+			},
+			"Backlink": {
+				"type": "object",
+				"properties": {
+					"blockId": {
+						"type": "string"
+					},
+					"pageId": {
+						"type": "string"
+					},
+					"pageTitle": {
+						"type": "string"
+					},
+					"blockType": {
+						"type": "string"
+					},
+					"content": {
+						"type": "string"
+					}
+				},
+				"required": [
+					"blockId",
+					"pageId",
+					"pageTitle",
+					"blockType",
+					"content"
+				],
+				"additionalProperties": true
+			},
+			"PageExport": {
+				"type": "object",
+				"properties": {
+					"pageId": {
+						"type": "string"
+					},
+					"title": {
+						"type": "string"
+					},
+					"markdown": {
+						"type": "string"
+					},
+					"databasesExported": {
+						"anyOf": [
+							{
+								"type": "number"
+							},
+							{
+								"type": "string",
+								"enum": [
+									"NaN",
+									"Infinity",
+									"-Infinity"
+								]
+							}
+						]
+					}
+				},
+				"required": [
+					"pageId",
+					"title",
+					"markdown",
+					"databasesExported"
+				],
+				"additionalProperties": true
+			},
+			"DatabaseCsvExport": {
+				"type": "object",
+				"properties": {
+					"dbId": {
+						"type": "string"
+					},
+					"name": {
+						"type": "string"
+					},
+					"csv": {
+						"type": "string"
+					}
+				},
+				"required": [
+					"dbId",
+					"name",
+					"csv"
+				],
+				"additionalProperties": true
+			},
+			"WorkspaceMember": {
+				"type": "object",
+				"properties": {
+					"userId": {
+						"type": "string"
+					},
+					"name": {
+						"type": "string"
+					},
+					"email": {
+						"type": "string"
+					},
+					"role": {
+						"type": "string",
+						"enum": [
+							"owner",
+							"member"
+						]
+					}
+				},
+				"required": [
+					"userId",
+					"name",
+					"email",
+					"role"
+				],
+				"additionalProperties": true
+			},
+			"PageShare": {
+				"type": "object",
+				"properties": {
+					"token": {
+						"anyOf": [
+							{
+								"type": "string"
+							},
+							{
+								"type": "null"
+							}
+						],
+						"description": "The public share token, or null when the page is not published. The public URL is `<origin>/p/<token>`."
+					}
+				},
+				"required": [
+					"token"
+				],
+				"additionalProperties": true
+			},
+			"AclEntryEncoded": {
+				"type": "object",
+				"properties": {
+					"relation": {
+						"type": "string",
+						"enum": [
+							"owner",
+							"editor",
+							"viewer"
+						]
+					},
+					"subject": {
+						"anyOf": [
+							{
+								"type": "object",
+								"properties": {
+									"type": {
+										"type": "string",
+										"enum": [
+											"user"
+										]
+									},
+									"id": {
+										"type": "string"
+									}
+								},
+								"required": [
+									"type",
+									"id"
+								],
+								"additionalProperties": true
+							},
+							{
+								"type": "object",
+								"properties": {
+									"type": {
+										"type": "string",
+										"enum": [
+											"workspace"
+										]
+									},
+									"id": {
+										"type": "string"
+									},
+									"relation": {
+										"type": "string",
+										"enum": [
+											"member"
+										]
+									}
+								},
+								"required": [
+									"type",
+									"id",
+									"relation"
+								],
+								"additionalProperties": true
+							},
+							{
+								"type": "object",
+								"properties": {
+									"type": {
+										"type": "string",
+										"enum": [
+											"public"
+										]
+									}
+								},
+								"required": [
+									"type"
+								],
+								"additionalProperties": true
+							}
+						]
+					}
+				},
+				"required": [
+					"relation",
+					"subject"
+				],
+				"additionalProperties": true
+			},
+			"PagePermissions": {
+				"type": "object",
+				"properties": {
+					"direct": {
+						"type": "array",
+						"items": {
+							"$ref": "#/components/schemas/AclEntryEncoded"
+						}
+					},
+					"inheritedFromPageId": {
+						"anyOf": [
+							{
+								"type": "string"
+							},
+							{
+								"type": "null"
+							}
+						]
+					},
+					"inherited": {
+						"type": "array",
+						"items": {
+							"$ref": "#/components/schemas/AclEntryEncoded"
+						}
+					},
+					"revision": {
+						"type": "string"
+					}
+				},
+				"required": [
+					"direct",
+					"inheritedFromPageId",
+					"inherited",
+					"revision"
+				],
+				"additionalProperties": true
+			}
+		}
+	},
+	"paths": {
+		"/workspaces": {
+			"parameters": [],
+			"get": {
+				"tags": [
+					"Workspaces"
+				],
+				"operationId": "listWorkspaces",
+				"summary": "List workspaces",
+				"description": "Returns the workspaces the authenticated user belongs to. Use an `id` from here as `workspaceId` everywhere else.",
+				"responses": {
+					"200": {
+						"description": "Success",
+						"content": {
+							"application/json": {
+								"schema": {
+									"type": "array",
+									"items": {
+										"$ref": "#/components/schemas/Workspace"
+									}
+								}
+							}
+						}
+					},
+					"400": {
+						"description": "Malformed JSON body",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/Error"
+								}
+							}
+						}
+					},
+					"401": {
+						"description": "Unauthorized",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/Error"
+								}
+							}
+						}
+					},
+					"403": {
+						"description": "Forbidden",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/Error"
+								}
+							}
+						}
+					},
+					"404": {
+						"description": "Not found",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/Error"
+								}
+							}
+						}
+					},
+					"409": {
+						"description": "Conflict, such as a block another user is editing",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/Error"
+								}
+							}
+						}
+					},
+					"422": {
+						"description": "Validation error",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/Error"
+								}
+							}
+						}
+					},
+					"500": {
+						"description": "Server error",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/Error"
+								}
+							}
+						}
+					}
+				}
+			}
+		},
+		"/templates": {
+			"parameters": [],
+			"get": {
+				"tags": [
+					"Templates"
+				],
+				"operationId": "listTemplates",
+				"summary": "List page templates",
+				"description": "The built-in catalogue, the same for every workspace. Use an `id` as `templateId` in `createPageFromTemplate`.",
+				"responses": {
+					"200": {
+						"description": "Success",
+						"content": {
+							"application/json": {
+								"schema": {
+									"type": "array",
+									"items": {
+										"$ref": "#/components/schemas/Template"
+									}
+								}
+							}
+						}
+					},
+					"400": {
+						"description": "Malformed JSON body",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/Error"
+								}
+							}
+						}
+					},
+					"401": {
+						"description": "Unauthorized",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/Error"
+								}
+							}
+						}
+					},
+					"403": {
+						"description": "Forbidden",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/Error"
+								}
+							}
+						}
+					},
+					"404": {
+						"description": "Not found",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/Error"
+								}
+							}
+						}
+					},
+					"409": {
+						"description": "Conflict, such as a block another user is editing",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/Error"
+								}
+							}
+						}
+					},
+					"422": {
+						"description": "Validation error",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/Error"
+								}
+							}
+						}
+					},
+					"500": {
+						"description": "Server error",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/Error"
+								}
+							}
+						}
+					}
+				}
+			}
+		},
+		"/workspaces/{workspaceId}/pages": {
+			"parameters": [
+				{
+					"name": "workspaceId",
+					"in": "path",
+					"required": true,
+					"schema": {
+						"type": "string"
+					},
+					"description": "Workspace ID"
+				}
+			],
+			"get": {
+				"tags": [
+					"Pages"
+				],
+				"operationId": "listPages",
+				"summary": "List all pages",
+				"responses": {
+					"200": {
+						"description": "Success",
+						"content": {
+							"application/json": {
+								"schema": {
+									"type": "array",
+									"items": {
+										"$ref": "#/components/schemas/Page"
+									}
+								}
+							}
+						}
+					},
+					"400": {
+						"description": "Malformed JSON body",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/Error"
+								}
+							}
+						}
+					},
+					"401": {
+						"description": "Unauthorized",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/Error"
+								}
+							}
+						}
+					},
+					"403": {
+						"description": "Forbidden",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/Error"
+								}
+							}
+						}
+					},
+					"404": {
+						"description": "Not found",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/Error"
+								}
+							}
+						}
+					},
+					"409": {
+						"description": "Conflict, such as a block another user is editing",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/Error"
+								}
+							}
+						}
+					},
+					"422": {
+						"description": "Validation error",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/Error"
+								}
+							}
+						}
+					},
+					"500": {
+						"description": "Server error",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/Error"
+								}
+							}
+						}
+					}
+				}
+			},
+			"post": {
+				"tags": [
+					"Pages"
+				],
+				"operationId": "createPage",
+				"summary": "Create a page",
+				"requestBody": {
+					"required": true,
+					"content": {
+						"application/json": {
+							"schema": {
+								"type": "object",
+								"properties": {
+									"title": {
+										"type": "string",
+										"maxLength": 500
+									},
+									"parentId": {
+										"anyOf": [
+											{
+												"anyOf": [
+													{
+														"type": "string"
+													},
+													{
+														"type": "null"
+													}
+												]
+											},
+											{
+												"type": "null"
+											}
+										]
+									}
+								},
+								"required": [
+									"title"
+								],
+								"additionalProperties": true
+							}
+						}
+					}
+				},
+				"responses": {
+					"201": {
+						"description": "Success",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/Page"
+								}
+							}
+						}
+					},
+					"400": {
+						"description": "Malformed JSON body",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/Error"
+								}
+							}
+						}
+					},
+					"401": {
+						"description": "Unauthorized",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/Error"
+								}
+							}
+						}
+					},
+					"403": {
+						"description": "Forbidden",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/Error"
+								}
+							}
+						}
+					},
+					"404": {
+						"description": "Not found",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/Error"
+								}
+							}
+						}
+					},
+					"409": {
+						"description": "Conflict, such as a block another user is editing",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/Error"
+								}
+							}
+						}
+					},
+					"422": {
+						"description": "Validation error",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/Error"
+								}
+							}
+						}
+					},
+					"500": {
+						"description": "Server error",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/Error"
+								}
+							}
+						}
+					}
+				}
+			}
+		},
+		"/workspaces/{workspaceId}/pages/{pageId}": {
+			"parameters": [
+				{
+					"name": "workspaceId",
+					"in": "path",
+					"required": true,
+					"schema": {
+						"type": "string"
+					},
+					"description": "Workspace ID"
+				},
+				{
+					"name": "pageId",
+					"in": "path",
+					"required": true,
+					"schema": {
+						"type": "string",
+						"description": "Page ID"
+					}
+				}
+			],
+			"get": {
+				"tags": [
+					"Pages"
+				],
+				"operationId": "getPage",
+				"summary": "Get a page",
+				"responses": {
+					"200": {
+						"description": "Success",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/Page"
+								}
+							}
+						}
+					},
+					"400": {
+						"description": "Malformed JSON body",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/Error"
+								}
+							}
+						}
+					},
+					"401": {
+						"description": "Unauthorized",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/Error"
+								}
+							}
+						}
+					},
+					"403": {
+						"description": "Forbidden",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/Error"
+								}
+							}
+						}
+					},
+					"404": {
+						"description": "Not found",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/Error"
+								}
+							}
+						}
+					},
+					"409": {
+						"description": "Conflict, such as a block another user is editing",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/Error"
+								}
+							}
+						}
+					},
+					"422": {
+						"description": "Validation error",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/Error"
+								}
+							}
+						}
+					},
+					"500": {
+						"description": "Server error",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/Error"
+								}
+							}
+						}
+					}
+				}
+			},
+			"patch": {
+				"tags": [
+					"Pages"
+				],
+				"operationId": "updatePage",
+				"summary": "Update a page",
+				"requestBody": {
+					"required": true,
+					"content": {
+						"application/json": {
+							"schema": {
+								"type": "object",
+								"properties": {
+									"title": {
+										"anyOf": [
+											{
+												"anyOf": [
+													{
+														"type": "string",
+														"maxLength": 500
+													},
+													{
+														"type": "null"
+													}
+												]
+											},
+											{
+												"type": "null"
+											}
+										]
+									},
+									"icon": {
+										"anyOf": [
+											{
+												"anyOf": [
+													{
+														"type": "string"
+													},
+													{
+														"type": "null"
+													}
+												]
+											},
+											{
+												"type": "null"
+											}
+										]
+									},
+									"coverUrl": {
+										"anyOf": [
+											{
+												"anyOf": [
+													{
+														"type": "string"
+													},
+													{
+														"type": "null"
+													}
+												]
+											},
+											{
+												"type": "null"
+											}
+										]
+									},
+									"isFavorite": {
+										"anyOf": [
+											{
+												"anyOf": [
+													{
+														"type": "boolean"
+													},
+													{
+														"type": "null"
+													}
+												]
+											},
+											{
+												"type": "null"
+											}
+										]
+									}
+								},
+								"additionalProperties": true
+							}
+						}
+					}
+				},
+				"responses": {
+					"200": {
+						"description": "Success",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/Page"
+								}
+							}
+						}
+					},
+					"400": {
+						"description": "Malformed JSON body",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/Error"
+								}
+							}
+						}
+					},
+					"401": {
+						"description": "Unauthorized",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/Error"
+								}
+							}
+						}
+					},
+					"403": {
+						"description": "Forbidden",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/Error"
+								}
+							}
+						}
+					},
+					"404": {
+						"description": "Not found",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/Error"
+								}
+							}
+						}
+					},
+					"409": {
+						"description": "Conflict, such as a block another user is editing",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/Error"
+								}
+							}
+						}
+					},
+					"422": {
+						"description": "Validation error",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/Error"
+								}
+							}
+						}
+					},
+					"500": {
+						"description": "Server error",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/Error"
+								}
+							}
+						}
+					}
+				}
+			},
+			"delete": {
+				"tags": [
+					"Pages"
+				],
+				"operationId": "deletePage",
+				"summary": "Delete a page",
+				"description": "Moves the page to trash by default. Pass `?permanent=true` to purge it permanently along with its blocks, databases and records.",
+				"parameters": [
+					{
+						"name": "permanent",
+						"in": "query",
+						"required": false,
+						"schema": {
+							"anyOf": [
+								{
+									"type": "string",
+									"enum": [
+										"true",
+										"false"
+									],
+									"description": "When `true`, permanently purge instead of moving to trash. Irreversible."
+								},
+								{
+									"type": "null"
+								}
+							]
+						}
+					}
+				],
+				"responses": {
+					"204": {
+						"description": "No content"
+					},
+					"400": {
+						"description": "Malformed JSON body",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/Error"
+								}
+							}
+						}
+					},
+					"401": {
+						"description": "Unauthorized",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/Error"
+								}
+							}
+						}
+					},
+					"403": {
+						"description": "Forbidden",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/Error"
+								}
+							}
+						}
+					},
+					"404": {
+						"description": "Not found",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/Error"
+								}
+							}
+						}
+					},
+					"409": {
+						"description": "Conflict, such as a block another user is editing",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/Error"
+								}
+							}
+						}
+					},
+					"422": {
+						"description": "Validation error",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/Error"
+								}
+							}
+						}
+					},
+					"500": {
+						"description": "Server error",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/Error"
+								}
+							}
+						}
+					}
+				}
+			}
+		},
+		"/workspaces/{workspaceId}/pages/{pageId}/restore": {
+			"parameters": [
+				{
+					"name": "workspaceId",
+					"in": "path",
+					"required": true,
+					"schema": {
+						"type": "string"
+					},
+					"description": "Workspace ID"
+				},
+				{
+					"name": "pageId",
+					"in": "path",
+					"required": true,
+					"schema": {
+						"type": "string",
+						"description": "Page ID"
+					}
+				}
+			],
+			"post": {
+				"tags": [
+					"Pages"
+				],
+				"operationId": "restorePage",
+				"summary": "Restore a trashed page",
+				"responses": {
+					"200": {
+						"description": "Success",
+						"content": {
+							"application/json": {
+								"schema": {
+									"type": "object",
+									"properties": {
+										"restored": {
+											"type": "boolean"
+										}
+									},
+									"required": [
+										"restored"
+									],
+									"additionalProperties": true
+								}
+							}
+						}
+					},
+					"400": {
+						"description": "Malformed JSON body",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/Error"
+								}
+							}
+						}
+					},
+					"401": {
+						"description": "Unauthorized",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/Error"
+								}
+							}
+						}
+					},
+					"403": {
+						"description": "Forbidden",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/Error"
+								}
+							}
+						}
+					},
+					"404": {
+						"description": "Not found",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/Error"
+								}
+							}
+						}
+					},
+					"409": {
+						"description": "Conflict, such as a block another user is editing",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/Error"
+								}
+							}
+						}
+					},
+					"422": {
+						"description": "Validation error",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/Error"
+								}
+							}
+						}
+					},
+					"500": {
+						"description": "Server error",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/Error"
+								}
+							}
+						}
+					}
+				}
+			}
+		},
+		"/workspaces/{workspaceId}/pages/{pageId}/move": {
+			"parameters": [
+				{
+					"name": "workspaceId",
+					"in": "path",
+					"required": true,
+					"schema": {
+						"type": "string"
+					},
+					"description": "Workspace ID"
+				},
+				{
+					"name": "pageId",
+					"in": "path",
+					"required": true,
+					"schema": {
+						"type": "string",
+						"description": "Page ID"
+					}
+				}
+			],
+			"post": {
+				"tags": [
+					"Pages"
+				],
+				"operationId": "movePage",
+				"summary": "Move a page under another parent",
+				"description": "`parentId: null` moves the page to the top level.",
+				"requestBody": {
+					"required": true,
+					"content": {
+						"application/json": {
+							"schema": {
+								"type": "object",
+								"properties": {
+									"parentId": {
+										"anyOf": [
+											{
+												"type": "string"
+											},
+											{
+												"type": "null"
+											}
+										]
+									}
+								},
+								"required": [
+									"parentId"
+								],
+								"additionalProperties": true
+							}
+						}
+					}
+				},
+				"responses": {
+					"200": {
+						"description": "Success",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/Page"
+								}
+							}
+						}
+					},
+					"400": {
+						"description": "Malformed JSON body",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/Error"
+								}
+							}
+						}
+					},
+					"401": {
+						"description": "Unauthorized",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/Error"
+								}
+							}
+						}
+					},
+					"403": {
+						"description": "Forbidden",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/Error"
+								}
+							}
+						}
+					},
+					"404": {
+						"description": "Not found",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/Error"
+								}
+							}
+						}
+					},
+					"409": {
+						"description": "Conflict, such as a block another user is editing",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/Error"
+								}
+							}
+						}
+					},
+					"422": {
+						"description": "Validation error",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/Error"
+								}
+							}
+						}
+					},
+					"500": {
+						"description": "Server error",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/Error"
+								}
+							}
+						}
+					}
+				}
+			}
+		},
+		"/workspaces/{workspaceId}/pages/reorder": {
+			"parameters": [
+				{
+					"name": "workspaceId",
+					"in": "path",
+					"required": true,
+					"schema": {
+						"type": "string"
+					},
+					"description": "Workspace ID"
+				}
+			],
+			"post": {
+				"tags": [
+					"Pages"
+				],
+				"operationId": "reorderPages",
+				"summary": "Reorder the child pages of a parent",
+				"description": "`pageIds` lists every sibling in the new order; `parentId: null` reorders the top level.",
+				"requestBody": {
+					"required": true,
+					"content": {
+						"application/json": {
+							"schema": {
+								"type": "object",
+								"properties": {
+									"parentId": {
+										"anyOf": [
+											{
+												"type": "string"
+											},
+											{
+												"type": "null"
+											}
+										]
+									},
+									"pageIds": {
+										"type": "array",
+										"items": {
+											"type": "string"
+										}
+									}
+								},
+								"required": [
+									"parentId",
+									"pageIds"
+								],
+								"additionalProperties": true
+							}
+						}
+					}
+				},
+				"responses": {
+					"200": {
+						"description": "Success",
+						"content": {
+							"application/json": {
+								"schema": {
+									"type": "object",
+									"properties": {
+										"reordered": {
+											"type": "boolean"
+										}
+									},
+									"required": [
+										"reordered"
+									],
+									"additionalProperties": true
+								}
+							}
+						}
+					},
+					"400": {
+						"description": "Malformed JSON body",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/Error"
+								}
+							}
+						}
+					},
+					"401": {
+						"description": "Unauthorized",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/Error"
+								}
+							}
+						}
+					},
+					"403": {
+						"description": "Forbidden",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/Error"
+								}
+							}
+						}
+					},
+					"404": {
+						"description": "Not found",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/Error"
+								}
+							}
+						}
+					},
+					"409": {
+						"description": "Conflict, such as a block another user is editing",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/Error"
+								}
+							}
+						}
+					},
+					"422": {
+						"description": "Validation error",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/Error"
+								}
+							}
+						}
+					},
+					"500": {
+						"description": "Server error",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/Error"
+								}
+							}
+						}
+					}
+				}
+			}
+		},
+		"/workspaces/{workspaceId}/databases": {
+			"parameters": [
+				{
+					"name": "workspaceId",
+					"in": "path",
+					"required": true,
+					"schema": {
+						"type": "string"
+					},
+					"description": "Workspace ID"
+				}
+			],
+			"get": {
+				"tags": [
+					"Databases"
+				],
+				"operationId": "listDatabases",
+				"summary": "List all databases in the workspace",
+				"responses": {
+					"200": {
+						"description": "Success",
+						"content": {
+							"application/json": {
+								"schema": {
+									"type": "array",
+									"items": {
+										"$ref": "#/components/schemas/Database"
+									}
+								}
+							}
+						}
+					},
+					"400": {
+						"description": "Malformed JSON body",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/Error"
+								}
+							}
+						}
+					},
+					"401": {
+						"description": "Unauthorized",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/Error"
+								}
+							}
+						}
+					},
+					"403": {
+						"description": "Forbidden",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/Error"
+								}
+							}
+						}
+					},
+					"404": {
+						"description": "Not found",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/Error"
+								}
+							}
+						}
+					},
+					"409": {
+						"description": "Conflict, such as a block another user is editing",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/Error"
+								}
+							}
+						}
+					},
+					"422": {
+						"description": "Validation error",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/Error"
+								}
+							}
+						}
+					},
+					"500": {
+						"description": "Server error",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/Error"
+								}
+							}
+						}
+					}
+				}
+			},
+			"post": {
+				"tags": [
+					"Databases"
+				],
+				"operationId": "createDatabase",
+				"summary": "Create a database",
+				"requestBody": {
+					"required": true,
+					"content": {
+						"application/json": {
+							"schema": {
+								"type": "object",
+								"properties": {
+									"pageId": {
+										"type": "string",
+										"description": "Page the database is hosted on"
+									},
+									"name": {
+										"type": "string",
+										"minLength": 1
+									}
+								},
+								"required": [
+									"pageId",
+									"name"
+								],
+								"additionalProperties": true
+							}
+						}
+					}
+				},
+				"responses": {
+					"201": {
+						"description": "Success",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/Database"
+								}
+							}
+						}
+					},
+					"400": {
+						"description": "Malformed JSON body",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/Error"
+								}
+							}
+						}
+					},
+					"401": {
+						"description": "Unauthorized",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/Error"
+								}
+							}
+						}
+					},
+					"403": {
+						"description": "Forbidden",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/Error"
+								}
+							}
+						}
+					},
+					"404": {
+						"description": "Not found",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/Error"
+								}
+							}
+						}
+					},
+					"409": {
+						"description": "Conflict, such as a block another user is editing",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/Error"
+								}
+							}
+						}
+					},
+					"422": {
+						"description": "Validation error",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/Error"
+								}
+							}
+						}
+					},
+					"500": {
+						"description": "Server error",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/Error"
+								}
+							}
+						}
+					}
+				}
+			}
+		},
+		"/workspaces/{workspaceId}/databases/reorder": {
+			"parameters": [
+				{
+					"name": "workspaceId",
+					"in": "path",
+					"required": true,
+					"schema": {
+						"type": "string"
+					},
+					"description": "Workspace ID"
+				}
+			],
+			"post": {
+				"tags": [
+					"Databases"
+				],
+				"operationId": "reorderDatabases",
+				"summary": "Reorder the databases hosted on a page",
+				"requestBody": {
+					"required": true,
+					"content": {
+						"application/json": {
+							"schema": {
+								"type": "object",
+								"properties": {
+									"pageId": {
+										"type": "string",
+										"description": "Page hosting the databases"
+									},
+									"databaseIds": {
+										"type": "array",
+										"items": {
+											"type": "string",
+											"description": "Database ID"
+										}
+									}
+								},
+								"required": [
+									"pageId",
+									"databaseIds"
+								],
+								"additionalProperties": true
+							}
+						}
+					}
+				},
+				"responses": {
+					"200": {
+						"description": "Success",
+						"content": {
+							"application/json": {
+								"schema": {
+									"type": "object",
+									"properties": {
+										"reordered": {
+											"type": "boolean"
+										}
+									},
+									"required": [
+										"reordered"
+									],
+									"additionalProperties": true
+								}
+							}
+						}
+					},
+					"400": {
+						"description": "Malformed JSON body",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/Error"
+								}
+							}
+						}
+					},
+					"401": {
+						"description": "Unauthorized",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/Error"
+								}
+							}
+						}
+					},
+					"403": {
+						"description": "Forbidden",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/Error"
+								}
+							}
+						}
+					},
+					"404": {
+						"description": "Not found",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/Error"
+								}
+							}
+						}
+					},
+					"409": {
+						"description": "Conflict, such as a block another user is editing",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/Error"
+								}
+							}
+						}
+					},
+					"422": {
+						"description": "Validation error",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/Error"
+								}
+							}
+						}
+					},
+					"500": {
+						"description": "Server error",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/Error"
+								}
+							}
+						}
+					}
+				}
+			}
+		},
+		"/workspaces/{workspaceId}/databases/{dbId}": {
+			"parameters": [
+				{
+					"name": "workspaceId",
+					"in": "path",
+					"required": true,
+					"schema": {
+						"type": "string"
+					},
+					"description": "Workspace ID"
+				},
+				{
+					"name": "dbId",
+					"in": "path",
+					"required": true,
+					"schema": {
+						"type": "string",
+						"description": "Database ID"
+					}
+				}
+			],
+			"patch": {
+				"tags": [
+					"Databases"
+				],
+				"operationId": "updateDatabase",
+				"summary": "Update a database",
+				"requestBody": {
+					"required": true,
+					"content": {
+						"application/json": {
+							"schema": {
+								"type": "object",
+								"properties": {
+									"name": {
+										"anyOf": [
+											{
+												"type": "string"
+											},
+											{
+												"type": "null"
+											}
+										]
+									},
+									"titleLabel": {
+										"anyOf": [
+											{
+												"type": "string",
+												"description": "Label of the built-in title column"
+											},
+											{
+												"type": "null"
+											}
+										]
+									},
+									"titleHidden": {
+										"anyOf": [
+											{
+												"type": "boolean",
+												"description": "Hide the title column"
+											},
+											{
+												"type": "null"
+											}
+										]
+									}
+								},
+								"additionalProperties": true
+							}
+						}
+					}
+				},
+				"responses": {
+					"200": {
+						"description": "Success",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/Database"
+								}
+							}
+						}
+					},
+					"400": {
+						"description": "Malformed JSON body",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/Error"
+								}
+							}
+						}
+					},
+					"401": {
+						"description": "Unauthorized",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/Error"
+								}
+							}
+						}
+					},
+					"403": {
+						"description": "Forbidden",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/Error"
+								}
+							}
+						}
+					},
+					"404": {
+						"description": "Not found",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/Error"
+								}
+							}
+						}
+					},
+					"409": {
+						"description": "Conflict, such as a block another user is editing",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/Error"
+								}
+							}
+						}
+					},
+					"422": {
+						"description": "Validation error",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/Error"
+								}
+							}
+						}
+					},
+					"500": {
+						"description": "Server error",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/Error"
+								}
+							}
+						}
+					}
+				}
+			},
+			"delete": {
+				"tags": [
+					"Databases"
+				],
+				"operationId": "deleteDatabase",
+				"summary": "Delete a database",
+				"description": "Moves the database to trash by default. Pass `?permanent=true` to purge it with all its records, fields and views.",
+				"parameters": [
+					{
+						"name": "permanent",
+						"in": "query",
+						"required": false,
+						"schema": {
+							"anyOf": [
+								{
+									"type": "string",
+									"enum": [
+										"true",
+										"false"
+									],
+									"description": "When `true`, permanently purge instead of moving to trash. Irreversible."
+								},
+								{
+									"type": "null"
+								}
+							]
+						}
+					}
+				],
+				"responses": {
+					"204": {
+						"description": "No content"
+					},
+					"400": {
+						"description": "Malformed JSON body",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/Error"
+								}
+							}
+						}
+					},
+					"401": {
+						"description": "Unauthorized",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/Error"
+								}
+							}
+						}
+					},
+					"403": {
+						"description": "Forbidden",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/Error"
+								}
+							}
+						}
+					},
+					"404": {
+						"description": "Not found",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/Error"
+								}
+							}
+						}
+					},
+					"409": {
+						"description": "Conflict, such as a block another user is editing",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/Error"
+								}
+							}
+						}
+					},
+					"422": {
+						"description": "Validation error",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/Error"
+								}
+							}
+						}
+					},
+					"500": {
+						"description": "Server error",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/Error"
+								}
+							}
+						}
+					}
+				}
+			},
+			"get": {
+				"tags": [
+					"Databases"
+				],
+				"operationId": "getDatabase",
+				"summary": "Get a database",
+				"responses": {
+					"200": {
+						"description": "Success",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/Database"
+								}
+							}
+						}
+					},
+					"400": {
+						"description": "Malformed JSON body",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/Error"
+								}
+							}
+						}
+					},
+					"401": {
+						"description": "Unauthorized",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/Error"
+								}
+							}
+						}
+					},
+					"403": {
+						"description": "Forbidden",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/Error"
+								}
+							}
+						}
+					},
+					"404": {
+						"description": "Not found",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/Error"
+								}
+							}
+						}
+					},
+					"409": {
+						"description": "Conflict, such as a block another user is editing",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/Error"
+								}
+							}
+						}
+					},
+					"422": {
+						"description": "Validation error",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/Error"
+								}
+							}
+						}
+					},
+					"500": {
+						"description": "Server error",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/Error"
+								}
+							}
+						}
+					}
+				}
+			}
+		},
+		"/workspaces/{workspaceId}/databases/{dbId}/restore": {
+			"parameters": [
+				{
+					"name": "workspaceId",
+					"in": "path",
+					"required": true,
+					"schema": {
+						"type": "string"
+					},
+					"description": "Workspace ID"
+				},
+				{
+					"name": "dbId",
+					"in": "path",
+					"required": true,
+					"schema": {
+						"type": "string",
+						"description": "Database ID"
+					}
+				}
+			],
+			"post": {
+				"tags": [
+					"Databases"
+				],
+				"operationId": "restoreDatabase",
+				"summary": "Restore a trashed database",
+				"responses": {
+					"200": {
+						"description": "Success",
+						"content": {
+							"application/json": {
+								"schema": {
+									"type": "object",
+									"properties": {
+										"restored": {
+											"type": "boolean"
+										}
+									},
+									"required": [
+										"restored"
+									],
+									"additionalProperties": true
+								}
+							}
+						}
+					},
+					"400": {
+						"description": "Malformed JSON body",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/Error"
+								}
+							}
+						}
+					},
+					"401": {
+						"description": "Unauthorized",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/Error"
+								}
+							}
+						}
+					},
+					"403": {
+						"description": "Forbidden",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/Error"
+								}
+							}
+						}
+					},
+					"404": {
+						"description": "Not found",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/Error"
+								}
+							}
+						}
+					},
+					"409": {
+						"description": "Conflict, such as a block another user is editing",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/Error"
+								}
+							}
+						}
+					},
+					"422": {
+						"description": "Validation error",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/Error"
+								}
+							}
+						}
+					},
+					"500": {
+						"description": "Server error",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/Error"
+								}
+							}
+						}
+					}
+				}
+			}
+		},
+		"/workspaces/{workspaceId}/databases/{dbId}/fields": {
+			"parameters": [
+				{
+					"name": "workspaceId",
+					"in": "path",
+					"required": true,
+					"schema": {
+						"type": "string"
+					},
+					"description": "Workspace ID"
+				},
+				{
+					"name": "dbId",
+					"in": "path",
+					"required": true,
+					"schema": {
+						"type": "string",
+						"description": "Database ID"
+					}
+				}
+			],
+			"get": {
+				"tags": [
+					"Databases"
+				],
+				"operationId": "listFields",
+				"summary": "List a database's fields (columns)",
+				"responses": {
+					"200": {
+						"description": "Success",
+						"content": {
+							"application/json": {
+								"schema": {
+									"type": "array",
+									"items": {
+										"$ref": "#/components/schemas/DatabaseField"
+									}
+								}
+							}
+						}
+					},
+					"400": {
+						"description": "Malformed JSON body",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/Error"
+								}
+							}
+						}
+					},
+					"401": {
+						"description": "Unauthorized",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/Error"
+								}
+							}
+						}
+					},
+					"403": {
+						"description": "Forbidden",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/Error"
+								}
+							}
+						}
+					},
+					"404": {
+						"description": "Not found",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/Error"
+								}
+							}
+						}
+					},
+					"409": {
+						"description": "Conflict, such as a block another user is editing",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/Error"
+								}
+							}
+						}
+					},
+					"422": {
+						"description": "Validation error",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/Error"
+								}
+							}
+						}
+					},
+					"500": {
+						"description": "Server error",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/Error"
+								}
+							}
+						}
+					}
+				}
+			},
+			"post": {
+				"tags": [
+					"Databases"
+				],
+				"operationId": "createField",
+				"summary": "Create a field (column)",
+				"requestBody": {
+					"required": true,
+					"content": {
+						"application/json": {
+							"schema": {
+								"type": "object",
+								"properties": {
+									"name": {
+										"type": "string",
+										"minLength": 1
+									},
+									"type": {
+										"type": "string",
+										"enum": [
+											"text",
+											"number",
+											"select",
+											"multiSelect",
+											"date",
+											"checkbox",
+											"relation",
+											"page",
+											"formula",
+											"people"
+										]
+									},
+									"options": {
+										"anyOf": [
+											{
+												"anyOf": [
+													{
+														"type": "array",
+														"items": {
+															"type": "string"
+														}
+													},
+													{
+														"type": "null"
+													}
+												]
+											},
+											{
+												"type": "null"
+											}
+										]
+									},
+									"relationTargetDbId": {
+										"anyOf": [
+											{
+												"anyOf": [
+													{
+														"type": "string"
+													},
+													{
+														"type": "null"
+													}
+												]
+											},
+											{
+												"type": "null"
+											}
+										]
+									},
+									"formula": {
+										"anyOf": [
+											{
+												"anyOf": [
+													{
+														"type": "string"
+													},
+													{
+														"type": "null"
+													}
+												]
+											},
+											{
+												"type": "null"
+											}
+										]
+									}
+								},
+								"required": [
+									"name",
+									"type"
+								],
+								"additionalProperties": true
+							}
+						}
+					}
+				},
+				"responses": {
+					"201": {
+						"description": "Success",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/DatabaseField"
+								}
+							}
+						}
+					},
+					"400": {
+						"description": "Malformed JSON body",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/Error"
+								}
+							}
+						}
+					},
+					"401": {
+						"description": "Unauthorized",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/Error"
+								}
+							}
+						}
+					},
+					"403": {
+						"description": "Forbidden",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/Error"
+								}
+							}
+						}
+					},
+					"404": {
+						"description": "Not found",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/Error"
+								}
+							}
+						}
+					},
+					"409": {
+						"description": "Conflict, such as a block another user is editing",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/Error"
+								}
+							}
+						}
+					},
+					"422": {
+						"description": "Validation error",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/Error"
+								}
+							}
+						}
+					},
+					"500": {
+						"description": "Server error",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/Error"
+								}
+							}
+						}
+					}
+				}
+			}
+		},
+		"/workspaces/{workspaceId}/databases/{dbId}/fields/reorder": {
+			"parameters": [
+				{
+					"name": "workspaceId",
+					"in": "path",
+					"required": true,
+					"schema": {
+						"type": "string"
+					},
+					"description": "Workspace ID"
+				},
+				{
+					"name": "dbId",
+					"in": "path",
+					"required": true,
+					"schema": {
+						"type": "string",
+						"description": "Database ID"
+					}
+				}
+			],
+			"post": {
+				"tags": [
+					"Databases"
+				],
+				"operationId": "reorderFields",
+				"summary": "Reorder a database's fields (columns)",
+				"requestBody": {
+					"required": true,
+					"content": {
+						"application/json": {
+							"schema": {
+								"type": "object",
+								"properties": {
+									"fieldIds": {
+										"type": "array",
+										"items": {
+											"type": "string",
+											"description": "Field ID"
+										}
+									}
+								},
+								"required": [
+									"fieldIds"
+								],
+								"additionalProperties": true
+							}
+						}
+					}
+				},
+				"responses": {
+					"200": {
+						"description": "Success",
+						"content": {
+							"application/json": {
+								"schema": {
+									"type": "object",
+									"properties": {
+										"reordered": {
+											"type": "boolean"
+										}
+									},
+									"required": [
+										"reordered"
+									],
+									"additionalProperties": true
+								}
+							}
+						}
+					},
+					"400": {
+						"description": "Malformed JSON body",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/Error"
+								}
+							}
+						}
+					},
+					"401": {
+						"description": "Unauthorized",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/Error"
+								}
+							}
+						}
+					},
+					"403": {
+						"description": "Forbidden",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/Error"
+								}
+							}
+						}
+					},
+					"404": {
+						"description": "Not found",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/Error"
+								}
+							}
+						}
+					},
+					"409": {
+						"description": "Conflict, such as a block another user is editing",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/Error"
+								}
+							}
+						}
+					},
+					"422": {
+						"description": "Validation error",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/Error"
+								}
+							}
+						}
+					},
+					"500": {
+						"description": "Server error",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/Error"
+								}
+							}
+						}
+					}
+				}
+			}
+		},
+		"/workspaces/{workspaceId}/databases/{dbId}/fields/{fieldId}": {
+			"parameters": [
+				{
+					"name": "workspaceId",
+					"in": "path",
+					"required": true,
+					"schema": {
+						"type": "string"
+					},
+					"description": "Workspace ID"
+				},
+				{
+					"name": "dbId",
+					"in": "path",
+					"required": true,
+					"schema": {
+						"type": "string",
+						"description": "Database ID"
+					}
+				},
+				{
+					"name": "fieldId",
+					"in": "path",
+					"required": true,
+					"schema": {
+						"type": "string",
+						"description": "Field ID"
+					}
+				}
+			],
+			"patch": {
+				"tags": [
+					"Databases"
+				],
+				"operationId": "updateField",
+				"summary": "Update a field",
+				"requestBody": {
+					"required": true,
+					"content": {
+						"application/json": {
+							"schema": {
+								"type": "object",
+								"properties": {
+									"name": {
+										"anyOf": [
+											{
+												"type": "string"
+											},
+											{
+												"type": "null"
+											}
+										]
+									},
+									"type": {
+										"anyOf": [
+											{
+												"type": "string",
+												"enum": [
+													"text",
+													"number",
+													"select",
+													"multiSelect",
+													"date",
+													"checkbox",
+													"relation",
+													"page",
+													"formula",
+													"people"
+												]
+											},
+											{
+												"type": "null"
+											}
+										]
+									},
+									"options": {
+										"anyOf": [
+											{
+												"anyOf": [
+													{
+														"type": "array",
+														"items": {
+															"type": "string"
+														}
+													},
+													{
+														"type": "null"
+													}
+												]
+											},
+											{
+												"type": "null"
+											}
+										]
+									},
+									"relationTargetDbId": {
+										"anyOf": [
+											{
+												"anyOf": [
+													{
+														"type": "string"
+													},
+													{
+														"type": "null"
+													}
+												]
+											},
+											{
+												"type": "null"
+											}
+										]
+									},
+									"formula": {
+										"anyOf": [
+											{
+												"anyOf": [
+													{
+														"type": "string"
+													},
+													{
+														"type": "null"
+													}
+												]
+											},
+											{
+												"type": "null"
+											}
+										]
+									}
+								},
+								"additionalProperties": true
+							}
+						}
+					}
+				},
+				"responses": {
+					"200": {
+						"description": "Success",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/DatabaseField"
+								}
+							}
+						}
+					},
+					"400": {
+						"description": "Malformed JSON body",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/Error"
+								}
+							}
+						}
+					},
+					"401": {
+						"description": "Unauthorized",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/Error"
+								}
+							}
+						}
+					},
+					"403": {
+						"description": "Forbidden",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/Error"
+								}
+							}
+						}
+					},
+					"404": {
+						"description": "Not found",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/Error"
+								}
+							}
+						}
+					},
+					"409": {
+						"description": "Conflict, such as a block another user is editing",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/Error"
+								}
+							}
+						}
+					},
+					"422": {
+						"description": "Validation error",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/Error"
+								}
+							}
+						}
+					},
+					"500": {
+						"description": "Server error",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/Error"
+								}
+							}
+						}
+					}
+				}
+			},
+			"delete": {
+				"tags": [
+					"Databases"
+				],
+				"operationId": "deleteField",
+				"summary": "Delete a field",
+				"responses": {
+					"204": {
+						"description": "No content"
+					},
+					"400": {
+						"description": "Malformed JSON body",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/Error"
+								}
+							}
+						}
+					},
+					"401": {
+						"description": "Unauthorized",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/Error"
+								}
+							}
+						}
+					},
+					"403": {
+						"description": "Forbidden",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/Error"
+								}
+							}
+						}
+					},
+					"404": {
+						"description": "Not found",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/Error"
+								}
+							}
+						}
+					},
+					"409": {
+						"description": "Conflict, such as a block another user is editing",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/Error"
+								}
+							}
+						}
+					},
+					"422": {
+						"description": "Validation error",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/Error"
+								}
+							}
+						}
+					},
+					"500": {
+						"description": "Server error",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/Error"
+								}
+							}
+						}
+					}
+				}
+			}
+		},
+		"/workspaces/{workspaceId}/databases/{dbId}/records": {
+			"parameters": [
+				{
+					"name": "workspaceId",
+					"in": "path",
+					"required": true,
+					"schema": {
+						"type": "string"
+					},
+					"description": "Workspace ID"
+				},
+				{
+					"name": "dbId",
+					"in": "path",
+					"required": true,
+					"schema": {
+						"type": "string",
+						"description": "Database ID"
+					}
+				}
+			],
+			"get": {
+				"tags": [
+					"Databases"
+				],
+				"operationId": "listDatabaseRecords",
+				"summary": "List records in a database",
+				"responses": {
+					"200": {
+						"description": "Success",
+						"content": {
+							"application/json": {
+								"schema": {
+									"type": "array",
+									"items": {
+										"$ref": "#/components/schemas/DatabaseRecordWithValues"
+									}
+								}
+							}
+						}
+					},
+					"400": {
+						"description": "Malformed JSON body",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/Error"
+								}
+							}
+						}
+					},
+					"401": {
+						"description": "Unauthorized",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/Error"
+								}
+							}
+						}
+					},
+					"403": {
+						"description": "Forbidden",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/Error"
+								}
+							}
+						}
+					},
+					"404": {
+						"description": "Not found",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/Error"
+								}
+							}
+						}
+					},
+					"409": {
+						"description": "Conflict, such as a block another user is editing",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/Error"
+								}
+							}
+						}
+					},
+					"422": {
+						"description": "Validation error",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/Error"
+								}
+							}
+						}
+					},
+					"500": {
+						"description": "Server error",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/Error"
+								}
+							}
+						}
+					}
+				}
+			},
+			"post": {
+				"tags": [
+					"Databases"
+				],
+				"operationId": "createRecord",
+				"summary": "Create a record (row)",
+				"requestBody": {
+					"required": true,
+					"content": {
+						"application/json": {
+							"schema": {
+								"type": "object",
+								"properties": {
+									"title": {
+										"type": "string",
+										"minLength": 1
+									}
+								},
+								"required": [
+									"title"
+								],
+								"additionalProperties": true
+							}
+						}
+					}
+				},
+				"responses": {
+					"201": {
+						"description": "Success",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/DatabaseRecord"
+								}
+							}
+						}
+					},
+					"400": {
+						"description": "Malformed JSON body",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/Error"
+								}
+							}
+						}
+					},
+					"401": {
+						"description": "Unauthorized",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/Error"
+								}
+							}
+						}
+					},
+					"403": {
+						"description": "Forbidden",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/Error"
+								}
+							}
+						}
+					},
+					"404": {
+						"description": "Not found",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/Error"
+								}
+							}
+						}
+					},
+					"409": {
+						"description": "Conflict, such as a block another user is editing",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/Error"
+								}
+							}
+						}
+					},
+					"422": {
+						"description": "Validation error",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/Error"
+								}
+							}
+						}
+					},
+					"500": {
+						"description": "Server error",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/Error"
+								}
+							}
+						}
+					}
+				}
+			}
+		},
+		"/workspaces/{workspaceId}/databases/{dbId}/records/reorder": {
+			"parameters": [
+				{
+					"name": "workspaceId",
+					"in": "path",
+					"required": true,
+					"schema": {
+						"type": "string"
+					},
+					"description": "Workspace ID"
+				},
+				{
+					"name": "dbId",
+					"in": "path",
+					"required": true,
+					"schema": {
+						"type": "string",
+						"description": "Database ID"
+					}
+				}
+			],
+			"post": {
+				"tags": [
+					"Databases"
+				],
+				"operationId": "reorderRecords",
+				"summary": "Reorder a database's records (rows)",
+				"requestBody": {
+					"required": true,
+					"content": {
+						"application/json": {
+							"schema": {
+								"type": "object",
+								"properties": {
+									"recordIds": {
+										"type": "array",
+										"items": {
+											"type": "string",
+											"description": "Record ID"
+										}
+									}
+								},
+								"required": [
+									"recordIds"
+								],
+								"additionalProperties": true
+							}
+						}
+					}
+				},
+				"responses": {
+					"200": {
+						"description": "Success",
+						"content": {
+							"application/json": {
+								"schema": {
+									"type": "object",
+									"properties": {
+										"reordered": {
+											"type": "boolean"
+										}
+									},
+									"required": [
+										"reordered"
+									],
+									"additionalProperties": true
+								}
+							}
+						}
+					},
+					"400": {
+						"description": "Malformed JSON body",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/Error"
+								}
+							}
+						}
+					},
+					"401": {
+						"description": "Unauthorized",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/Error"
+								}
+							}
+						}
+					},
+					"403": {
+						"description": "Forbidden",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/Error"
+								}
+							}
+						}
+					},
+					"404": {
+						"description": "Not found",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/Error"
+								}
+							}
+						}
+					},
+					"409": {
+						"description": "Conflict, such as a block another user is editing",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/Error"
+								}
+							}
+						}
+					},
+					"422": {
+						"description": "Validation error",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/Error"
+								}
+							}
+						}
+					},
+					"500": {
+						"description": "Server error",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/Error"
+								}
+							}
+						}
+					}
+				}
+			}
+		},
+		"/workspaces/{workspaceId}/databases/{dbId}/records/{recordId}": {
+			"parameters": [
+				{
+					"name": "workspaceId",
+					"in": "path",
+					"required": true,
+					"schema": {
+						"type": "string"
+					},
+					"description": "Workspace ID"
+				},
+				{
+					"name": "dbId",
+					"in": "path",
+					"required": true,
+					"schema": {
+						"type": "string",
+						"description": "Database ID"
+					}
+				},
+				{
+					"name": "recordId",
+					"in": "path",
+					"required": true,
+					"schema": {
+						"type": "string",
+						"description": "Record ID"
+					}
+				}
+			],
+			"patch": {
+				"tags": [
+					"Databases"
+				],
+				"operationId": "updateRecord",
+				"summary": "Update a record's title or description",
+				"requestBody": {
+					"required": true,
+					"content": {
+						"application/json": {
+							"schema": {
+								"type": "object",
+								"properties": {
+									"title": {
+										"anyOf": [
+											{
+												"type": "string"
+											},
+											{
+												"type": "null"
+											}
+										]
+									},
+									"description": {
+										"anyOf": [
+											{
+												"type": "string"
+											},
+											{
+												"type": "null"
+											}
+										]
+									}
+								},
+								"additionalProperties": true
+							}
+						}
+					}
+				},
+				"responses": {
+					"200": {
+						"description": "Success",
+						"content": {
+							"application/json": {
+								"schema": {
+									"type": "object",
+									"properties": {
+										"updated": {
+											"type": "boolean"
+										}
+									},
+									"required": [
+										"updated"
+									],
+									"additionalProperties": true
+								}
+							}
+						}
+					},
+					"400": {
+						"description": "Malformed JSON body",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/Error"
+								}
+							}
+						}
+					},
+					"401": {
+						"description": "Unauthorized",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/Error"
+								}
+							}
+						}
+					},
+					"403": {
+						"description": "Forbidden",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/Error"
+								}
+							}
+						}
+					},
+					"404": {
+						"description": "Not found",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/Error"
+								}
+							}
+						}
+					},
+					"409": {
+						"description": "Conflict, such as a block another user is editing",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/Error"
+								}
+							}
+						}
+					},
+					"422": {
+						"description": "Validation error",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/Error"
+								}
+							}
+						}
+					},
+					"500": {
+						"description": "Server error",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/Error"
+								}
+							}
+						}
+					}
+				}
+			},
+			"delete": {
+				"tags": [
+					"Databases"
+				],
+				"operationId": "deleteRecord",
+				"summary": "Delete a record",
+				"description": "Moves the record to trash by default. Pass `?permanent=true` to purge it.",
+				"parameters": [
+					{
+						"name": "permanent",
+						"in": "query",
+						"required": false,
+						"schema": {
+							"anyOf": [
+								{
+									"type": "string",
+									"enum": [
+										"true",
+										"false"
+									],
+									"description": "When `true`, permanently purge instead of moving to trash. Irreversible."
+								},
+								{
+									"type": "null"
+								}
+							]
+						}
+					}
+				],
+				"responses": {
+					"204": {
+						"description": "No content"
+					},
+					"400": {
+						"description": "Malformed JSON body",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/Error"
+								}
+							}
+						}
+					},
+					"401": {
+						"description": "Unauthorized",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/Error"
+								}
+							}
+						}
+					},
+					"403": {
+						"description": "Forbidden",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/Error"
+								}
+							}
+						}
+					},
+					"404": {
+						"description": "Not found",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/Error"
+								}
+							}
+						}
+					},
+					"409": {
+						"description": "Conflict, such as a block another user is editing",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/Error"
+								}
+							}
+						}
+					},
+					"422": {
+						"description": "Validation error",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/Error"
+								}
+							}
+						}
+					},
+					"500": {
+						"description": "Server error",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/Error"
+								}
+							}
+						}
+					}
+				}
+			},
+			"get": {
+				"tags": [
+					"Databases"
+				],
+				"operationId": "getRecordWithValues",
+				"summary": "Get a record with its cell values",
+				"responses": {
+					"200": {
+						"description": "Success",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/DatabaseRecordWithValues"
+								}
+							}
+						}
+					},
+					"400": {
+						"description": "Malformed JSON body",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/Error"
+								}
+							}
+						}
+					},
+					"401": {
+						"description": "Unauthorized",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/Error"
+								}
+							}
+						}
+					},
+					"403": {
+						"description": "Forbidden",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/Error"
+								}
+							}
+						}
+					},
+					"404": {
+						"description": "Not found",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/Error"
+								}
+							}
+						}
+					},
+					"409": {
+						"description": "Conflict, such as a block another user is editing",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/Error"
+								}
+							}
+						}
+					},
+					"422": {
+						"description": "Validation error",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/Error"
+								}
+							}
+						}
+					},
+					"500": {
+						"description": "Server error",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/Error"
+								}
+							}
+						}
+					}
+				}
+			}
+		},
+		"/workspaces/{workspaceId}/databases/{dbId}/records/{recordId}/restore": {
+			"parameters": [
+				{
+					"name": "workspaceId",
+					"in": "path",
+					"required": true,
+					"schema": {
+						"type": "string"
+					},
+					"description": "Workspace ID"
+				},
+				{
+					"name": "dbId",
+					"in": "path",
+					"required": true,
+					"schema": {
+						"type": "string",
+						"description": "Database ID"
+					}
+				},
+				{
+					"name": "recordId",
+					"in": "path",
+					"required": true,
+					"schema": {
+						"type": "string",
+						"description": "Record ID"
+					}
+				}
+			],
+			"post": {
+				"tags": [
+					"Databases"
+				],
+				"operationId": "restoreRecord",
+				"summary": "Restore a trashed record",
+				"responses": {
+					"200": {
+						"description": "Success",
+						"content": {
+							"application/json": {
+								"schema": {
+									"type": "object",
+									"properties": {
+										"restored": {
+											"type": "boolean"
+										}
+									},
+									"required": [
+										"restored"
+									],
+									"additionalProperties": true
+								}
+							}
+						}
+					},
+					"400": {
+						"description": "Malformed JSON body",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/Error"
+								}
+							}
+						}
+					},
+					"401": {
+						"description": "Unauthorized",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/Error"
+								}
+							}
+						}
+					},
+					"403": {
+						"description": "Forbidden",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/Error"
+								}
+							}
+						}
+					},
+					"404": {
+						"description": "Not found",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/Error"
+								}
+							}
+						}
+					},
+					"409": {
+						"description": "Conflict, such as a block another user is editing",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/Error"
+								}
+							}
+						}
+					},
+					"422": {
+						"description": "Validation error",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/Error"
+								}
+							}
+						}
+					},
+					"500": {
+						"description": "Server error",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/Error"
+								}
+							}
+						}
+					}
+				}
+			}
+		},
+		"/workspaces/{workspaceId}/databases/{dbId}/records/{recordId}/fields/{fieldId}": {
+			"parameters": [
+				{
+					"name": "workspaceId",
+					"in": "path",
+					"required": true,
+					"schema": {
+						"type": "string"
+					},
+					"description": "Workspace ID"
+				},
+				{
+					"name": "dbId",
+					"in": "path",
+					"required": true,
+					"schema": {
+						"type": "string",
+						"description": "Database ID"
+					}
+				},
+				{
+					"name": "recordId",
+					"in": "path",
+					"required": true,
+					"schema": {
+						"type": "string",
+						"description": "Record ID"
+					}
+				},
+				{
+					"name": "fieldId",
+					"in": "path",
+					"required": true,
+					"schema": {
+						"type": "string",
+						"description": "Field ID"
+					}
+				}
+			],
+			"put": {
+				"tags": [
+					"Databases"
+				],
+				"operationId": "setCell",
+				"summary": "Set a single cell value",
+				"requestBody": {
+					"required": true,
+					"content": {
+						"application/json": {
+							"schema": {
+								"type": "object",
+								"properties": {
+									"value": {
+										"description": "Cell value, stored as text: a string is kept as is, anything else as its JSON. Number: \"42\". Checkbox: \"true\"/\"false\". multiSelect: a JSON array string like '[\"a\",\"b\"]'."
+									}
+								},
+								"required": [
+									"value"
+								],
+								"additionalProperties": true
+							}
+						}
+					}
+				},
+				"responses": {
+					"200": {
+						"description": "Success",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/RecordFieldValue"
+								}
+							}
+						}
+					},
+					"400": {
+						"description": "Malformed JSON body",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/Error"
+								}
+							}
+						}
+					},
+					"401": {
+						"description": "Unauthorized",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/Error"
+								}
+							}
+						}
+					},
+					"403": {
+						"description": "Forbidden",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/Error"
+								}
+							}
+						}
+					},
+					"404": {
+						"description": "Not found",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/Error"
+								}
+							}
+						}
+					},
+					"409": {
+						"description": "Conflict, such as a block another user is editing",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/Error"
+								}
+							}
+						}
+					},
+					"422": {
+						"description": "Validation error",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/Error"
+								}
+							}
+						}
+					},
+					"500": {
+						"description": "Server error",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/Error"
+								}
+							}
+						}
+					}
+				}
+			}
+		},
+		"/workspaces/{workspaceId}/databases/{dbId}/records/{recordId}/page": {
+			"parameters": [
+				{
+					"name": "workspaceId",
+					"in": "path",
+					"required": true,
+					"schema": {
+						"type": "string"
+					},
+					"description": "Workspace ID"
+				},
+				{
+					"name": "dbId",
+					"in": "path",
+					"required": true,
+					"schema": {
+						"type": "string",
+						"description": "Database ID"
+					}
+				},
+				{
+					"name": "recordId",
+					"in": "path",
+					"required": true,
+					"schema": {
+						"type": "string",
+						"description": "Record ID"
+					}
+				}
+			],
+			"post": {
+				"tags": [
+					"Databases"
+				],
+				"operationId": "openRecordAsPage",
+				"summary": "Open a record as a page",
+				"description": "Returns the record's page, creating it on first call. Later calls return the same page.",
+				"responses": {
+					"200": {
+						"description": "Success",
+						"content": {
+							"application/json": {
+								"schema": {
+									"type": "object",
+									"properties": {
+										"pageId": {
+											"type": "string"
+										}
+									},
+									"required": [
+										"pageId"
+									],
+									"additionalProperties": true
+								}
+							}
+						}
+					},
+					"400": {
+						"description": "Malformed JSON body",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/Error"
+								}
+							}
+						}
+					},
+					"401": {
+						"description": "Unauthorized",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/Error"
+								}
+							}
+						}
+					},
+					"403": {
+						"description": "Forbidden",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/Error"
+								}
+							}
+						}
+					},
+					"404": {
+						"description": "Not found",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/Error"
+								}
+							}
+						}
+					},
+					"409": {
+						"description": "Conflict, such as a block another user is editing",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/Error"
+								}
+							}
+						}
+					},
+					"422": {
+						"description": "Validation error",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/Error"
+								}
+							}
+						}
+					},
+					"500": {
+						"description": "Server error",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/Error"
+								}
+							}
+						}
+					}
+				}
+			}
+		},
+		"/workspaces/{workspaceId}/databases/{dbId}/views": {
+			"parameters": [
+				{
+					"name": "workspaceId",
+					"in": "path",
+					"required": true,
+					"schema": {
+						"type": "string"
+					},
+					"description": "Workspace ID"
+				},
+				{
+					"name": "dbId",
+					"in": "path",
+					"required": true,
+					"schema": {
+						"type": "string",
+						"description": "Database ID"
+					}
+				}
+			],
+			"get": {
+				"tags": [
+					"Databases"
+				],
+				"operationId": "listViews",
+				"summary": "List a database's views",
+				"responses": {
+					"200": {
+						"description": "Success",
+						"content": {
+							"application/json": {
+								"schema": {
+									"type": "array",
+									"items": {
+										"$ref": "#/components/schemas/DatabaseView"
+									}
+								}
+							}
+						}
+					},
+					"400": {
+						"description": "Malformed JSON body",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/Error"
+								}
+							}
+						}
+					},
+					"401": {
+						"description": "Unauthorized",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/Error"
+								}
+							}
+						}
+					},
+					"403": {
+						"description": "Forbidden",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/Error"
+								}
+							}
+						}
+					},
+					"404": {
+						"description": "Not found",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/Error"
+								}
+							}
+						}
+					},
+					"409": {
+						"description": "Conflict, such as a block another user is editing",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/Error"
+								}
+							}
+						}
+					},
+					"422": {
+						"description": "Validation error",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/Error"
+								}
+							}
+						}
+					},
+					"500": {
+						"description": "Server error",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/Error"
+								}
+							}
+						}
+					}
+				}
+			},
+			"post": {
+				"tags": [
+					"Databases"
+				],
+				"operationId": "createView",
+				"summary": "Create a view",
+				"requestBody": {
+					"required": true,
+					"content": {
+						"application/json": {
+							"schema": {
+								"type": "object",
+								"properties": {
+									"name": {
+										"type": "string",
+										"minLength": 1
+									},
+									"type": {
+										"type": "string",
+										"enum": [
+											"table",
+											"board",
+											"calendar"
+										]
+									},
+									"groupByFieldId": {
+										"anyOf": [
+											{
+												"anyOf": [
+													{
+														"type": "string"
+													},
+													{
+														"type": "null"
+													}
+												]
+											},
+											{
+												"type": "null"
+											}
+										]
+									},
+									"config": {
+										"anyOf": [
+											{
+												"type": "string",
+												"description": "View settings (filters, sorts…) as a JSON string"
+											},
+											{
+												"type": "null"
+											}
+										]
+									},
+									"isDefault": {
+										"anyOf": [
+											{
+												"type": "boolean"
+											},
+											{
+												"type": "null"
+											}
+										]
+									}
+								},
+								"required": [
+									"name",
+									"type"
+								],
+								"additionalProperties": true
+							}
+						}
+					}
+				},
+				"responses": {
+					"201": {
+						"description": "Success",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/DatabaseView"
+								}
+							}
+						}
+					},
+					"400": {
+						"description": "Malformed JSON body",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/Error"
+								}
+							}
+						}
+					},
+					"401": {
+						"description": "Unauthorized",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/Error"
+								}
+							}
+						}
+					},
+					"403": {
+						"description": "Forbidden",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/Error"
+								}
+							}
+						}
+					},
+					"404": {
+						"description": "Not found",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/Error"
+								}
+							}
+						}
+					},
+					"409": {
+						"description": "Conflict, such as a block another user is editing",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/Error"
+								}
+							}
+						}
+					},
+					"422": {
+						"description": "Validation error",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/Error"
+								}
+							}
+						}
+					},
+					"500": {
+						"description": "Server error",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/Error"
+								}
+							}
+						}
+					}
+				}
+			}
+		},
+		"/workspaces/{workspaceId}/databases/{dbId}/views/{viewId}": {
+			"parameters": [
+				{
+					"name": "workspaceId",
+					"in": "path",
+					"required": true,
+					"schema": {
+						"type": "string"
+					},
+					"description": "Workspace ID"
+				},
+				{
+					"name": "dbId",
+					"in": "path",
+					"required": true,
+					"schema": {
+						"type": "string",
+						"description": "Database ID"
+					}
+				},
+				{
+					"name": "viewId",
+					"in": "path",
+					"required": true,
+					"schema": {
+						"type": "string",
+						"description": "View ID"
+					}
+				}
+			],
+			"patch": {
+				"tags": [
+					"Databases"
+				],
+				"operationId": "updateView",
+				"summary": "Update a view",
+				"requestBody": {
+					"required": true,
+					"content": {
+						"application/json": {
+							"schema": {
+								"type": "object",
+								"properties": {
+									"name": {
+										"anyOf": [
+											{
+												"type": "string"
+											},
+											{
+												"type": "null"
+											}
+										]
+									},
+									"type": {
+										"anyOf": [
+											{
+												"type": "string",
+												"enum": [
+													"table",
+													"board",
+													"calendar"
+												]
+											},
+											{
+												"type": "null"
+											}
+										]
+									},
+									"groupByFieldId": {
+										"anyOf": [
+											{
+												"anyOf": [
+													{
+														"type": "string"
+													},
+													{
+														"type": "null"
+													}
+												]
+											},
+											{
+												"type": "null"
+											}
+										]
+									},
+									"config": {
+										"anyOf": [
+											{
+												"type": "string"
+											},
+											{
+												"type": "null"
+											}
+										]
+									},
+									"isDefault": {
+										"anyOf": [
+											{
+												"type": "boolean"
+											},
+											{
+												"type": "null"
+											}
+										]
+									}
+								},
+								"additionalProperties": true
+							}
+						}
+					}
+				},
+				"responses": {
+					"200": {
+						"description": "Success",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/DatabaseView"
+								}
+							}
+						}
+					},
+					"400": {
+						"description": "Malformed JSON body",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/Error"
+								}
+							}
+						}
+					},
+					"401": {
+						"description": "Unauthorized",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/Error"
+								}
+							}
+						}
+					},
+					"403": {
+						"description": "Forbidden",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/Error"
+								}
+							}
+						}
+					},
+					"404": {
+						"description": "Not found",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/Error"
+								}
+							}
+						}
+					},
+					"409": {
+						"description": "Conflict, such as a block another user is editing",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/Error"
+								}
+							}
+						}
+					},
+					"422": {
+						"description": "Validation error",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/Error"
+								}
+							}
+						}
+					},
+					"500": {
+						"description": "Server error",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/Error"
+								}
+							}
+						}
+					}
+				}
+			},
+			"delete": {
+				"tags": [
+					"Databases"
+				],
+				"operationId": "deleteView",
+				"summary": "Delete a view",
+				"responses": {
+					"200": {
+						"description": "Success",
+						"content": {
+							"application/json": {
+								"schema": {
+									"type": "object",
+									"properties": {
+										"deleted": {
+											"type": "boolean"
+										}
+									},
+									"required": [
+										"deleted"
+									],
+									"additionalProperties": true
+								}
+							}
+						}
+					},
+					"400": {
+						"description": "Malformed JSON body",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/Error"
+								}
+							}
+						}
+					},
+					"401": {
+						"description": "Unauthorized",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/Error"
+								}
+							}
+						}
+					},
+					"403": {
+						"description": "Forbidden",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/Error"
+								}
+							}
+						}
+					},
+					"404": {
+						"description": "Not found",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/Error"
+								}
+							}
+						}
+					},
+					"409": {
+						"description": "Conflict, such as a block another user is editing",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/Error"
+								}
+							}
+						}
+					},
+					"422": {
+						"description": "Validation error",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/Error"
+								}
+							}
+						}
+					},
+					"500": {
+						"description": "Server error",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/Error"
+								}
+							}
+						}
+					}
+				}
+			}
+		},
+		"/workspaces/{workspaceId}/pages/{pageId}/blocks": {
+			"parameters": [
+				{
+					"name": "workspaceId",
+					"in": "path",
+					"required": true,
+					"schema": {
+						"type": "string"
+					},
+					"description": "Workspace ID"
+				},
+				{
+					"name": "pageId",
+					"in": "path",
+					"required": true,
+					"schema": {
+						"type": "string",
+						"description": "Page ID"
+					}
+				}
+			],
+			"get": {
+				"tags": [
+					"Blocks"
+				],
+				"operationId": "listBlocks",
+				"summary": "List blocks in a page",
+				"responses": {
+					"200": {
+						"description": "Success",
+						"content": {
+							"application/json": {
+								"schema": {
+									"type": "array",
+									"items": {
+										"$ref": "#/components/schemas/Block"
+									}
+								}
+							}
+						}
+					},
+					"400": {
+						"description": "Malformed JSON body",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/Error"
+								}
+							}
+						}
+					},
+					"401": {
+						"description": "Unauthorized",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/Error"
+								}
+							}
+						}
+					},
+					"403": {
+						"description": "Forbidden",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/Error"
+								}
+							}
+						}
+					},
+					"404": {
+						"description": "Not found",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/Error"
+								}
+							}
+						}
+					},
+					"409": {
+						"description": "Conflict, such as a block another user is editing",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/Error"
+								}
+							}
+						}
+					},
+					"422": {
+						"description": "Validation error",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/Error"
+								}
+							}
+						}
+					},
+					"500": {
+						"description": "Server error",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/Error"
+								}
+							}
+						}
+					}
+				}
+			},
+			"post": {
+				"tags": [
+					"Blocks"
+				],
+				"operationId": "createBlock",
+				"summary": "Create a block",
+				"requestBody": {
+					"required": true,
+					"content": {
+						"application/json": {
+							"schema": {
+								"type": "object",
+								"properties": {
+									"type": {
+										"type": "string",
+										"enum": [
+											"paragraph",
+											"heading1",
+											"heading2",
+											"heading3",
+											"bulletList",
+											"numberedList",
+											"todo",
+											"code",
+											"blockquote",
+											"divider",
+											"image",
+											"pdf",
+											"file",
+											"database",
+											"pageLink",
+											"toggle",
+											"callout",
+											"people",
+											"viewReference"
+										]
+									},
+									"content": {
+										"type": "string",
+										"maxLength": 1048576,
+										"description": "Block content must be a string. Text blocks hold HTML (e.g. \"<p>Hello</p>\"); image, pdf, file, pageLink, database, viewReference and people blocks hold a JSON string (e.g. \"{\\\"url\\\":\\\"/attachments/x.png\\\"}\")."
+									},
+									"index": {
+										"anyOf": [
+											{
+												"anyOf": [
+													{
+														"type": "number"
+													},
+													{
+														"type": "string",
+														"enum": [
+															"NaN",
+															"Infinity",
+															"-Infinity"
+														]
+													}
+												]
+											},
+											{
+												"type": "null"
+											}
+										]
+									},
+									"parentId": {
+										"anyOf": [
+											{
+												"anyOf": [
+													{
+														"type": "string"
+													},
+													{
+														"type": "null"
+													}
+												]
+											},
+											{
+												"type": "null"
+											}
+										]
+									}
+								},
+								"required": [
+									"type",
+									"content"
+								],
+								"additionalProperties": true
+							}
+						}
+					}
+				},
+				"responses": {
+					"201": {
+						"description": "Success",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/Block"
+								}
+							}
+						}
+					},
+					"400": {
+						"description": "Malformed JSON body",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/Error"
+								}
+							}
+						}
+					},
+					"401": {
+						"description": "Unauthorized",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/Error"
+								}
+							}
+						}
+					},
+					"403": {
+						"description": "Forbidden",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/Error"
+								}
+							}
+						}
+					},
+					"404": {
+						"description": "Not found",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/Error"
+								}
+							}
+						}
+					},
+					"409": {
+						"description": "Conflict, such as a block another user is editing",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/Error"
+								}
+							}
+						}
+					},
+					"422": {
+						"description": "Validation error",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/Error"
+								}
+							}
+						}
+					},
+					"500": {
+						"description": "Server error",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/Error"
+								}
+							}
+						}
+					}
+				}
+			}
+		},
+		"/workspaces/{workspaceId}/blocks/{blockId}": {
+			"parameters": [
+				{
+					"name": "workspaceId",
+					"in": "path",
+					"required": true,
+					"schema": {
+						"type": "string"
+					},
+					"description": "Workspace ID"
+				},
+				{
+					"name": "blockId",
+					"in": "path",
+					"required": true,
+					"schema": {
+						"type": "string",
+						"description": "Block ID"
+					}
+				}
+			],
+			"patch": {
+				"tags": [
+					"Blocks"
+				],
+				"operationId": "updateBlock",
+				"summary": "Update a block's content, and optionally its type",
+				"requestBody": {
+					"required": true,
+					"content": {
+						"application/json": {
+							"schema": {
+								"type": "object",
+								"properties": {
+									"content": {
+										"type": "string",
+										"maxLength": 1048576,
+										"description": "Block content must be a string. Text blocks hold HTML (e.g. \"<p>Hello</p>\"); image, pdf, file, pageLink, database, viewReference and people blocks hold a JSON string (e.g. \"{\\\"url\\\":\\\"/attachments/x.png\\\"}\")."
+									},
+									"type": {
+										"anyOf": [
+											{
+												"type": "string",
+												"enum": [
+													"paragraph",
+													"heading1",
+													"heading2",
+													"heading3",
+													"bulletList",
+													"numberedList",
+													"todo",
+													"code",
+													"blockquote",
+													"divider",
+													"image",
+													"pdf",
+													"file",
+													"database",
+													"pageLink",
+													"toggle",
+													"callout",
+													"people",
+													"viewReference"
+												],
+												"description": "New block type (turn into); kept when omitted"
+											},
+											{
+												"type": "null"
+											}
+										]
+									}
+								},
+								"required": [
+									"content"
+								],
+								"additionalProperties": true
+							}
+						}
+					}
+				},
+				"responses": {
+					"200": {
+						"description": "Success",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/Block"
+								}
+							}
+						}
+					},
+					"400": {
+						"description": "Malformed JSON body",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/Error"
+								}
+							}
+						}
+					},
+					"401": {
+						"description": "Unauthorized",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/Error"
+								}
+							}
+						}
+					},
+					"403": {
+						"description": "Forbidden",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/Error"
+								}
+							}
+						}
+					},
+					"404": {
+						"description": "Not found",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/Error"
+								}
+							}
+						}
+					},
+					"409": {
+						"description": "Conflict, such as a block another user is editing",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/Error"
+								}
+							}
+						}
+					},
+					"422": {
+						"description": "Validation error",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/Error"
+								}
+							}
+						}
+					},
+					"500": {
+						"description": "Server error",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/Error"
+								}
+							}
+						}
+					}
+				}
+			},
+			"delete": {
+				"tags": [
+					"Blocks"
+				],
+				"operationId": "deleteBlock",
+				"summary": "Delete a block",
+				"responses": {
+					"204": {
+						"description": "No content"
+					},
+					"400": {
+						"description": "Malformed JSON body",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/Error"
+								}
+							}
+						}
+					},
+					"401": {
+						"description": "Unauthorized",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/Error"
+								}
+							}
+						}
+					},
+					"403": {
+						"description": "Forbidden",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/Error"
+								}
+							}
+						}
+					},
+					"404": {
+						"description": "Not found",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/Error"
+								}
+							}
+						}
+					},
+					"409": {
+						"description": "Conflict, such as a block another user is editing",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/Error"
+								}
+							}
+						}
+					},
+					"422": {
+						"description": "Validation error",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/Error"
+								}
+							}
+						}
+					},
+					"500": {
+						"description": "Server error",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/Error"
+								}
+							}
+						}
+					}
+				}
+			}
+		},
+		"/workspaces/{workspaceId}/pages/{pageId}/blocks/reorder": {
+			"parameters": [
+				{
+					"name": "workspaceId",
+					"in": "path",
+					"required": true,
+					"schema": {
+						"type": "string"
+					},
+					"description": "Workspace ID"
+				},
+				{
+					"name": "pageId",
+					"in": "path",
+					"required": true,
+					"schema": {
+						"type": "string",
+						"description": "Page ID"
+					}
+				}
+			],
+			"post": {
+				"tags": [
+					"Blocks"
+				],
+				"operationId": "reorderBlocks",
+				"summary": "Reorder a page's blocks",
+				"description": "`blockIds` lists the page's blocks in the new order.",
+				"requestBody": {
+					"required": true,
+					"content": {
+						"application/json": {
+							"schema": {
+								"type": "object",
+								"properties": {
+									"blockIds": {
+										"type": "array",
+										"items": {
+											"type": "string",
+											"description": "Block ID"
+										}
+									}
+								},
+								"required": [
+									"blockIds"
+								],
+								"additionalProperties": true
+							}
+						}
+					}
+				},
+				"responses": {
+					"200": {
+						"description": "Success",
+						"content": {
+							"application/json": {
+								"schema": {
+									"type": "array",
+									"items": {
+										"$ref": "#/components/schemas/Block"
+									}
+								}
+							}
+						}
+					},
+					"400": {
+						"description": "Malformed JSON body",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/Error"
+								}
+							}
+						}
+					},
+					"401": {
+						"description": "Unauthorized",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/Error"
+								}
+							}
+						}
+					},
+					"403": {
+						"description": "Forbidden",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/Error"
+								}
+							}
+						}
+					},
+					"404": {
+						"description": "Not found",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/Error"
+								}
+							}
+						}
+					},
+					"409": {
+						"description": "Conflict, such as a block another user is editing",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/Error"
+								}
+							}
+						}
+					},
+					"422": {
+						"description": "Validation error",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/Error"
+								}
+							}
+						}
+					},
+					"500": {
+						"description": "Server error",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/Error"
+								}
+							}
+						}
+					}
+				}
+			}
+		},
+		"/workspaces/{workspaceId}/search": {
+			"parameters": [
+				{
+					"name": "workspaceId",
+					"in": "path",
+					"required": true,
+					"schema": {
+						"type": "string"
+					},
+					"description": "Workspace ID"
+				}
+			],
+			"get": {
+				"tags": [
+					"Search"
+				],
+				"operationId": "search",
+				"summary": "Full-text search",
+				"parameters": [
+					{
+						"name": "q",
+						"in": "query",
+						"required": true,
+						"schema": {
+							"type": "string",
+							"maxLength": 500,
+							"description": "Search query"
+						}
+					}
+				],
+				"responses": {
+					"200": {
+						"description": "Success",
+						"content": {
+							"application/json": {
+								"schema": {
+									"type": "array",
+									"items": {
+										"$ref": "#/components/schemas/SearchResult"
+									}
+								}
+							}
+						}
+					},
+					"400": {
+						"description": "Malformed JSON body",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/Error"
+								}
+							}
+						}
+					},
+					"401": {
+						"description": "Unauthorized",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/Error"
+								}
+							}
+						}
+					},
+					"403": {
+						"description": "Forbidden",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/Error"
+								}
+							}
+						}
+					},
+					"404": {
+						"description": "Not found",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/Error"
+								}
+							}
+						}
+					},
+					"409": {
+						"description": "Conflict, such as a block another user is editing",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/Error"
+								}
+							}
+						}
+					},
+					"422": {
+						"description": "Validation error",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/Error"
+								}
+							}
+						}
+					},
+					"500": {
+						"description": "Server error",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/Error"
+								}
+							}
+						}
+					}
+				}
+			}
+		},
+		"/workspaces/{workspaceId}/trash": {
+			"parameters": [
+				{
+					"name": "workspaceId",
+					"in": "path",
+					"required": true,
+					"schema": {
+						"type": "string"
+					},
+					"description": "Workspace ID"
+				}
+			],
+			"get": {
+				"tags": [
+					"Trash"
+				],
+				"operationId": "listTrash",
+				"summary": "List trashed items",
+				"description": "Returns explicitly-trashed pages, databases and records, newest first. Restore via the corresponding `…/restore` endpoint, or purge with `DELETE …?permanent=true`.",
+				"responses": {
+					"200": {
+						"description": "Success",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/TrashContents"
+								}
+							}
+						}
+					},
+					"400": {
+						"description": "Malformed JSON body",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/Error"
+								}
+							}
+						}
+					},
+					"401": {
+						"description": "Unauthorized",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/Error"
+								}
+							}
+						}
+					},
+					"403": {
+						"description": "Forbidden",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/Error"
+								}
+							}
+						}
+					},
+					"404": {
+						"description": "Not found",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/Error"
+								}
+							}
+						}
+					},
+					"409": {
+						"description": "Conflict, such as a block another user is editing",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/Error"
+								}
+							}
+						}
+					},
+					"422": {
+						"description": "Validation error",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/Error"
+								}
+							}
+						}
+					},
+					"500": {
+						"description": "Server error",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/Error"
+								}
+							}
+						}
+					}
+				}
+			}
+		},
+		"/workspaces/{workspaceId}/pages/{pageId}/backlinks": {
+			"parameters": [
+				{
+					"name": "workspaceId",
+					"in": "path",
+					"required": true,
+					"schema": {
+						"type": "string"
+					},
+					"description": "Workspace ID"
+				},
+				{
+					"name": "pageId",
+					"in": "path",
+					"required": true,
+					"schema": {
+						"type": "string",
+						"description": "Page ID"
+					}
+				}
+			],
+			"get": {
+				"tags": [
+					"Pages"
+				],
+				"operationId": "getBacklinks",
+				"summary": "List the blocks that link to a page",
+				"description": "Only blocks on pages the caller can see are returned.",
+				"responses": {
+					"200": {
+						"description": "Success",
+						"content": {
+							"application/json": {
+								"schema": {
+									"type": "array",
+									"items": {
+										"$ref": "#/components/schemas/Backlink"
+									}
+								}
+							}
+						}
+					},
+					"400": {
+						"description": "Malformed JSON body",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/Error"
+								}
+							}
+						}
+					},
+					"401": {
+						"description": "Unauthorized",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/Error"
+								}
+							}
+						}
+					},
+					"403": {
+						"description": "Forbidden",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/Error"
+								}
+							}
+						}
+					},
+					"404": {
+						"description": "Not found",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/Error"
+								}
+							}
+						}
+					},
+					"409": {
+						"description": "Conflict, such as a block another user is editing",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/Error"
+								}
+							}
+						}
+					},
+					"422": {
+						"description": "Validation error",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/Error"
+								}
+							}
+						}
+					},
+					"500": {
+						"description": "Server error",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/Error"
+								}
+							}
+						}
+					}
+				}
+			}
+		},
+		"/workspaces/{workspaceId}/templates/{templateId}/pages": {
+			"parameters": [
+				{
+					"name": "workspaceId",
+					"in": "path",
+					"required": true,
+					"schema": {
+						"type": "string"
+					},
+					"description": "Workspace ID"
+				},
+				{
+					"name": "templateId",
+					"in": "path",
+					"required": true,
+					"schema": {
+						"type": "string"
+					}
+				}
+			],
+			"post": {
+				"tags": [
+					"Templates"
+				],
+				"operationId": "createPageFromTemplate",
+				"summary": "Create a page from a template",
+				"description": "Use an `id` from `listTemplates` as `templateId`.",
+				"requestBody": {
+					"required": true,
+					"content": {
+						"application/json": {
+							"schema": {
+								"type": "object",
+								"properties": {
+									"parentId": {
+										"anyOf": [
+											{
+												"anyOf": [
+													{
+														"type": "string"
+													},
+													{
+														"type": "null"
+													}
+												]
+											},
+											{
+												"type": "null"
+											}
+										]
+									}
+								},
+								"additionalProperties": true
+							}
+						}
+					}
+				},
+				"responses": {
+					"201": {
+						"description": "Success",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/Page"
+								}
+							}
+						}
+					},
+					"400": {
+						"description": "Malformed JSON body",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/Error"
+								}
+							}
+						}
+					},
+					"401": {
+						"description": "Unauthorized",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/Error"
+								}
+							}
+						}
+					},
+					"403": {
+						"description": "Forbidden",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/Error"
+								}
+							}
+						}
+					},
+					"404": {
+						"description": "Not found",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/Error"
+								}
+							}
+						}
+					},
+					"409": {
+						"description": "Conflict, such as a block another user is editing",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/Error"
+								}
+							}
+						}
+					},
+					"422": {
+						"description": "Validation error",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/Error"
+								}
+							}
+						}
+					},
+					"500": {
+						"description": "Server error",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/Error"
+								}
+							}
+						}
+					}
+				}
+			}
+		},
+		"/workspaces/{workspaceId}/pages/{pageId}/export": {
+			"parameters": [
+				{
+					"name": "workspaceId",
+					"in": "path",
+					"required": true,
+					"schema": {
+						"type": "string"
+					},
+					"description": "Workspace ID"
+				},
+				{
+					"name": "pageId",
+					"in": "path",
+					"required": true,
+					"schema": {
+						"type": "string",
+						"description": "Page ID"
+					}
+				}
+			],
+			"get": {
+				"tags": [
+					"Pages"
+				],
+				"operationId": "exportPage",
+				"summary": "Export a page as Markdown",
+				"description": "Returns the Markdown in the JSON body. With `includeDatabases=true`, the page's inline databases are appended as CSV blocks.",
+				"parameters": [
+					{
+						"name": "includeDatabases",
+						"in": "query",
+						"required": false,
+						"schema": {
+							"anyOf": [
+								{
+									"type": "string",
+									"enum": [
+										"true",
+										"false"
+									]
+								},
+								{
+									"type": "null"
+								}
+							]
+						}
+					}
+				],
+				"responses": {
+					"200": {
+						"description": "Success",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/PageExport"
+								}
+							}
+						}
+					},
+					"400": {
+						"description": "Malformed JSON body",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/Error"
+								}
+							}
+						}
+					},
+					"401": {
+						"description": "Unauthorized",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/Error"
+								}
+							}
+						}
+					},
+					"403": {
+						"description": "Forbidden",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/Error"
+								}
+							}
+						}
+					},
+					"404": {
+						"description": "Not found",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/Error"
+								}
+							}
+						}
+					},
+					"409": {
+						"description": "Conflict, such as a block another user is editing",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/Error"
+								}
+							}
+						}
+					},
+					"422": {
+						"description": "Validation error",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/Error"
+								}
+							}
+						}
+					},
+					"500": {
+						"description": "Server error",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/Error"
+								}
+							}
+						}
+					}
+				}
+			}
+		},
+		"/workspaces/{workspaceId}/databases/{dbId}/export": {
+			"parameters": [
+				{
+					"name": "workspaceId",
+					"in": "path",
+					"required": true,
+					"schema": {
+						"type": "string"
+					},
+					"description": "Workspace ID"
+				},
+				{
+					"name": "dbId",
+					"in": "path",
+					"required": true,
+					"schema": {
+						"type": "string",
+						"description": "Database ID"
+					}
+				}
+			],
+			"get": {
+				"tags": [
+					"Databases"
+				],
+				"operationId": "exportDatabase",
+				"summary": "Export a database as CSV",
+				"description": "Returns the CSV text in the JSON body.",
+				"responses": {
+					"200": {
+						"description": "Success",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/DatabaseCsvExport"
+								}
+							}
+						}
+					},
+					"400": {
+						"description": "Malformed JSON body",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/Error"
+								}
+							}
+						}
+					},
+					"401": {
+						"description": "Unauthorized",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/Error"
+								}
+							}
+						}
+					},
+					"403": {
+						"description": "Forbidden",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/Error"
+								}
+							}
+						}
+					},
+					"404": {
+						"description": "Not found",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/Error"
+								}
+							}
+						}
+					},
+					"409": {
+						"description": "Conflict, such as a block another user is editing",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/Error"
+								}
+							}
+						}
+					},
+					"422": {
+						"description": "Validation error",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/Error"
+								}
+							}
+						}
+					},
+					"500": {
+						"description": "Server error",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/Error"
+								}
+							}
+						}
+					}
+				}
+			}
+		},
+		"/workspaces/{workspaceId}/members": {
+			"parameters": [
+				{
+					"name": "workspaceId",
+					"in": "path",
+					"required": true,
+					"schema": {
+						"type": "string"
+					},
+					"description": "Workspace ID"
+				}
+			],
+			"get": {
+				"tags": [
+					"Members"
+				],
+				"operationId": "getWorkspaceMembers",
+				"summary": "List workspace members",
+				"responses": {
+					"200": {
+						"description": "Success",
+						"content": {
+							"application/json": {
+								"schema": {
+									"type": "array",
+									"items": {
+										"$ref": "#/components/schemas/WorkspaceMember"
+									}
+								}
+							}
+						}
+					},
+					"400": {
+						"description": "Malformed JSON body",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/Error"
+								}
+							}
+						}
+					},
+					"401": {
+						"description": "Unauthorized",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/Error"
+								}
+							}
+						}
+					},
+					"403": {
+						"description": "Forbidden",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/Error"
+								}
+							}
+						}
+					},
+					"404": {
+						"description": "Not found",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/Error"
+								}
+							}
+						}
+					},
+					"409": {
+						"description": "Conflict, such as a block another user is editing",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/Error"
+								}
+							}
+						}
+					},
+					"422": {
+						"description": "Validation error",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/Error"
+								}
+							}
+						}
+					},
+					"500": {
+						"description": "Server error",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/Error"
+								}
+							}
+						}
+					}
+				}
+			}
+		},
+		"/workspaces/{workspaceId}/members/{userId}": {
+			"parameters": [
+				{
+					"name": "workspaceId",
+					"in": "path",
+					"required": true,
+					"schema": {
+						"type": "string"
+					},
+					"description": "Workspace ID"
+				},
+				{
+					"name": "userId",
+					"in": "path",
+					"required": true,
+					"schema": {
+						"type": "string"
+					}
+				}
+			],
+			"delete": {
+				"tags": [
+					"Members"
+				],
+				"operationId": "removeMember",
+				"summary": "Remove a member",
+				"description": "Owner only. The workspace owner cannot be removed.",
+				"responses": {
+					"204": {
+						"description": "No content"
+					},
+					"400": {
+						"description": "Malformed JSON body",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/Error"
+								}
+							}
+						}
+					},
+					"401": {
+						"description": "Unauthorized",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/Error"
+								}
+							}
+						}
+					},
+					"403": {
+						"description": "Forbidden",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/Error"
+								}
+							}
+						}
+					},
+					"404": {
+						"description": "Not found",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/Error"
+								}
+							}
+						}
+					},
+					"409": {
+						"description": "Conflict, such as a block another user is editing",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/Error"
+								}
+							}
+						}
+					},
+					"422": {
+						"description": "Validation error",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/Error"
+								}
+							}
+						}
+					},
+					"500": {
+						"description": "Server error",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/Error"
+								}
+							}
+						}
+					}
+				}
+			}
+		},
+		"/workspaces/{workspaceId}/invites/email": {
+			"parameters": [
+				{
+					"name": "workspaceId",
+					"in": "path",
+					"required": true,
+					"schema": {
+						"type": "string"
+					},
+					"description": "Workspace ID"
+				}
+			],
+			"post": {
+				"tags": [
+					"Members"
+				],
+				"operationId": "inviteMemberByEmail",
+				"summary": "Invite someone by email",
+				"description": "Owner only. Mails the workspace invite link to the address; the link is not returned.",
+				"requestBody": {
+					"required": true,
+					"content": {
+						"application/json": {
+							"schema": {
+								"type": "object",
+								"properties": {
+									"email": {
+										"type": "string",
+										"maxLength": 254
+									}
+								},
+								"required": [
+									"email"
+								],
+								"additionalProperties": true
+							}
+						}
+					}
+				},
+				"responses": {
+					"204": {
+						"description": "No content"
+					},
+					"400": {
+						"description": "Malformed JSON body",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/Error"
+								}
+							}
+						}
+					},
+					"401": {
+						"description": "Unauthorized",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/Error"
+								}
+							}
+						}
+					},
+					"403": {
+						"description": "Forbidden",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/Error"
+								}
+							}
+						}
+					},
+					"404": {
+						"description": "Not found",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/Error"
+								}
+							}
+						}
+					},
+					"409": {
+						"description": "Conflict, such as a block another user is editing",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/Error"
+								}
+							}
+						}
+					},
+					"422": {
+						"description": "Validation error",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/Error"
+								}
+							}
+						}
+					},
+					"500": {
+						"description": "Server error",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/Error"
+								}
+							}
+						}
+					}
+				}
+			}
+		},
+		"/workspaces/{workspaceId}/invites/link": {
+			"parameters": [
+				{
+					"name": "workspaceId",
+					"in": "path",
+					"required": true,
+					"schema": {
+						"type": "string"
+					},
+					"description": "Workspace ID"
+				}
+			],
+			"post": {
+				"tags": [
+					"Members"
+				],
+				"operationId": "regenerateInviteLink",
+				"summary": "Regenerate the invite link",
+				"description": "Owner only. Invalidates the previous invite link and returns the new token (`<origin>/join/<token>`).",
+				"responses": {
+					"200": {
+						"description": "Success",
+						"content": {
+							"application/json": {
+								"schema": {
+									"type": "object",
+									"properties": {
+										"inviteToken": {
+											"type": "string"
+										}
+									},
+									"required": [
+										"inviteToken"
+									],
+									"additionalProperties": true
+								}
+							}
+						}
+					},
+					"400": {
+						"description": "Malformed JSON body",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/Error"
+								}
+							}
+						}
+					},
+					"401": {
+						"description": "Unauthorized",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/Error"
+								}
+							}
+						}
+					},
+					"403": {
+						"description": "Forbidden",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/Error"
+								}
+							}
+						}
+					},
+					"404": {
+						"description": "Not found",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/Error"
+								}
+							}
+						}
+					},
+					"409": {
+						"description": "Conflict, such as a block another user is editing",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/Error"
+								}
+							}
+						}
+					},
+					"422": {
+						"description": "Validation error",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/Error"
+								}
+							}
+						}
+					},
+					"500": {
+						"description": "Server error",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/Error"
+								}
+							}
+						}
+					}
+				}
+			}
+		},
+		"/workspaces/{workspaceId}/pages/{pageId}/share": {
+			"parameters": [
+				{
+					"name": "workspaceId",
+					"in": "path",
+					"required": true,
+					"schema": {
+						"type": "string"
+					},
+					"description": "Workspace ID"
+				},
+				{
+					"name": "pageId",
+					"in": "path",
+					"required": true,
+					"schema": {
+						"type": "string",
+						"description": "Page ID"
+					}
+				}
+			],
+			"get": {
+				"tags": [
+					"Sharing"
+				],
+				"operationId": "getPageShare",
+				"summary": "Get a page's public share token",
+				"description": "Needs editor access to the page, as in the app.",
+				"responses": {
+					"200": {
+						"description": "Success",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/PageShare"
+								}
+							}
+						}
+					},
+					"400": {
+						"description": "Malformed JSON body",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/Error"
+								}
+							}
+						}
+					},
+					"401": {
+						"description": "Unauthorized",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/Error"
+								}
+							}
+						}
+					},
+					"403": {
+						"description": "Forbidden",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/Error"
+								}
+							}
+						}
+					},
+					"404": {
+						"description": "Not found",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/Error"
+								}
+							}
+						}
+					},
+					"409": {
+						"description": "Conflict, such as a block another user is editing",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/Error"
+								}
+							}
+						}
+					},
+					"422": {
+						"description": "Validation error",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/Error"
+								}
+							}
+						}
+					},
+					"500": {
+						"description": "Server error",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/Error"
+								}
+							}
+						}
+					}
+				}
+			},
+			"put": {
+				"tags": [
+					"Sharing"
+				],
+				"operationId": "setPageSharing",
+				"summary": "Publish or unpublish a page",
+				"description": "`enabled: true` publishes the page as a read-only public link (idempotent); `false` revokes it. Needs editor access to the page.",
+				"requestBody": {
+					"required": true,
+					"content": {
+						"application/json": {
+							"schema": {
+								"type": "object",
+								"properties": {
+									"enabled": {
+										"type": "boolean"
+									}
+								},
+								"required": [
+									"enabled"
+								],
+								"additionalProperties": true
+							}
+						}
+					}
+				},
+				"responses": {
+					"200": {
+						"description": "Success",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/PageShare"
+								}
+							}
+						}
+					},
+					"400": {
+						"description": "Malformed JSON body",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/Error"
+								}
+							}
+						}
+					},
+					"401": {
+						"description": "Unauthorized",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/Error"
+								}
+							}
+						}
+					},
+					"403": {
+						"description": "Forbidden",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/Error"
+								}
+							}
+						}
+					},
+					"404": {
+						"description": "Not found",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/Error"
+								}
+							}
+						}
+					},
+					"409": {
+						"description": "Conflict, such as a block another user is editing",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/Error"
+								}
+							}
+						}
+					},
+					"422": {
+						"description": "Validation error",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/Error"
+								}
+							}
+						}
+					},
+					"500": {
+						"description": "Server error",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/Error"
+								}
+							}
+						}
+					}
+				}
+			}
+		},
+		"/workspaces/{workspaceId}/pages/{pageId}/permissions": {
+			"parameters": [
+				{
+					"name": "workspaceId",
+					"in": "path",
+					"required": true,
+					"schema": {
+						"type": "string"
+					},
+					"description": "Workspace ID"
+				},
+				{
+					"name": "pageId",
+					"in": "path",
+					"required": true,
+					"schema": {
+						"type": "string",
+						"description": "Page ID"
+					}
+				}
+			],
+			"get": {
+				"tags": [
+					"Sharing"
+				],
+				"operationId": "getPagePermissions",
+				"summary": "Get a page's access list",
+				"description": "Direct grants, plus those inherited from the nearest locked ancestor, and a revision for `writePagePermissions`.",
+				"responses": {
+					"200": {
+						"description": "Success",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/PagePermissions"
+								}
+							}
+						}
+					},
+					"400": {
+						"description": "Malformed JSON body",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/Error"
+								}
+							}
+						}
+					},
+					"401": {
+						"description": "Unauthorized",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/Error"
+								}
+							}
+						}
+					},
+					"403": {
+						"description": "Forbidden",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/Error"
+								}
+							}
+						}
+					},
+					"404": {
+						"description": "Not found",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/Error"
+								}
+							}
+						}
+					},
+					"409": {
+						"description": "Conflict, such as a block another user is editing",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/Error"
+								}
+							}
+						}
+					},
+					"422": {
+						"description": "Validation error",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/Error"
+								}
+							}
+						}
+					},
+					"500": {
+						"description": "Server error",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/Error"
+								}
+							}
+						}
+					}
+				}
+			},
+			"put": {
+				"tags": [
+					"Sharing"
+				],
+				"operationId": "writePagePermissions",
+				"summary": "Change a page's access list",
+				"description": "Atomic batch of `set` upserts and `remove`s. Needs owner access to the page. `ifRevision` fails the call when the list changed since `getPagePermissions`.",
+				"requestBody": {
+					"required": true,
+					"content": {
+						"application/json": {
+							"schema": {
+								"type": "object",
+								"properties": {
+									"set": {
+										"type": "array",
+										"items": {
+											"type": "object",
+											"properties": {
+												"subject": {
+													"anyOf": [
+														{
+															"type": "object",
+															"properties": {
+																"type": {
+																	"type": "string",
+																	"enum": [
+																		"user"
+																	]
+																},
+																"id": {
+																	"type": "string"
+																}
+															},
+															"required": [
+																"type",
+																"id"
+															],
+															"additionalProperties": true
+														},
+														{
+															"type": "object",
+															"properties": {
+																"type": {
+																	"type": "string",
+																	"enum": [
+																		"workspace"
+																	]
+																},
+																"id": {
+																	"type": "string"
+																},
+																"relation": {
+																	"type": "string",
+																	"enum": [
+																		"member"
+																	]
+																}
+															},
+															"required": [
+																"type",
+																"id",
+																"relation"
+															],
+															"additionalProperties": true
+														},
+														{
+															"type": "object",
+															"properties": {
+																"type": {
+																	"type": "string",
+																	"enum": [
+																		"public"
+																	]
+																}
+															},
+															"required": [
+																"type"
+															],
+															"additionalProperties": true
+														}
+													]
+												},
+												"relation": {
+													"type": "string",
+													"enum": [
+														"owner",
+														"editor",
+														"viewer"
+													]
+												}
+											},
+											"required": [
+												"subject",
+												"relation"
+											],
+											"additionalProperties": true
+										}
+									},
+									"remove": {
+										"type": "array",
+										"items": {
+											"type": "object",
+											"properties": {
+												"subject": {
+													"anyOf": [
+														{
+															"type": "object",
+															"properties": {
+																"type": {
+																	"type": "string",
+																	"enum": [
+																		"user"
+																	]
+																},
+																"id": {
+																	"type": "string"
+																}
+															},
+															"required": [
+																"type",
+																"id"
+															],
+															"additionalProperties": true
+														},
+														{
+															"type": "object",
+															"properties": {
+																"type": {
+																	"type": "string",
+																	"enum": [
+																		"workspace"
+																	]
+																},
+																"id": {
+																	"type": "string"
+																},
+																"relation": {
+																	"type": "string",
+																	"enum": [
+																		"member"
+																	]
+																}
+															},
+															"required": [
+																"type",
+																"id",
+																"relation"
+															],
+															"additionalProperties": true
+														},
+														{
+															"type": "object",
+															"properties": {
+																"type": {
+																	"type": "string",
+																	"enum": [
+																		"public"
+																	]
+																}
+															},
+															"required": [
+																"type"
+															],
+															"additionalProperties": true
+														}
+													]
+												}
+											},
+											"required": [
+												"subject"
+											],
+											"additionalProperties": true
+										}
+									},
+									"ifRevision": {
+										"anyOf": [
+											{
+												"type": "string"
+											},
+											{
+												"type": "null"
+											}
+										]
+									}
+								},
+								"required": [
+									"set",
+									"remove"
+								],
+								"additionalProperties": true
+							}
+						}
+					}
+				},
+				"responses": {
+					"200": {
+						"description": "Success",
+						"content": {
+							"application/json": {
+								"schema": {
+									"type": "object",
+									"properties": {
+										"revision": {
+											"type": "string"
+										}
+									},
+									"required": [
+										"revision"
+									],
+									"additionalProperties": true
+								}
+							}
+						}
+					},
+					"400": {
+						"description": "Malformed JSON body",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/Error"
+								}
+							}
+						}
+					},
+					"401": {
+						"description": "Unauthorized",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/Error"
+								}
+							}
+						}
+					},
+					"403": {
+						"description": "Forbidden",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/Error"
+								}
+							}
+						}
+					},
+					"404": {
+						"description": "Not found",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/Error"
+								}
+							}
+						}
+					},
+					"409": {
+						"description": "Conflict, such as a block another user is editing",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/Error"
+								}
+							}
+						}
+					},
+					"422": {
+						"description": "Validation error",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/Error"
+								}
+							}
+						}
+					},
+					"500": {
+						"description": "Server error",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/Error"
+								}
+							}
+						}
+					}
+				}
+			}
+		}
+	}
+}
