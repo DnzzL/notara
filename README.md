@@ -10,7 +10,7 @@
 </div>
 
 - **Minimalist** — a Notion you own: block editor, inline databases, real-time collaboration, few features done well.
-- **Self-host in one command** — `docker compose up` gives you HTTPS and one SQLite file. Free, AGPL-3.0-or-later.
+- **Self-host in one command** — `docker compose -f compose.https.yml up -d` gives you HTTPS and one SQLite file. Free, AGPL-3.0-or-later.
 - **Agent-ready** — the `notara` CLI, a REST API (OpenAPI) and an MCP server, with scoped read/write API keys.
 
 <div align="center">
@@ -25,7 +25,7 @@ workspace, deleted automatically.
 ```bash
 git clone https://github.com/dnzzl/notara && cd notara
 cp .env.example .env   # set DOMAIN=notes.example.com and BETTER_AUTH_SECRET (openssl rand -hex 32)
-docker compose up -d
+docker compose -f compose.https.yml up -d
 ```
 
 Point your domain's DNS at the VM (ports 80 and 443 open); Caddy handles HTTPS. Open
