@@ -68,6 +68,11 @@ const ROUTES: Route[] = [
 	},
 	{ method: "patch", path: "/blocks/:blockId", body: { content: "<p>x</p>" } },
 	{ method: "delete", path: "/blocks/:blockId" },
+	{
+		method: "post",
+		path: "/blocks/:blockId/reparent",
+		body: { direction: "in" },
+	},
 	{ method: "get", path: "/databases" },
 	{
 		method: "post",

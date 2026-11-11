@@ -26,6 +26,7 @@ import { ulid } from "ulidx";
 import { useSession } from "../auth-client.js";
 import { shouldOpenBlockMenu } from "../lib/blockContextMenu.js";
 import {
+	blockDepths,
 	insertBlockAfter as computeInsertBlockAfter,
 	splitBlock as computeSplitBlock,
 	mergeBlocks,
@@ -591,6 +592,7 @@ function SortableBlock({
 	blockType,
 	numberedRun,
 	onGutterClick,
+	depth = 0,
 }: {
 	id: string;
 	children: React.ReactNode;
@@ -603,6 +605,8 @@ function SortableBlock({
 	blockType: string;
 	numberedRun?: number;
 	onGutterClick?: (clientY: number) => void;
+	/** Nesting level; each one indents the block. */
+	depth?: number;
 }) {
 	const {
 		attributes,
@@ -621,6 +625,7 @@ function SortableBlock({
 		transform: CSS.Transform.toString(transform),
 		transition,
 		opacity: isSortableDragging ? 0.3 : 1,
+		...(depth > 0 ? { marginLeft: depth * 24 } : {}),
 		...(numberedRun != null ? { "--numbered-run": String(numberedRun) } : {}),
 	} as React.CSSProperties & { "--numbered-run"?: string };
 
@@ -727,6 +732,7 @@ export function BlockEditor() {
 	const updateBlock = useBlockStore((s) => s.updateBlock);
 	const createBlock = useBlockStore((s) => s.createBlock);
 	const deleteBlock = useBlockStore((s) => s.deleteBlock);
+	const reparentBlock = useBlockStore((s) => s.reparentBlock);
 	const duplicateBlock = useBlockStore((s) => s.duplicateBlock);
 	const reorderBlocks = useBlockStore((s) => s.reorderBlocks);
 	const loadBlocks = useBlockStore((s) => s.loadBlocks);
@@ -845,6 +851,7 @@ export function BlockEditor() {
 	// any inline block fall through to the orphan list further down so the
 	// user can still see them.
 	const sortedBlocks = [...blocks].sort((a, b) => a.index - b.index);
+	const depths = blockDepths(sortedBlocks);
 	const inlineDbIds = new Set(
 		blocks.filter((b) => b.type === "database").map((b) => b.content),
 	);
@@ -880,6 +887,21 @@ export function BlockEditor() {
 		[liveBlocks],
 	);
 
+	/**
+	 * Whom a block inserted right after `blockId` belongs to: its first child
+	 * slot when it has children (so they stay under it), else its sibling slot.
+	 */
+	const parentForInsertAfter = useCallback(
+		(blockId: string) => {
+			const around = neighbours(blockId);
+			if (!around) return null;
+			return around.next?.parentId === blockId
+				? blockId
+				: (around.current.parentId ?? null);
+		},
+		[neighbours],
+	);
+
 	/** Move focus to the adjacent block, optionally preserving the caret column. */
 	const navigateFrom = useCallback(
 		(blockId: string, dir: "prev" | "next", x?: number) => {
@@ -901,6 +923,8 @@ export function BlockEditor() {
 			const current = around?.current;
 			const prev = around?.prev;
 			if (!current || !prev) return;
+			// Deleting the merged-away block would cascade to its children.
+			if (around?.next?.parentId === current.id) return;
 
 			const op = mergeBlocks(prev, current);
 
@@ -959,6 +983,7 @@ export function BlockEditor() {
 				newId,
 				newBlockType,
 				currentType,
+				parentForInsertAfter(blockId),
 			);
 
 			requestFocus(op.focus.blockId, { kind: "start" });
@@ -969,7 +994,7 @@ export function BlockEditor() {
 			);
 			void createBlock({ ...op.insertBlock, pageId: page.id });
 		},
-		[neighbours, updateBlock, createBlock],
+		[neighbours, parentForInsertAfter, updateBlock, createBlock],
 	);
 
 	/** Insert a new empty paragraph after a block. */
@@ -980,11 +1005,15 @@ export function BlockEditor() {
 			if (!current || !page) return;
 
 			const newId = ulid();
-			const op = computeInsertBlockAfter(current, newId);
+			const op = computeInsertBlockAfter(
+				current,
+				newId,
+				parentForInsertAfter(blockId),
+			);
 			requestFocus(op.focus.blockId, { kind: "start" });
 			void createBlock({ ...op.insertBlock, pageId: page.id });
 		},
-		[neighbours, createBlock],
+		[neighbours, parentForInsertAfter, createBlock],
 	);
 
 	/** Update a block's content (for debounced saves). */
@@ -1054,7 +1083,7 @@ export function BlockEditor() {
 					type: "divider",
 					content: "",
 					index: currentBlock.index + 1,
-					parentId: null,
+					parentId: parentForInsertAfter(currentBlock.id),
 				});
 			} else if (command === "pageLink") {
 				// Insert an empty pageLink block; PageLinkBlock auto-opens a picker
@@ -1064,7 +1093,7 @@ export function BlockEditor() {
 					type: "pageLink",
 					content: "",
 					index: currentBlock.index + 1,
-					parentId: null,
+					parentId: parentForInsertAfter(currentBlock.id),
 				});
 			} else if (command === "people") {
 				// Insert an empty people block; PeopleBlock auto-opens a picker.
@@ -1073,7 +1102,7 @@ export function BlockEditor() {
 					type: "people",
 					content: defaultContentForType("people"),
 					index: currentBlock.index + 1,
-					parentId: null,
+					parentId: parentForInsertAfter(currentBlock.id),
 				});
 			} else if (command === "viewReference") {
 				// Insert an empty view-reference block; ViewReferenceBlock auto-opens a
@@ -1083,7 +1112,7 @@ export function BlockEditor() {
 					type: "viewReference",
 					content: "",
 					index: currentBlock.index + 1,
-					parentId: null,
+					parentId: parentForInsertAfter(currentBlock.id),
 				});
 			}
 		},
@@ -1094,6 +1123,7 @@ export function BlockEditor() {
 			createBlock,
 			createDatabase,
 			loadDatabases,
+			parentForInsertAfter,
 		],
 	);
 
@@ -1639,6 +1669,7 @@ export function BlockEditor() {
 										<SortableBlock
 											key={block.id}
 											id={block.id}
+											depth={depths.get(block.id)}
 											showDropIndicator={dropIndicatorIndex === blockIndex}
 											isDragging={activeBlockId === block.id}
 											onDragStart={() => setActiveBlockId(block.id)}
@@ -1663,6 +1694,7 @@ export function BlockEditor() {
 										<SortableBlock
 											key={block.id}
 											id={block.id}
+											depth={depths.get(block.id)}
 											showDropIndicator={dropIndicatorIndex === blockIndex}
 											isDragging={activeBlockId === block.id}
 											onDragStart={() => setActiveBlockId(block.id)}
@@ -1697,6 +1729,7 @@ export function BlockEditor() {
 										<SortableBlock
 											key={block.id}
 											id={block.id}
+											depth={depths.get(block.id)}
 											showDropIndicator={dropIndicatorIndex === blockIndex}
 											isDragging={activeBlockId === block.id}
 											onDragStart={() => setActiveBlockId(block.id)}
@@ -1735,6 +1768,7 @@ export function BlockEditor() {
 									splitBlock: (before, after, newType, currentType) =>
 										splitBlock(block.id, before, after, newType, currentType),
 									insertBlockAfter: () => insertBlockAfter(block.id),
+									reparent: (direction) => reparentBlock(block.id, direction),
 									updateBlock: handleUpdateBlock,
 								};
 
@@ -1742,6 +1776,7 @@ export function BlockEditor() {
 									<SortableBlock
 										key={block.id}
 										id={block.id}
+										depth={depths.get(block.id)}
 										showDropIndicator={dropIndicatorIndex === blockIndex}
 										isDragging={activeBlockId === block.id}
 										onDragStart={() => setActiveBlockId(block.id)}

@@ -22,6 +22,7 @@
  * the schema and rows the server already narrowed in `data.databases`.
  */
 import { EditorContent, useEditor } from "@tiptap/react";
+import { blockDepths } from "../lib/blockDocument.js";
 import { rewriteAttachmentUrls } from "../lib/publicAssets.js";
 import { blockContent, sharedExtensions } from "./editorSchema.js";
 
@@ -46,7 +47,12 @@ export type PublicPageData = {
 		icon: string | null;
 		coverUrl: string | null;
 	};
-	blocks: Array<{ id: string; type: string; content: string }>;
+	blocks: Array<{
+		id: string;
+		type: string;
+		content: string;
+		parentId?: string | null;
+	}>;
 	databases: Record<string, PublicDatabase>;
 	orphanDatabaseIds: string[];
 };
@@ -217,6 +223,7 @@ export function ReadOnlyPage({
 	token: string;
 }) {
 	const { page, blocks, databases, orphanDatabaseIds } = data;
+	const depths = blockDepths(blocks);
 
 	return (
 		<article className="max-w-[720px] mx-auto px-6 py-12">
@@ -232,12 +239,12 @@ export function ReadOnlyPage({
 				{page.title}
 			</h1>
 			{blocks.map((block) => (
-				<ReadOnlyBlock
+				<div
 					key={block.id}
-					block={block}
-					token={token}
-					databases={databases}
-				/>
+					style={{ marginLeft: (depths.get(block.id) ?? 0) * 24 }}
+				>
+					<ReadOnlyBlock block={block} token={token} databases={databases} />
+				</div>
 			))}
 			{/* Databases created through the UI are never pointed at by a block —
 			    the editor renders these "orphans" after the last block, and this

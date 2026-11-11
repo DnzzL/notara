@@ -159,6 +159,14 @@ export const AppRpc = RpcGroup.make(
 		payload: { pageId: Schema.String, blockIds: Schema.Array(Schema.String) },
 		success: Schema.Array(Block),
 	}),
+	Rpc.make("reparentBlock", {
+		error: ApiError,
+		payload: {
+			id: Schema.String,
+			direction: Schema.Literals(["in", "out"]),
+		},
+		success: Schema.Array(Block),
+	}),
 	Rpc.make("getBacklinks", {
 		error: ApiError,
 		payload: { pageId: Schema.String },
