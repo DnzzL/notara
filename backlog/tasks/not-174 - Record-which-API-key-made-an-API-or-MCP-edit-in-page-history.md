@@ -4,7 +4,7 @@ title: 'Page history: record which API key (by name) made an API or MCP edit'
 status: done
 assignee: []
 created_date: '2026-11-10T17:05:00Z'
-updated_date: '2026-11-11T22:06:00Z'
+updated_date: '2026-11-11T22:16:00Z'
 labels:
   - enhancement
 milestone: m-5
@@ -47,6 +47,15 @@ created: 2026-11-11T22:06:00Z
 ---
 
 AC #1 'page history' is delivered as the last-editor display (page header 'Edited by X'): there is no history table, by decision. Shape in docs/adr/012-updated-by.md.
+
+---
+
+author: @agent
+created: 2026-11-11T22:16:00Z
+
+---
+
+Correction: the ADR is docs/adr/013-updated-by.md (012 was taken).
 
 ---
 <!-- COMMENTS:END -->
