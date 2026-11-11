@@ -16,42 +16,18 @@ import { afterAll, describe, expect, test } from "bun:test";
 import { rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
+import { bootServer } from "./boot-server.js";
 
-const PORT = 3457;
-const BASE = `http://localhost:${PORT}`;
 const DATA_DIR = join(tmpdir(), `notara-route-auth-${process.pid}`);
 
 // Booted at module scope rather than in beforeAll: hooks carry bun's 5s default
 // timeout, and a cold CI runner needs longer than that to migrate and listen.
-const server = Bun.spawn(
-	["bun", join(import.meta.dir, "..", "src", "index.ts")],
-	{
-		env: {
-			...process.env,
-			PORT: String(PORT),
-			DATA_DIR,
-			BETTER_AUTH_SECRET: "test-secret-for-route-auth-checks-only",
-			// Admin deliberately unconfigured: requireAdmin must then close, not open.
-			ADMIN_EMAILS: "",
-		},
-		stdout: "pipe",
-		stderr: "pipe",
-	},
-);
-
-let up = false;
-for (let i = 0; i < 300 && !up; i++) {
-	try {
-		up = (await fetch(`${BASE}/health`)).ok;
-	} catch {}
-	if (!up) await Bun.sleep(100);
-}
-if (!up) {
-	// Surface the server's own output; an opaque timeout is undebuggable in CI.
-	const stderr = await new Response(server.stderr as ReadableStream).text();
-	server.kill();
-	throw new Error(`server did not come up in 30s:\n${stderr}`);
-}
+const { proc: server, base: BASE } = await bootServer((base) => ({
+	DATA_DIR,
+	BETTER_AUTH_SECRET: "test-secret-for-route-auth-checks-only",
+	// Admin deliberately unconfigured: requireAdmin must then close, not open.
+	ADMIN_EMAILS: "",
+}));
 
 afterAll(() => {
 	server?.kill();
