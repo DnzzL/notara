@@ -3,10 +3,10 @@ id: NOT-180
 title: >-
   Templates for real use cases: CRM, content calendar, trip planner, reading
   list
-status: ready-for-agent
+status: done
 assignee: []
 created_date: '2026-11-11T13:21:00Z'
-updated_date: '2026-11-11T13:23:00Z'
+updated_date: '2026-11-11T13:32:00Z'
 labels:
   - enhancement
 milestone: m-3
@@ -28,8 +28,14 @@ Why: the 4 current templates in packages/server/src/handlers/templates.ts (engin
 
 ## Acceptance Criteria
 <!-- AC:BEGIN -->
-- [ ] #1 listTemplates returns the 4 new templates alongside the existing ones
-- [ ] #2 Each new template can be created over REST and MCP using the existing operations
-- [ ] #3 Creating a template yields a database with working views and realistic sample rows
-- [ ] #4 A test instantiates every template (old and new) and asserts its views resolve
+- [x] #1 listTemplates returns the 4 new templates alongside the existing ones
+- [x] #2 Each new template can be created over REST and MCP using the existing operations
+- [x] #3 Creating a template yields a database with working views and realistic sample rows
+- [x] #4 A test instantiates every template (old and new) and asserts its views resolve
 <!-- AC:END -->
+
+## Final Summary
+
+<!-- SECTION:FINAL_SUMMARY:BEGIN -->
+Added 4 templates (personal-crm, content-calendar, trip-planner, reading-list) to templates.ts, each with table + board views and realistic sample rows; trip planner uses a Guests relation, reading list links notes sub-pages. New server test instantiates all 8 templates and asserts pages, databases, fields, views, records. REST/MCP use the existing createPageFromTemplate op. Tests: 385 pass.
+<!-- SECTION:FINAL_SUMMARY:END -->
