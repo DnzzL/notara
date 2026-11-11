@@ -282,7 +282,10 @@ export function LandingPage({ demoMode }: { demoMode: boolean }) {
 							<span className="lp-kicker">
 								<b>02</b> · Self-host in one command
 							</span>
-							<h3>docker compose up gives you HTTPS and one SQLite file.</h3>
+							<h3>
+								<code>docker compose up</code> gives you HTTPS and one SQLite
+								file.
+							</h3>
 							<pre className="lp-code">
 								<code>{`git clone https://github.com/dnzzl/notara
 cd notara && cp .env.example .env

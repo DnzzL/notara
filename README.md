@@ -42,7 +42,7 @@ I built and maintain Notara alone, on purpose, so the feature list is deliberate
 | | |
 |---|---|
 | **Minimalist** | A Notion you own: few features, done well |
-| **Self-host in 1 minute** | One command ([Quick start](#quick-start)); free, AGPL-3.0-or-later, no licence key |
+| **Self-host in one command** | One command ([Quick start](#quick-start)); free, AGPL-3.0-or-later, no licence key |
 | **Agent-ready** | Pages, blocks, databases, records, search and trash from the `notara` CLI, the REST API (OpenAPI) or an MCP server at `/mcp`; read/write-scoped API keys |
 | **Block editor** | Paragraphs, headings, todos, code, toggles, callouts, images, PDFs and more |
 | **Inline databases** | Table and board views with fields, relations and custom views |
