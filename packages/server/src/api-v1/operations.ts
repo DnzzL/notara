@@ -41,6 +41,7 @@ import { inSubtree, KeyRoot } from "../acl.js";
 import { type ChangeSpec, trackChange } from "../change-events.js";
 import { WorkspaceDb } from "../db.js";
 import type { Editor } from "../editor.js";
+import { recordAudit } from "../handlers/audit.js";
 import * as Blocks from "../handlers/blocks.js";
 import * as Databases from "../handlers/databases.js";
 import * as ImportExport from "../handlers/importExport.js";
@@ -1659,6 +1660,36 @@ const requireParentInSubtree = (
 				)
 			: Effect.fail(OUTSIDE_SUBTREE);
 
+/** Inputs naming the thing a write touched, most specific first (ADR-015). */
+const AUDIT_TARGET_KEYS = [
+	"recordId",
+	"blockId",
+	"pageId",
+	"fieldId",
+	"viewId",
+];
+
+/** The id a write touched: a specific input id, else the output's id, else any input id. Never content. */
+const auditTarget = (
+	operationId: string,
+	input: unknown,
+	output: unknown,
+): string | null => {
+	const str = (o: unknown, k: string) =>
+		o && typeof o === "object" && typeof (o as any)[k] === "string"
+			? ((o as any)[k] as string)
+			: undefined;
+	const specific = AUDIT_TARGET_KEYS.map((k) => str(input, k)).find(Boolean);
+	const anyInputId = Object.keys((input as object) ?? {})
+		.filter((k) => k === "id" || k.endsWith("Id"))
+		.map((k) => str(input, k))
+		.find(Boolean);
+	// A create's input names its parent; the thing touched is what it returned.
+	return operationId.startsWith("create")
+		? (str(output, "id") ?? specific ?? anyInputId ?? null)
+		: (specific ?? str(output, "id") ?? anyInputId ?? null);
+};
+
 /**
  * Runs one typed operation for a caller already resolved by its door: the
  * membership check, `input`, the permission check and `run`, all under one
@@ -1688,9 +1719,16 @@ export const runOperation = <I, O, E, R>(
 						);
 						if (op.checkPermission) yield* op.checkPermission(ctx, decoded);
 						const run = op.run(ctx, decoded);
-						return yield* op.change
+						const output = yield* op.change
 							? trackChange(op.change, ctx, decoded, run)
 							: run;
+						if (op.scope === "write")
+							yield* recordAudit(
+								ctx.editor,
+								op.operationId,
+								auditTarget(op.operationId, decoded, output),
+							);
+						return output;
 					}),
 				),
 			);

@@ -84,6 +84,7 @@ PostHog only loads after the user accepts the consent banner (GDPR opt-in). The 
 |----------|-------------|
 | `ADMIN_EMAILS` | Comma-separated emails that can access `/admin`. Without it, the admin panel is disabled. |
 | `SOURCE_URL` | Where this instance's source lives, shown in Settings → About. **If you run a modified build, set this to your own repository** — AGPL section 13 obliges you to offer your source to anyone using the instance over a network, not ours. Defaults to upstream. |
+| `AUDIT_LOG_RETENTION_DAYS` | Days the API/MCP audit log (workspace owners see it in workspace settings) is kept. Defaults to `90`. |
 | `APP_VERSION` | Version shown in Settings → About. Defaults to `dev`. |
 </details>
 

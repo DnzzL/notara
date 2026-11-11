@@ -1,5 +1,6 @@
 import { Effect } from "effect";
 import { WorkspaceDb, WorkspaceDbLive } from "./db.js";
+import { auditRetentionDays, purgeAudit } from "./handlers/audit.js";
 import * as Databases from "./handlers/databases.js";
 import { loadSettings } from "./handlers/settings.js";
 import { platformDb } from "./platform-db.js";
@@ -18,6 +19,9 @@ const runTrashSweep = Effect.gen(function* () {
 	).map((r) => r.id);
 	for (const id of workspaceIds) {
 		const res = yield* Databases.purgeExpired(days).pipe(
+			Effect.provide(wdb.getLayer(id)),
+		);
+		yield* purgeAudit(auditRetentionDays()).pipe(
 			Effect.provide(wdb.getLayer(id)),
 		);
 		if (res.pages || res.databases || res.records) {

@@ -194,6 +194,16 @@ export class WorkspaceMember extends Schema.Class<WorkspaceMember>(
 	role: Schema.Literals(["owner", "member"]),
 }) {}
 
+/** One API-key write (ADR-015). Never carries a secret or page content. */
+export class AuditEntry extends Schema.Class<AuditEntry>("AuditEntry")({
+	id: Schema.String,
+	at: Schema.String,
+	keyId: Schema.String,
+	keyName: Schema.String,
+	operation: Schema.String,
+	target: Schema.NullOr(Schema.String),
+}) {}
+
 export class ApiKey extends Schema.Class<ApiKey>("ApiKey")({
 	id: Schema.String,
 	name: Schema.String,

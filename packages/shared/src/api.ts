@@ -34,6 +34,7 @@ import {
 	ApiKey,
 	ApiKeyCreated,
 	ApiKeyScope,
+	AuditEntry,
 	Backlink,
 	Block,
 	Database,
@@ -456,6 +457,13 @@ export const AppRpc = RpcGroup.make(
 		error: ApiError,
 		payload: { id: Schema.String },
 		success: Schema.Void,
+	}),
+
+	// Owner-only: what API keys wrote in this workspace, newest first.
+	Rpc.make("listAuditLog", {
+		error: ApiError,
+		payload: { keyId: Schema.optional(Schema.String) },
+		success: Schema.Array(AuditEntry),
 	}),
 
 	// Page ACL (Zanzibar-style: structured subjects, atomic writes, revisions)
