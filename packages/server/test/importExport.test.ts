@@ -6,6 +6,7 @@ import os from "node:os";
 import path from "node:path";
 import { SqliteClient } from "@effect/sql-sqlite-bun";
 import { Effect } from "effect";
+import { makeSqliteLayer } from "../src/db.js";
 import {
 	exportAllToDirectory,
 	exportDatabaseAsCsv,
@@ -23,7 +24,7 @@ function cleanup(tmpDir: string) {
 	fs.rmSync(tmpDir, { recursive: true, force: true });
 }
 
-const TestDbLayer = (filename: string) => SqliteClient.layer({ filename });
+const TestDbLayer = (filename: string) => makeSqliteLayer(filename);
 
 const _migrationsPath = path.join(
 	import.meta.dirname || __dirname,

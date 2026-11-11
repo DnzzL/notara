@@ -3,9 +3,9 @@ import { describe, expect, test } from "bun:test";
 import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
-import { SqliteClient } from "@effect/sql-sqlite-bun";
 import { Effect } from "effect";
 import { SqlClient } from "effect/sql";
+import { makeSqliteLayer } from "../src/db.js";
 import * as Blocks from "../src/handlers/blocks.js";
 import * as Databases from "../src/handlers/databases.js";
 import * as Pages from "../src/handlers/pages.js";
@@ -20,7 +20,7 @@ function cleanup(tmpDir: string) {
 	fs.rmSync(tmpDir, { recursive: true, force: true });
 }
 
-const TestDbLayer = (filename: string) => SqliteClient.layer({ filename });
+const TestDbLayer = (filename: string) => makeSqliteLayer(filename);
 
 const migrationsDir = path.join(
 	import.meta.dirname || __dirname,

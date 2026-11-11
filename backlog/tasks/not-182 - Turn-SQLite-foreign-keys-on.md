@@ -1,10 +1,11 @@
 ---
 id: NOT-182
 title: Turn SQLite foreign keys on
-status: ready-for-agent
-assignee: []
+status: done
+assignee:
+  - '@claude'
 created_date: '2026-11-11T13:21:00Z'
-updated_date: '2026-11-11T21:58:00Z'
+updated_date: '2026-11-11T22:46:00Z'
 labels:
   - bug
 milestone: m-4
@@ -22,11 +23,17 @@ Why: CLAUDE.md §7 known debt: the FK pragma is OFF, so ON DELETE CASCADE never 
 
 ## Acceptance Criteria
 <!-- AC:BEGIN -->
-- [ ] #1 An ADR records the decision and the rejected alternative
-- [ ] #2 Hard-deletes still remove all children
-- [ ] #3 The full server test suite passes with the pragma on
-- [ ] #4 The migration reports orphan rows; the DB opener sets PRAGMA foreign_keys=ON on every connection (the pragma is per-connection and a no-op inside a transaction)
+- [x] #1 An ADR records the decision and the rejected alternative
+- [x] #2 Hard-deletes still remove all children
+- [x] #3 The full server test suite passes with the pragma on
+- [x] #4 The migration reports orphan rows; the DB opener sets PRAGMA foreign_keys=ON on every connection (the pragma is per-connection and a no-op inside a transaction)
 <!-- AC:END -->
+
+## Implementation Notes
+
+<!-- SECTION:NOTES:BEGIN -->
+FK pragma ON in applyMigrations + makeSqliteLayer; checkForeignKeys reports/cleans orphans; ADR-013; purge/deleteField null NO ACTION refs
+<!-- SECTION:NOTES:END -->
 
 ## Comments
 
@@ -40,3 +47,9 @@ Decision (approved): the migration first reports orphan rows, then enables PRAGM
 
 ---
 <!-- COMMENTS:END -->
+
+## Final Summary
+
+<!-- SECTION:FINAL_SUMMARY:BEGIN -->
+FKs ON via applyMigrations + makeSqliteLayer; boot reports orphans per FK, deletes cascade orphans, stops otherwise; ADR-013; purge/deleteField handle NO ACTION FKs; tests incl. v0.1.4/v0.2.0 upgrade orphan reporting.
+<!-- SECTION:FINAL_SUMMARY:END -->

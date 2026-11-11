@@ -3,9 +3,9 @@ import { expect, test } from "bun:test";
 import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
-import { SqliteClient } from "@effect/sql-sqlite-bun";
 import { Effect } from "effect";
 import { SqlClient } from "effect/sql";
+import { makeSqliteLayer } from "../src/db.js";
 import * as Databases from "../src/handlers/databases.js";
 import * as Templates from "../src/handlers/templates.js";
 
@@ -80,10 +80,7 @@ test("every template instantiates with its pages, databases, fields and views", 
 					expect(Number(stored[0].n)).toBe(expected);
 				}
 			}
-		}).pipe(
-			Effect.provide(SqliteClient.layer({ filename })),
-			Effect.runPromise,
-		);
+		}).pipe(Effect.provide(makeSqliteLayer(filename)), Effect.runPromise);
 	} finally {
 		fs.rmSync(tmpDir, { recursive: true, force: true });
 	}

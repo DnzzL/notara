@@ -136,7 +136,7 @@ docs/adr/                   Live decisions only — a superseded ADR is deleted 
 
 ## 7. Known Debt (don't surprise me)
 
-- **SQLite FK pragma is OFF** — `ON DELETE CASCADE` never fires. Hard-deletes must remove children explicitly. Memory: `sqlite-fk-off`.
+- **SQLite FKs are ON** (ADR-013) — set in `applyMigrations` and `makeSqliteLayer`; boot reports orphan rows and deletes cascade orphans. NO ACTION FKs (view→field, field→relation db, record→backing page) still need explicit cleanup in hard-deletes.
 - **Notara import is idempotent** — ledger (`import_ledger`) maps export key → local id, so re-import updates in place; one transaction rolls back a failed run. Not covered: attachment files copied to disk, a failed run leaves unreferenced orphans.
 - **Backup restore** triggers process exit + container restart; relies on the orchestrator. By design.
 

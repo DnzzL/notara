@@ -3,9 +3,9 @@ import { afterEach, beforeEach, describe, expect, it } from "bun:test";
 import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
-import { SqliteClient } from "@effect/sql-sqlite-bun";
 import { Effect, Layer } from "effect";
 import type { SqlClient } from "effect/sql";
+import { makeSqliteLayer } from "../db.js";
 import { PlatformDb } from "../platform-db.js";
 import * as Permissions from "./permissions.js";
 
@@ -52,7 +52,7 @@ function makeWorkspaceLayer(tmpDir: string) {
     );
   `);
 	db.close();
-	return SqliteClient.layer({ filename });
+	return makeSqliteLayer(filename);
 }
 
 function _run<A>(

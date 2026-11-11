@@ -212,6 +212,12 @@ for (const PREV of TAGS)
 			);
 			platform.close();
 			seedWorkspace(dir, PREVIOUS);
+			// An orphan from the FK-off era: its page is gone.
+			const old = new Database(path.join(dir, "workspaces", "ws-seed.db"));
+			old.run(
+				"INSERT INTO blocks (id, page_id, type) VALUES ('orphan', 'gone', 'paragraph')",
+			);
+			old.close();
 
 			const s = await boot(freePort(), dir);
 
@@ -248,13 +254,17 @@ for (const PREV of TAGS)
 			);
 			expect(open.stderr.toString()).toBe("");
 			expect(open.exitCode).toBe(0);
+			// The orphan is reported (per FK), then removed, before FKs go on.
+			expect(open.stdout.toString()).toContain('"blocks.page_id -> pages":1');
 			const ws = new Database(path.join(dir, "workspaces", "ws-seed.db"), {
 				readonly: true,
 			});
 			const wsApplied = (
 				ws.query("SELECT name FROM _migrations").all() as { name: string }[]
 			).map((r) => r.name);
+			const orphans = ws.query("SELECT id FROM blocks WHERE id='orphan'").all();
 			ws.close();
+			expect(orphans).toEqual([]);
 			expect(wsApplied).toContain(
 				fs
 					.readdirSync(CURRENT)

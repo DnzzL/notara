@@ -2,15 +2,15 @@ import { afterAll, beforeAll, describe, expect, it } from "bun:test";
 import * as fs from "node:fs";
 import * as os from "node:os";
 import * as path from "node:path";
-import { SqliteClient } from "@effect/sql-sqlite-bun";
 import { Effect } from "effect";
 import { SqlClient } from "effect/sql";
+import { makeSqliteLayer } from "../db.js";
 import * as Pages from "./pages.js";
 
 const testDbPath = path.join(os.tmpdir(), `test-pages-${Date.now()}.db`);
 
 // Create SQLite layer pointing to a temp file
-const TestSqlite = SqliteClient.layer({ filename: testDbPath });
+const TestSqlite = makeSqliteLayer(testDbPath);
 
 const setupDB = Effect.gen(function* () {
 	const sql = yield* SqlClient.SqlClient;

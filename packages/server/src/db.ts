@@ -5,6 +5,7 @@ import { fileURLToPath } from "node:url";
 import { SqliteClient } from "@effect/sql-sqlite-bun";
 import { type Config, Context, Effect, Layer } from "effect";
 import type { SqlClient as SqlClientType } from "effect/sql";
+import { SqlClient } from "effect/sql";
 import { applyMigrations } from "./platform-db.js";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
@@ -20,8 +21,11 @@ if (!fs.existsSync(dataDir)) {
 	fs.mkdirSync(dataDir, { recursive: true });
 }
 
+// foreign_keys is per-connection; the client owns a single connection per layer.
 export const makeSqliteLayer = (filename: string = dbPath) =>
-	SqliteClient.layer({ filename });
+	Layer.effectDiscard(
+		Effect.flatMap(SqlClient.SqlClient, (sql) => sql`PRAGMA foreign_keys = ON`),
+	).pipe(Layer.provideMerge(SqliteClient.layer({ filename })));
 
 export const SqliteLive = makeSqliteLayer();
 
@@ -73,7 +77,7 @@ export const WorkspaceDbLive = Layer.succeed(WorkspaceDb, {
 		applyMigrations(db, migrationsDir);
 		db.close();
 
-		const layer = makeSqliteLayer(filename) as WorkspaceLayer;
+		const layer = makeSqliteLayer(filename) as unknown as WorkspaceLayer;
 		workspaceLayerCache.set(workspaceId, layer);
 		return layer;
 	},

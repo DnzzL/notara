@@ -8,8 +8,8 @@ import { afterEach, beforeEach, describe, expect, test } from "bun:test";
 import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
-import { SqliteClient } from "@effect/sql-sqlite-bun";
 import { Effect } from "effect";
+import { makeSqliteLayer } from "../src/db.js";
 import { importNotionExport } from "../src/import/notion.js";
 
 let tmpDir: string;
@@ -56,9 +56,7 @@ const fixtureB = () => {
 
 const runImport = (root: string) =>
 	Effect.runPromise(
-		importNotionExport(root).pipe(
-			Effect.provide(SqliteClient.layer({ filename })),
-		),
+		importNotionExport(root).pipe(Effect.provide(makeSqliteLayer(filename))),
 	);
 
 /** Everything an import can write, as comparable text. */

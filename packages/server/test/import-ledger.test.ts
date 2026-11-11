@@ -8,9 +8,9 @@ import { afterEach, beforeEach, describe, expect, test } from "bun:test";
 import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
-import { SqliteClient } from "@effect/sql-sqlite-bun";
 import { Effect } from "effect";
 import type { SqlClient } from "effect/sql";
+import { makeSqliteLayer } from "../src/db.js";
 import { fieldKey, openLedger, recordKey } from "../src/import/ledger.js";
 
 let tmpDir: string;
@@ -36,9 +36,7 @@ beforeEach(() => {
 afterEach(() => fs.rmSync(tmpDir, { recursive: true, force: true }));
 
 const run = <A>(effect: Effect.Effect<A, never, SqlClient.SqlClient>) =>
-	Effect.runPromise(
-		effect.pipe(Effect.provide(SqliteClient.layer({ filename }))),
-	);
+	Effect.runPromise(effect.pipe(Effect.provide(makeSqliteLayer(filename))));
 
 describe("resolve", () => {
 	test("mints an id the first time and reports it as created", async () => {
