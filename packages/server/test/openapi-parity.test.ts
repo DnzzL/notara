@@ -142,6 +142,7 @@ describe("the OpenAPI document describes the routes that exist", () => {
 		expect(pageOps).toEqual([
 			"createPage",
 			"deletePage",
+			"exportPage",
 			"getPage",
 			"listPages",
 			"restorePage",

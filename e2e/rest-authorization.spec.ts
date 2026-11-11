@@ -90,6 +90,10 @@ const ROUTES: Route[] = [
 		path: "/databases/:dbId/records/:recordId/fields/:fieldId",
 		body: { value: "x" },
 	},
+	{ method: "get", path: "/pages/:pageId/backlinks" },
+	{ method: "get", path: "/pages/:pageId/export" },
+	{ method: "get", path: "/databases/:dbId/export" },
+	{ method: "post", path: "/templates/meeting-notes/pages", body: {} },
 	{ method: "get", path: "/search?q=secret" },
 	{ method: "get", path: "/trash" },
 ];

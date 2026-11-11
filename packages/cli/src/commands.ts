@@ -223,6 +223,53 @@ const pagesRestore = Command.make("restore", { ...globals, pageId }, (o) =>
 	Command.withDescription("Restore a trashed page"),
 );
 
+const pagesBacklinks = Command.make("backlinks", { ...globals, pageId }, (o) =>
+	Effect.gen(function* () {
+		const cfg = toCfg(o);
+		const base = yield* wsPath(cfg);
+		const data = yield* request(
+			cfg,
+			"GET",
+			`${base}/pages/${o.pageId}/backlinks`,
+		);
+		yield* print(o.json, data, (links: Array<Record<string, unknown>>) =>
+			table(links, ["pageId", "pageTitle", "blockId", "blockType"]),
+		);
+	}),
+).pipe(
+	Command.annotate(OperationId, "getBacklinks"),
+	Command.withDescription("List the blocks that link to a page"),
+);
+
+const pagesExport = Command.make(
+	"export",
+	{
+		...globals,
+		pageId,
+		includeDatabases: Flag.Boolean("include-databases").pipe(
+			Flag.withDefault(false),
+			Flag.withDescription("Append the page's inline databases as CSV"),
+		),
+	},
+	(o) =>
+		Effect.gen(function* () {
+			const cfg = toCfg(o);
+			const base = yield* wsPath(cfg);
+			const data = yield* request(
+				cfg,
+				"GET",
+				`${base}/pages/${o.pageId}/export`,
+				{
+					query: { includeDatabases: String(o.includeDatabases) },
+				},
+			);
+			yield* print(o.json, data, (e: { markdown: string }) => e.markdown);
+		}),
+).pipe(
+	Command.annotate(OperationId, "exportPage"),
+	Command.withDescription("Export a page as Markdown"),
+);
+
 const pagesCmd = Command.make("pages").pipe(
 	Command.withDescription("Manage pages"),
 	Command.withSubcommands([
@@ -232,6 +279,8 @@ const pagesCmd = Command.make("pages").pipe(
 		pagesUpdate,
 		pagesDelete,
 		pagesRestore,
+		pagesBacklinks,
+		pagesExport,
 	]),
 );
 
@@ -850,6 +899,22 @@ const databasesGet = Command.make("get", { ...globals, dbId }, (o) =>
 	Command.withDescription("Show one database"),
 );
 
+const databasesExport = Command.make("export", { ...globals, dbId }, (o) =>
+	Effect.gen(function* () {
+		const cfg = toCfg(o);
+		const base = yield* wsPath(cfg);
+		const data = yield* request(
+			cfg,
+			"GET",
+			`${base}/databases/${o.dbId}/export`,
+		);
+		yield* print(o.json, data, (e: { csv: string }) => e.csv);
+	}),
+).pipe(
+	Command.annotate(OperationId, "exportDatabase"),
+	Command.withDescription("Export a database as CSV"),
+);
+
 const databasesRecord = Command.make(
 	"record",
 	{ ...globals, dbId, recordId },
@@ -1070,6 +1135,7 @@ const databasesCmd = Command.make("databases").pipe(
 		databasesAddView,
 		databasesUpdateView,
 		databasesDeleteView,
+		databasesExport,
 	]),
 );
 
@@ -1108,6 +1174,63 @@ const trashCmd = Command.make("trash").pipe(
 		"Inspect the workspace trash (restore via pages/databases restore)",
 	),
 	Command.withSubcommands([trashList]),
+);
+
+// ── templates ─────────────────────────────────────────────────────────────────
+
+const templatesList = Command.make("list", globals, (o) =>
+	Effect.gen(function* () {
+		const data = yield* request(toCfg(o), "GET", "/api/v1/templates");
+		yield* print(o.json, data, (t: Array<Record<string, unknown>>) =>
+			table(t, ["id", "title", "description"]),
+		);
+	}),
+).pipe(
+	Command.annotate(OperationId, "listTemplates"),
+	Command.withDescription(
+		"List built-in page templates (no --workspace needed)",
+	),
+);
+
+const templatesUse = Command.make(
+	"use",
+	{
+		...globals,
+		templateId: Argument.String("templateId").pipe(
+			Argument.withDescription("Template id, from `templates list`"),
+		),
+		parent: Flag.String("parent").pipe(
+			Flag.optional,
+			Flag.withDescription("Parent page id (omit for a top-level page)"),
+		),
+	},
+	(o) =>
+		Effect.gen(function* () {
+			const cfg = toCfg(o);
+			const base = yield* wsPath(cfg);
+			const body: Record<string, unknown> = {};
+			if (o.parent._tag === "Some") body.parentId = o.parent.value;
+			const data = yield* request(
+				cfg,
+				"POST",
+				`${base}/templates/${o.templateId}/pages`,
+				{ body },
+			);
+			yield* print(
+				o.json,
+				data,
+				(p: { id: string; title: string }) =>
+					`Created page ${p.id} — ${p.title}`,
+			);
+		}),
+).pipe(
+	Command.annotate(OperationId, "createPageFromTemplate"),
+	Command.withDescription("Create a page from a template"),
+);
+
+const templatesCmd = Command.make("templates").pipe(
+	Command.withDescription("Page templates"),
+	Command.withSubcommands([templatesList, templatesUse]),
 );
 
 // ── search ──────────────────────────────────────────────────────────────────
@@ -1168,6 +1291,7 @@ export const root = Command.make("notara").pipe(
 		blocksCmd,
 		databasesCmd,
 		trashCmd,
+		templatesCmd,
 		searchCmd,
 		configCmd,
 	]),
