@@ -17,8 +17,8 @@
  *
  * Release fixtures: test/fixtures/<tag>/migrations is a copy of
  * packages/server/migrations at a release tag. Every v*\/ directory is
- * upgraded to the current migrations below. Add one per new minor, at release
- * time: `mkdir -p packages/server/test/fixtures/<tag> && git archive <tag>
+ * upgraded to the current migrations below. Add one per new minor, after
+ * tagging: `mkdir -p packages/server/test/fixtures/<tag> && git archive <tag>
  * packages/server/migrations | tar -x -C packages/server/test/fixtures/<tag>
  * --strip-components=2`. No test edit needed.
  */
@@ -199,6 +199,8 @@ describe("backup then restore into a fresh data dir", () => {
 		b2.proc.kill();
 	}, 60_000);
 });
+
+test("release fixtures exist", () => expect(TAGS.length).toBeGreaterThan(0));
 
 for (const PREV of TAGS)
 	describe(`a data dir from ${PREV} boots on the current migrations`, () => {

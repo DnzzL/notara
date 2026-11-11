@@ -217,8 +217,7 @@ git pull && docker compose up -d --build
 git pull && podman build -t notara . && systemctl --user restart notara
 ```
 
-**Releasing (maintainers).** Before tagging a new minor (`v0.N.0`, or the last patch of the previous
-one), add its data fixture: `mkdir -p packages/server/test/fixtures/<tag> && git archive <tag>
+**Releasing (maintainers).** After tagging a new minor (`v0.N.0`), add its fixture: `mkdir -p packages/server/test/fixtures/<tag> && git archive <tag>
 packages/server/migrations | tar -x -C packages/server/test/fixtures/<tag> --strip-components=2`.
 `upgrade-restore.test.ts` upgrades every `fixtures/v*` directory; released migrations must never change.
 
