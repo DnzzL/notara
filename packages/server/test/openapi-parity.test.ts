@@ -46,6 +46,9 @@ const HTTP_METHODS = new Set([
 	"head",
 ]);
 
+/** The event stream is documented by hand: it stays open, so it is not an operation. */
+const STREAM_PATH = "/workspaces/{workspaceId}/events";
+
 const show = ({ method, path }: Endpoint) => `${method} ${path}`;
 
 /** OpenAPI writes `{id}`; the router writes `:id`. Same path, two spellings. */
@@ -182,6 +185,7 @@ describe("the OpenAPI document describes the routes that exist", () => {
 describe("the OpenAPI document is the operation table", () => {
 	test("each documented operation is a table entry, with its method, path, tag and summary", () => {
 		const documented = Object.entries(spec.paths)
+			.filter(([specPath]) => specPath !== STREAM_PATH)
 			.flatMap(([specPath, item]) =>
 				Object.entries(item as Record<string, unknown>)
 					.filter(([key]) => HTTP_METHODS.has(key))
@@ -216,11 +220,13 @@ describe("the OpenAPI document is the operation table", () => {
 });
 
 describe("the OpenAPI document tells the truth about answers and terms", () => {
-	const operations = Object.values(spec.paths).flatMap((item) =>
-		Object.entries(item as Record<string, unknown>)
-			.filter(([key]) => HTTP_METHODS.has(key))
-			.map(([, op]) => op as { responses: Record<string, unknown> }),
-	);
+	const operations = Object.entries(spec.paths)
+		.filter(([specPath]) => specPath !== STREAM_PATH)
+		.flatMap(([, item]) =>
+			Object.entries(item as Record<string, unknown>)
+				.filter(([key]) => HTTP_METHODS.has(key))
+				.map(([, op]) => op as { responses: Record<string, unknown> }),
+		);
 
 	test("every operation documents a conflict and a malformed body", () => {
 		expect(operations.length).toBeGreaterThan(0);

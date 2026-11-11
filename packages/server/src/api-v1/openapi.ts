@@ -106,6 +106,10 @@ blank. If you have blocks created that way, rewrite them as HTML.
 		},
 		{ name: "Search", description: "Full-text search across pages and blocks" },
 		{ name: "Trash", description: "Soft-deleted items; restore or purge them" },
+		{
+			name: "Events",
+			description: "A live stream of changes, instead of polling",
+		},
 	],
 	components: {
 		securitySchemes: {
@@ -124,6 +128,39 @@ blank. If you have blocks created that way, rewrite them as HTML.
 		// router is registered from the same list, so route and document cannot
 		// drift apart. Generated from the operations' Schemas (NOT-169).
 		...typed.paths,
+		// Not an operation (it stays open): declared here, served from api-v1/routes.ts.
+		"/workspaces/{workspaceId}/events": {
+			get: {
+				operationId: "streamEvents",
+				tags: ["Events"],
+				summary: "Stream page, block and record changes",
+				description:
+					"Server-sent events (`text/event-stream`). A `ready` event confirms the subscription; every edit after it is delivered. Each `change` event is one JSON object: `kind` (`page`, `block` or `record`), `op` (`create`, `update` or `delete`), `id`, `pageId` (the page that owns it), `updatedBy` (user id of the editor) and `workspaceId`. A trash or restore is a `delete` or an `update`. You receive only what you could read: a key limited to a subtree hears only that subtree. Events are not replayed: a client that reconnects re-reads what it missed. Any API key may listen, a read key included.",
+				parameters: [wsParam],
+				responses: {
+					200: {
+						description: "An open event stream",
+						content: { "text/event-stream": { schema: { type: "string" } } },
+					},
+					401: {
+						description: "Unauthorized",
+						content: {
+							"application/json": {
+								schema: { $ref: "#/components/schemas/Error" },
+							},
+						},
+					},
+					403: {
+						description: "Not a member of this workspace",
+						content: {
+							"application/json": {
+								schema: { $ref: "#/components/schemas/Error" },
+							},
+						},
+					},
+				},
+			},
+		},
 	},
 };
 

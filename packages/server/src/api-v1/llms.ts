@@ -25,6 +25,7 @@ export const llmsTxt = (
 
 - [OpenAPI document](${baseUrl}/api/v1/openapi.json): every REST route, with its schemas
 - [MCP endpoint](${baseUrl}/mcp): Streamable HTTP, one tool per operation, \`Authorization: Bearer ntr_…\`
+- [Change events](${baseUrl}/api/v1/workspaces/{workspaceId}/events): server-sent events for every page, block and record change, same \`Authorization: Bearer ntr_…\`; react instead of polling
 - [Agents guide](${baseUrl}/agents): MCP setup for Claude Code and Cursor, API key scopes
 
 ## Read operations

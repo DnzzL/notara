@@ -1,10 +1,13 @@
 import { Effect } from "effect";
 import * as HttpRouter from "effect/http/HttpRouter";
 import * as HttpServerResponse from "effect/http/HttpServerResponse";
+import { makeChangeStreamHandler } from "../change-events.js";
+import { WorkspaceDb } from "../db.js";
 import { BASE_URL } from "../email.js";
 import { llmsTxt } from "./llms.js";
 import { spec as openApiSpec, swaggerHtml } from "./openapi.js";
 import { registerTypedOperations, typedOperations } from "./operations.js";
+import { handle } from "./response.js";
 
 // ── Route registration ────────────────────────────────────────────────────────
 
@@ -51,4 +54,12 @@ export const registerV1Routes = Effect.gen(function* () {
 	// acquisition.
 
 	yield* registerTypedOperations(router, typedOperations);
+
+	// Change events (SSE). Not an operation: it never runs once and answers, it
+	// stays open. Documented by hand in openapi.ts; see ADR-015.
+	yield* router.add(
+		"GET",
+		"/api/v1/workspaces/:workspaceId/events",
+		handle(Effect.flatMap(WorkspaceDb, makeChangeStreamHandler)),
+	);
 });
