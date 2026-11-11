@@ -36,6 +36,10 @@
 			{
 				"from": "../server/migrations",
 				"to": "migrations"
+			},
+			{
+				"from": "resources/templates",
+				"to": "templates"
 			}
 		],
 		"mac": {

@@ -1,6 +1,6 @@
 /**
  * Template file contract. One file per template in this folder, named
- * `NN-<id>.ts` (NN orders the catalogue), loaded by `handlers/templates.ts`:
+ * `NN-<id>.ts` (NN = digits, required; orders the catalogue), loaded by `handlers/templates.ts`:
  *
  *   export default { id, title, icon, description, blocks, children? } satisfies TemplateDef;
  *
@@ -11,7 +11,7 @@
  * - views: `table` or `board` (a board needs `groupByFieldName`).
  * - records: `values` by field name, `relations`, `pageLinks` (sub-page titles).
  * - `children`: nested sub-pages, same shape as a page.
- * Files starting with `_` are not templates. A snapshot test guards the output.
+ * Other files (e.g. `_kit.ts`) are ignored. A snapshot test guards the output.
  */
 export type PlainBlock = { kind: "block"; type: string; content: string };
 export type DatabaseBlock = {
