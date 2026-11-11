@@ -26,7 +26,10 @@ export function EditedBy({ page }: { page: Page }) {
 			: undefined;
 	if (!who) return null;
 	return (
-		<span className="hidden md:block shrink-0 max-w-[30%] truncate text-[12px] text-text-3">
+		<span
+			title={`Edited by ${who}`}
+			className="min-w-0 shrink max-w-[30%] truncate text-[12px] text-text-3"
+		>
 			Edited by {who}
 		</span>
 	);
