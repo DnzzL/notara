@@ -10,14 +10,14 @@
  * The table below is the point. A new route added without a guard has to be
  * added here too, and adding it here makes the omission fail.
  */
-import { APP_ORIGIN, expect, seedPage, test } from "./multiuser-helpers.js";
+import { expect, seedPage, test } from "./multiuser-helpers.js";
 
 type Route = {
 	method: "get" | "post" | "patch" | "delete" | "put";
 	/** `:name` placeholders are filled from the seeded fixture. */
 	path: string;
 	body?: Record<string, unknown>;
-	/** Never-ending response (SSE): read the status, then drop the connection. */
+	/** Never-ending response (SSE): must be refused fast, else the probe times out. */
 	stream?: boolean;
 };
 
@@ -233,17 +233,12 @@ test("no REST route serves a caller who is not a workspace member", async ({
 		const url = fill(route.path, fixture);
 		let status: number;
 		if (route.stream) {
-			// APIRequestContext waits for the whole body; an open stream never ends.
-			const { cookies } = await bob.api.storageState();
-			const ctrl = new AbortController();
-			const res = await fetch(APP_ORIGIN + url, {
-				signal: ctrl.signal,
-				headers: {
-					cookie: cookies.map((c) => `${c.name}=${c.value}`).join("; "),
-				},
-			});
-			status = res.status;
-			ctrl.abort();
+			// A refusal ends at once. If the guard is missing the stream stays
+			// open: APIRequestContext times out and closes it, and 0 is reported.
+			status = await bob.api
+				.get(url, { timeout: 5_000 })
+				.then((r) => r.status())
+				.catch(() => 0);
 		} else {
 			const res = await bob.api[route.method](url, {
 				data: fillBody(route.body, fixture),
