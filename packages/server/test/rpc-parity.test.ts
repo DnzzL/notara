@@ -31,14 +31,6 @@ const RENAMED: Record<string, string> = {
 /** The one allowlist: RPCs with no operation, and why. */
 const NOT_AN_OPERATION: Record<string, string> = {
 	// Real user-facing gaps today.
-	// Same name as an operation, but the RPC does more: the op lacks `type` (turn-into).
-	updateBlock: "TODO: missing operation (block type change)",
-	movePage: "TODO: missing operation",
-	reorderPages: "TODO: missing operation",
-	reorderBlocks: "TODO: missing operation",
-	reorderFields: "TODO: missing operation",
-	reorderRecords: "TODO: missing operation",
-	reorderDatabases: "TODO: missing operation",
 	createWorkspace: "TODO: missing operation",
 	getWorkspaceMembers: "TODO: missing operation",
 	removeMember: "TODO: missing operation",

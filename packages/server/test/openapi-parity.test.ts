@@ -145,6 +145,7 @@ describe("the OpenAPI document describes the routes that exist", () => {
 			"exportPage",
 			"getPage",
 			"listPages",
+			"movePage",
 			"restorePage",
 			"updatePage",
 		]);
