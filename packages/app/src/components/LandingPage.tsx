@@ -267,7 +267,10 @@ export function LandingPage({ demoMode }: { demoMode: boolean }) {
 							<span className="lp-kicker">
 								<b>01</b> · Minimalist
 							</span>
-							<h3>A Notion you own, few features done well.</h3>
+							<h3>
+								A Notion you own: block editor, inline databases, real-time
+								collaboration, few features done well.
+							</h3>
 							<p>
 								Block editor, inline databases, real-time collaboration, and
 								little else. One person can keep all of it working, so it stays
@@ -277,25 +280,33 @@ export function LandingPage({ demoMode }: { demoMode: boolean }) {
 						</div>
 						<div className="lp-pillar">
 							<span className="lp-kicker">
-								<b>02</b> · Self-host in 1 minute
+								<b>02</b> · Self-host in one command
 							</span>
-							<h3>One command, one SQLite file.</h3>
+							<h3>docker compose up gives you HTTPS and one SQLite file.</h3>
 							<pre className="lp-code">
-								<code>{`docker run -d --name notara -p 3000:3000 \\
-  -v notara-data:/data \\
-  -e BETTER_AUTH_SECRET="$(openssl rand -base64 32)" \\
-  ghcr.io/dnzzl/notara:latest`}</code>
+								<code>{`git clone https://github.com/dnzzl/notara
+cd notara && cp .env.example .env
+docker compose up -d`}</code>
 							</pre>
 							<p>
-								Free, AGPL-3.0-or-later, no licence key. Your data stays in the{" "}
-								<code>notara-data</code> volume.
+								Set <code>DOMAIN</code> and <code>BETTER_AUTH_SECRET</code> in{" "}
+								<code>.env</code>. Free, AGPL-3.0-or-later, no licence key. Your
+								data stays in the <code>notara-data</code> volume. Prefer plain
+								Docker, Podman or Fly.io?{" "}
+								<a href={`${REPO_URL}#other-ways-to-install`}>
+									Other ways to install
+								</a>
+								.
 							</p>
 						</div>
 						<div className="lp-pillar">
 							<span className="lp-kicker">
 								<b>03</b> · Agent-ready
 							</span>
-							<h3>Drive your notes from the CLI, REST or MCP.</h3>
+							<h3>
+								The notara CLI, a REST API (OpenAPI) and an MCP server, with
+								scoped read/write API keys.
+							</h3>
 							<pre className="lp-code">
 								<code>{`claude mcp add --transport http notara \\
   https://notes.example.com/mcp \\
@@ -306,7 +317,8 @@ export function LandingPage({ demoMode }: { demoMode: boolean }) {
 								server at <code>/mcp</code> run the same operations, one MCP
 								tool each. A read or write API key decides what a client may do:
 								a read key only sees the read tools.{" "}
-								<a href="/agents">Set up your agent</a>.
+								<a href="/agents">Set up your agent</a> ·{" "}
+								<a href="/llms.txt">llms.txt</a>.
 							</p>
 						</div>
 					</div>

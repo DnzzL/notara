@@ -3,11 +3,12 @@ import {
 	Easing,
 	interpolate,
 	OffthreadVideo,
+	Sequence,
 	staticFile,
 	useCurrentFrame,
 	useVideoConfig,
 } from "remotion";
-import { CLICKS } from "./clicks";
+import { AGENT_CLICKS, CLICKS } from "./clicks";
 import { Cursor } from "./Cursor";
 
 /**
@@ -22,8 +23,9 @@ import { Cursor } from "./Cursor";
  *   → follow the link              the app navigates, the sidebar follows
  *   → the brief is a real page     Goal, Scope, Milestones — not a stub
  *   → it knows who links to it     one backlink, pointing home
- *   → back to the tracker          via the sidebar, which kept its place
  *   → the same records, as a board
+ *   → a new page from a template   Reading List, ready-made
+ *   → an agent writes into it      over the API, live, in the open page
  *
  * The point is that everything is connected — the thing a screenshot cannot
  * say and a feature list does not make anyone believe.
@@ -67,7 +69,9 @@ const DB: Shot = { x: 700, y: 560, w: 1720, h: 980 };
  * keyframes the shot is interpolated; two keyframes with the same shot are a
  * hold. Every move lands *before* the thing it is there to show.
  */
-const TIMELINE: readonly { t: number; shot: Shot }[] = [
+type Timeline = readonly { t: number; shot: Shot }[];
+
+const TIMELINE: Timeline = [
 	{ t: 0.0, shot: WIDE },
 	{ t: 0.5, shot: WIDE },
 	{ t: 1.0, shot: PAGE }, // settled before the link is clicked at 1.14
@@ -82,9 +86,54 @@ const TIMELINE: readonly { t: number; shot: Shot }[] = [
 	{ t: 13.9, shot: WIDE }, // thing you see, and the note the loop ends on
 ];
 
+/** The agent beat, against its own capture. Wide for the picker, then in on
+ *  the page, so the note the agent writes is readable when it lands (~4.2s). */
+const AGENT_TIMELINE: Timeline = [
+	{ t: 0.0, shot: WIDE },
+	{ t: 2.7, shot: WIDE },
+	{ t: 3.5, shot: PAGE },
+	{ t: 6.2, shot: PAGE },
+];
+
+/**
+ * The cut list. Each clip plays `dur` seconds of a capture from `from`, with
+ * the camera and click track written against that capture's own clock.
+ *
+ * The first capture is the tracker story, trimmed: the sidebar trip and the
+ * scroll to the table are cut to keep the loop short. The second is a fresh
+ * recording of the agent beat.
+ */
+type Clip = {
+	file: string;
+	from: number;
+	dur: number;
+	timeline: Timeline;
+	clicks: typeof CLICKS;
+};
+
+const CLIPS: readonly Clip[] = [
+	{ file: "capture.webm", from: 0, dur: 5.0, timeline: TIMELINE, clicks: CLICKS },
+	{
+		file: "capture.webm",
+		from: 10.0,
+		dur: 2.8,
+		timeline: TIMELINE,
+		clicks: CLICKS.filter((c) => c.label === "board"),
+	},
+	{
+		file: "agent.webm",
+		from: 0,
+		dur: 6.2,
+		timeline: AGENT_TIMELINE,
+		clicks: AGENT_CLICKS,
+	},
+];
+
+export const DURATION = CLIPS.reduce((n, c) => n + c.dur, 0);
+
 const EASE = Easing.bezier(0.32, 0, 0.16, 1);
 
-function shotAt(t: number): Shot {
+function shotAt(TIMELINE: Timeline, t: number): Shot {
 	const last = TIMELINE.length - 1;
 	const first = TIMELINE[0];
 	const final = TIMELINE[last];
@@ -111,12 +160,13 @@ function shotAt(t: number): Shot {
 	};
 }
 
-export function Hero() {
+function ClipView({ clip }: { clip: Clip }) {
 	const frame = useCurrentFrame();
 	const { fps, width } = useVideoConfig();
 
-	const t = frame / fps;
-	const shot = shotAt(t);
+	// Local to the Sequence: 0 is the clip's first frame, `from` its place in the capture.
+	const t = clip.from + frame / fps;
+	const shot = shotAt(clip.timeline, t);
 	const scale = width / shot.w;
 
 	return (
@@ -131,12 +181,35 @@ export function Hero() {
 				}}
 			>
 				<OffthreadVideo
-					src={staticFile("capture.webm")}
+					src={staticFile(clip.file)}
+					startFrom={Math.round(clip.from * fps)}
 					style={{ width: SRC_W, height: SRC_H, display: "block" }}
 					muted
 				/>
 			</div>
-			<Cursor clicks={CLICKS} t={t} shot={shot} scale={scale} />
+			<Cursor clicks={clip.clicks} t={t} shot={shot} scale={scale} />
+		</AbsoluteFill>
+	);
+}
+
+export function Hero() {
+	const { fps } = useVideoConfig();
+	let at = 0;
+	return (
+		<AbsoluteFill style={{ backgroundColor: "#FAFAF8" }}>
+			{CLIPS.map((clip) => {
+				const from = Math.round(at * fps);
+				at += clip.dur;
+				return (
+					<Sequence
+						key={`${clip.file}-${clip.from}`}
+						from={from}
+						durationInFrames={Math.round(clip.dur * fps)}
+					>
+						<ClipView clip={clip} />
+					</Sequence>
+				);
+			})}
 			{/* The landing page shows this in a rounded 8px window; a hairline keeps
 			    the paper background of the capture from bleeding into the paper
 			    background of the page. */}

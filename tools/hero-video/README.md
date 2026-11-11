@@ -29,16 +29,22 @@ each step causes the next:
 | follow the link | the app navigates, the sidebar follows |
 | the brief is a real page — Goal, Scope, Milestones | it is not a stub |
 | it knows who links to it — one backlink, pointing home | the graph is real, both ways |
-| back to the tracker via the sidebar | the tree kept its place |
-| the same records, as a board | one dataset, several views — **and this is where it ends**, wide on the kanban |
+| the same records, as a board | one dataset, several views |
+| a new page from a template (Reading List) | a useful page in one click |
+| an agent writes a note into it, live, in the open page | agent-ready is real: REST/MCP edits show up without a reload |
 
 The claim underneath is *everything is connected*, which is exactly what a
 screenshot cannot say.
 
-It closes on the board rather than returning to the opening frame. A seamless
-loop was the wrong thing to optimise: the last thing on screen is the last
-thing remembered, and a kanban says more than an empty page header. The seam is
-a content change inside an unchanged framing, which barely reads.
+It closes on the agent beat rather than returning to the opening frame. A
+seamless loop was the wrong thing to optimise: the last thing on screen is the
+last thing remembered. The seam is a content change inside an unchanged
+framing, which barely reads.
+
+The video is two captures cut together (`CLIPS` in `src/Hero.tsx`): the tracker
+story (`capture.webm`, trimmed: the sidebar trip and the scroll are cut) and
+the agent beat (`agent.webm`). Each has its own camera timeline and click
+track.
 
 **Verify the board actually switched before stopping the recording.** One take
 was cut, composed and shipped with the board missing entirely — the click had
@@ -105,6 +111,25 @@ The shots are windows over the source, not CSS scales of the whole frame. The
 content column measures **1035 CSS px** (from the DOM, not guessed); anything
 narrower clips headings, which reads as broken rather than cropped.
 
+## Recording the agent beat
+
+`agent.webm` is a second capture, same 1440x820 at 2x. The page must change
+while it is open, and the app ignores edits made by the *same* user (it
+treats them as its own echo). So the agent needs a **different user's** API
+key than the browser's: sign the browser in as a second member of the
+workspace (invite link), and drive the edit with the owner's key:
+
+```
+notara blocks create -w <workspaceId> <pageId> --type callout --index 2 \
+  --content '<div data-callout><div class="callout-text">…</div></div>'
+```
+
+Time that call a second or two after the template page opens, so the note
+lands on screen, and log the New page and template clicks as for the first
+capture (`AGENT_CLICKS`). Trim the lead-in with `ffmpeg -ss` and re-encode:
+`ffmpeg -ss 0.4 -i raw.webm -c:v libvpx-vp9 -b:v 0 -crf 32 -an public/agent.webm`.
+Update `AGENT_TIMELINE` so the push lands before the note does.
+
 ## Recording a new capture
 
 The capture must be **2×** (`deviceScaleFactor 2`), so the tightest window still
@@ -142,12 +167,12 @@ ffmpeg -y -i out/hero.mp4 -c:v libx264 -profile:v high -pix_fmt yuv420p \
 ffmpeg -y -ss 0.2 -i out/hero.mp4 -frames:v 1 -q:v 3 \
   ../../packages/app/public/notara-hero-poster.jpg
 
-ffmpeg -y -i out/hero.mp4 -vf "fps=8,scale=700:-2:flags=lanczos,palettegen=max_colors=64:stats_mode=diff" /tmp/pal.png
+ffmpeg -y -i out/hero.mp4 -vf "fps=7,scale=700:-2:flags=lanczos,palettegen=max_colors=48:stats_mode=diff" /tmp/pal.png
 ffmpeg -y -i out/hero.mp4 -i /tmp/pal.png \
-  -lavfi "fps=8,scale=700:-2:flags=lanczos[x];[x][1:v]paletteuse=dither=none:diff_mode=rectangle" \
+  -lavfi "fps=7,scale=700:-2:flags=lanczos[x];[x][1:v]paletteuse=dither=none:diff_mode=rectangle" \
   -loop 0 ../../docs/screenshots/notara-hero.gif
 ```
 
 The GIF is the expensive one: a moving window means every pixel changes every
-frame, so delta compression has nothing to work with. 8fps at 700px is the
+frame, so delta compression has nothing to work with. 7fps at 700px is the
 point where it stays under ~1.5 MB and still reads.

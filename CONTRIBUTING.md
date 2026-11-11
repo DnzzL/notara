@@ -40,7 +40,7 @@ submit it under this license.
 
 ## Development
 
-Setup, run, build, and test instructions live in the [README](./README.md#-development).
+Setup, run, build, and test instructions live in the [docs/development.md](./docs/development.md).
 Before opening a PR, please make sure the standard checks pass:
 
 ```bash

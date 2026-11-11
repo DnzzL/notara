@@ -16,3 +16,9 @@ export const CLICKS: readonly Click[] = [
 	{ t: 5.82, x: 284, y: 380, label: "sidebar" },
 	{ t: 10.66, x: 1054, y: 656, label: "board" },
 ];
+
+/** The agent capture (`agent.webm`): its own clock, 0.4s of lead-in trimmed. */
+export const AGENT_CLICKS: readonly Click[] = [
+	{ t: 0.81, x: 259, y: 1515, label: "new page" },
+	{ t: 2.14, x: 1440, y: 1514, label: "template" },
+];
