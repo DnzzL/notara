@@ -65,6 +65,19 @@ test("every template instantiates with its pages, databases, fields and views", 
 					const records = yield* Databases.listRecordsWithValues(dbs[i].id);
 					expect(records.length).toBe(def.records.length);
 					expect(records.length).toBeGreaterThan(0);
+					// Every sample cell must land: a misspelt field, relation target
+					// or page title is skipped silently by the builder.
+					const expected = def.records.reduce(
+						(n, r) =>
+							n +
+							Object.keys(r.values ?? {}).length +
+							Object.keys(r.relations ?? {}).length +
+							Object.keys(r.pageLinks ?? {}).length,
+						0,
+					);
+					const stored =
+						yield* sql`SELECT COUNT(*) AS n FROM record_field_values WHERE record_id IN (SELECT id FROM database_records WHERE database_id = ${dbs[i].id})`;
+					expect(Number(stored[0].n)).toBe(expected);
 				}
 			}
 		}).pipe(
