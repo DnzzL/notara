@@ -553,6 +553,418 @@ export const TEMPLATES: TemplateDef[] = [
 			},
 		],
 	},
+
+	// ── 5. Personal CRM ───────────────────────────────────────────────────────
+	{
+		id: "personal-crm",
+		title: "Personal CRM",
+		icon: "🤝",
+		description: "Keep in touch with people: last contact, next follow-up.",
+		blocks: [
+			h1("Personal CRM 🤝"),
+			p(
+				"Never lose touch with the people who matter. Switch to the <strong>Board</strong> view to see who needs a nudge.",
+			),
+			{
+				kind: "database",
+				name: "Contacts",
+				titleLabel: "Name",
+				fields: [
+					{
+						name: "Stage",
+						type: "select",
+						options: ["New", "Active", "Needs follow-up", "Dormant"],
+					},
+					{ name: "Company", type: "text" },
+					{ name: "Email", type: "text" },
+					{ name: "Last contact", type: "date" },
+					{ name: "Next follow-up", type: "date" },
+				],
+				views: [
+					{ name: "All contacts", type: "table" },
+					{ name: "By stage", type: "board", groupByFieldName: "Stage" },
+				],
+				records: [
+					{
+						title: "Camille Dupont",
+						values: {
+							Stage: "Active",
+							Company: "Atelier Lumière",
+							Email: "camille@example.com",
+							"Last contact": "2026-10-28",
+							"Next follow-up": "2026-11-25",
+						},
+					},
+					{
+						title: "Marcus Webb",
+						values: {
+							Stage: "Needs follow-up",
+							Company: "Webb & Sons",
+							Email: "marcus@example.com",
+							"Last contact": "2026-09-14",
+							"Next follow-up": "2026-11-12",
+						},
+					},
+					{
+						title: "Aiko Tanaka",
+						values: {
+							Stage: "New",
+							Company: "Studio Kumo",
+							Email: "aiko@example.com",
+							"Last contact": "2026-11-05",
+							"Next follow-up": "2026-11-19",
+						},
+					},
+					{
+						title: "Priya Nair",
+						values: {
+							Stage: "Active",
+							Company: "Greenleaf Café",
+							Email: "priya@example.com",
+							"Last contact": "2026-11-02",
+							"Next follow-up": "2026-12-02",
+						},
+					},
+					{
+						title: "Tom Becker",
+						values: {
+							Stage: "Dormant",
+							Company: "Becker Bikes",
+							Email: "tom@example.com",
+							"Last contact": "2026-03-20",
+						},
+					},
+				],
+			},
+		],
+	},
+
+	// ── 6. Content Calendar ───────────────────────────────────────────────────
+	{
+		id: "content-calendar",
+		title: "Content Calendar",
+		icon: "🗓️",
+		description: "Plan posts from idea to published, with publish dates.",
+		blocks: [
+			h1("Content Calendar 🗓️"),
+			p(
+				"Capture ideas, draft them, and schedule publishing. The <strong>Board</strong> view follows each piece from idea to published.",
+			),
+			{
+				kind: "database",
+				name: "Content",
+				titleLabel: "Title",
+				fields: [
+					{
+						name: "Status",
+						type: "select",
+						options: ["Idea", "Drafting", "Scheduled", "Published"],
+					},
+					{
+						name: "Channel",
+						type: "select",
+						options: ["Blog", "Newsletter", "LinkedIn", "YouTube"],
+					},
+					{ name: "Publish date", type: "date" },
+					{ name: "Author", type: "text" },
+				],
+				views: [
+					{ name: "Calendar list", type: "table" },
+					{ name: "Pipeline", type: "board", groupByFieldName: "Status" },
+				],
+				records: [
+					{
+						title: "10 lessons from our first year",
+						values: {
+							Status: "Published",
+							Channel: "Blog",
+							"Publish date": "2026-10-15",
+							Author: "Alex",
+						},
+					},
+					{
+						title: "Behind the scenes: how we plan a launch",
+						values: {
+							Status: "Scheduled",
+							Channel: "Newsletter",
+							"Publish date": "2026-11-18",
+							Author: "Sam",
+						},
+					},
+					{
+						title: "Customer story: Atelier Lumière",
+						values: {
+							Status: "Drafting",
+							Channel: "Blog",
+							"Publish date": "2026-11-25",
+							Author: "Jordan",
+						},
+					},
+					{
+						title: "5-minute product tour",
+						values: { Status: "Drafting", Channel: "YouTube", Author: "Alex" },
+					},
+					{
+						title: "Year-end recap thread",
+						values: { Status: "Idea", Channel: "LinkedIn", Author: "Sam" },
+					},
+					{
+						title: "FAQ: your top questions answered",
+						values: { Status: "Idea", Channel: "Blog" },
+					},
+				],
+			},
+		],
+	},
+
+	// ── 7. Trip Planner ───────────────────────────────────────────────────────
+	{
+		id: "trip-planner",
+		title: "Trip Planner",
+		icon: "✈️",
+		description: "Itinerary, bookings with budget, and a guest list.",
+		blocks: [
+			h1("Trip Planner ✈️"),
+			p(
+				"One place for a trip or event: the <strong>Guests</strong> list, the day-by-day <strong>Itinerary</strong> (linked to guests), and <strong>Bookings</strong> with their cost.",
+			),
+			{
+				kind: "database",
+				name: "Guests",
+				titleLabel: "Name",
+				fields: [
+					{
+						name: "RSVP",
+						type: "select",
+						options: ["Invited", "Confirmed", "Declined"],
+					},
+					{ name: "Notes", type: "text" },
+				],
+				views: [
+					{ name: "Guest list", type: "table" },
+					{ name: "By RSVP", type: "board", groupByFieldName: "RSVP" },
+				],
+				records: [
+					{
+						title: "Léa",
+						values: { RSVP: "Confirmed", Notes: "Vegetarian" },
+					},
+					{ title: "Noah", values: { RSVP: "Confirmed" } },
+					{
+						title: "Sofia",
+						values: { RSVP: "Invited", Notes: "Arrives a day late" },
+					},
+					{ title: "Hugo", values: { RSVP: "Declined" } },
+				],
+			},
+			{
+				kind: "database",
+				name: "Itinerary",
+				titleLabel: "Activity",
+				fields: [
+					{ name: "Date", type: "date" },
+					{
+						name: "Type",
+						type: "select",
+						options: ["Travel", "Sightseeing", "Food", "Free time"],
+					},
+					{ name: "Who", type: "relation", relationTargetName: "Guests" },
+				],
+				views: [{ name: "Day by day", type: "table" }],
+				records: [
+					{
+						title: "Train Paris → Lisbon",
+						values: { Date: "2027-05-03", Type: "Travel" },
+						relations: { Who: ["Léa", "Noah", "Sofia"] },
+					},
+					{
+						title: "Walking tour of Alfama",
+						values: { Date: "2027-05-04", Type: "Sightseeing" },
+						relations: { Who: ["Léa", "Noah"] },
+					},
+					{
+						title: "Dinner at Time Out Market",
+						values: { Date: "2027-05-04", Type: "Food" },
+						relations: { Who: ["Léa", "Noah", "Sofia"] },
+					},
+					{
+						title: "Day trip to Sintra",
+						values: { Date: "2027-05-05", Type: "Sightseeing" },
+						relations: { Who: ["Léa", "Sofia"] },
+					},
+				],
+			},
+			{
+				kind: "database",
+				name: "Bookings",
+				titleLabel: "Booking",
+				fields: [
+					{
+						name: "Status",
+						type: "select",
+						options: ["To book", "Booked", "Paid"],
+					},
+					{
+						name: "Category",
+						type: "select",
+						options: ["Transport", "Lodging", "Activities", "Food"],
+					},
+					{ name: "Cost (€)", type: "number" },
+					{ name: "Confirmation", type: "text" },
+				],
+				views: [
+					{ name: "Budget", type: "table" },
+					{ name: "By status", type: "board", groupByFieldName: "Status" },
+				],
+				records: [
+					{
+						title: "Train tickets (3 people)",
+						values: {
+							Status: "Paid",
+							Category: "Transport",
+							"Cost (€)": "312",
+							Confirmation: "TRN-48213",
+						},
+					},
+					{
+						title: "Apartment in Alfama, 3 nights",
+						values: {
+							Status: "Booked",
+							Category: "Lodging",
+							"Cost (€)": "540",
+							Confirmation: "BKG-77120",
+						},
+					},
+					{
+						title: "Sintra palace tickets",
+						values: {
+							Status: "To book",
+							Category: "Activities",
+							"Cost (€)": "60",
+						},
+					},
+					{
+						title: "Group dinner reservation",
+						values: { Status: "To book", Category: "Food", "Cost (€)": "150" },
+					},
+				],
+			},
+		],
+	},
+
+	// ── 8. Reading List ───────────────────────────────────────────────────────
+	{
+		id: "reading-list",
+		title: "Reading List",
+		icon: "📖",
+		description: "Books and articles with status, rating, and notes pages.",
+		blocks: [
+			h1("Reading List 📖"),
+			p(
+				"Track what you want to read, what you're reading, and what you thought. Each book links to a notes page.",
+			),
+			{
+				kind: "database",
+				name: "Books",
+				titleLabel: "Title",
+				fields: [
+					{ name: "Author", type: "text" },
+					{
+						name: "Status",
+						type: "select",
+						options: ["Want to read", "Reading", "Finished"],
+					},
+					{
+						name: "Rating",
+						type: "select",
+						options: ["★", "★★", "★★★", "★★★★", "★★★★★"],
+					},
+					{ name: "Finished on", type: "date" },
+					{ name: "Notes", type: "page" },
+				],
+				views: [
+					{ name: "Library", type: "table" },
+					{ name: "By status", type: "board", groupByFieldName: "Status" },
+				],
+				records: [
+					{
+						title: "Atomic Habits",
+						values: {
+							Author: "James Clear",
+							Status: "Finished",
+							Rating: "★★★★",
+							"Finished on": "2026-09-30",
+						},
+						pageLinks: { Notes: "Notes: Atomic Habits" },
+					},
+					{
+						title: "The Pragmatic Programmer",
+						values: { Author: "Hunt & Thomas", Status: "Reading" },
+						pageLinks: { Notes: "Notes: The Pragmatic Programmer" },
+					},
+					{
+						title: "Deep Work",
+						values: { Author: "Cal Newport", Status: "Want to read" },
+					},
+					{
+						title: "Sapiens",
+						values: {
+							Author: "Yuval Noah Harari",
+							Status: "Finished",
+							Rating: "★★★★★",
+							"Finished on": "2026-07-12",
+						},
+					},
+					{
+						title: "The Design of Everyday Things",
+						values: { Author: "Don Norman", Status: "Want to read" },
+					},
+				],
+			},
+		],
+		children: [
+			{
+				title: "Notes: Atomic Habits",
+				icon: "📝",
+				blocks: [
+					h1("Notes: Atomic Habits 📝"),
+					h2("Key ideas"),
+					{
+						kind: "block",
+						type: "bulletList",
+						content: UL([
+							"Small habits compound: 1% better every day",
+							"Focus on systems, not goals",
+							"Make it obvious, attractive, easy, satisfying",
+						]),
+					},
+					h2("What I'll try"),
+					{
+						kind: "block",
+						type: "todo",
+						content: TODO("Stack a 5-minute walk after morning coffee"),
+					},
+				],
+			},
+			{
+				title: "Notes: The Pragmatic Programmer",
+				icon: "📝",
+				blocks: [
+					h1("Notes: The Pragmatic Programmer 📝"),
+					h2("Highlights"),
+					{
+						kind: "block",
+						type: "bulletList",
+						content: UL([
+							"Don't repeat yourself",
+							"Fix broken windows early",
+							"Tracer bullets beat big up-front design",
+						]),
+					},
+				],
+			},
+		],
+	},
 ];
 
 export const getTemplates = () =>
