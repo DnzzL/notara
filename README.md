@@ -89,18 +89,24 @@ Prefer to build it yourself? Every method below does exactly that.
 > in-process. Run a single container behind your reverse proxy and scale *up* (a bigger
 > box), not *out*. A $5 VM is plenty to start.
 
-### Docker Compose
+### Docker Compose (HTTPS included)
 
-The quickest way in:
+One VM, one domain, one command. Point your domain's DNS at the VM and open ports 80 and
+443. [Caddy](https://caddyserver.com) fetches and renews the TLS certificate by itself.
 
 ```bash
 git clone https://github.com/dnzzl/notara
 cd notara
-# set at least BETTER_AUTH_SECRET in the environment: section of docker-compose.yml
-docker compose up -d --build
+cp .env.example .env
+# in .env set DOMAIN=notes.example.com and BETTER_AUTH_SECRET (openssl rand -hex 32)
+docker compose up -d
 ```
 
-Open `http://localhost:3000` and create your account.
+Open `https://notes.example.com` and create your account. Data lives in the `notara-data` volume (`/data`), local backups in `notara-backups`
+(`/backups`, see [Backups](#upgrade-backup-and-restore)). To build from source
+instead of pulling the published image: `docker compose up -d --build`.
+
+Trying it locally? `DOMAIN=localhost` makes Caddy use its own internal CA: `curl -k https://localhost/health`.
 
 ### Docker / Podman (plain)
 
@@ -181,8 +187,8 @@ one zip of exactly that. These steps are exercised end to end by
 | Local filesystem | `BACKUP_DIR=/backups` | Mount `/backups` from **outside** the `/data` volume, e.g. `-v /srv/notara-backups:/backups`. Wins over S3 if both are set. |
 | S3-compatible | `S3_BUCKET`, `S3_ACCESS_KEY`, `S3_SECRET_KEY`, optional `S3_REGION`, `S3_ENDPOINT`, `S3_PREFIX` | Or in the workspace menu → **Settings → Backups** (S3 only). |
 
-With Docker Compose, `docker-compose.yml` only forwards the variables it lists: add
-`BACKUP_DIR` (and `S3_PREFIX`) to `environment:` and the `/backups` volume yourself.
+With Docker Compose, `docker-compose.yml` only forwards the variables it lists; it already sets
+`BACKUP_DIR=/backups` with its own volume. To use S3, add `S3_PREFIX` to `environment:`.
 
 **Back up.** `POST /api/backup/trigger` as an admin (the Settings → Backups → **Backup
 Now** button does the same, S3 only). Scheduled backups and retention (`S3_KEEP_LAST`) use
