@@ -41,6 +41,7 @@ import { inSubtree, KeyRoot } from "../acl.js";
 import { type ChangeSpec, trackChange } from "../change-events.js";
 import { WorkspaceDb } from "../db.js";
 import type { Editor } from "../editor.js";
+import { recordAudit } from "../handlers/audit.js";
 import * as Blocks from "../handlers/blocks.js";
 import * as Databases from "../handlers/databases.js";
 import * as ImportExport from "../handlers/importExport.js";
@@ -1626,6 +1627,22 @@ const requireParentInSubtree = (
 				)
 			: Effect.fail(OUTSIDE_SUBTREE);
 
+/** The id a write touched (ADR-015): the output's id, else the first id in the input. Never content. */
+const auditTarget = (input: unknown, output: unknown): string | null => {
+	const id = (o: unknown, pick: (k: string) => boolean) =>
+		o && typeof o === "object"
+			? Object.entries(o).find(
+					([k, v]) => pick(k) && typeof v === "string",
+				)?.[1]
+			: undefined;
+	return (
+		((id(output, (k) => k === "id") ??
+			id(input, (k) => k === "id" || k.endsWith("Id"))) as
+			| string
+			| undefined) ?? null
+	);
+};
+
 /**
  * Runs one typed operation for a caller already resolved by its door: the
  * membership check, `input`, the permission check and `run`, all under one
@@ -1655,9 +1672,16 @@ export const runOperation = <I, O, E, R>(
 						);
 						if (op.checkPermission) yield* op.checkPermission(ctx, decoded);
 						const run = op.run(ctx, decoded);
-						return yield* op.change
+						const output = yield* op.change
 							? trackChange(op.change, ctx, decoded, run)
 							: run;
+						if (op.scope === "write")
+							yield* recordAudit(
+								ctx.editor,
+								op.operationId,
+								auditTarget(decoded, output),
+							);
+						return output;
 					}),
 				),
 			);

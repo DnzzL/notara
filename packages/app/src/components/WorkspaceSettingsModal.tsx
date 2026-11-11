@@ -1,4 +1,4 @@
-import type { Workspace, WorkspaceMember } from "@notara/shared";
+import type { AuditEntry, Workspace, WorkspaceMember } from "@notara/shared";
 import { useEffect, useState } from "react";
 import { useSession } from "../auth-client.js";
 import { api } from "../rpc-client.js";
@@ -18,6 +18,17 @@ export function WorkspaceSettingsModal({ workspace, onClose }: Props) {
 	const [inviteEmail, setInviteEmail] = useState("");
 	const [inviteSending, setInviteSending] = useState(false);
 	const [inviteSent, setInviteSent] = useState(false);
+
+	const [audit, setAudit] = useState<AuditEntry[]>([]);
+	const [auditKey, setAuditKey] = useState("");
+
+	useEffect(() => {
+		if (workspace.role !== "owner") return;
+		api
+			.listAuditLog({ keyId: auditKey || undefined })
+			.then(setAudit)
+			.catch(() => setAudit([]));
+	}, [workspace.role, auditKey]);
 
 	useEffect(() => {
 		api.getWorkspaceMembers({ workspaceId: workspace.id }).then(setMembers);
@@ -160,6 +171,44 @@ export function WorkspaceSettingsModal({ workspace, onClose }: Props) {
 					))}
 				</ul>
 			</section>
+			{isOwner && (
+				<section className="mb-5">
+					<h3 className="text-[11.5px] font-semibold mb-2.5 text-text-3 uppercase tracking-[0.06em]">
+						API activity
+					</h3>
+					<select
+						name="audit-key"
+						value={auditKey}
+						onChange={(e) => setAuditKey(e.target.value)}
+						className="mb-2 px-2 py-1 border border-border rounded-lg text-[12px] bg-surface-2 text-text"
+					>
+						<option value="">All keys</option>
+						{[...new Map(audit.map((a) => [a.keyId, a.keyName]))].map(
+							([id, name]) => (
+								<option key={id} value={id}>
+									{name}
+								</option>
+							),
+						)}
+					</select>
+					{audit.length === 0 ? (
+						<p className="text-[12px] text-text-3">No API writes yet.</p>
+					) : (
+						<ul className="list-none p-0 m-0 flex flex-col gap-1 max-h-[220px] overflow-y-auto">
+							{audit.map((a) => (
+								<li key={a.id} className="text-[12px] text-text-2">
+									<span className="text-text-3">
+										{new Date(a.at).toLocaleString()}
+									</span>{" "}
+									<span className="font-medium text-text">{a.keyName}</span>{" "}
+									{a.operation}
+									{a.target ? ` · ${a.target}` : ""}
+								</li>
+							))}
+						</ul>
+					)}
+				</section>
+			)}
 		</Modal>
 	);
 }

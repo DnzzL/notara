@@ -539,3 +539,56 @@ describe("an agent's block edit meets the editor's lock and presence (#26)", () 
 		expect(text).toContain('"content":"after"');
 	});
 });
+
+// ── Audit log (NOT-187, ADR-015) ─────────────────────────────────────────────
+
+describe("audit log", () => {
+	type Entry = {
+		keyId: string;
+		keyName: string;
+		operation: string;
+		target: string | null;
+	};
+	const list = (cookie: string, keyId?: string) =>
+		rpc<Entry[]>(cookie, "listAuditLog", { keyId }, ws.id);
+
+	test("REST and MCP writes are recorded by key, operation and target; reads are not", async () => {
+		const keys = await rpc<Array<{ id: string; name: string }>>(
+			owner.cookie,
+			"listApiKeys",
+			null,
+		);
+		const writeKeyId = keys.find((k) => k.name === "write key")?.id as string;
+		const page = await call(writeKey, "POST", PAGES, { title: "Audited" });
+		await call(writeKey, "GET", PAGES);
+		const viaMcp = await callTool(stateless(writeKey), "updatePage", {
+			workspaceId: ws.id,
+			pageId: page.body.id,
+			title: "Audited 2",
+		});
+		expect(viaMcp.body.result.isError).toBe(false);
+
+		const entries = await list(owner.cookie, writeKeyId);
+		expect(entries.map((e) => e.operation)).toContain("createPage");
+		expect(entries).toContainEqual(
+			expect.objectContaining({
+				keyName: "write key",
+				operation: "updatePage",
+				target: page.body.id,
+			}),
+		);
+		expect(entries.map((e) => e.operation)).not.toContain("listPages");
+		expect(await list(owner.cookie, "no-such-key")).toEqual([]);
+	});
+
+	test("rows hold no secret and no page content", async () => {
+		await call(writeKey, "POST", PAGES, { title: "Secret-title-xyz" });
+		const dump = JSON.stringify(await list(owner.cookie));
+		expect(dump).not.toContain(writeKey);
+		expect(dump).not.toContain("Secret-title-xyz");
+	});
+
+	test("a non-owner member cannot read the log", async () => {
+		await expect(list(member.cookie)).rejects.toThrow();
+	});
+});

@@ -16,6 +16,7 @@ import { Effect } from "effect";
 import { typedOperations } from "./api-v1/operations.js";
 import { trackChange } from "./change-events.js";
 import * as ApiKeys from "./handlers/api-keys.js";
+import * as Audit from "./handlers/audit.js";
 import * as Blocks from "./handlers/blocks.js";
 import * as Databases from "./handlers/databases.js";
 import * as ImportExport from "./handlers/importExport.js";
@@ -827,6 +828,14 @@ export const rpcHandlersLayer = AppRpc.toLayer(
 				yield* requireWorkspaceOwner(workspaceId);
 				return yield* Workspaces.inviteMemberByEmail({ workspaceId, email });
 			}).pipe(dieUnlessApiError),
+
+		listAuditLog: ({ keyId }) =>
+			withAuthedWorkspace(({ userId, workspaceId }) =>
+				Effect.gen(function* () {
+					yield* Permissions.requireWorkspaceOwner(userId, workspaceId);
+					return yield* Audit.listAudit(keyId);
+				}),
+			).pipe(dieUnlessApiError),
 
 		// API keys
 		listApiKeys: () =>

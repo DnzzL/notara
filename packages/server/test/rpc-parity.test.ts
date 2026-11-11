@@ -42,6 +42,8 @@ const NOT_AN_OPERATION: Record<string, string> = {
 	// Not for agents.
 	startDemo:
 		"demo-session bootstrap for anonymous visitors, not a workspace action",
+	listAuditLog:
+		"owner-only review of what API keys did; keys must not read their own trail",
 	listApiKeys:
 		"key management is a human session action; an API key must not mint keys",
 	createApiKey:
