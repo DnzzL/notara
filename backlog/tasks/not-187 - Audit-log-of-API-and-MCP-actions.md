@@ -1,9 +1,10 @@
 ---
 id: NOT-187
 title: Audit log of API and MCP actions
-status: ready-for-human
+status: ready-for-agent
 assignee: []
 created_date: '2026-11-11T13:21:00Z'
+updated_date: '2026-11-11T21:57:00Z'
 labels:
   - enhancement
 milestone: m-5
@@ -26,3 +27,16 @@ Why: once agents write through keys, owners need to see what each key did. Build
 - [ ] #3 Retention of the log is defined and enforced
 - [ ] #4 No secret or page content is written to the log
 <!-- AC:END -->
+
+## Comments
+
+<!-- COMMENTS:BEGIN -->
+author: @assistant
+created: 2026-11-11T21:57:00Z
+
+---
+
+Decision (approved): audit log, built on NOT-174 (updated_by). Depends on NOT-174 landing first.
+
+---
+<!-- COMMENTS:END -->

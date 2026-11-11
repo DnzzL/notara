@@ -1,11 +1,11 @@
 ---
 id: NOT-112
 title: 'BackupStore: a real seam with S3 and local filesystem adapters'
-status: done
+status: ready-for-agent
 assignee:
   - '@thomas'
 created_date: 2026-08-26 11:11
-updated_date: '2026-11-11T13:21:00Z'
+updated_date: '2026-11-11T21:57:00Z'
 labels:
   - enhancement
 milestone: m-4
@@ -51,6 +51,19 @@ The local adapter also rejects keys containing a path separator or '..': the key
 
 AC 5 (the process-exit requirement expressed in the interface) is NOT checked. restoreBackup still returns { ok: true, ... } and the requirement is still carried by a docstring, now a much louder one. Expressing it in the type — a return value the caller cannot use without acknowledging the restart — is a small change I did not make, so I am not claiming it.
 <!-- SECTION:NOTES:END -->
+
+## Comments
+
+<!-- COMMENTS:BEGIN -->
+author: @assistant
+created: 2026-11-11T21:57:00Z
+
+---
+
+Only AC #5 is left (process-exit requirement of restore expressed in the interface). Reopened as ready-for-agent.
+
+---
+<!-- COMMENTS:END -->
 
 ## Final Summary
 

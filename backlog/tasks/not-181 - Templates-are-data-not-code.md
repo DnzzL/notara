@@ -1,9 +1,10 @@
 ---
 id: NOT-181
 title: Templates are data, not code
-status: ready-for-human
+status: ready-for-agent
 assignee: []
 created_date: '2026-11-11T13:21:00Z'
+updated_date: '2026-11-11T21:57:00Z'
 labels:
   - enhancement
 milestone: m-3
@@ -24,3 +25,16 @@ Why: adding a template today means editing the ~790-line templates.ts. A templat
 - [ ] #2 Existing templates are moved with no change in output, proven by a snapshot test taken before the move
 - [ ] #3 The template file format is documented (contract: fields, views, sample rows, relations)
 <!-- AC:END -->
+
+## Comments
+
+<!-- COMMENTS:BEGIN -->
+author: @assistant
+created: 2026-11-11T21:57:00Z
+
+---
+
+Decision (approved): yes, one declarative file per template. Implement after v0.3.0.
+
+---
+<!-- COMMENTS:END -->

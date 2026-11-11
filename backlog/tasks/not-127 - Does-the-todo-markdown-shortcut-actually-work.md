@@ -1,10 +1,10 @@
 ---
 id: NOT-127
 title: Does the todo markdown shortcut actually work?
-status: ready-for-human
+status: ready-for-agent
 assignee: []
 created_date: 2026-08-27 15:30
-updated_date: '2026-11-10T17:07:00Z'
+updated_date: '2026-11-11T21:57:00Z'
 labels:
   - bug
 milestone: m-2
@@ -39,3 +39,16 @@ Consequence either way: the todo half of the NOT-96 fix has no automated coverag
 <!-- SECTION:NOTES:BEGIN -->
 Triage: AC #1 needs a manual check by a human typing in a real browser; Playwright typing cannot settle it. Agent work (AC #2/#3) follows the answer.
 <!-- SECTION:NOTES:END -->
+
+## Comments
+
+<!-- COMMENTS:BEGIN -->
+author: @assistant
+created: 2026-11-11T21:57:00Z
+
+---
+
+Decision (approved): the person wants the todo markdown shortcut ('[] ' / '[ ] ') to create a todo block. Reproduce manually in a real browser; if it is a product defect, fix it (AC #2); else add an e2e (AC #3).
+
+---
+<!-- COMMENTS:END -->

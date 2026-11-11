@@ -1,10 +1,10 @@
 ---
 id: NOT-174
 title: 'Page history: record which API key (by name) made an API or MCP edit'
-status: ready-for-human
+status: ready-for-agent
 assignee: []
 created_date: '2026-11-10T17:05:00Z'
-updated_date: '2026-11-11T13:21:00Z'
+updated_date: '2026-11-11T21:57:00Z'
 labels:
   - enhancement
 milestone: m-5
@@ -22,8 +22,22 @@ Why: when agents edit pages, the owner must see which key made it. Caveat: no pa
 
 ## Acceptance Criteria
 <!-- AC:BEGIN -->
-- [ ] #1 An edit made over REST or MCP appears in page history labelled with the API key name
-- [ ] #2 UI edits are still attributed to the user, unchanged
-- [ ] #3 Key secret/hash never appears in history data or API responses (tested)
-- [ ] #4 Renaming or revoking a key does not break existing history entries (tested)
+- [ ] #1 UI edits are still attributed to the user, unchanged
+- [ ] #2 Key secret/hash never appears in history data or API responses (tested)
+- [ ] #3 Renaming or revoking a key does not break existing history entries (tested)
+- [ ] #4 An edit made over REST or MCP sets updated_by on the page/block: API key id plus a key-name snapshot (UI edits: user id)
+- [ ] #5 An ADR records updated_by columns vs a versions table (rejected; full history is a possible later step)
 <!-- AC:END -->
+
+## Comments
+
+<!-- COMMENTS:BEGIN -->
+author: @assistant
+created: 2026-11-11T21:57:00Z
+
+---
+
+Decision (approved): add an updated_by column (user id, or API key id + name snapshot) on pages and blocks. Not a versions table. Full history is a possible later step. The implementing task writes the ADR.
+
+---
+<!-- COMMENTS:END -->
