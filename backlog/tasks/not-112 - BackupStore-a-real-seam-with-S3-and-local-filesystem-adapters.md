@@ -1,11 +1,11 @@
 ---
 id: NOT-112
 title: 'BackupStore: a real seam with S3 and local filesystem adapters'
-status: ready-for-agent
+status: done
 assignee:
   - '@thomas'
 created_date: 2026-08-26 11:11
-updated_date: '2026-11-11T21:57:00Z'
+updated_date: '2026-11-11T22:25:00Z'
 labels:
   - enhancement
 milestone: m-4
@@ -34,7 +34,7 @@ Test coverage today is one retention helper. Archive contents, key validation an
 - [x] #2 S3 and local filesystem are two interchangeable adapters at that seam
 - [x] #3 A self-hoster with no S3 configuration can take and restore a backup to local storage
 - [x] #4 The not-configured case is a typed failure, and no code path matches on an error message
-- [ ] #5 The process-exit requirement of restore is expressed in the interface, not only in a comment
+- [x] #5 The process-exit requirement of restore is expressed in the interface, not only in a comment
 - [x] #6 Archive contents, key naming and restore are tested against the filesystem adapter, with no live bucket
 <!-- AC:END -->
 
@@ -49,7 +49,7 @@ Found and fixed while writing the tests — the local adapter sorted by mtime, a
 
 The local adapter also rejects keys containing a path separator or '..': the key arrives from a caller and is joined onto a directory path.
 
-AC 5 (the process-exit requirement expressed in the interface) is NOT checked. restoreBackup still returns { ok: true, ... } and the requirement is still carried by a docstring, now a much louder one. Expressing it in the type — a return value the caller cannot use without acknowledging the restart — is a small change I did not make, so I am not claiming it.
+AC5: restoreBackup requires a scheduleExit callback (restore.ts); omitting it fails tsc (TS2554). The type forces the choice, not the exit itself (a no-op compiles). Known gap: a failure after platformDb.close() throws without calling scheduleExit.
 <!-- SECTION:NOTES:END -->
 
 ## Comments
