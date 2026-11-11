@@ -17,6 +17,8 @@ type Route = {
 	/** `:name` placeholders are filled from the seeded fixture. */
 	path: string;
 	body?: Record<string, unknown>;
+	/** Never-ending response (SSE): must be refused fast, else the probe times out. */
+	stream?: boolean;
 };
 
 /**
@@ -143,6 +145,7 @@ const ROUTES: Route[] = [
 	},
 	{ method: "get", path: "/search?q=secret" },
 	{ method: "get", path: "/trash" },
+	{ method: "get", path: "/events", stream: true },
 ];
 
 /** Ids from alice's workspace, which bob must not be able to touch. */
@@ -233,14 +236,23 @@ test("no REST route serves a caller who is not a workspace member", async ({
 
 	for (const route of ROUTES) {
 		const url = fill(route.path, fixture);
-		const res = await bob.api[route.method](url, {
-			data: fillBody(route.body, fixture),
-		});
+		let status: number;
+		if (route.stream) {
+			// A refusal ends at once. If the guard is missing the stream stays
+			// open: APIRequestContext times out and closes it, and 0 is reported.
+			status = await bob.api
+				.get(url, { timeout: 5_000 })
+				.then((r) => r.status())
+				.catch(() => 0);
+		} else {
+			const res = await bob.api[route.method](url, {
+				data: fillBody(route.body, fixture),
+			});
+			status = res.status();
+		}
 
-		if (!REFUSALS.includes(res.status())) {
-			wrong.push(
-				`${route.method.toUpperCase()} ${route.path} → ${res.status()}`,
-			);
+		if (!REFUSALS.includes(status)) {
+			wrong.push(`${route.method.toUpperCase()} ${route.path} → ${status}`);
 		}
 	}
 
