@@ -213,6 +213,7 @@ for (const PREV of TAGS)
 			platform.close();
 			seedWorkspace(dir, PREVIOUS);
 
+			const s = await boot(freePort(), dir);
 
 			// Platform DB: user kept, newer migrations recorded.
 			const p = new Database(path.join(dir, "platform.db"), { readonly: true });
