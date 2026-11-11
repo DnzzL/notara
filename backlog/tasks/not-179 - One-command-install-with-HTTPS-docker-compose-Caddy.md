@@ -1,10 +1,10 @@
 ---
 id: NOT-179
 title: One-command install with HTTPS (docker compose + Caddy)
-status: ready-for-agent
+status: ready-for-human
 assignee: []
 created_date: '2026-11-11T13:21:00Z'
-updated_date: '2026-11-11T13:33:00Z'
+updated_date: '2026-11-11T13:35:00Z'
 labels:
   - enhancement
 milestone: m-3
@@ -31,4 +31,6 @@ Why: self-hosters without TLS expertise stop at the plain-HTTP image. Extend the
 
 <!-- SECTION:NOTES:BEGIN -->
 Compose: notara image + caddy, Caddyfile, README install. Proven locally with DOMAIN=localhost. AC2/AC4 need real VM+domain: human confirms.
+
+Review fixes: BACKUP_DIR overridable (S3), TRUSTED_ORIGINS kept, upgrade note. Stranded: packages/server/Dockerfile, packages/app/Dockerfile now unused by compose.
 <!-- SECTION:NOTES:END -->

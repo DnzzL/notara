@@ -106,6 +106,9 @@ Open `https://notes.example.com` and create your account. Data lives in the `not
 (`/backups`, see [Backups](#upgrade-backup-and-restore)). To build from source
 instead of pulling the published image: `docker compose up -d --build`.
 
+Upgrading from the older compose file (services `server` + `app`)? It is now one `notara`
+service plus `caddy`: run `docker compose up -d --remove-orphans`. Data in `notara-data` is kept.
+
 Trying it locally? `DOMAIN=localhost` makes Caddy use its own internal CA: `curl -k https://localhost/health`.
 
 ### Docker / Podman (plain)
@@ -188,7 +191,8 @@ one zip of exactly that. These steps are exercised end to end by
 | S3-compatible | `S3_BUCKET`, `S3_ACCESS_KEY`, `S3_SECRET_KEY`, optional `S3_REGION`, `S3_ENDPOINT`, `S3_PREFIX` | Or in the workspace menu → **Settings → Backups** (S3 only). |
 
 With Docker Compose, `docker-compose.yml` only forwards the variables it lists; it already sets
-`BACKUP_DIR=/backups` with its own volume. To use S3, add `S3_PREFIX` to `environment:`.
+`BACKUP_DIR=/backups` with its own volume, and a local target wins over S3. To back up to S3
+instead, set `BACKUP_DIR=` (empty) and the `S3_*` variables in `.env`; for `S3_PREFIX`, add it to `environment:`.
 
 **Back up.** `POST /api/backup/trigger` as an admin (the Settings → Backups → **Backup
 Now** button does the same, S3 only). Scheduled backups and retention (`S3_KEEP_LAST`) use

@@ -13,7 +13,8 @@ services:
     environment:
       - NODE_ENV=production
       - DATA_DIR=/data
-      - BACKUP_DIR=/backups
+      - TRUSTED_ORIGINS
+      - BACKUP_DIR=${BACKUP_DIR-/backups}
       - BASE_URL=https://${DOMAIN:?set DOMAIN in .env}
       - BETTER_AUTH_SECRET=${BETTER_AUTH_SECRET:?set BETTER_AUTH_SECRET in .env}
       - SMTP_HOST
