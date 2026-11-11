@@ -59,8 +59,10 @@ export function ImportModal({ open, onClose }: ImportModalProps) {
 		try {
 			// X-Workspace-Id is added by the transport.
 			const data = await restCall<{
-				pagesImported: number;
-				databasesImported: number;
+				pagesCreated: number;
+				pagesUpdated: number;
+				databasesCreated: number;
+				databasesUpdated: number;
 			}>("/import-notion", {
 				method: "POST",
 				headers: {
@@ -69,22 +71,26 @@ export function ImportModal({ open, onClose }: ImportModalProps) {
 				},
 				body: file,
 			});
-			if (data.pagesImported === 0 && data.databasesImported === 0) {
+			const summary = `${data.pagesCreated} page(s) and ${data.databasesCreated} database(s) created, ${data.pagesUpdated} page(s) and ${data.databasesUpdated} database(s) updated.`;
+			if (
+				data.pagesCreated + data.pagesUpdated === 0 &&
+				data.databasesCreated + data.databasesUpdated === 0
+			) {
 				throw new Error(
 					"Nothing was imported. Make sure the export contains .md, .html, or .csv files.",
 				);
 			}
 			capture("import_succeeded", {
-				pages_imported: data.pagesImported,
-				databases_imported: data.databasesImported,
+				pages_created: data.pagesCreated,
+				pages_updated: data.pagesUpdated,
+				databases_created: data.databasesCreated,
+				databases_updated: data.databasesUpdated,
 			});
 			setStatus("success");
-			setMessage(
-				`Imported ${data.pagesImported} page(s) and ${data.databasesImported} database(s).`,
-			);
+			setMessage(summary);
 			toaster.create({
 				title: "Import complete",
-				description: `Imported ${data.pagesImported} page(s) and ${data.databasesImported} database(s).`,
+				description: summary,
 				type: "success",
 			});
 			// Refresh so the new pages show up in the sidebar.

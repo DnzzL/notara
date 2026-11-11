@@ -5,7 +5,7 @@ status: done
 assignee:
   - '@thomas'
 created_date: 2026-08-26 11:11
-updated_date: '2026-11-11T13:21:00Z'
+updated_date: '2026-11-11T13:35:00Z'
 labels:
   - bug
 milestone: m-3
@@ -37,7 +37,7 @@ This is the first thing a launch-day user does, and they will do it twice if the
 - [x] #1 Re-importing the same Notion export updates the previously imported pages, databases, fields and records instead of creating duplicates
 - [x] #2 The source-to-local identifier mapping is persisted, not held in memory for the duration of one run
 - [x] #3 Every identifier-minting site in the importer resolves through the ledger
-- [ ] #4 The reported import counts reflect rows actually written and distinguish created from updated
+- [x] #4 The reported import counts reflect rows actually written and distinguish created from updated
 - [ ] #5 The importer's orchestration is tested without a live database, by asserting the operations it produces from a fixture export tree
 - [x] #6 A test imports the same fixture twice and asserts the second run creates nothing new
 <!-- AC:END -->

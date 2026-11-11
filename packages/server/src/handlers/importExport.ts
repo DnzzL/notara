@@ -12,8 +12,10 @@ export function importNotion(directory: string) {
 		Effect.map(
 			(result) =>
 				new ImportResult({
-					pagesImported: result.pagesImported,
-					databasesImported: result.databasesImported,
+					pagesCreated: result.pagesCreated,
+					pagesUpdated: result.pagesUpdated,
+					databasesCreated: result.databasesCreated,
+					databasesUpdated: result.databasesUpdated,
 				}),
 		),
 	);
@@ -92,8 +94,10 @@ export function importNotionZip(zipBuffer: Buffer, filename: string) {
 
 			const result = yield* Import.importNotionExport(extractDir);
 			return new ImportResult({
-				pagesImported: result.pagesImported,
-				databasesImported: result.databasesImported,
+				pagesCreated: result.pagesCreated,
+				pagesUpdated: result.pagesUpdated,
+				databasesCreated: result.databasesCreated,
+				databasesUpdated: result.databasesUpdated,
 			});
 		} finally {
 			yield* Effect.promise(() =>

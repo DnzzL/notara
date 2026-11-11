@@ -235,8 +235,8 @@ describe("importNotion", () => {
 				return yield* importNotion(importDir);
 			}).pipe(Effect.provide(TestDbLayer(filename)), Effect.runPromise);
 
-			expect(result.pagesImported).toBe(0);
-			expect(result.databasesImported).toBe(0);
+			expect(result.pagesCreated + result.pagesUpdated).toBe(0);
+			expect(result.databasesCreated + result.databasesUpdated).toBe(0);
 		} finally {
 			cleanup(tmpDir);
 		}

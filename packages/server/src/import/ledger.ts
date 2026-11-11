@@ -61,6 +61,18 @@ export type ImportLedger = {
 	readonly scopedIds: (
 		kind: ImportKind,
 	) => Effect.Effect<readonly string[], never, SqlClient.SqlClient>;
+	/**
+	 * Rows of `kind` this run actually wrote and that still exist, split by
+	 * whether this run minted them. Read it at the end of a run: anything the
+	 * run later pruned has left the ledger and is not counted.
+	 */
+	readonly tally: (
+		kind: ImportKind,
+	) => Effect.Effect<
+		{ readonly created: number; readonly updated: number },
+		never,
+		SqlClient.SqlClient
+	>;
 	/** This run's identifier, for diagnostics. */
 	readonly runId: string;
 };
@@ -73,6 +85,7 @@ export type ImportLedger = {
  */
 export const openLedger = (source = "notion"): ImportLedger => {
 	const runId = ulid();
+	const mintedIds = new Set<string>();
 
 	const resolve = (kind: ImportKind, sourceKey: string) =>
 		Effect.gen(function* () {
@@ -103,6 +116,7 @@ export const openLedger = (source = "notion"): ImportLedger => {
 					[source, kind, sourceKey, id, runId, new Date().toISOString()],
 				)
 				.pipe(Effect.orDie);
+			mintedIds.add(id);
 			return { id, created: true };
 		});
 
@@ -118,5 +132,13 @@ export const openLedger = (source = "notion"): ImportLedger => {
 			return rows.map((r) => r.local_id);
 		});
 
-	return { resolve, scopedIds, runId };
+	const tally = (kind: ImportKind) =>
+		scopedIds(kind).pipe(
+			Effect.map((ids) => {
+				const created = ids.filter((id) => mintedIds.has(id)).length;
+				return { created, updated: ids.length - created };
+			}),
+		);
+
+	return { resolve, scopedIds, tally, runId };
 };
