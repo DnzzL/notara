@@ -446,16 +446,19 @@ const staticFilesRoute = Effect.gen(function* () {
 					return yield* new ValidationError({
 						message: "Missing backup key",
 					});
-				const result = yield* Effect.promise(() => restoreBackup(body.key!));
-				// Flush the response, then exit so the container restarts.
-				setTimeout(() => {
-					console.log(
-						"[restore] restored from",
-						result.restoredFrom,
-						"— exiting for restart",
-					);
-					process.exit(0);
-				}, 250);
+				const result = yield* Effect.promise(() =>
+					restoreBackup(body.key!, (r) => {
+						// Flush the response, then exit so the container restarts.
+						setTimeout(() => {
+							console.log(
+								"[restore] restored from",
+								r.restoredFrom,
+								"— exiting for restart",
+							);
+							process.exit(0);
+						}, 250);
+					}),
+				);
 				return HttpServerResponse.text(JSON.stringify(result), {
 					headers: { "Content-Type": "application/json", ...corsHeaders },
 				});

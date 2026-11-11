@@ -12,6 +12,9 @@ export interface RestoreResult {
 	snapshot: string;
 }
 
+/** Called once after a successful restore; must arrange for the process to exit. */
+export type ScheduleExit = (result: RestoreResult) => void;
+
 function dataDir(): string {
 	return process.env.DATA_DIR ?? path.join(process.cwd(), ".data");
 }
@@ -26,18 +29,19 @@ function rmDbFiles(dbPath: string): void {
 /**
  * Restore the whole instance from a backup archive.
  *
- * THE CALLER MUST EXIT THE PROCESS AFTERWARDS. This overwrites platform.db,
- * every workspace database and the attachments directory on disk, while the
- * server still holds open SQLite handles to files that no longer exist. Those
- * handles are not hot-swappable; the process has to be replaced (Docker's
- * restart policy does it).
+ * THE PROCESS MUST EXIT AFTERWARDS. This overwrites platform.db, every
+ * workspace database and the attachments directory on disk, while the server
+ * still holds open SQLite handles to files that no longer exist. Those handles
+ * are not hot-swappable; the process has to be replaced (Docker's restart
+ * policy does it).
  *
- * That requirement is stated in the return type as well as here — `RestoreResult`
- * is documented as "restart required" rather than "ok" — because a comment is
- * not a contract and this one has real consequences if missed.
+ * The requirement is in the signature: `scheduleExit` is required, so a caller
+ * cannot compile without deciding how the process exits. It is invoked once,
+ * after the restore succeeded (never on failure).
  */
 export async function restoreBackup(
 	key: string,
+	scheduleExit: ScheduleExit,
 	store: BackupStore = resolveBackupStore(),
 ): Promise<RestoreResult> {
 	const prefix = store.prefix;
@@ -111,5 +115,11 @@ export async function restoreBackup(
 
 	fs.rmSync(staging, { recursive: true, force: true });
 
-	return { ok: true, restoredFrom: key, snapshot: snapshot.key };
+	const result: RestoreResult = {
+		ok: true,
+		restoredFrom: key,
+		snapshot: snapshot.key,
+	};
+	scheduleExit(result);
+	return result;
 }
