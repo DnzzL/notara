@@ -1,4 +1,4 @@
--- Who made the last edit (NOT-174, ADR-013). Additive: NULL means "unknown"
+-- Who made the last edit (NOT-174, ADR-014). Additive: NULL means "unknown"
 -- (rows written before this migration, or by a path that does not record).
 --   updated_by           user id: the human, or the owner of the API key
 --   updated_by_key_id    API key id; NULL for a UI edit

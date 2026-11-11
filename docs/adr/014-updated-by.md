@@ -1,4 +1,4 @@
-# ADR-013: Last Editor Is a Column on Pages and Blocks, Not a Versions Table
+# ADR-014: Last Editor Is a Column on Pages and Blocks, Not a Versions Table
 
 **Status:** Accepted
 **Date:** 2026-11-11

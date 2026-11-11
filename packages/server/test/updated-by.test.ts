@@ -1,5 +1,5 @@
 /**
- * Who made the last edit (NOT-174, ADR-013), through the real doors: a UI edit
+ * Who made the last edit (NOT-174, ADR-014), through the real doors: a UI edit
  * (RPC, cookie) is the user; a REST edit (API key) is the key, by the name it
  * had at the time. The stamp survives a rename and a revoke, and never carries
  * the secret or its hash.

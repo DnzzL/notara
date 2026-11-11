@@ -4,7 +4,7 @@ title: 'Page history: record which API key (by name) made an API or MCP edit'
 status: done
 assignee: []
 created_date: '2026-11-10T17:05:00Z'
-updated_date: '2026-11-11T22:16:00Z'
+updated_date: '2026-11-11T22:54:00Z'
 labels:
   - enhancement
 milestone: m-5
@@ -56,6 +56,15 @@ created: 2026-11-11T22:16:00Z
 ---
 
 Correction: the ADR is docs/adr/013-updated-by.md (012 was taken).
+
+---
+
+author: @agent
+created: 2026-11-11T22:54:00Z
+
+---
+
+Correction: the ADR is docs/adr/014-updated-by.md (012 and 013 were taken).
 
 ---
 <!-- COMMENTS:END -->

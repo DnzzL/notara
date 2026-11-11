@@ -156,10 +156,13 @@ describe("workspace policies", () => {
 
 describe("page policies", () => {
 	test("a member may edit an unlocked page, a stranger may not read it", async () => {
-		const page = await Pages.createPage({
-			title: "Open",
-			parentId: null,
-		}, { userId: "test-user" }).pipe(Effect.provide(makeSqliteLayer(sqliteFilename)), Effect.runPromise);
+		const page = await Pages.createPage(
+			{
+				title: "Open",
+				parentId: null,
+			},
+			{ userId: "test-user" },
+		).pipe(Effect.provide(makeSqliteLayer(sqliteFilename)), Effect.runPromise);
 
 		expect(
 			await as(MEMBER, guarded(Policies.page(ownerWs, page.id, "editor"))),
@@ -173,10 +176,13 @@ describe("page policies", () => {
 	});
 
 	test("a lock refuses the member it does not name", async () => {
-		const page = await Pages.createPage({
-			title: "Locked",
-			parentId: null,
-		}, { userId: "test-user" }).pipe(Effect.provide(makeSqliteLayer(sqliteFilename)), Effect.runPromise);
+		const page = await Pages.createPage(
+			{
+				title: "Locked",
+				parentId: null,
+			},
+			{ userId: "test-user" },
+		).pipe(Effect.provide(makeSqliteLayer(sqliteFilename)), Effect.runPromise);
 
 		await Permissions.writePagePermissions({
 			pageId: page.id,
@@ -192,10 +198,13 @@ describe("page policies", () => {
 	});
 
 	test("a viewer grant does not carry edit rights", async () => {
-		const page = await Pages.createPage({
-			title: "Read Only",
-			parentId: null,
-		}, { userId: "test-user" }).pipe(Effect.provide(makeSqliteLayer(sqliteFilename)), Effect.runPromise);
+		const page = await Pages.createPage(
+			{
+				title: "Read Only",
+				parentId: null,
+			},
+			{ userId: "test-user" },
+		).pipe(Effect.provide(makeSqliteLayer(sqliteFilename)), Effect.runPromise);
 
 		await Permissions.writePagePermissions({
 			pageId: page.id,

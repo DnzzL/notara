@@ -77,7 +77,7 @@ export interface OperationContext {
 	readonly role: WorkspaceRole;
 	/** Set when the caller is a key limited to a page subtree. */
 	readonly rootPageId: string | null;
-	/** Who is writing, for `updated_by` (ADR-013). */
+	/** Who is writing, for `updated_by` (ADR-014). */
 	readonly editor: Editor;
 }
 
@@ -1579,7 +1579,7 @@ const withWorkspace = <A, E, R>(
 export interface Caller {
 	readonly userId: string;
 	readonly rootPageId: string | null;
-	/** Set for an API key; stamped on writes as `updated_by_key_*` (ADR-013). */
+	/** Set for an API key; stamped on writes as `updated_by_key_*` (ADR-014). */
 	readonly keyId?: string | null;
 	readonly keyName?: string;
 }
