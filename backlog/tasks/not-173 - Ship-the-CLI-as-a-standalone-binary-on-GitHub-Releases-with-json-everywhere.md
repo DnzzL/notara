@@ -4,7 +4,7 @@ title: Ship the CLI as a standalone binary on GitHub Releases
 status: ready-for-agent
 assignee: []
 created_date: '2026-11-10T17:05:00Z'
-updated_date: '2026-11-10T17:08:00Z'
+updated_date: '2026-11-11T13:01:00Z'
 labels:
   - enhancement
 milestone: m-0
@@ -23,6 +23,12 @@ Agent brief: build with 'bun build --compile' per target (darwin arm64/x64, linu
 
 ## Acceptance Criteria
 <!-- AC:BEGIN -->
-- [ ] #1 Release workflow attaches CLI binaries for darwin and linux (arm64, x64) plus SHA256SUMS
+- [x] #1 Release workflow attaches CLI binaries for darwin and linux (arm64, x64) plus SHA256SUMS
 - [ ] #2 'sha256sum -c SHA256SUMS' passes on a downloaded release
 <!-- AC:END -->
+
+## Implementation Notes
+
+<!-- SECTION:NOTES:BEGIN -->
+Workflow builds 4 targets via bun build --compile in release job; SHA256SUMS attached to gh release. AC #2 provable only on first real tag.
+<!-- SECTION:NOTES:END -->
