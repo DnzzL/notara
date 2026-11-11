@@ -6,7 +6,8 @@
  * An RPC is covered when an operation carries its name, or when `RENAMED`
  * points it at the operation that does the same job. Otherwise it must sit in
  * `NOT_AN_OPERATION` with a reason. Adding an RPC to `AppRpc` without doing
- * one of the two turns this test red. Entries marked `TODO: missing operation`
+ * one of the two turns this test red. Coverage is by name only: it cannot see
+ * an operation whose input is narrower than the RPC (allowlist those as TODO). Entries marked `TODO: missing operation`
  * are real gaps, not decisions.
  */
 import { describe, expect, test } from "bun:test";
@@ -22,11 +23,16 @@ const RENAMED: Record<string, string> = {
 	listRecordsWithValues: "listDatabaseRecords",
 	updateFieldValue: "setCell",
 	renameDatabase: "updateDatabase",
+	purgePage: "deletePage", // ?permanent=true
+	purgeDatabase: "deleteDatabase", // ?permanent=true
+	purgeRecord: "deleteRecord", // ?permanent=true
 };
 
 /** The one allowlist: RPCs with no operation, and why. */
 const NOT_AN_OPERATION: Record<string, string> = {
 	// Real user-facing gaps today.
+	// Same name as an operation, but the RPC does more: the op lacks `type` (turn-into).
+	updateBlock: "TODO: missing operation (block type change)",
 	movePage: "TODO: missing operation",
 	reorderPages: "TODO: missing operation",
 	reorderBlocks: "TODO: missing operation",
@@ -41,9 +47,6 @@ const NOT_AN_OPERATION: Record<string, string> = {
 	updateView: "TODO: missing operation",
 	deleteView: "TODO: missing operation",
 	openRecordAsPage: "TODO: missing operation",
-	purgePage: "TODO: missing operation",
-	purgeDatabase: "TODO: missing operation",
-	purgeRecord: "TODO: missing operation",
 	createWorkspace: "TODO: missing operation",
 	getWorkspaceMembers: "TODO: missing operation",
 	removeMember: "TODO: missing operation",
@@ -91,7 +94,7 @@ describe("every app action has an operation", () => {
 		const names = new Set(rpcNames);
 		const stale = [
 			...Object.keys(NOT_AN_OPERATION).filter(
-				(rpc) => !names.has(rpc) || operationIds.has(RENAMED[rpc] ?? rpc),
+				(rpc) => !names.has(rpc) || rpc in RENAMED,
 			),
 			...Object.keys(RENAMED).filter(
 				(rpc) => !names.has(rpc) || !operationIds.has(RENAMED[rpc] ?? ""),

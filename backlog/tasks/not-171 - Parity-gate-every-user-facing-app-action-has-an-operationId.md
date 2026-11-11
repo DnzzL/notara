@@ -4,6 +4,7 @@ title: 'Parity gate: every user-facing app action has an operationId'
 status: ready-for-agent
 assignee: []
 created_date: '2026-11-10T17:05:00Z'
+updated_date: '2026-11-11T12:34:00Z'
 labels:
   - enhancement
 milestone: m-0
@@ -22,8 +23,14 @@ Agent brief: inventory user-facing app actions (RPC handlers / UI mutations) and
 
 ## Acceptance Criteria
 <!-- AC:BEGIN -->
-- [ ] #1 A server test fails when a user-facing action has no operationId in the operation table
-- [ ] #2 Any exclusion lives in one explicit allowlist with a reason per entry
-- [ ] #3 Adding a new action without an operationId makes the test red (demonstrated once, then reverted)
-- [ ] #4 Test runs in 'bun test packages/server/test' and CI
+- [x] #1 A server test fails when a user-facing action has no operationId in the operation table
+- [x] #2 Any exclusion lives in one explicit allowlist with a reason per entry
+- [x] #3 Adding a new action without an operationId makes the test red (demonstrated once, then reverted)
+- [x] #4 Test runs in 'bun test packages/server/test' and CI
 <!-- AC:END -->
+
+## Final Summary
+
+<!-- SECTION:FINAL_SUMMARY:BEGIN -->
+Adds packages/server/test/rpc-parity.test.ts: every AppRpc has an operationId or a reasoned entry in one NOT_AN_OPERATION allowlist. Gaps marked TODO: missing operation. Red demo: adding RPC archiveEverything failed with received ["archiveEverything"]; reverted.
+<!-- SECTION:FINAL_SUMMARY:END -->
