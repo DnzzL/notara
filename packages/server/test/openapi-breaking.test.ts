@@ -53,6 +53,16 @@ const breakingChanges = (before: Json, after: Json): string[] => {
 		if (!b) return;
 		if (!a) return void out.push(`${where}: schema removed`);
 
+		if (role === "response" && (b.anyOf || a.anyOf)) {
+			// a response may not start returning a type it never returned
+			const was = new Set(
+				(b.anyOf ?? [b]).map((x: Json) => deref(before, x)?.type),
+			);
+			for (const alt of a.anyOf ?? [a]) {
+				const t = deref(after, alt)?.type;
+				if (!was.has(t)) out.push(`${where}: response may now be ${t}`);
+			}
+		}
 		if (b.anyOf) {
 			// each old alternative must still be accepted by some new alternative
 			for (const [i, alt] of b.anyOf.entries()) {
@@ -83,6 +93,12 @@ const breakingChanges = (before: Json, after: Json): string[] => {
 			out.push(`${where}: type ${b.type} → ${a.type}`);
 			return;
 		}
+		if (role === "request") {
+			if (a.maxLength < b.maxLength) out.push(`${where}: maxLength lowered`);
+			if (a.minLength > (b.minLength ?? 0))
+				out.push(`${where}: minLength raised`);
+			if (a.enum && !b.enum) out.push(`${where}: enum added`);
+		}
 		if (b.enum && a.enum)
 			for (const v of b.enum)
 				if (!a.enum.includes(v)) out.push(`${where}: enum value ${v} removed`);
@@ -100,6 +116,7 @@ const breakingChanges = (before: Json, after: Json): string[] => {
 			if (!a.properties?.[name]) out.push(`${where}: field ${name} removed`);
 			else schema(prop, a.properties[name], `${where}.${name}`, role, seen);
 		}
+		if (b.items && !a.items) out.push(`${where}: items removed`);
 		if (b.items && a.items) schema(b.items, a.items, `${where}[]`, role, seen);
 	};
 
@@ -156,6 +173,14 @@ const breakingChanges = (before: Json, after: Json): string[] => {
 const live = (): Json => JSON.parse(JSON.stringify(spec));
 
 if (process.env.UPDATE_OPENAPI_SNAPSHOT) {
+	const broken = breakingChanges(
+		JSON.parse(readFileSync(SNAPSHOT, "utf8")),
+		live(),
+	);
+	if (broken.length)
+		throw new Error(
+			`refusing to snapshot a breaking change:\n${broken.join("\n")}`,
+		);
 	writeFileSync(SNAPSHOT, `${JSON.stringify(live(), null, "\t")}\n`);
 }
 const snapshot: Json = JSON.parse(readFileSync(SNAPSHOT, "utf8"));
@@ -192,6 +217,10 @@ describe("/api/v1 contract (docs/api-policy.md)", () => {
 						{ name: "q", in: "query", schema: { type: "string" } },
 					];
 					op.deprecated = true;
+					const body = firstOp(d, "post", "/pages").op.requestBody.content[
+						"application/json"
+					].schema;
+					body.properties.optionalNew = { type: "string" };
 				}),
 			).toEqual([]);
 		});
@@ -221,7 +250,7 @@ describe("/api/v1 contract (docs/api-policy.md)", () => {
 				mutate((d) => {
 					okSchema(d).properties.title = { type: "number" };
 				}).join(),
-			).toContain("title");
+			).toContain("type string → number");
 		});
 
 		test("new required input", () => {
@@ -247,6 +276,34 @@ describe("/api/v1 contract (docs/api-policy.md)", () => {
 					];
 				}).join(),
 			).toContain("new required query parameter must");
+		});
+
+		test("response loosened to nullable", () => {
+			expect(
+				mutate((d) => {
+					d.components.schemas.Page.properties.title = {
+						anyOf: [{ type: "string" }, { type: "null" }],
+					};
+				}).join(),
+			).toContain("response may now be null");
+		});
+
+		test("request bound tightened", () => {
+			const lower = (x: Json): boolean => {
+				if (x && typeof x === "object") {
+					if (typeof x.maxLength === "number") {
+						x.maxLength = 1;
+						return true;
+					}
+					return Object.values(x).some(lower);
+				}
+				return false;
+			};
+			expect(
+				mutate((d) => {
+					lower(firstOp(d, "post", "/pages").op.requestBody);
+				}).join(),
+			).toContain("maxLength lowered");
 		});
 
 		test("removed enum value", () => {
