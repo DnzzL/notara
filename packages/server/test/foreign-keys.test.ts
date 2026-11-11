@@ -99,6 +99,15 @@ describe("hard-deletes under enforced foreign keys (real schema)", () => {
 		const f = seeded();
 		await run(f, Databases.deleteField("f1"));
 		expect(count(f, "database_fields")).toBe(1);
+		const db = new Database(f, { readonly: true });
+		expect(
+			db
+				.query(
+					"SELECT group_by_field_id g, sort_field_id s FROM database_views",
+				)
+				.get(),
+		).toEqual({ g: null, s: null });
+		db.close();
 	});
 
 	test("purgeDatabase removes views and fields, and un-targets relations to it", async () => {
@@ -107,6 +116,24 @@ describe("hard-deletes under enforced foreign keys (real schema)", () => {
 		expect(count(f, "database_views")).toBe(0);
 		expect(count(f, "databases")).toBe(1);
 		expect(count(f, "database_fields")).toBe(1);
+	});
+
+	test("purging a record's own page leaves the record, unlinked", async () => {
+		const f = seeded();
+		const setup = new Database(f);
+		setup.run("INSERT INTO pages (id, parent_id) VALUES ('rp','host')");
+		setup.run("INSERT INTO blocks (id, page_id, type) VALUES ('b','rp','p')");
+		setup.run(
+			"INSERT INTO database_records (id, database_id, page_id) VALUES ('r','d1','rp')",
+		);
+		setup.close();
+		await run(f, Databases.purgePage("rp"));
+		const db = new Database(f, { readonly: true });
+		expect(db.query("SELECT page_id FROM database_records").get()).toEqual({
+			page_id: null,
+		});
+		db.close();
+		expect(count(f, "blocks")).toBe(0);
 	});
 
 	test("purgePage removes its databases, views and fields", async () => {

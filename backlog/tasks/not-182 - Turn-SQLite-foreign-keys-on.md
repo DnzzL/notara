@@ -1,11 +1,11 @@
 ---
 id: NOT-182
 title: Turn SQLite foreign keys on
-status: ready-for-agent
+status: done
 assignee:
   - '@claude'
 created_date: '2026-11-11T13:21:00Z'
-updated_date: '2026-11-11T22:39:00Z'
+updated_date: '2026-11-11T22:46:00Z'
 labels:
   - bug
 milestone: m-4
@@ -47,3 +47,9 @@ Decision (approved): the migration first reports orphan rows, then enables PRAGM
 
 ---
 <!-- COMMENTS:END -->
+
+## Final Summary
+
+<!-- SECTION:FINAL_SUMMARY:BEGIN -->
+FKs ON via applyMigrations + makeSqliteLayer; boot reports orphans per FK, deletes cascade orphans, stops otherwise; ADR-013; purge/deleteField handle NO ACTION FKs; tests incl. v0.1.4/v0.2.0 upgrade orphan reporting.
+<!-- SECTION:FINAL_SUMMARY:END -->

@@ -84,14 +84,17 @@ type FkViolation = {
 export const checkForeignKeys = (db: Database): void => {
 	const check = () =>
 		db.query("PRAGMA foreign_key_check").all() as FkViolation[];
-	const fks = new Map<string, { from: string; on_delete: string }[]>();
+	const fks = new Map<
+		string,
+		{ id: number; from: string; on_delete: string }[]
+	>();
 	const fkOf = (v: FkViolation) => {
 		if (!fks.has(v.table))
 			fks.set(
 				v.table,
 				db.query(`PRAGMA foreign_key_list("${v.table}")`).all() as any[],
 			);
-		return fks.get(v.table)![v.fkid]!;
+		return fks.get(v.table)!.find((r) => r.id === v.fkid)!;
 	};
 	const summary = (vs: FkViolation[]) => {
 		const counts: Record<string, number> = {};

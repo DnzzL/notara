@@ -760,6 +760,8 @@ export const purgePage = (
 		yield* sql`DELETE FROM database_fields WHERE database_id IN (SELECT id FROM databases WHERE page_id = ${id})`;
 		yield* sql`DELETE FROM databases WHERE page_id = ${id}`;
 		yield* sql`DELETE FROM blocks WHERE page_id = ${id}`;
+		// A record may still point at this page as its backing page.
+		yield* sql`UPDATE database_records SET page_id = NULL WHERE page_id = ${id}`;
 		// Child pages, before the parent row goes: they are found through it.
 		// Skipping them left rows whose parent_id pointed at nothing — and with
 		// the FK pragma off, the ON DELETE SET NULL that was supposed to catch
