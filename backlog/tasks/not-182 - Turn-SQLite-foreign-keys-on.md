@@ -4,6 +4,7 @@ title: Turn SQLite foreign keys on
 status: ready-for-human
 assignee: []
 created_date: '2026-11-11T13:21:00Z'
+updated_date: '2026-11-11T13:23:00Z'
 labels:
   - bug
 milestone: m-4
@@ -24,4 +25,5 @@ Why: CLAUDE.md §7 known debt: the FK pragma is OFF, so ON DELETE CASCADE never 
 - [ ] #2 A migration finds and reports orphan rows before the pragma is enabled
 - [ ] #3 Hard-deletes still remove all children
 - [ ] #4 The full server test suite passes with the pragma on
+- [ ] #5 ADR decides what happens to orphan rows found (abort, delete, or leave) before the pragma is enabled
 <!-- AC:END -->

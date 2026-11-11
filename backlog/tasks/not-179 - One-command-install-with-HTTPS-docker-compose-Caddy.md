@@ -4,6 +4,7 @@ title: One-command install with HTTPS (docker compose + Caddy)
 status: ready-for-agent
 assignee: []
 created_date: '2026-11-11T13:21:00Z'
+updated_date: '2026-11-11T13:23:00Z'
 labels:
   - enhancement
 milestone: m-3
@@ -15,7 +16,7 @@ ordinal: 152000
 ## Description
 
 <!-- SECTION:DESCRIPTION:BEGIN -->
-Why: self-hosters without TLS expertise stop at the plain-HTTP image. A compose file with Notara + Caddy (automatic TLS) makes 'domain + docker compose up -d' the whole install.
+Why: self-hosters without TLS expertise stop at the plain-HTTP image. Extend the existing docker-compose.yml (README 'Docker Compose' section) with Caddy (automatic TLS) so 'domain + docker compose up -d' is the whole install. The fresh-VM and clean-machine ACs need a real domain and VM: the agent prepares them, a human confirms.
 <!-- SECTION:DESCRIPTION:END -->
 
 ## Acceptance Criteria

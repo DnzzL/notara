@@ -6,10 +6,12 @@ title: >-
 status: ready-for-agent
 assignee: []
 created_date: '2026-11-11T13:21:00Z'
+updated_date: '2026-11-11T13:23:00Z'
 labels:
   - enhancement
 milestone: m-3
-dependencies: []
+dependencies:
+  - NOT-181
 priority: high
 ordinal: 153000
 ---

@@ -4,10 +4,12 @@ title: Webhooks or event stream for page, block and record changes
 status: ready-for-human
 assignee: []
 created_date: '2026-11-11T13:21:00Z'
+updated_date: '2026-11-11T13:23:00Z'
 labels:
   - enhancement
 milestone: m-5
-dependencies: []
+dependencies:
+  - NOT-122
 priority: high
 ordinal: 156000
 ---
@@ -24,4 +26,6 @@ Why: agents poll today; they should react. Events are generated from the operati
 - [ ] #2 Events for page, block and record create/update/delete are derived from the operation table, with no per-handler emit calls
 - [ ] #3 A consumer receives an event after a change made over REST, tested
 - [ ] #4 Events respect the subscriber's permissions: no event for content the key cannot read
+- [ ] #5 If webhooks are chosen: outbound calls to private/internal addresses are blocked (SSRF), tested
+- [ ] #6 Reuses the existing SSE channel module if SSE is chosen
 <!-- AC:END -->
