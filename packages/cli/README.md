@@ -32,6 +32,8 @@ notara pages create --title "Notes" [--parent <pageId>]
 notara pages update <pageId> [--title ...] [--icon 📝] [--favorite]
 notara pages delete <pageId> [--permanent]
 notara pages restore <pageId>
+notara pages backlinks <pageId>
+notara pages export <pageId> [--include-databases]   # Markdown
 
 notara blocks list <pageId>
 notara blocks create <pageId> --type paragraph --content "<p>Hello</p>" [--index 0]
@@ -60,6 +62,10 @@ notara databases views <dbId>
 notara databases add-view <dbId> --name "Board" --type board [--group-by <fieldId>] [--config <json>] [--default]
 notara databases update-view <dbId> <viewId> [--name ...] [--type ...] [--group-by ...] [--config ...] [--default|--no-default]
 notara databases delete-view <dbId> <viewId>
+notara databases export <dbId>                  # CSV
+
+notara templates list                           # works without a workspace selected
+notara templates use <templateId> [--parent <pageId>]
 
 notara trash list                               # deleted pages/databases/records
 

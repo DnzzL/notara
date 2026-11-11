@@ -93,7 +93,7 @@ const ROUTES: Route[] = [
 	{ method: "get", path: "/pages/:pageId/backlinks" },
 	{ method: "get", path: "/pages/:pageId/export" },
 	{ method: "get", path: "/databases/:dbId/export" },
-	{ method: "post", path: "/templates/meeting-notes/pages", body: {} },
+	{ method: "post", path: "/templates/:templateId/pages", body: {} },
 	{ method: "get", path: "/search?q=secret" },
 	{ method: "get", path: "/trash" },
 ];
@@ -116,7 +116,8 @@ const fill = (path: string, f: Fixture) =>
 		.replace(":dbId", f.dbId)
 		.replace(":fieldId", f.fieldId)
 		.replace(":recordId", f.recordId)
-		.replace(":viewId", f.viewId)}`;
+		.replace(":viewId", f.viewId)
+		.replace(":templateId", "meeting-notes")}`;
 
 const fillBody = (body: Record<string, unknown> | undefined, f: Fixture) =>
 	body
