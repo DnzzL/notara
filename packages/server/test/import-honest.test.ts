@@ -88,7 +88,7 @@ describe("counts", () => {
 		expect(first.databasesUpdated).toBe(0);
 		expect(first.databasesCreated).toBe(1);
 		// Alpha, Beta, plus the database's wrapper page.
-		expect(first.pagesCreated).toBeGreaterThanOrEqual(2);
+		expect(first.pagesCreated).toBe(3);
 
 		const again = await runImport(fixtureA());
 		expect(again.pagesCreated).toBe(0);

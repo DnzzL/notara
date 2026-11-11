@@ -10,6 +10,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Changed
 
 - `docker-compose.yml` now runs the published image behind Caddy with automatic HTTPS (`DOMAIN` in `.env`). Services are `notara` + `caddy` (were `server` + `app`); ports 80/443 required.
+- **Import result counts rows written.** `POST /import-notion` and RPC `importNotion` return `pagesCreated`, `pagesUpdated`, `databasesCreated`, `databasesUpdated` instead of `pagesImported`/`databasesImported`. Pages include database wrapper and row pages.
 
 ## [0.2.0] - 2026-10-20
 

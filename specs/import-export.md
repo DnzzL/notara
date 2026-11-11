@@ -44,8 +44,10 @@ export class DatabaseCsvExport extends Schema.Class<DatabaseCsvExport>("Database
 
 /** Result of importing from a directory. */
 export class ImportResult extends Schema.Class<ImportResult>("ImportResult")({
-  pagesImported: Schema.Number,
-  databasesImported: Schema.Number,
+  pagesCreated: Schema.Number,
+  pagesUpdated: Schema.Number,
+  databasesCreated: Schema.Number,
+  databasesUpdated: Schema.Number,
 }) {}
 
 /** Result of exporting all pages to a directory. */
