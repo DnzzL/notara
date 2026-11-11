@@ -25,5 +25,9 @@ export function EditedBy({ page }: { page: Page }) {
 			? names[page.updatedBy]
 			: undefined;
 	if (!who) return null;
-	return <p className="text-[12px] text-text-3 mt-1 mb-2">Edited by {who}</p>;
+	return (
+		<span className="hidden md:block shrink-0 max-w-[30%] truncate text-[12px] text-text-3">
+			Edited by {who}
+		</span>
+	);
 }

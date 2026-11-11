@@ -1610,13 +1610,13 @@ export function BlockEditor() {
 						>
 							{currentPage.isFavorite ? "★" : "☆"}
 						</IconButton>
+						<EditedBy page={currentPage} />
 						<PresenceAvatars />
 						<PageMenu
 							pageId={currentPage.id}
 							workspaceId={getCurrentWorkspaceId()}
 						/>
 					</div>
-					<EditedBy page={currentPage} />
 					<EmojiPicker
 						open={iconPickerAnchor !== null}
 						anchor={iconPickerAnchor}
