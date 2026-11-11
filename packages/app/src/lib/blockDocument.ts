@@ -18,6 +18,7 @@ export interface BlockLike {
 	type: string;
 	content: string;
 	index: number;
+	parentId?: string | null;
 }
 
 export interface MergeOperation {
@@ -38,7 +39,7 @@ export interface SplitOperation {
 		type: string;
 		content: string;
 		index: number;
-		parentId: null;
+		parentId: string | null;
 	};
 	focus: { blockId: string };
 }
@@ -49,7 +50,7 @@ export interface InsertAfterOperation {
 		type: string;
 		content: string;
 		index: number;
-		parentId: null;
+		parentId: string | null;
 	};
 	focus: { blockId: string };
 }
@@ -97,6 +98,7 @@ export function splitBlock(
 	newBlockId: string,
 	newBlockType?: string,
 	currentType?: string,
+	parentId: string | null = current.parentId ?? null,
 ): SplitOperation {
 	// Persist the type alongside the content when a markdown transform has
 	// changed it (`- ` → bullet list) but the debounced save hasn't landed:
@@ -117,7 +119,7 @@ export function splitBlock(
 			type: newType,
 			content: finalAfter,
 			index: current.index + 1,
-			parentId: null,
+			parentId,
 		},
 		focus: { blockId: newBlockId },
 	};
@@ -127,6 +129,7 @@ export function splitBlock(
 export function insertBlockAfter(
 	current: BlockLike,
 	newBlockId: string,
+	parentId: string | null = current.parentId ?? null,
 ): InsertAfterOperation {
 	return {
 		insertBlock: {
@@ -134,8 +137,49 @@ export function insertBlockAfter(
 			type: "paragraph",
 			content: defaultContentForType("paragraph"),
 			index: current.index + 1,
-			parentId: null,
+			parentId,
 		},
 		focus: { blockId: newBlockId },
 	};
+}
+
+/**
+ * How deep each block sits. Blocks come in depth-first order, so a parent is
+ * always seen before its children; one with an unknown parent counts as top
+ * level.
+ */
+export function blockDepths(
+	blocks: readonly { id: string; parentId?: string | null }[],
+): Map<string, number> {
+	const depths = new Map<string, number>();
+	for (const b of blocks)
+		depths.set(b.id, b.parentId ? (depths.get(b.parentId) ?? -1) + 1 : 0);
+	return depths;
+}
+
+/**
+ * The parent changes `reparentBlock` makes, worked out locally so the screen
+ * (and a block inserted a keystroke later) agrees before the server replies.
+ * Same rules as the server's `reparentBlock`, which stays authoritative.
+ */
+export function reparentChanges(
+	blocks: readonly { id: string; index: number; parentId?: string | null }[],
+	id: string,
+	direction: "in" | "out",
+): Map<string, string | null> {
+	const changes = new Map<string, string | null>();
+	const block = blocks.find((b) => b.id === id);
+	if (!block) return changes;
+	const parent = block.parentId ?? null;
+	if (direction === "in") {
+		const prev = blocks
+			.filter((b) => (b.parentId ?? null) === parent && b.index < block.index)
+			.sort((a, b) => b.index - a.index)[0];
+		if (prev) changes.set(id, prev.id);
+	} else if (parent) {
+		for (const b of blocks)
+			if (b.parentId === parent && b.index > block.index) changes.set(b.id, id);
+		changes.set(id, blocks.find((b) => b.id === parent)?.parentId ?? null);
+	}
+	return changes;
 }

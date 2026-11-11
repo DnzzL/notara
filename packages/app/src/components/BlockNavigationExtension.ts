@@ -57,6 +57,9 @@ export interface BlockNavigationCallbacks {
 		currentType?: string,
 	) => void;
 
+	/** Nest this block under its previous sibling ("in") or lift it out ("out"). */
+	reparent?: (direction: "in" | "out") => void;
+
 	/** Create a new empty block below this one. Called on Cmd+Enter. */
 	insertBlockAfter?: () => void;
 
@@ -277,14 +280,22 @@ export const BlockNavigationExtension = Extension.create<{
 			// So: indent when the block holds several items (imported or pasted
 			// lists do), and otherwise consume the key rather than leave. Escape
 			// is the way out of a block, and it already is.
+			//
+			// Where there is no item to sink under (a single-item block, or the
+			// first item), or no nested item to lift, the key acts on the block
+			// itself: nest it under the previous block, or lift it out.
 			Tab: ({ editor }) => {
 				const name = itemNameForList(editor);
-				if (name) (editor.chain().focus() as any).sinkListItem(name).run();
+				const sunk =
+					name && (editor.chain().focus() as any).sinkListItem(name).run();
+				if (!sunk) callbacks.reparent?.("in");
 				return true;
 			},
 			"Shift-Tab": ({ editor }) => {
 				const name = itemNameForList(editor);
-				if (name) (editor.chain().focus() as any).liftListItem(name).run();
+				if (name && isNestedItem(editor, name))
+					(editor.chain().focus() as any).liftListItem(name).run();
+				else callbacks.reparent?.("out");
 				return true;
 			},
 
@@ -316,6 +327,15 @@ function itemNameForList(editor: Editor): "listItem" | "taskItem" | null {
 	if (type === "todo") return "taskItem";
 	if (type === "bulletList" || type === "numberedList") return "listItem";
 	return null;
+}
+
+/** Whether the caret sits in a list item that is itself inside another one. */
+function isNestedItem(editor: Editor, name: string): boolean {
+	const { $from } = editor.state.selection;
+	let items = 0;
+	for (let d = $from.depth; d > 0; d--)
+		if ($from.node(d).type.name === name) items++;
+	return items > 1;
 }
 
 /** How many items the top-level list of this block holds (0 if it isn't one). */

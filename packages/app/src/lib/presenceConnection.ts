@@ -10,7 +10,7 @@
  */
 
 import { type Block, Page } from "@notara/shared";
-import { useBlockStore } from "../stores/blockStore.js";
+import { useBlockStore, withoutSubtree } from "../stores/blockStore.js";
 import { usePageStore } from "../stores/pageStore.js";
 import { usePresenceStore } from "../stores/presenceStore.js";
 
@@ -43,6 +43,11 @@ type PresenceEvent =
 	| { type: "block.created"; actorUserId: string; block: Block }
 	| { type: "block.deleted"; actorUserId: string; blockId: string }
 	| { type: "block.reordered"; actorUserId: string; blockIds: string[] }
+	| {
+			type: "block.reparented";
+			actorUserId: string;
+			parents: { id: string; parentId: string | null }[];
+	  }
 	| {
 			type: "page.metaUpdated";
 			actorUserId: string;
@@ -214,7 +219,21 @@ export function startPresence(args: StartArgs) {
 		if (e.actorUserId === args.selfUserId) return;
 		args.onBlockDeleted?.(e.blockId);
 		useBlockStore.setState((s) => ({
-			blocks: s.blocks.filter((b) => b.id !== e.blockId),
+			blocks: withoutSubtree(s.blocks, e.blockId),
+		}));
+	});
+
+	source.addEventListener("block.reparented", (ev) => {
+		const e = JSON.parse((ev as MessageEvent).data) as Extract<
+			PresenceEvent,
+			{ type: "block.reparented" }
+		>;
+		if (e.actorUserId === args.selfUserId) return;
+		const byId = new Map(e.parents.map((p) => [p.id, p.parentId] as const));
+		useBlockStore.setState((s) => ({
+			blocks: s.blocks.map((b) =>
+				byId.has(b.id) ? { ...b, parentId: byId.get(b.id) ?? null } : b,
+			),
 		}));
 	});
 

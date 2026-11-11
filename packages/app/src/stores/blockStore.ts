@@ -1,6 +1,7 @@
 import type { Block } from "@notara/shared";
 import { ulid } from "ulidx";
 import { create } from "zustand";
+import { reparentChanges } from "../lib/blockDocument.js";
 import { AccessDeniedError, api } from "../rpc-client.js";
 import { toaster } from "../toaster.js";
 import { useHistoryStore } from "./historyStore.js";
@@ -22,6 +23,14 @@ async function afterCreate(id: string): Promise<void> {
 	if (pending) await pending.catch(() => {});
 }
 
+/** `blocks` without `id` and everything nested under it (the server cascades). */
+export function withoutSubtree(blocks: Block[], id: string): Block[] {
+	const gone = new Set([id]);
+	for (const b of [...blocks].sort((x, y) => x.index - y.index))
+		if (b.parentId && gone.has(b.parentId)) gone.add(b.id);
+	return blocks.filter((b) => !gone.has(b.id));
+}
+
 function showError(title: string, e: unknown) {
 	if (e instanceof AccessDeniedError) return; // handled by component layer
 	toaster.create({ type: "error", title, description: String(e) });
@@ -37,6 +46,8 @@ export interface BlockState {
 	deleteBlock: (id: string) => Promise<void>;
 	duplicateBlock: (id: string) => Promise<Block | null>;
 	reorderBlocks: (pageId: string, blockIds: string[]) => Promise<void>;
+	/** Tab ("in") / Shift-Tab ("out"): nest under the previous sibling, or lift out. */
+	reparentBlock: (id: string, direction: "in" | "out") => Promise<void>;
 }
 
 export const useBlockStore = create<BlockState>((set, get) => ({
@@ -198,18 +209,20 @@ export const useBlockStore = create<BlockState>((set, get) => ({
 		// Optimistic for the same reason as createBlock: Backspace merges two
 		// blocks, and the block that is going away must stop rendering now, not
 		// a round-trip later.
-		set({ blocks: before.filter((b) => b.id !== id) });
+		const remaining = withoutSubtree(before, id);
+		set({ blocks: remaining });
 		try {
 			await afterCreate(id);
 			await api.deleteBlock({ id });
 			useHistoryStore.getState().record({ kind: "delete", block: prev });
 		} catch (e) {
-			// Put back just this block, for the same reason as createBlock's
-			// rollback: the rest of the page may have moved on.
+			// Put back just what left with it, for the same reason as
+			// createBlock's rollback: the rest of the page may have moved on.
+			const removed = before.filter((b) => !remaining.includes(b));
 			set((s) => ({
 				blocks: s.blocks.some((b) => b.id === id)
 					? s.blocks
-					: [...s.blocks, prev],
+					: [...s.blocks, ...removed],
 			}));
 			showError("Failed to delete block", e);
 		}
@@ -246,6 +259,33 @@ export const useBlockStore = create<BlockState>((set, get) => ({
 				.record({ kind: "reorder", pageId, ids: prevIds });
 		} catch (e) {
 			showError("Failed to reorder blocks", e);
+		}
+	},
+
+	reparentBlock: async (id, direction) => {
+		// Applied locally first: Enter right after Tab must already see the new
+		// parent, or the block it creates lands at the old level.
+		const applyParents = (byId: Map<string, string | null>) =>
+			set((s) => ({
+				blocks: s.blocks.map((b) =>
+					byId.has(b.id)
+						? ({ ...b, parentId: byId.get(b.id) ?? null } as Block)
+						: b,
+				),
+			}));
+		const before = new Map(
+			get().blocks.map((b) => [b.id, b.parentId] as const),
+		);
+		applyParents(reparentChanges(get().blocks, id, direction));
+		try {
+			await afterCreate(id);
+			const parents = await api.reparentBlock({ id, direction });
+			// Only parentId is taken from the reply: it carries the saved content,
+			// which may be a keystroke behind what is on screen.
+			applyParents(new Map(parents.map((b) => [b.id, b.parentId] as const)));
+		} catch (e) {
+			applyParents(before);
+			showError("Failed to move block", e);
 		}
 	},
 }));
