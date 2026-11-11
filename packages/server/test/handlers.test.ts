@@ -520,7 +520,7 @@ describe("Blocks CRUD", () => {
 				{ userId: "test-user" },
 			).pipe(Effect.provide(TestDbLayer(filename)), Effect.runPromise);
 
-			await Blocks.deleteBlock(block.id).pipe(
+			await Blocks.deleteBlock(block.id, { userId: "test-user" }).pipe(
 				Effect.provide(TestDbLayer(filename)),
 				Effect.runPromise,
 			);

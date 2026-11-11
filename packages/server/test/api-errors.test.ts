@@ -90,7 +90,9 @@ describe("typed handler failures", () => {
 	});
 
 	test("moving a page into itself fails with ConflictError", async () => {
-		const error = await failureOf(Pages.movePage({ id: "p1", parentId: "p1" }));
+		const error = await failureOf(
+			Pages.movePage({ id: "p1", parentId: "p1" }, { userId: "test-user" }),
+		);
 		expect(error).toBeInstanceOf(ConflictError);
 		expect(error.message).toBe("Cannot move a page into itself");
 	});
@@ -116,10 +118,13 @@ describe("typed handler failures", () => {
 					},
 					{ userId: "test-user" },
 				);
-				return yield* Pages.movePage({
-					id: parent.id,
-					parentId: grandchild.id,
-				});
+				return yield* Pages.movePage(
+					{
+						id: parent.id,
+						parentId: grandchild.id,
+					},
+					{ userId: "test-user" },
+				);
 			}),
 		);
 		expect(error).toBeInstanceOf(ConflictError);

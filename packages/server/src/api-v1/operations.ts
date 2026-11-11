@@ -361,8 +361,8 @@ export const pageOperations = [
 		}),
 		output: PageJson,
 		checkPermission: pagePermission("editor"),
-		run: (_, { pageId, parentId }) =>
-			Pages.movePage({ id: pageId, parentId }).pipe(sqlDefect),
+		run: (ctx, { pageId, parentId }) =>
+			Pages.movePage({ id: pageId, parentId }, ctx.editor).pipe(sqlDefect),
 	}),
 	typedOperation({
 		method: "POST",
@@ -553,7 +553,7 @@ export const blockOperations = [
 			Effect.gen(function* () {
 				yield* blockPermission(ctx, input.blockId);
 				const pageId = yield* unlockedBlockPage(ctx, input.blockId);
-				yield* Blocks.deleteBlock(input.blockId);
+				yield* Blocks.deleteBlock(input.blockId, ctx.editor);
 				if (pageId)
 					presence.broadcast(ctx.workspaceId, pageId, {
 						type: "block.deleted",

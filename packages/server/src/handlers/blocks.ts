@@ -116,25 +116,31 @@ export const updateBlock = (
 	Effect.gen(function* () {
 		const sql = yield* SqlClient.SqlClient;
 		const [by, keyId, keyName] = editorColumns(editor);
-		const rows = yield* req.type
-			? sql`
+		return yield* sql.withTransaction(
+			Effect.gen(function* () {
+				const rows = yield* req.type
+					? sql`
         UPDATE blocks SET content = ${req.content}, type = ${req.type}, updated_by = ${by}, updated_by_key_id = ${keyId}, updated_by_key_name = ${keyName} WHERE id = ${req.id}
         RETURNING ${sql.unsafe(BLOCK_COLS)}
       `
-			: sql`
+					: sql`
         UPDATE blocks SET content = ${req.content}, updated_by = ${by}, updated_by_key_id = ${keyId}, updated_by_key_name = ${keyName} WHERE id = ${req.id}
         RETURNING ${sql.unsafe(BLOCK_COLS)}
       `;
-		if (rows.length === 0)
-			return yield* new NotFoundError({ resource: "block", id: req.id });
-		yield* stampPage(rows[0].pageId as string, editor);
-		return blockFromRow(rows[0]);
+				if (rows.length === 0)
+					return yield* new NotFoundError({ resource: "block", id: req.id });
+				yield* stampPage(rows[0].pageId as string, editor);
+				return blockFromRow(rows[0]);
+			}),
+		);
 	});
 
-export const deleteBlock = (id: string) =>
+export const deleteBlock = (id: string, editor: Editor) =>
 	Effect.gen(function* () {
 		const sql = yield* SqlClient.SqlClient;
+		const pageId = yield* getBlockPageId(id);
 		yield* sql`DELETE FROM blocks WHERE id = ${id}`;
+		if (pageId) yield* stampPage(pageId, editor);
 	});
 
 export const reorderBlocks = (pageId: string, blockIds: string[]) =>

@@ -143,7 +143,7 @@ export const rpcHandlersLayer = AppRpc.toLayer({
 					req.id,
 					"editor",
 				);
-				return yield* Pages.movePage(req);
+				return yield* Pages.movePage(req, { userId });
 			}),
 		).pipe(dieUnlessApiError),
 	reorderPages: ({ parentId, pageIds }) =>
@@ -239,7 +239,7 @@ export const rpcHandlersLayer = AppRpc.toLayer({
 						);
 					}
 				}
-				const result = yield* Blocks.deleteBlock(id);
+				const result = yield* Blocks.deleteBlock(id, { userId });
 				if (pageId) {
 					presence.broadcast(workspaceId, pageId, {
 						type: "block.deleted",

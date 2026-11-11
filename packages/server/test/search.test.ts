@@ -112,7 +112,7 @@ describe("globalSearch", () => {
 			await run(Pages.deletePage(p.id));
 			expect(await run(globalSearch("zebra"))).toHaveLength(0);
 			await run(Pages.restorePage(p.id));
-			await run(Blocks.deleteBlock(b.id));
+			await run(Blocks.deleteBlock(b.id, { userId: "test-user" }));
 			expect((await run(globalSearch("zebra"))).map((r) => r.type)).toEqual([
 				"page",
 			]);

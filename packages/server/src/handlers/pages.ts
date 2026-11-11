@@ -214,7 +214,10 @@ const isAncestorOf = (ancestorId: string, pageId: string) =>
 		return rows.length > 0;
 	});
 
-export const movePage = (req: { id: string; parentId: string | null }) =>
+export const movePage = (
+	req: { id: string; parentId: string | null },
+	editor: Editor,
+) =>
 	Effect.gen(function* () {
 		const sql = yield* SqlClient.SqlClient;
 		if (req.parentId === req.id)
@@ -228,8 +231,10 @@ export const movePage = (req: { id: string; parentId: string | null }) =>
 				});
 		}
 		const now = new Date().toISOString();
+		const [by, keyId, keyName] = editorColumns(editor);
 		yield* sql`
-      UPDATE pages SET parent_id = ${req.parentId}, updated_at = ${now}
+      UPDATE pages SET parent_id = ${req.parentId}, updated_at = ${now},
+        updated_by = ${by}, updated_by_key_id = ${keyId}, updated_by_key_name = ${keyName}
       WHERE id = ${req.id} AND is_deleted = 0
     `;
 		const rows = yield* sql.unsafe(

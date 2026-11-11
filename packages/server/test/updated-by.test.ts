@@ -134,6 +134,24 @@ describe("updated_by", () => {
 		expect(stamp("blocks", blockId)).toEqual(expected);
 	});
 
+	test("moving a page or deleting a block over REST stamps the key too", async () => {
+		const other = await rest("POST", "/pages", { title: "Other" });
+		const extra = await rest("POST", `/pages/${pageId}/blocks`, {
+			type: "paragraph",
+			content: "<p>x</p>",
+		});
+		await rpc("updatePage", { id: pageId, title: "Doc 3" }, ws.id);
+		await rest("POST", `/pages/${pageId}/move`, { parentId: other.json.id });
+		expect(stamp("pages", pageId)).toMatchObject({
+			updated_by_key_name: "agent-one",
+		});
+		await rpc("updatePage", { id: pageId, title: "Doc 4" }, ws.id);
+		await rest("DELETE", `/blocks/${extra.json.id}`);
+		expect(stamp("pages", pageId)).toMatchObject({
+			updated_by_key_name: "agent-one",
+		});
+	});
+
 	test("renaming or revoking the key keeps the stored name", async () => {
 		await rest("PATCH", `/blocks/${blockId}`, { content: "<p>again</p>" });
 		const platform = new Database(join(DATA_DIR, "platform.db"));
