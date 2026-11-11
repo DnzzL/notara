@@ -2,6 +2,7 @@ import { createRouter } from "@tanstack/react-router";
 import { Route as rootRoute } from "./routes/__root.js";
 import { Route as workspaceSlugRoute } from "./routes/$workspaceSlug.js";
 import { Route as adminRoute } from "./routes/admin.js";
+import { Route as agentsRoute } from "./routes/agents.js";
 import { Route as docsRoute } from "./routes/docs.js";
 import { Route as forgotPasswordRoute } from "./routes/forgot-password.js";
 import { Route as indexRoute } from "./routes/index.js";
@@ -28,6 +29,7 @@ const routeTree = rootRoute.addChildren([
 	pricingRoute,
 	workspaceSettingsRoute,
 	docsRoute,
+	agentsRoute,
 	privacyRoute,
 	termsRoute,
 ]);

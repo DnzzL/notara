@@ -4,7 +4,7 @@ title: Serve llms.txt and an agents doc page with MCP snippets and key scopes
 status: ready-for-agent
 assignee: []
 created_date: '2026-11-10T17:05:00Z'
-updated_date: '2026-11-10T17:07:00Z'
+updated_date: '2026-11-11T12:34:00Z'
 labels:
   - enhancement
 milestone: m-0
@@ -23,10 +23,10 @@ Agent brief: serve /llms.txt from the app (generated from the operation table, n
 
 ## Acceptance Criteria
 <!-- AC:BEGIN -->
-- [ ] #1 GET /llms.txt returns text/plain listing OpenAPI URL, MCP URL and the agents page, without auth
-- [ ] #2 Agents doc page has working MCP snippets for Claude Code and Cursor
-- [ ] #3 Agents doc page explains key scopes (read vs write) and which operations each allows
-- [ ] #4 A test asserts /llms.txt content type and that it references the OpenAPI and MCP endpoints
+- [x] #1 GET /llms.txt returns text/plain listing OpenAPI URL, MCP URL and the agents page, without auth
+- [x] #2 Agents doc page has working MCP snippets for Claude Code and Cursor
+- [x] #3 Agents doc page explains key scopes (read vs write) and which operations each allows
+- [x] #4 A test asserts /llms.txt content type and that it references the OpenAPI and MCP endpoints
 <!-- AC:END -->
 
 ## Implementation Notes
@@ -34,3 +34,9 @@ Agent brief: serve /llms.txt from the app (generated from the operation table, n
 <!-- SECTION:NOTES:BEGIN -->
 Prior art: an earlier /llms.txt shipped as NOT-164 (81e023f, af26134) and was reverted in da389bc. Gotcha fixed in af26134: the static app served index.html at /llms.txt. Back now because it is generated from the operation table.
 <!-- SECTION:NOTES:END -->
+
+## Final Summary
+
+<!-- SECTION:FINAL_SUMMARY:BEGIN -->
+GET /llms.txt (text/plain, no auth) generated from the operation table; /agents page with Claude Code + Cursor MCP snippets and read/write scopes (operation lists read from /llms.txt); linked from landing and README; nginx proxies /llms.txt and /mcp. Test: packages/server/test/llms-txt.test.ts.
+<!-- SECTION:FINAL_SUMMARY:END -->

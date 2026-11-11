@@ -125,6 +125,8 @@ export default defineConfig(({ mode }) => {
 						/^\/api/,
 						/^\/attachments/,
 						/^\/import-notion/,
+						/^\/llms\.txt$/,
+						/^\/mcp/,
 					],
 				},
 			}),
@@ -133,6 +135,8 @@ export default defineConfig(({ mode }) => {
 			port: 5173,
 			proxy: {
 				"/api": { target: "http://127.0.0.1:3000", changeOrigin: true },
+				"/llms.txt": { target: "http://127.0.0.1:3000", changeOrigin: true },
+				"/mcp": { target: "http://127.0.0.1:3000", changeOrigin: true },
 				"/import-notion": {
 					target: "http://127.0.0.1:3000",
 					changeOrigin: true,
