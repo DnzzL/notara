@@ -7,14 +7,34 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.3.0] - 2026-11-11
+
+Agent-ready: everything you can do in the app, an agent can do through an API.
+
 ### Added
 
+- **One typed operation table behind four doors.** REST at `/api/v1`, an OpenAPI document, an MCP server at `/mcp` and the `notara` CLI all come from the same operations, so they cannot drift apart.
+- **Full parity with the app.** Pages, blocks, databases, views, records, move and reorder, templates, backlinks, import and export, members, invites and sharing are all available through the API. A test fails if a user-facing action has no operation.
+- **Deliberately not in the API:** creating or joining workspaces and managing API keys (an API key belongs to one workspace and must not mint keys or reach others), the demo bootstrap, and server-disk import/export (use the zip import and per-page or per-database exports).
 - **API policy.** `/api/v1` is frozen and additive-only; deprecations last 2 minor releases or 6 months, announced here and as `deprecated: true` in OpenAPI. A server test checks the OpenAPI document against a committed snapshot (`docs/api-policy.md`).
+- **`/llms.txt` and an agents doc page** tell an agent how to connect and what it can call.
+- **CLI as standalone binaries.** Releases attach `notara` for macOS and Linux (arm64, x64) with a `SHA256SUMS` file; no Bun or Node needed.
+- **Four everyday templates:** personal CRM, content calendar, trip planner, reading list.
+- **Upgrade, rollback and restore are documented** in the README, and a server test upgrades a database from every released version's migrations.
+- **New README**, with the install on one screen; the landing page says minimalist, self-host, agent-ready.
 
 ### Changed
 
+- **Breaking: import result counts rows written.** `POST /import-notion` and RPC `importNotion` return `pagesCreated`, `pagesUpdated`, `databasesCreated`, `databasesUpdated` instead of `pagesImported`/`databasesImported`. Pages include database wrapper and row pages. A failed import rolls back cleanly.
 - New `compose.https.yml` runs the published image behind Caddy with automatic HTTPS (`DOMAIN` in `.env`): `docker compose -f compose.https.yml up -d`. Ports 80/443 required. The default `docker-compose.yml` is unchanged, for platforms that bring their own proxy (Dokploy, Coolify, Portainer).
-- **Import result counts rows written.** `POST /import-notion` and RPC `importNotion` return `pagesCreated`, `pagesUpdated`, `databasesCreated`, `databasesUpdated` instead of `pagesImported`/`databasesImported`. Pages include database wrapper and row pages.
+- **`/health` checks the database**, and the Docker image has a `HEALTHCHECK` that uses it.
+
+### Fixed
+
+- **Search** finds page titles and no longer fails on a `-` in the query.
+- **Board columns and cards** no longer jump back to the top on every render.
+- **Adding blocks on mobile** no longer shows an error toast.
+- **Moving a page in a large tree** is instant (25 s to 7 ms with 20,000 subpages).
 
 ## [0.2.0] - 2026-10-20
 
@@ -335,7 +355,8 @@ Defects found and fixed during pre-release development:
 - Admin user deletion left orphaned workspaces.
 - Added missing database indexes on hot query paths.
 
-[Unreleased]: https://github.com/dnzzl/notara/compare/v0.2.0...HEAD
+[Unreleased]: https://github.com/dnzzl/notara/compare/v0.3.0...HEAD
+[0.3.0]: https://github.com/dnzzl/notara/compare/v0.2.0...v0.3.0
 [0.2.0]: https://github.com/dnzzl/notara/compare/v0.1.4...v0.2.0
 [0.1.3]: https://github.com/dnzzl/notara/compare/v0.1.2...v0.1.3
 [0.1.2]: https://github.com/dnzzl/notara/compare/v0.1.1...v0.1.2

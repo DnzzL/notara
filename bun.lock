@@ -66,7 +66,7 @@
     },
     "packages/cli": {
       "name": "@notara/cli",
-      "version": "0.1.0",
+      "version": "0.3.0",
       "bin": {
         "notara": "./src/main.ts",
       },
@@ -80,7 +80,7 @@
     },
     "packages/electron": {
       "name": "@notara/electron",
-      "version": "0.1.0",
+      "version": "0.3.0",
       "devDependencies": {
         "electron": "^33.0.0",
         "electron-builder": "^25.0.0",
