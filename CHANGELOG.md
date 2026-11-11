@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- `docker-compose.yml` now runs the published image behind Caddy with automatic HTTPS (`DOMAIN` in `.env`). Services are `notara` + `caddy` (were `server` + `app`); ports 80/443 required.
+
 ## [0.2.0] - 2026-10-20
 
 Notara stays what it set out to be: a minimalist Notion you own, in one SQLite file.
