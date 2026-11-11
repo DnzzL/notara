@@ -25,7 +25,7 @@ Agent-ready: everything you can do in the app, an agent can do through an API.
 
 ### Changed
 
-- **Breaking: import result counts rows written.** `POST /import-notion` and RPC `importNotion` return `pagesCreated`, `pagesUpdated`, `databasesCreated`, `databasesUpdated` instead of `pagesImported`/`databasesImported`. Pages include database wrapper and row pages. Re-importing updates in place, and a failed import rolls back.
+- **Breaking: import result counts rows written.** `POST /import-notion` and RPC `importNotion` return `pagesCreated`, `pagesUpdated`, `databasesCreated`, `databasesUpdated` instead of `pagesImported`/`databasesImported`. Pages include database wrapper and row pages. A failed import rolls back cleanly.
 - New `compose.https.yml` runs the published image behind Caddy with automatic HTTPS (`DOMAIN` in `.env`): `docker compose -f compose.https.yml up -d`. Ports 80/443 required. The default `docker-compose.yml` is unchanged, for platforms that bring their own proxy (Dokploy, Coolify, Portainer).
 - **`/health` checks the database**, and the Docker image has a `HEALTHCHECK` that uses it.
 
@@ -34,7 +34,7 @@ Agent-ready: everything you can do in the app, an agent can do through an API.
 - **Search** finds page titles and no longer fails on a `-` in the query.
 - **Board columns and cards** no longer jump back to the top on every render.
 - **Adding blocks on mobile** no longer shows an error toast.
-- **Moving a page in a large tree** is instant again (25 s to 7 ms with 20,000 subpages).
+- **Moving a page in a large tree** is instant (25 s to 7 ms with 20,000 subpages).
 
 ## [0.2.0] - 2026-10-20
 
