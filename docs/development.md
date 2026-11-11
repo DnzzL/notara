@@ -26,6 +26,6 @@ bun run build              # production build
 bun test                   # unit tests
 bunx playwright test       # E2E (requires built app)
 # Visual baselines come from CI's container, never a dev machine: regenerate with
-# docker run --rm -v "$PWD":/w -w /w mcr.microsoft.com/playwright:v<@playwright/test version>-noble \
-#   sh -c "npm i -g bun && bun install --frozen-lockfile --ignore-scripts && bunx playwright test --update-snapshots"
+# docker run --rm -v "$PWD":/w -v /w/node_modules -w /w mcr.microsoft.com/playwright:v<@playwright/test version>-noble \
+#   sh -c "npm i -g bun && bun install --frozen-lockfile --ignore-scripts && bun run apply-patches && bun run --filter @notara/shared build && bunx playwright test --update-snapshots"
 ```
