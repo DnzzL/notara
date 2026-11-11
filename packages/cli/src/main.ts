@@ -7,7 +7,7 @@ import { Command } from "effect/cli";
 import type { NotaraError } from "./client.js";
 import { root } from "./commands.js";
 
-const cli = Command.runWith(root, { version: "0.1.0" });
+const cli = Command.runWith(root, { version: "0.3.0" });
 
 cli(process.argv.slice(2)).pipe(
 	Effect.catchTag("NotaraError", (e: NotaraError) =>
