@@ -2,11 +2,11 @@ import type { Block } from "@notara/shared";
 import { create } from "zustand";
 import { guarded } from "../lib/storeErrors.js";
 import { api } from "../rpc-client.js";
-import { useBlockStore } from "./blockStore.js";
+import { descendantsOf, useBlockStore } from "./blockStore.js";
 
 export type HistoryOp =
 	| { kind: "create"; block: Block }
-	| { kind: "delete"; block: Block }
+	| { kind: "delete"; block: Block; descendants?: Block[] }
 	| { kind: "reorder"; pageId: string; ids: string[] };
 
 const MAX = 100;
@@ -27,8 +27,9 @@ async function apply(op: HistoryOp): Promise<HistoryOp | null> {
 	if (op.kind === "create") {
 		// Inverse of a previous create: delete the block. Return inverse (re-create) for redo.
 		const existing = bs.blocks.find((b) => b.id === op.block.id);
+		const descendants = descendantsOf(bs.blocks, op.block.id);
 		await bs.deleteBlock(op.block.id);
-		return { kind: "delete", block: existing ?? op.block };
+		return { kind: "delete", block: existing ?? op.block, descendants };
 	}
 	if (op.kind === "delete") {
 		// Re-create the block. Server assigns a fresh ULID, so the redo "create" carries the new block.
@@ -44,6 +45,21 @@ async function apply(op: HistoryOp): Promise<HistoryOp | null> {
 				parentId: op.block.parentId,
 			}),
 		);
+		// Its subtree comes back too (the delete cascaded to it), parents first so
+		// each child finds its new parent id. In page order, at their old index.
+		const newId = new Map([[op.block.id, recreated.id]]);
+		for (const d of op.descendants ?? []) {
+			const child = await guarded("Failed to undo delete", () =>
+				api.createBlock({
+					pageId: d.pageId,
+					type: d.type,
+					content: d.content,
+					index: d.index,
+					parentId: (d.parentId && newId.get(d.parentId)) || d.parentId,
+				}),
+			);
+			newId.set(d.id, child.id);
+		}
 		// Refresh blocks since server shifted indices.
 		const fresh = await guarded("Failed to refresh blocks", () =>
 			api.listBlocks({ pageId: op.block.pageId }),

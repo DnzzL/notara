@@ -6167,6 +6167,145 @@
 				}
 			}
 		},
+		"/workspaces/{workspaceId}/blocks/{blockId}/reparent": {
+			"parameters": [
+				{
+					"name": "workspaceId",
+					"in": "path",
+					"required": true,
+					"schema": {
+						"type": "string"
+					},
+					"description": "Workspace ID"
+				},
+				{
+					"name": "blockId",
+					"in": "path",
+					"required": true,
+					"schema": {
+						"type": "string",
+						"description": "Block ID"
+					}
+				}
+			],
+			"post": {
+				"tags": [
+					"Blocks"
+				],
+				"operationId": "reparentBlock",
+				"summary": "Nest a block under its previous sibling, or lift it out",
+				"description": "`in` makes the block a child of its previous sibling (no-op if it has none). `out` moves it to its parent's level; its later siblings become its children (no-op at the top level). Returns the page's blocks.",
+				"requestBody": {
+					"required": true,
+					"content": {
+						"application/json": {
+							"schema": {
+								"type": "object",
+								"properties": {
+									"direction": {
+										"type": "string",
+										"enum": [
+											"in",
+											"out"
+										],
+										"description": "`in` to nest (Tab), `out` to un-nest (Shift-Tab)"
+									}
+								},
+								"required": [
+									"direction"
+								],
+								"additionalProperties": true
+							}
+						}
+					}
+				},
+				"responses": {
+					"200": {
+						"description": "Success",
+						"content": {
+							"application/json": {
+								"schema": {
+									"type": "array",
+									"items": {
+										"$ref": "#/components/schemas/Block"
+									}
+								}
+							}
+						}
+					},
+					"400": {
+						"description": "Malformed JSON body",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/Error"
+								}
+							}
+						}
+					},
+					"401": {
+						"description": "Unauthorized",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/Error"
+								}
+							}
+						}
+					},
+					"403": {
+						"description": "Forbidden",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/Error"
+								}
+							}
+						}
+					},
+					"404": {
+						"description": "Not found",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/Error"
+								}
+							}
+						}
+					},
+					"409": {
+						"description": "Conflict, such as a block another user is editing",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/Error"
+								}
+							}
+						}
+					},
+					"422": {
+						"description": "Validation error",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/Error"
+								}
+							}
+						}
+					},
+					"500": {
+						"description": "Server error",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/Error"
+								}
+							}
+						}
+					}
+				}
+			}
+		},
 		"/workspaces/{workspaceId}/search": {
 			"parameters": [
 				{

@@ -46,6 +46,7 @@ notara blocks create <pageId> --type paragraph --content "<p>Hello</p>" [--index
 notara blocks update <blockId> --content "<p>Edited</p>" [--type heading1]   # --type turns it into another type
 notara blocks delete <blockId>
 notara blocks reorder <pageId> <blockId>...      # new order
+notara blocks reparent <blockId> in|out          # nest under the previous sibling / lift out
 
 notara databases list
 notara databases create --page <pageId> --name "Tasks"

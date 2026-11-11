@@ -23,11 +23,17 @@ async function afterCreate(id: string): Promise<void> {
 	if (pending) await pending.catch(() => {});
 }
 
-/** `blocks` without `id` and everything nested under it (the server cascades). */
-export function withoutSubtree(blocks: Block[], id: string): Block[] {
+/** Everything nested under `id`, in page order (the server cascades deletes to it). */
+export function descendantsOf(blocks: Block[], id: string): Block[] {
 	const gone = new Set([id]);
-	for (const b of [...blocks].sort((x, y) => x.index - y.index))
-		if (b.parentId && gone.has(b.parentId)) gone.add(b.id);
+	return [...blocks]
+		.sort((x, y) => x.index - y.index)
+		.filter((b) => b.parentId && gone.has(b.parentId) && gone.add(b.id));
+}
+
+/** `blocks` without `id` and everything nested under it. */
+export function withoutSubtree(blocks: Block[], id: string): Block[] {
+	const gone = new Set([id, ...descendantsOf(blocks, id).map((b) => b.id)]);
 	return blocks.filter((b) => !gone.has(b.id));
 }
 
@@ -214,7 +220,11 @@ export const useBlockStore = create<BlockState>((set, get) => ({
 		try {
 			await afterCreate(id);
 			await api.deleteBlock({ id });
-			useHistoryStore.getState().record({ kind: "delete", block: prev });
+			useHistoryStore.getState().record({
+				kind: "delete",
+				block: prev,
+				descendants: descendantsOf(before, id),
+			});
 		} catch (e) {
 			// Put back just what left with it, for the same reason as
 			// createBlock's rollback: the rest of the page may have moved on.
@@ -233,12 +243,14 @@ export const useBlockStore = create<BlockState>((set, get) => ({
 			const orig = get().blocks.find((b) => b.id === id);
 			if (!orig) return null;
 			// Through createBlock so the copy lands optimistically and the shift
-			// is applied the one way.
+			// is applied the one way. After the original's subtree, so the
+			// children stay directly under the original.
+			const subtree = descendantsOf(get().blocks, id);
 			return await get().createBlock({
 				pageId: orig.pageId,
 				type: orig.type,
 				content: orig.content,
-				index: orig.index + 1,
+				index: orig.index + 1 + subtree.length,
 				parentId: orig.parentId,
 			});
 		} catch (e) {
