@@ -18,13 +18,13 @@ function AgentsPage() {
 	// from the operation table: nothing to keep in sync here.
 	useEffect(() => {
 		fetch("/llms.txt")
-			.then((r) => r.text())
-			.then((txt) =>
-				setOps({
-					read: section(txt, "Read operations"),
-					write: section(txt, "Write operations"),
-				}),
-			)
+			.then((r) => (r.ok ? r.text() : Promise.reject(new Error(r.statusText))))
+			.then((txt) => {
+				const read = section(txt, "Read operations");
+				// Anything that is not the generated file (an SPA fallback) has no list.
+				if (read.length === 0) throw new Error("no operations in /llms.txt");
+				setOps({ read, write: section(txt, "Write operations") });
+			})
 			.catch(() => setOps(undefined));
 	}, []);
 
