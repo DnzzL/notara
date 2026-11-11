@@ -108,10 +108,13 @@ describe("Permissions", () => {
 	// ── Workspace owner always passes ─────────────────────────────────────────
 
 	test("workspace owner resolves to owner relation with no ACL", async () => {
-		const page = await Pages.createPage({
-			title: "Owner Page",
-			parentId: null,
-		}).pipe(Effect.provide(makeSqliteLayer(sqliteFilename)), Effect.runPromise);
+		const page = await Pages.createPage(
+			{
+				title: "Owner Page",
+				parentId: null,
+			},
+			{ userId: "test-user" },
+		).pipe(Effect.provide(makeSqliteLayer(sqliteFilename)), Effect.runPromise);
 
 		const rel = await Permissions.resolveEffectiveRelation(
 			owner.userId,
@@ -126,10 +129,13 @@ describe("Permissions", () => {
 	});
 
 	test("workspace owner can access page with viewer permission requirement", async () => {
-		const page = await Pages.createPage({
-			title: "Owner Access",
-			parentId: null,
-		}).pipe(Effect.provide(makeSqliteLayer(sqliteFilename)), Effect.runPromise);
+		const page = await Pages.createPage(
+			{
+				title: "Owner Access",
+				parentId: null,
+			},
+			{ userId: "test-user" },
+		).pipe(Effect.provide(makeSqliteLayer(sqliteFilename)), Effect.runPromise);
 
 		const result = await Permissions.checkPagePermission(
 			owner.userId,
@@ -147,10 +153,13 @@ describe("Permissions", () => {
 	// ── Workspace member with no ACL = editor ────────────────────────────────
 
 	test("workspace member resolves to editor relation with no ACL", async () => {
-		const page = await Pages.createPage({
-			title: "Member Page",
-			parentId: null,
-		}).pipe(Effect.provide(makeSqliteLayer(sqliteFilename)), Effect.runPromise);
+		const page = await Pages.createPage(
+			{
+				title: "Member Page",
+				parentId: null,
+			},
+			{ userId: "test-user" },
+		).pipe(Effect.provide(makeSqliteLayer(sqliteFilename)), Effect.runPromise);
 
 		const rel = await Permissions.resolveEffectiveRelation(
 			member.userId,
@@ -165,10 +174,13 @@ describe("Permissions", () => {
 	});
 
 	test("workspace member can access page with editor permission requirement", async () => {
-		const page = await Pages.createPage({
-			title: "Member Editor",
-			parentId: null,
-		}).pipe(Effect.provide(makeSqliteLayer(sqliteFilename)), Effect.runPromise);
+		const page = await Pages.createPage(
+			{
+				title: "Member Editor",
+				parentId: null,
+			},
+			{ userId: "test-user" },
+		).pipe(Effect.provide(makeSqliteLayer(sqliteFilename)), Effect.runPromise);
 
 		const result = await Permissions.checkPagePermission(
 			member.userId,
@@ -184,10 +196,13 @@ describe("Permissions", () => {
 	});
 
 	test("non-member user resolves to null", async () => {
-		const page = await Pages.createPage({
-			title: "Stranger Page",
-			parentId: null,
-		}).pipe(Effect.provide(makeSqliteLayer(sqliteFilename)), Effect.runPromise);
+		const page = await Pages.createPage(
+			{
+				title: "Stranger Page",
+				parentId: null,
+			},
+			{ userId: "test-user" },
+		).pipe(Effect.provide(makeSqliteLayer(sqliteFilename)), Effect.runPromise);
 
 		const rel = await Permissions.resolveEffectiveRelation(
 			"non-member",
@@ -208,10 +223,13 @@ describe("Permissions", () => {
 	// set viewer/editor grants must therefore also include an owner grant.
 
 	test("explicit viewer grant overrides default editor", async () => {
-		const page = await Pages.createPage({
-			title: "Viewer Page",
-			parentId: null,
-		}).pipe(Effect.provide(makeSqliteLayer(sqliteFilename)), Effect.runPromise);
+		const page = await Pages.createPage(
+			{
+				title: "Viewer Page",
+				parentId: null,
+			},
+			{ userId: "test-user" },
+		).pipe(Effect.provide(makeSqliteLayer(sqliteFilename)), Effect.runPromise);
 
 		// Grant viewer to member + owner to workspace owner (required by guard)
 		await Permissions.writePagePermissions({
@@ -239,10 +257,13 @@ describe("Permissions", () => {
 	});
 
 	test("explicit editor grant on member", async () => {
-		const page = await Pages.createPage({
-			title: "Editor Grant",
-			parentId: null,
-		}).pipe(Effect.provide(makeSqliteLayer(sqliteFilename)), Effect.runPromise);
+		const page = await Pages.createPage(
+			{
+				title: "Editor Grant",
+				parentId: null,
+			},
+			{ userId: "test-user" },
+		).pipe(Effect.provide(makeSqliteLayer(sqliteFilename)), Effect.runPromise);
 
 		await Permissions.writePagePermissions({
 			pageId: page.id,
@@ -269,10 +290,13 @@ describe("Permissions", () => {
 	});
 
 	test("explicit owner grant on member", async () => {
-		const page = await Pages.createPage({
-			title: "Owner Grant",
-			parentId: null,
-		}).pipe(Effect.provide(makeSqliteLayer(sqliteFilename)), Effect.runPromise);
+		const page = await Pages.createPage(
+			{
+				title: "Owner Grant",
+				parentId: null,
+			},
+			{ userId: "test-user" },
+		).pipe(Effect.provide(makeSqliteLayer(sqliteFilename)), Effect.runPromise);
 
 		await Permissions.writePagePermissions({
 			pageId: page.id,
@@ -298,10 +322,13 @@ describe("Permissions", () => {
 	});
 
 	test("higher-rank relation overrides lower-rank when both set", async () => {
-		const page = await Pages.createPage({
-			title: "Rank Override",
-			parentId: null,
-		}).pipe(Effect.provide(makeSqliteLayer(sqliteFilename)), Effect.runPromise);
+		const page = await Pages.createPage(
+			{
+				title: "Rank Override",
+				parentId: null,
+			},
+			{ userId: "test-user" },
+		).pipe(Effect.provide(makeSqliteLayer(sqliteFilename)), Effect.runPromise);
 
 		// Write both viewer + owner first, then upgrade member to editor
 		await Permissions.writePagePermissions({
@@ -342,10 +369,13 @@ describe("Permissions", () => {
 	// ── Subject matching (user:, workspace:#member, public) ───────────────────
 
 	test("workspace:member subject grants all workspace members", async () => {
-		const page = await Pages.createPage({
-			title: "All Members",
-			parentId: null,
-		}).pipe(Effect.provide(makeSqliteLayer(sqliteFilename)), Effect.runPromise);
+		const page = await Pages.createPage(
+			{
+				title: "All Members",
+				parentId: null,
+			},
+			{ userId: "test-user" },
+		).pipe(Effect.provide(makeSqliteLayer(sqliteFilename)), Effect.runPromise);
 
 		await Permissions.writePagePermissions({
 			pageId: page.id,
@@ -379,10 +409,13 @@ describe("Permissions", () => {
 	});
 
 	test("public subject grants access to any workspace member", async () => {
-		const page = await Pages.createPage({
-			title: "Public Page",
-			parentId: null,
-		}).pipe(Effect.provide(makeSqliteLayer(sqliteFilename)), Effect.runPromise);
+		const page = await Pages.createPage(
+			{
+				title: "Public Page",
+				parentId: null,
+			},
+			{ userId: "test-user" },
+		).pipe(Effect.provide(makeSqliteLayer(sqliteFilename)), Effect.runPromise);
 
 		await Permissions.writePagePermissions({
 			pageId: page.id,
@@ -411,14 +444,20 @@ describe("Permissions", () => {
 	// ── Ancestor ACL inheritance ──────────────────────────────────────────────
 
 	test("child page inherits ACL from parent (locked ancestor)", async () => {
-		const parent = await Pages.createPage({
-			title: "Parent",
-			parentId: null,
-		}).pipe(Effect.provide(makeSqliteLayer(sqliteFilename)), Effect.runPromise);
-		const child = await Pages.createPage({
-			title: "Child",
-			parentId: parent.id,
-		}).pipe(Effect.provide(makeSqliteLayer(sqliteFilename)), Effect.runPromise);
+		const parent = await Pages.createPage(
+			{
+				title: "Parent",
+				parentId: null,
+			},
+			{ userId: "test-user" },
+		).pipe(Effect.provide(makeSqliteLayer(sqliteFilename)), Effect.runPromise);
+		const child = await Pages.createPage(
+			{
+				title: "Child",
+				parentId: parent.id,
+			},
+			{ userId: "test-user" },
+		).pipe(Effect.provide(makeSqliteLayer(sqliteFilename)), Effect.runPromise);
 
 		// Lock the parent with grants for both member and owner
 		await Permissions.writePagePermissions({
@@ -447,18 +486,27 @@ describe("Permissions", () => {
 	});
 
 	test("child inherits highest relation from ancestor lock", async () => {
-		const parent = await Pages.createPage({
-			title: "Ancestor",
-			parentId: null,
-		}).pipe(Effect.provide(makeSqliteLayer(sqliteFilename)), Effect.runPromise);
-		const child = await Pages.createPage({
-			title: "Descendant",
-			parentId: parent.id,
-		}).pipe(Effect.provide(makeSqliteLayer(sqliteFilename)), Effect.runPromise);
-		const grandchild = await Pages.createPage({
-			title: "Grandchild",
-			parentId: child.id,
-		}).pipe(Effect.provide(makeSqliteLayer(sqliteFilename)), Effect.runPromise);
+		const parent = await Pages.createPage(
+			{
+				title: "Ancestor",
+				parentId: null,
+			},
+			{ userId: "test-user" },
+		).pipe(Effect.provide(makeSqliteLayer(sqliteFilename)), Effect.runPromise);
+		const child = await Pages.createPage(
+			{
+				title: "Descendant",
+				parentId: parent.id,
+			},
+			{ userId: "test-user" },
+		).pipe(Effect.provide(makeSqliteLayer(sqliteFilename)), Effect.runPromise);
+		const grandchild = await Pages.createPage(
+			{
+				title: "Grandchild",
+				parentId: child.id,
+			},
+			{ userId: "test-user" },
+		).pipe(Effect.provide(makeSqliteLayer(sqliteFilename)), Effect.runPromise);
 
 		// Grant owner on the parent (already an owner grant from the member test user)
 		await Permissions.writePagePermissions({
@@ -488,14 +536,20 @@ describe("Permissions", () => {
 	// ── Blocked-by-ancestor ───────────────────────────────────────────────────
 
 	test("child blocked when ancestor locked and user has no grant", async () => {
-		const parent = await Pages.createPage({
-			title: "Locked Parent",
-			parentId: null,
-		}).pipe(Effect.provide(makeSqliteLayer(sqliteFilename)), Effect.runPromise);
-		const child = await Pages.createPage({
-			title: "Blocked Child",
-			parentId: parent.id,
-		}).pipe(Effect.provide(makeSqliteLayer(sqliteFilename)), Effect.runPromise);
+		const parent = await Pages.createPage(
+			{
+				title: "Locked Parent",
+				parentId: null,
+			},
+			{ userId: "test-user" },
+		).pipe(Effect.provide(makeSqliteLayer(sqliteFilename)), Effect.runPromise);
+		const child = await Pages.createPage(
+			{
+				title: "Blocked Child",
+				parentId: parent.id,
+			},
+			{ userId: "test-user" },
+		).pipe(Effect.provide(makeSqliteLayer(sqliteFilename)), Effect.runPromise);
 
 		// Lock the parent with a grant only for owner and a different user
 		await Permissions.writePagePermissions({
@@ -533,14 +587,20 @@ describe("Permissions", () => {
 		// Under this model the child bears tuples, so the child answers alone and
 		// the parent is never consulted. Under union the member would inherit
 		// `owner` from the parent and keep it.
-		const parent = await Pages.createPage({
-			title: "Open To Member",
-			parentId: null,
-		}).pipe(Effect.provide(makeSqliteLayer(sqliteFilename)), Effect.runPromise);
-		const child = await Pages.createPage({
-			title: "Restricted Below",
-			parentId: parent.id,
-		}).pipe(Effect.provide(makeSqliteLayer(sqliteFilename)), Effect.runPromise);
+		const parent = await Pages.createPage(
+			{
+				title: "Open To Member",
+				parentId: null,
+			},
+			{ userId: "test-user" },
+		).pipe(Effect.provide(makeSqliteLayer(sqliteFilename)), Effect.runPromise);
+		const child = await Pages.createPage(
+			{
+				title: "Restricted Below",
+				parentId: parent.id,
+			},
+			{ userId: "test-user" },
+		).pipe(Effect.provide(makeSqliteLayer(sqliteFilename)), Effect.runPromise);
 
 		await Permissions.writePagePermissions({
 			pageId: parent.id,
@@ -581,18 +641,27 @@ describe("Permissions", () => {
 	test("a locked child does not leak access to its own children", async () => {
 		// The override is authoritative for the whole subtree beneath it, so the
 		// exclusion cannot be escaped by nesting one level deeper.
-		const parent = await Pages.createPage({
-			title: "Open Root",
-			parentId: null,
-		}).pipe(Effect.provide(makeSqliteLayer(sqliteFilename)), Effect.runPromise);
-		const locked = await Pages.createPage({
-			title: "Locked Middle",
-			parentId: parent.id,
-		}).pipe(Effect.provide(makeSqliteLayer(sqliteFilename)), Effect.runPromise);
-		const grandchild = await Pages.createPage({
-			title: "Below The Lock",
-			parentId: locked.id,
-		}).pipe(Effect.provide(makeSqliteLayer(sqliteFilename)), Effect.runPromise);
+		const parent = await Pages.createPage(
+			{
+				title: "Open Root",
+				parentId: null,
+			},
+			{ userId: "test-user" },
+		).pipe(Effect.provide(makeSqliteLayer(sqliteFilename)), Effect.runPromise);
+		const locked = await Pages.createPage(
+			{
+				title: "Locked Middle",
+				parentId: parent.id,
+			},
+			{ userId: "test-user" },
+		).pipe(Effect.provide(makeSqliteLayer(sqliteFilename)), Effect.runPromise);
+		const grandchild = await Pages.createPage(
+			{
+				title: "Below The Lock",
+				parentId: locked.id,
+			},
+			{ userId: "test-user" },
+		).pipe(Effect.provide(makeSqliteLayer(sqliteFilename)), Effect.runPromise);
 
 		await Permissions.writePagePermissions({
 			pageId: parent.id,
@@ -628,10 +697,13 @@ describe("Permissions", () => {
 	// ── Write + readback roundtrip ─────────────────────────────────────────────
 
 	test("write then read ACL roundtrip", async () => {
-		const page = await Pages.createPage({
-			title: "Roundtrip",
-			parentId: null,
-		}).pipe(Effect.provide(makeSqliteLayer(sqliteFilename)), Effect.runPromise);
+		const page = await Pages.createPage(
+			{
+				title: "Roundtrip",
+				parentId: null,
+			},
+			{ userId: "test-user" },
+		).pipe(Effect.provide(makeSqliteLayer(sqliteFilename)), Effect.runPromise);
 
 		const writeResult = await Permissions.writePagePermissions({
 			pageId: page.id,
@@ -669,10 +741,13 @@ describe("Permissions", () => {
 	// ── Revision bumps ────────────────────────────────────────────────────────
 
 	test("revision bumps on each write", async () => {
-		const page = await Pages.createPage({
-			title: "Revisions",
-			parentId: null,
-		}).pipe(Effect.provide(makeSqliteLayer(sqliteFilename)), Effect.runPromise);
+		const page = await Pages.createPage(
+			{
+				title: "Revisions",
+				parentId: null,
+			},
+			{ userId: "test-user" },
+		).pipe(Effect.provide(makeSqliteLayer(sqliteFilename)), Effect.runPromise);
 
 		const r1 = await Permissions.writePagePermissions({
 			pageId: page.id,
@@ -701,10 +776,13 @@ describe("Permissions", () => {
 	});
 
 	test("write with stale ifRevision returns 409", async () => {
-		const page = await Pages.createPage({
-			title: "Conflict",
-			parentId: null,
-		}).pipe(Effect.provide(makeSqliteLayer(sqliteFilename)), Effect.runPromise);
+		const page = await Pages.createPage(
+			{
+				title: "Conflict",
+				parentId: null,
+			},
+			{ userId: "test-user" },
+		).pipe(Effect.provide(makeSqliteLayer(sqliteFilename)), Effect.runPromise);
 
 		// First write to get a revision
 		const r1 = await Permissions.writePagePermissions({
@@ -743,18 +821,27 @@ describe("Permissions", () => {
 	// ── filterPagesByPermission ───────────────────────────────────────────────
 
 	test("member sees pages with inherited or direct ACL access", async () => {
-		const ownerPage = await Pages.createPage({
-			title: "Open",
-			parentId: null,
-		}).pipe(Effect.provide(makeSqliteLayer(sqliteFilename)), Effect.runPromise);
-		const restricted = await Pages.createPage({
-			title: "Restricted",
-			parentId: null,
-		}).pipe(Effect.provide(makeSqliteLayer(sqliteFilename)), Effect.runPromise);
-		const childOfRestricted = await Pages.createPage({
-			title: "Child",
-			parentId: restricted.id,
-		}).pipe(Effect.provide(makeSqliteLayer(sqliteFilename)), Effect.runPromise);
+		const ownerPage = await Pages.createPage(
+			{
+				title: "Open",
+				parentId: null,
+			},
+			{ userId: "test-user" },
+		).pipe(Effect.provide(makeSqliteLayer(sqliteFilename)), Effect.runPromise);
+		const restricted = await Pages.createPage(
+			{
+				title: "Restricted",
+				parentId: null,
+			},
+			{ userId: "test-user" },
+		).pipe(Effect.provide(makeSqliteLayer(sqliteFilename)), Effect.runPromise);
+		const childOfRestricted = await Pages.createPage(
+			{
+				title: "Child",
+				parentId: restricted.id,
+			},
+			{ userId: "test-user" },
+		).pipe(Effect.provide(makeSqliteLayer(sqliteFilename)), Effect.runPromise);
 
 		// Lock restricted with a grant for both member and owner
 		await Permissions.writePagePermissions({

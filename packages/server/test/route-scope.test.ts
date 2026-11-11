@@ -40,7 +40,10 @@ const withDb = async <A>(
 const twoDatabases = Effect.gen(function* () {
 	const make = (name: string) =>
 		Effect.gen(function* () {
-			const page = yield* Pages.createPage({ title: name, parentId: null });
+			const page = yield* Pages.createPage(
+				{ title: name, parentId: null },
+				{ userId: "test-user" },
+			);
 			const db = yield* Databases.createDatabase({ pageId: page.id, name });
 			const rec = yield* Databases.createRecord({
 				databaseId: db.id,

@@ -22,6 +22,8 @@ describe("Page Schema", () => {
 			deletedAt: null,
 			createdAt: "2024-01-01T00:00:00.000Z",
 			updatedAt: "2024-01-02T00:00:00.000Z",
+			updatedBy: null,
+			updatedByKeyName: null,
 		};
 
 		const decoded = Schema.decodeSync(Page)(input);

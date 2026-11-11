@@ -61,6 +61,8 @@ const pageArb = fc.record({
 	isFavorite: fc.boolean(),
 	createdAt: isoDateArb,
 	updatedAt: isoDateArb,
+	updatedBy: fc.constant(null),
+	updatedByKeyName: fc.constant(null),
 	deletedAt: fc.oneof(fc.constant(null), isoDateArb),
 });
 

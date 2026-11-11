@@ -32,6 +32,9 @@ const setupDB = Effect.gen(function* () {
       created_at TEXT NOT NULL DEFAULT (datetime('now')),
       updated_at TEXT NOT NULL DEFAULT (datetime('now')),
       deleted_at TEXT,
+      updated_by TEXT,
+      updated_by_key_id TEXT,
+      updated_by_key_name TEXT,
       -- Which page's deletion swept this one into the trash; NULL when it was
       -- deleted in its own right. See migration 020.
       trashed_with TEXT

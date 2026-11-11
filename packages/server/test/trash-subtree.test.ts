@@ -54,22 +54,34 @@ async function seedTree(filename: string) {
 	const run = <A>(e: Effect.Effect<A, any, SqlClient.SqlClient>) =>
 		e.pipe(Effect.provide(TestDbLayer(filename)), Effect.runPromise);
 	const parent = await run(
-		Pages.createPage({ title: "Parent", parentId: null }),
+		Pages.createPage(
+			{ title: "Parent", parentId: null },
+			{ userId: "test-user" },
+		),
 	);
 	const child = await run(
-		Pages.createPage({ title: "Child", parentId: parent.id }),
+		Pages.createPage(
+			{ title: "Child", parentId: parent.id },
+			{ userId: "test-user" },
+		),
 	);
 	const grandchild = await run(
-		Pages.createPage({ title: "Grandchild", parentId: child.id }),
+		Pages.createPage(
+			{ title: "Grandchild", parentId: child.id },
+			{ userId: "test-user" },
+		),
 	);
 	await run(
-		Blocks.createBlock({
-			pageId: grandchild.id,
-			type: "paragraph",
-			content: "<p>deep</p>",
-			index: 0,
-			parentId: null,
-		}),
+		Blocks.createBlock(
+			{
+				pageId: grandchild.id,
+				type: "paragraph",
+				content: "<p>deep</p>",
+				index: 0,
+				parentId: null,
+			},
+			{ userId: "test-user" },
+		),
 	);
 	return { run, parent, child, grandchild };
 }
