@@ -71,7 +71,12 @@ export const fromApiKey: Effect.Effect<
 		);
 	}
 
-	return { userId: key.userId, email: user.email, scope: key.scope };
+	return {
+		userId: key.userId,
+		email: user.email,
+		scope: key.scope,
+		rootPageId: key.rootPageId,
+	};
 });
 
 /** The Better Auth session cookie. Null when there is no valid session. */

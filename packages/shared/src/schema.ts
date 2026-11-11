@@ -196,6 +196,8 @@ export class ApiKey extends Schema.Class<ApiKey>("ApiKey")({
 	name: Schema.String,
 	keyPrefix: Schema.String,
 	scope: ApiKeyScope,
+	/** The page subtree the key is limited to; null = the whole workspace. */
+	rootPageId: Schema.NullOr(Schema.String),
 	createdAt: Schema.String,
 	lastUsedAt: Schema.NullOr(Schema.String),
 }) {}
@@ -207,6 +209,7 @@ export class ApiKeyCreated extends Schema.Class<ApiKeyCreated>("ApiKeyCreated")(
 		name: Schema.String,
 		keyPrefix: Schema.String,
 		scope: ApiKeyScope,
+		rootPageId: Schema.NullOr(Schema.String),
 		rawKey: Schema.String,
 		createdAt: Schema.String,
 	},

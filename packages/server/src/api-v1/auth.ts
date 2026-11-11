@@ -36,10 +36,17 @@ export type ApiUser = {
 	userId: string;
 	keyId: string | null;
 	scope?: ApiKeyScope;
+	/** Set when the key is limited to a page subtree; see acl.ts `KeyRoot`. */
+	rootPageId?: string | null;
 };
 
 /** The caller behind an API key, and what the key may do. */
-export type ApiKey = { userId: string; keyId: string; scope: ApiKeyScope };
+export type ApiKey = {
+	userId: string;
+	keyId: string;
+	scope: ApiKeyScope;
+	rootPageId: string | null;
+};
 
 /**
  * Resolves `Authorization: Bearer ntr_...` to its key, and nothing else: a
@@ -65,11 +72,14 @@ export const resolveApiKey = (
 
 		const db = yield* PlatformDb;
 		const key = db
-			.prepare("SELECT id, user_id, scope FROM api_keys WHERE key_hash = ?")
+			.prepare(
+				"SELECT id, user_id, scope, root_page_id FROM api_keys WHERE key_hash = ?",
+			)
 			.get(sha256(authHeader.slice(7))) as {
 			id: string;
 			user_id: string;
 			scope: ApiKeyScope;
+			root_page_id: string | null;
 		} | null;
 
 		if (!key) {
@@ -83,7 +93,12 @@ export const resolveApiKey = (
 			key.id,
 		);
 
-		return { userId: key.user_id, keyId: key.id, scope: key.scope };
+		return {
+			userId: key.user_id,
+			keyId: key.id,
+			scope: key.scope,
+			rootPageId: key.root_page_id,
+		};
 	});
 
 /**

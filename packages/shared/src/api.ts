@@ -437,7 +437,11 @@ export const AppRpc = RpcGroup.make(
 	}),
 	Rpc.make("createApiKey", {
 		error: ApiError,
-		payload: { name: ShortName, scope: ApiKeyScope },
+		payload: {
+			name: ShortName,
+			scope: ApiKeyScope,
+			rootPageId: Schema.optional(Schema.NullOr(Schema.String)),
+		},
 		success: ApiKeyCreated,
 	}),
 	Rpc.make("revokeApiKey", {

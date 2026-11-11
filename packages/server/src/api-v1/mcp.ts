@@ -83,7 +83,7 @@ const handlers = NotaraTools.toLayer(
 					const caller = yield* McpCaller;
 					return yield* runOperation(
 						op,
-						caller.userId,
+						caller,
 						Effect.succeed(workspaceId as string),
 						Effect.succeed(input),
 					);

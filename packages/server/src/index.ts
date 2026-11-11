@@ -203,9 +203,15 @@ const staticFilesRoute = Effect.gen(function* () {
 		inner.pipe(
 			withPolicy(
 				Effect.flatMap(CurrentUser, (user) =>
-					allows(user.scope, needed)
-						? Effect.void
-						: Effect.fail(forbidden(SCOPE_REFUSAL)),
+					user.rootPageId
+						? Effect.fail(
+								forbidden(
+									"A key limited to one page subtree cannot administer.",
+								),
+							)
+						: allows(user.scope, needed)
+							? Effect.void
+							: Effect.fail(forbidden(SCOPE_REFUSAL)),
 				),
 			),
 			withPolicy(Policies.instanceAdmin),
