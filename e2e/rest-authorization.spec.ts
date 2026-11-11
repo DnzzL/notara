@@ -10,13 +10,15 @@
  * The table below is the point. A new route added without a guard has to be
  * added here too, and adding it here makes the omission fail.
  */
-import { expect, seedPage, test } from "./multiuser-helpers.js";
+import { APP_ORIGIN, expect, seedPage, test } from "./multiuser-helpers.js";
 
 type Route = {
 	method: "get" | "post" | "patch" | "delete" | "put";
 	/** `:name` placeholders are filled from the seeded fixture. */
 	path: string;
 	body?: Record<string, unknown>;
+	/** Never-ending response (SSE): read the status, then drop the connection. */
+	stream?: boolean;
 };
 
 /**
@@ -138,6 +140,7 @@ const ROUTES: Route[] = [
 	},
 	{ method: "get", path: "/search?q=secret" },
 	{ method: "get", path: "/trash" },
+	{ method: "get", path: "/events", stream: true },
 ];
 
 /** Ids from alice's workspace, which bob must not be able to touch. */
@@ -228,14 +231,28 @@ test("no REST route serves a caller who is not a workspace member", async ({
 
 	for (const route of ROUTES) {
 		const url = fill(route.path, fixture);
-		const res = await bob.api[route.method](url, {
-			data: fillBody(route.body, fixture),
-		});
+		let status: number;
+		if (route.stream) {
+			// APIRequestContext waits for the whole body; an open stream never ends.
+			const { cookies } = await bob.api.storageState();
+			const ctrl = new AbortController();
+			const res = await fetch(APP_ORIGIN + url, {
+				signal: ctrl.signal,
+				headers: {
+					cookie: cookies.map((c) => `${c.name}=${c.value}`).join("; "),
+				},
+			});
+			status = res.status;
+			ctrl.abort();
+		} else {
+			const res = await bob.api[route.method](url, {
+				data: fillBody(route.body, fixture),
+			});
+			status = res.status();
+		}
 
-		if (!REFUSALS.includes(res.status())) {
-			wrong.push(
-				`${route.method.toUpperCase()} ${route.path} → ${res.status()}`,
-			);
+		if (!REFUSALS.includes(status)) {
+			wrong.push(`${route.method.toUpperCase()} ${route.path} → ${status}`);
 		}
 	}
 
