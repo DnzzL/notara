@@ -60,7 +60,9 @@ jobs:
     container: mcr.microsoft.com/playwright:v1.60.0-noble
     steps:
       - uses: actions/checkout@v6
-      - uses: oven-sh/setup-bun@v2
+      # setup-bun needs `unzip`, which the image lacks (and apt is what we avoid):
+      # take bun from npm, Node being in the image.
+      - run: npm install -g bun
 
       - run: bun install --frozen-lockfile --ignore-scripts
       - run: bun run apply-patches
