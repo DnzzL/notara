@@ -139,6 +139,8 @@ export interface TypedOperation<I, O> {
 	/** REST door only; 200 when omitted. */
 	readonly successStatus?: 201 | 204;
 	readonly scope: ApiKeyScope;
+	/** Its input's `parentId` is where a page is placed; see requireParentInSubtree. */
+	readonly placesPage?: true;
 	readonly input: Schema.Codec<I, unknown> & {
 		readonly fields: Schema.Struct.Fields;
 	};
@@ -240,6 +242,7 @@ export const pageOperations = [
 		method: "POST",
 		path: "/api/v1/workspaces/:workspaceId/pages",
 		operationId: "createPage",
+		placesPage: true,
 		tag: "Pages",
 		summary: "Create a page",
 		successStatus: 201,
@@ -336,6 +339,7 @@ export const pageOperations = [
 		method: "POST",
 		path: "/api/v1/workspaces/:workspaceId/pages/:pageId/move",
 		operationId: "movePage",
+		placesPage: true,
 		tag: "Pages",
 		summary: "Move a page under another parent",
 		description: "`parentId: null` moves the page to the top level.",
@@ -353,6 +357,7 @@ export const pageOperations = [
 		method: "POST",
 		path: "/api/v1/workspaces/:workspaceId/pages/reorder",
 		operationId: "reorderPages",
+		placesPage: true,
 		tag: "Pages",
 		summary: "Reorder the child pages of a parent",
 		description:
@@ -1223,6 +1228,7 @@ export const exchangeOperations = [
 		method: "POST",
 		path: "/api/v1/workspaces/:workspaceId/templates/:templateId/pages",
 		operationId: "createPageFromTemplate",
+		placesPage: true,
 		tag: "Templates",
 		summary: "Create a page from a template",
 		description: "Use an `id` from `listTemplates` as `templateId`.",
@@ -1564,7 +1570,7 @@ const OUTSIDE_SUBTREE = new AuthError({
 });
 
 /**
- * An operation input that names a `parentId` places a page: the key must reach
+ * An operation declaring `placesPage` puts a page under its `parentId`: the key must reach
  * that parent, and a top-level placement (null) is outside any subtree. The
  * only input a page ACL check does not already cover.
  */
@@ -1607,7 +1613,7 @@ export const runOperation = <I, O, E, R>(
 						const decoded = yield* input;
 						yield* requireParentInSubtree(
 							ctx,
-							"parentId" in op.input.fields,
+							op.placesPage === true,
 							decoded as Record<string, unknown>,
 						);
 						if (op.checkPermission) yield* op.checkPermission(ctx, decoded);

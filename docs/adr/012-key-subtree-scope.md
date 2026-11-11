@@ -17,8 +17,9 @@ as `KeyRoot` (`acl.ts`) for the duration of the operation:
   the owner is. Every page, block, database, record, field and view check already resolves through it.
 - `permissions.ts` `filterPagesByPermission` — list, search, backlinks, trash and database listings
   drop pages outside the subtree.
-- `runOperation` — an operation whose input has a `parentId` places a page; the parent must be inside
+- `runOperation` — an operation declaring `placesPage` puts a page under its `parentId`; the parent must be inside
   the subtree (top level is outside any subtree). Covers create, move, reorder, create-from-template.
+- `listWorkspaces` stays open to a scoped key on purpose: a client needs the workspace id.
 - Workspace-wide operations (members, invites) and the instance-admin routes refuse a scoped key.
 
 The session and RPC paths never provide `KeyRoot`, so they are unchanged.

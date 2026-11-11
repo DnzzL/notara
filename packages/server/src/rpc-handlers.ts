@@ -822,7 +822,7 @@ export const rpcHandlersLayer = AppRpc.toLayer({
 				userId: user.id,
 				name,
 				scope,
-				rootPageId,
+				rootPageId: rootPageId || null,
 			});
 		}).pipe(dieUnlessApiError),
 	revokeApiKey: ({ id }) =>

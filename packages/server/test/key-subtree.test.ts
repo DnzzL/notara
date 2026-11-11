@@ -250,6 +250,16 @@ describe("blocks", () => {
 			(await call(scoped, "DELETE", `${WS}/blocks/${out.id}`)).status,
 		).toBe(403);
 
+		const mk = (pageId: string, extra: object = {}) =>
+			call(scoped, "POST", `${PAGES}/${pageId}/blocks`, {
+				type: "paragraph",
+				content: "<p>m</p>",
+				index: 0,
+				...extra,
+			});
+		const top = await mk(child.id);
+		expect(top.status).toBe(201);
+		expect((await mk(child.id, { parentId: top.body.id })).status).toBe(201);
 		const inside = await block(child.id, "<p>mine</p>");
 		expect(
 			(await call(scoped, "GET", `${PAGES}/${child.id}/blocks`)).body.map(
