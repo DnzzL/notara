@@ -16,6 +16,11 @@ bun build --target=bun \
   --outfile="$RESOURCES_DIR/dist/index.js" "$SERVER_SRC"
 echo "Server bundled to $RESOURCES_DIR/dist/index.js"
 
+# Templates are discovered at runtime (readdir + import), so bun build cannot
+# inline them: ship the folder next to the bundle (resources/templates/).
+rm -rf "$RESOURCES_DIR/templates"
+cp -r "$ROOT_DIR/packages/server/src/templates" "$RESOURCES_DIR/templates"
+
 # Copy externalized packages so they're resolvable at runtime
 for pkg in kysely better-auth '@better-auth/kysely-adapter'; do
   src=$(node -e "console.log(require.resolve('$pkg'))" 2>/dev/null || true)
