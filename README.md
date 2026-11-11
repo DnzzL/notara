@@ -261,7 +261,7 @@ notara pages list --json | jq '.title'
 
 **The REST API.** A documented HTTP API at `/api/v1` — read, write, search, manage. Built
 for automation and CI. Interactive docs at `GET /api/docs`, OpenAPI at
-`GET /api/v1/openapi.json`. Generate a key in the sidebar → **API keys** and pass it as
+`GET /api/v1/openapi.json`; `/api/v1` is frozen and additive-only, see [docs/api-policy.md](docs/api-policy.md). Generate a key in the sidebar → **API keys** and pass it as
 `Authorization: Bearer ntr_…`:
 
 ```bash

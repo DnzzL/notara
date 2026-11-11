@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- **API policy.** `/api/v1` is frozen and additive-only; deprecations last 2 minor releases or 6 months, announced here and as `deprecated: true` in OpenAPI. A server test checks the OpenAPI document against a committed snapshot (`docs/api-policy.md`).
+
 ### Changed
 
 - `docker-compose.yml` now runs the published image behind Caddy with automatic HTTPS (`DOMAIN` in `.env`). Services are `notara` + `caddy` (were `server` + `app`); ports 80/443 required.
