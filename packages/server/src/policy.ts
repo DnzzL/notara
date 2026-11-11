@@ -48,6 +48,7 @@ export class CurrentUser extends Context.Service<
 		readonly userId: string;
 		readonly email: string;
 		readonly scope?: ApiKeyScope;
+		readonly rootPageId?: string | null;
 	}
 >()("CurrentUser") {}
 

@@ -12,7 +12,11 @@ export interface ApiKeyState {
 	apiKeys: ApiKey[];
 	apiKeysLoading: boolean;
 	loadApiKeys: () => Promise<void>;
-	createApiKey: (name: string, scope: ApiKeyScope) => Promise<ApiKeyCreated>;
+	createApiKey: (
+		name: string,
+		scope: ApiKeyScope,
+		rootPageId?: string | null,
+	) => Promise<ApiKeyCreated>;
 	revokeApiKey: (id: string) => Promise<void>;
 }
 
@@ -30,9 +34,9 @@ export const useApiKeyStore = create<ApiKeyState>((set) => ({
 		}
 	},
 
-	createApiKey: async (name, scope) => {
+	createApiKey: async (name, scope, rootPageId) => {
 		try {
-			const created = await api.createApiKey({ name, scope });
+			const created = await api.createApiKey({ name, scope, rootPageId });
 			set((s) => ({
 				apiKeys: [
 					{
@@ -40,6 +44,7 @@ export const useApiKeyStore = create<ApiKeyState>((set) => ({
 						name: created.name,
 						keyPrefix: created.keyPrefix,
 						scope: created.scope,
+						rootPageId: created.rootPageId,
 						createdAt: created.createdAt,
 						lastUsedAt: null,
 					},

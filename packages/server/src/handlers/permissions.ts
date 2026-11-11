@@ -113,6 +113,19 @@ export const filterPagesByPermission = <
 	allPages: readonly P[],
 ) =>
 	Effect.gen(function* () {
+		// A key limited to a subtree sees that subtree only (see acl.ts KeyRoot).
+		const keyRoot = yield* Acl.KeyRoot;
+		if (keyRoot !== null) {
+			const parents = new Map<string, string | null>(
+				allPages.map((p) => [p.id, p.parentId]),
+			);
+			const inside = (id: string) => {
+				for (let c: string | null = id; c !== null; c = parents.get(c) ?? null)
+					if (c === keyRoot) return true;
+				return false;
+			};
+			allPages = allPages.filter((p) => inside(p.id));
+		}
 		if (workspaceRole === "owner") return [...allPages];
 
 		const sql = yield* SqlClient.SqlClient;

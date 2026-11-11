@@ -32,7 +32,7 @@
  * a while-loop with a comment.
  */
 
-import { Effect } from "effect";
+import { Context, Effect } from "effect";
 import { SqlClient } from "effect/sql";
 
 export type Relation = "owner" | "editor" | "viewer";
@@ -102,6 +102,47 @@ type Rule = (
 	pageId: string,
 ) => Effect.Effect<Decision, never, SqlClient.SqlClient>;
 
+/**
+ * The page an API key is limited to, or null for everyone else. Provided once,
+ * where an operation starts (`withWorkspace`); the session and RPC paths never
+ * provide it, so for them it stays null and nothing below changes.
+ */
+export const KeyRoot = Context.Reference<string | null>("notara/KeyRoot", {
+	defaultValue: () => null,
+});
+
+/** Is `pageId` the root or below it? Trashed rows count: ancestry is structural. */
+export const inSubtree = (rootId: string, pageId: string) =>
+	Effect.gen(function* () {
+		const sql = yield* SqlClient.SqlClient;
+		const rows = yield* sql
+			.unsafe(
+				`WITH RECURSIVE ancestors AS (
+				  SELECT id, parent_id FROM pages WHERE id = ?
+				  UNION
+				  SELECT p.id, p.parent_id FROM pages p
+				  INNER JOIN ancestors a ON p.id = a.parent_id
+				)
+				SELECT 1 FROM ancestors WHERE id = ? LIMIT 1`,
+				[pageId, rootId],
+			)
+			.pipe(Effect.orDie);
+		return rows.length > 0;
+	});
+
+/**
+ * A key limited to a subtree reaches nothing outside it, whatever the owner
+ * could otherwise do. Authoritative like a lock, and first: no later rule may
+ * grant what this one refuses. Inside the subtree it abstains, so the owner's
+ * own relation still decides.
+ */
+const keySubtreeRule: Rule = (_, pageId) =>
+	Effect.gen(function* () {
+		const root = yield* KeyRoot;
+		if (root === null) return abstain;
+		return (yield* inSubtree(root, pageId)) ? abstain : deny;
+	});
+
 /** A workspace owner holds `owner` on everything in it, ACLs notwithstanding. */
 const workspaceOwnerRules: Rule = (principal) =>
 	Effect.succeed(
@@ -164,6 +205,7 @@ const workspaceMemberRules: Rule = (principal) =>
  * unanimous abstention is a refusal.
  */
 const PAGE_RULES: readonly Rule[] = [
+	keySubtreeRule,
 	workspaceOwnerRules,
 	nearestBearerDecides,
 	workspaceMemberRules,

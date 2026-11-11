@@ -37,6 +37,7 @@ import {
 import * as HttpRouter from "effect/http/HttpRouter";
 import * as HttpServerRequest from "effect/http/HttpServerRequest";
 import { type SqlClient, SqlError } from "effect/sql";
+import { inSubtree, KeyRoot } from "../acl.js";
 import { WorkspaceDb } from "../db.js";
 import * as Blocks from "../handlers/blocks.js";
 import * as Databases from "../handlers/databases.js";
@@ -68,6 +69,8 @@ export interface OperationContext {
 	readonly userId: string;
 	readonly workspaceId: string;
 	readonly role: WorkspaceRole;
+	/** Set when the caller is a key limited to a page subtree. */
+	readonly rootPageId: string | null;
 }
 
 const errorRef = { $ref: "#/components/schemas/Error" };
@@ -1346,16 +1349,22 @@ const ShareJson = Schema.Struct({
 	}),
 }).annotate({ identifier: "PageShare" });
 
+/** Workspace-wide, so no business of a key limited to a subtree. */
+const unscopedOnly = (ctx: OperationContext) =>
+	ctx.rootPageId === null ? Effect.void : Effect.fail(OUTSIDE_SUBTREE);
+
 /** The workspace owner, as `requireWorkspaceOwner` demands in the RPC. */
 const ownerOnly = (ctx: OperationContext) =>
-	ctx.role === "owner"
-		? Effect.void
-		: Effect.fail(
-				new AuthError({
-					status: 403,
-					message: "Workspace owner role required",
-				}),
-			);
+	ctx.rootPageId !== null
+		? Effect.fail(OUTSIDE_SUBTREE)
+		: ctx.role === "owner"
+			? Effect.void
+			: Effect.fail(
+					new AuthError({
+						status: 403,
+						message: "Workspace owner role required",
+					}),
+				);
 
 export const memberOperations = [
 	typedOperation({
@@ -1367,6 +1376,7 @@ export const memberOperations = [
 		scope: "read",
 		input: Schema.Struct({}),
 		output: Schema.Array(WorkspaceMemberJson),
+		checkPermission: unscopedOnly,
 		run: (ctx) =>
 			Workspaces.getWorkspaceMembers(ctx.workspaceId).pipe(sqlDefect),
 	}),
@@ -1526,18 +1536,52 @@ export const typedOperations: ReadonlyArray<AnyOperation> = [
 
 /** Membership, then `f` under one acquisition of the workspace's layer. */
 const withWorkspace = <A, E, R>(
-	userId: string,
+	caller: Caller,
 	workspaceId: string,
 	f: (ctx: OperationContext) => Effect.Effect<A, E, R>,
 ) =>
 	Effect.gen(function* () {
+		const { userId, rootPageId } = caller;
 		const role = yield* requireWorkspaceMember(workspaceId, userId);
 		const wdb = yield* WorkspaceDb;
+		// The subtree a key is limited to is enforced from here: acl.ts reads
+		// KeyRoot for every page check and permissions.ts for every page list.
 		return yield* Effect.provide(
-			f({ userId, workspaceId, role }),
+			f({ userId, workspaceId, role, rootPageId }),
 			wdb.getLayer(workspaceId),
-		);
+		).pipe(Effect.provideService(KeyRoot, rootPageId));
 	});
+
+/** Who is calling: the user and, for a key limited to a subtree, its root. */
+export interface Caller {
+	readonly userId: string;
+	readonly rootPageId: string | null;
+}
+
+const OUTSIDE_SUBTREE = new AuthError({
+	status: 403,
+	message: "This API key is limited to one page subtree.",
+});
+
+/**
+ * An operation input that names a `parentId` places a page: the key must reach
+ * that parent, and a top-level placement (null) is outside any subtree. The
+ * only input a page ACL check does not already cover.
+ */
+const requireParentInSubtree = (
+	ctx: OperationContext,
+	hasParent: boolean,
+	input: Record<string, unknown>,
+) =>
+	ctx.rootPageId === null || !hasParent
+		? Effect.void
+		: typeof input.parentId === "string"
+			? inSubtree(ctx.rootPageId, input.parentId).pipe(
+					Effect.flatMap((ok) =>
+						ok ? Effect.void : Effect.fail(OUTSIDE_SUBTREE),
+					),
+				)
+			: Effect.fail(OUTSIDE_SUBTREE);
 
 /**
  * Runs one typed operation for a caller already resolved by its door: the
@@ -1549,16 +1593,23 @@ const withWorkspace = <A, E, R>(
  */
 export const runOperation = <I, O, E, R>(
 	op: TypedOperation<I, O> | UserOperation<I, O>,
-	userId: string,
+	caller: Caller,
 	workspaceId: Effect.Effect<string, E, R>,
 	input: Effect.Effect<I, ValidationError>,
 ) =>
 	"workspace" in op
-		? Effect.flatMap(input, (decoded) => op.run({ userId }, decoded))
+		? Effect.flatMap(input, (decoded) =>
+				op.run({ userId: caller.userId }, decoded),
+			)
 		: Effect.flatMap(workspaceId, (id) =>
-				withWorkspace(userId, id, (ctx) =>
+				withWorkspace(caller, id, (ctx) =>
 					Effect.gen(function* () {
 						const decoded = yield* input;
+						yield* requireParentInSubtree(
+							ctx,
+							"parentId" in op.input.fields,
+							decoded as Record<string, unknown>,
+						);
 						if (op.checkPermission) yield* op.checkPermission(ctx, decoded);
 						return yield* op.run(ctx, decoded);
 					}),
@@ -1615,7 +1666,7 @@ export const registerTypedOperations = (
 					const { workspaceId, ...pathParams } = yield* HttpRouter.params;
 					const output = yield* runOperation(
 						op,
-						caller.userId,
+						{ userId: caller.userId, rootPageId: caller.rootPageId ?? null },
 						requireParam({ workspaceId }, "workspaceId"),
 						Schema.decodeUnknownEffect(op.input)({
 							...rest,

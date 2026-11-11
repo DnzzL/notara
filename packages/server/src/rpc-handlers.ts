@@ -800,10 +800,30 @@ export const rpcHandlersLayer = AppRpc.toLayer({
 			const user = yield* getSessionUser;
 			return yield* ApiKeys.listApiKeys(user.id);
 		}).pipe(dieUnlessApiError),
-	createApiKey: ({ name, scope }) =>
+	createApiKey: ({ name, scope, rootPageId }) =>
 		Effect.gen(function* () {
 			const user = yield* getSessionUser;
-			return yield* ApiKeys.createApiKey({ userId: user.id, name, scope });
+			// A key never reaches more than its creator: the root must be a page
+			// they can use at the key's own level.
+			if (rootPageId)
+				yield* withAuthedWorkspace(({ userId, workspaceId }) =>
+					Pages.getPage(rootPageId).pipe(
+						Effect.andThen(
+							Permissions.checkPagePermission(
+								userId,
+								workspaceId,
+								rootPageId,
+								scope === "write" ? "editor" : "viewer",
+							),
+						),
+					),
+				);
+			return yield* ApiKeys.createApiKey({
+				userId: user.id,
+				name,
+				scope,
+				rootPageId,
+			});
 		}).pipe(dieUnlessApiError),
 	revokeApiKey: ({ id }) =>
 		Effect.gen(function* () {
