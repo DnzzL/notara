@@ -1,10 +1,10 @@
 ---
 id: NOT-140
 title: Indentation de blocs (Tab imbrique un bloc sous le precedent)
-status: ready-for-human
+status: ready-for-agent
 assignee: []
 created_date: 2026-08-30 18:49
-updated_date: '2026-11-10T17:05:00Z'
+updated_date: '2026-11-11T21:58:00Z'
 labels:
   - enhancement
 milestone: m-2
@@ -21,8 +21,7 @@ Tab indente aujourd'hui a l'interieur d'un bloc (liste multi-items) et, a defaut
 
 ## Acceptance Criteria
 <!-- AC:BEGIN -->
-- [ ] #1 Decider si le nesting de blocs entre au perimetre
-- [ ] #2 Si oui : rendu hierarchique, Tab/Shift-Tab reparentent, drag-and-drop et numerotation suivent
+- [ ] #1 Slice 1: nesting via the existing blocks.parent_id column (the brief's 'parent_block_id'; do not add a second column), Tab/Shift-Tab nest/un-nest under the previous block, rendered hierarchically with indentation
 <!-- AC:END -->
 
 ## Implementation Notes
@@ -30,3 +29,16 @@ Tab indente aujourd'hui a l'interieur d'un bloc (liste multi-items) et, a defaut
 <!-- SECTION:NOTES:BEGIN -->
 Triage: AC #1 is a product decision (does block nesting enter scope?) - needs a human call before an agent builds the tree rendering.
 <!-- SECTION:NOTES:END -->
+
+## Comments
+
+<!-- COMMENTS:BEGIN -->
+author: @assistant
+created: 2026-11-11T21:57:00Z
+
+---
+
+Decision (approved): block nesting is in scope: Tab/Shift-Tab nest and un-nest a block under the previous one, rendered hierarchically. This is large (one TipTap editor per block) and must be sliced. Slice 1 = parent_block_id + Tab/Shift-Tab + indented rendering. Drag-and-drop and numbering come later, as separate tickets.
+
+---
+<!-- COMMENTS:END -->
