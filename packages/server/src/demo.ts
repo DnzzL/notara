@@ -16,8 +16,8 @@ export const demoTtlHours = () => Number(process.env.DEMO_TTL_HOURS ?? 24);
  * the SQLite file (via the injected `deleteDb`), and the owning anonymous user
  * once it owns nothing else. Only `is_demo = 1` rows are ever considered.
  *
- * The SQLite FK pragma is OFF in this codebase, so every child row is deleted
- * explicitly — nothing cascades.
+ * Child rows (session, account, members) are deleted explicitly before their
+ * parents; kept leaf-to-root so it stays valid with FK enforcement on.
  */
 export const purgeExpiredDemos = (opts: {
 	db: Database;

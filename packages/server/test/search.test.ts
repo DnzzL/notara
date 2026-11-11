@@ -3,8 +3,8 @@ import { describe, expect, test } from "bun:test";
 import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
-import { SqliteClient } from "@effect/sql-sqlite-bun";
 import { Effect } from "effect";
+import { makeSqliteLayer } from "../src/db.js";
 import * as Blocks from "../src/handlers/blocks.js";
 import * as Pages from "../src/handlers/pages.js";
 import { globalSearch } from "../src/handlers/search.js";
@@ -23,7 +23,7 @@ async function withDb<T>(
 		.sort())
 		db.exec(fs.readFileSync(path.join(migrationsDir, f), "utf-8"));
 	db.close();
-	const layer = SqliteClient.layer({ filename });
+	const layer = makeSqliteLayer(filename);
 	try {
 		return await fn((e) =>
 			Effect.runPromise(Effect.provide(e, layer) as Effect.Effect<any>),

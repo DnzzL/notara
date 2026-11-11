@@ -8,7 +8,6 @@ import { afterAll, beforeAll, describe, expect, test } from "bun:test";
 import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
-import { SqliteClient } from "@effect/sql-sqlite-bun";
 import {
 	ApiError,
 	AuthError,
@@ -19,6 +18,7 @@ import {
 } from "@notara/shared";
 import { Cause, Effect, Exit, Option, Schema } from "effect";
 import type { SqlClient } from "effect/sql";
+import { makeSqliteLayer } from "../src/db.js";
 import * as Pages from "../src/handlers/pages.js";
 import { failureResponse } from "../src/http-error.js";
 import { dieUnlessApiError } from "../src/rpc-handlers.js";
@@ -73,7 +73,7 @@ async function failureOf<A, E>(
 	const { filename, tmpDir } = makeTestDb();
 	try {
 		return await Effect.flip(handler).pipe(
-			Effect.provide(SqliteClient.layer({ filename })),
+			Effect.provide(makeSqliteLayer(filename)),
 			Effect.runPromise,
 		);
 	} finally {

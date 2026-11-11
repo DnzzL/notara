@@ -165,7 +165,7 @@ describe("purgeExpiredDemos", () => {
 
 		expect(res.users).toEqual(["anon-3"]);
 		expect(userExists("anon-3")).toBe(false);
-		// FK pragma is OFF in this codebase, so children must be removed explicitly.
+		// Children are removed explicitly, leaf-to-root.
 		expect(db.prepare("SELECT COUNT(*) AS n FROM session").get()).toEqual({
 			n: 0,
 		});

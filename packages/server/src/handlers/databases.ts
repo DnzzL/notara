@@ -483,6 +483,8 @@ export const updateRecord = (req: {
 export const deleteField = (id: string) =>
 	Effect.gen(function* () {
 		const sql = yield* SqlClient.SqlClient;
+		yield* sql`UPDATE database_views SET group_by_field_id = NULL WHERE group_by_field_id = ${id}`;
+		yield* sql`UPDATE database_views SET sort_field_id = NULL WHERE sort_field_id = ${id}`;
 		yield* sql`DELETE FROM database_fields WHERE id = ${id}`;
 		return { deleted: true };
 	});
@@ -701,11 +703,10 @@ export const restoreRecord = (id: string) =>
 		return { restored: rows.length > 0 };
 	});
 
-// NOTE on cascade: SQLite foreign keys are NOT enforced on these connections
-// (no `PRAGMA foreign_keys = ON`), and several FKs use NO ACTION, so we cannot
-// rely on `ON DELETE CASCADE`. Purge handlers therefore delete children
-// explicitly, inside a transaction. Order is irrelevant with FKs off, but we go
-// leaf-to-root for clarity.
+// NOTE on cascade: foreign keys are enforced (ADR 013) and a few use NO ACTION
+// (view -> field, field -> relation target db, record -> backing page). Purge
+// handlers delete those children explicitly, leaf-to-root, and null the
+// references that point into what they delete.
 
 /** Permanently delete a record and its field values. */
 export const purgeRecord = (id: string) =>
@@ -730,8 +731,9 @@ export const purgeDatabase = (id: string) =>
 			yield* sql`SELECT page_id as "pageId" FROM database_records WHERE database_id = ${id} AND page_id IS NOT NULL`;
 		yield* sql`DELETE FROM record_field_values WHERE record_id IN (SELECT id FROM database_records WHERE database_id = ${id})`;
 		yield* sql`DELETE FROM database_records WHERE database_id = ${id}`;
-		yield* sql`DELETE FROM database_fields WHERE database_id = ${id}`;
 		yield* sql`DELETE FROM database_views WHERE database_id = ${id}`;
+		yield* sql`UPDATE database_fields SET relation_target_db_id = NULL WHERE relation_target_db_id = ${id}`;
+		yield* sql`DELETE FROM database_fields WHERE database_id = ${id}`;
 		yield* sql`DELETE FROM databases WHERE id = ${id}`;
 		const pageIds = backingRows.map((r) => (r as { pageId: string }).pageId);
 		yield* Effect.forEach(pageIds, (pid) => purgePage(pid), { discard: true });
@@ -753,8 +755,9 @@ export const purgePage = (
 		yield* sql`DELETE FROM record_field_values WHERE record_id IN (
       SELECT r.id FROM database_records r JOIN databases d ON d.id = r.database_id WHERE d.page_id = ${id})`;
 		yield* sql`DELETE FROM database_records WHERE database_id IN (SELECT id FROM databases WHERE page_id = ${id})`;
-		yield* sql`DELETE FROM database_fields WHERE database_id IN (SELECT id FROM databases WHERE page_id = ${id})`;
 		yield* sql`DELETE FROM database_views WHERE database_id IN (SELECT id FROM databases WHERE page_id = ${id})`;
+		yield* sql`UPDATE database_fields SET relation_target_db_id = NULL WHERE relation_target_db_id IN (SELECT id FROM databases WHERE page_id = ${id})`;
+		yield* sql`DELETE FROM database_fields WHERE database_id IN (SELECT id FROM databases WHERE page_id = ${id})`;
 		yield* sql`DELETE FROM databases WHERE page_id = ${id}`;
 		yield* sql`DELETE FROM blocks WHERE page_id = ${id}`;
 		// Child pages, before the parent row goes: they are found through it.

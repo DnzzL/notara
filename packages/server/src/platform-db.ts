@@ -27,6 +27,8 @@ export class PlatformDb extends Context.Service<PlatformDb, Database>()(
  * `_migrations` table. Idempotent: already-applied files are skipped.
  * On first use after upgrading from the old "catch already exists" approach,
  * existing migrations are recorded even if they throw "already exists".
+ * Then reports/cleans orphan rows and turns foreign_keys ON for `db` (callers
+ * that keep using this connection, like platform.db, get enforcement).
  */
 export const applyMigrations = (db: Database, dir: string): void => {
 	db.exec(`CREATE TABLE IF NOT EXISTS _migrations (
@@ -60,6 +62,60 @@ export const applyMigrations = (db: Database, dir: string): void => {
 			"INSERT OR IGNORE INTO _migrations (name, applied_at) VALUES (?, ?)",
 		).run(file, new Date().toISOString());
 	}
+	checkForeignKeys(db);
+	db.run("PRAGMA foreign_keys = ON");
+};
+
+type FkViolation = {
+	table: string;
+	rowid: number;
+	parent: string;
+	fkid: number;
+};
+
+/**
+ * Reports orphan rows (one count per foreign key), then removes them if safe.
+ * Safe = the FK is ON DELETE CASCADE (the parent is gone, so turning FKs on
+ * would have deleted the row) and no surviving row still points at it. Anything
+ * else (SET NULL / no-action FKs, or a survivor referencing an orphan) rolls
+ * everything back and throws: the operator decides, we never guess.
+ * Must run with foreign_keys OFF (the default for a new connection).
+ */
+export const checkForeignKeys = (db: Database): void => {
+	const check = () =>
+		db.query("PRAGMA foreign_key_check").all() as FkViolation[];
+	const fks = new Map<string, { from: string; on_delete: string }[]>();
+	const fkOf = (v: FkViolation) => {
+		if (!fks.has(v.table))
+			fks.set(
+				v.table,
+				db.query(`PRAGMA foreign_key_list("${v.table}")`).all() as any[],
+			);
+		return fks.get(v.table)![v.fkid]!;
+	};
+	const summary = (vs: FkViolation[]) => {
+		const counts: Record<string, number> = {};
+		for (const v of vs) {
+			const k = `${v.table}.${fkOf(v).from} -> ${v.parent}`;
+			counts[k] = (counts[k] ?? 0) + 1;
+		}
+		return JSON.stringify(counts);
+	};
+	const found = check();
+	if (found.length === 0) return;
+	console.log(`foreign key check: orphan rows ${summary(found)}`);
+	db.transaction(() => {
+		for (let vs = found; vs.length; vs = check()) {
+			const stuck = vs.filter((v) => fkOf(v).on_delete !== "CASCADE");
+			if (stuck.length)
+				throw new Error(
+					`Cannot turn foreign keys on: orphan rows that are not safe to delete ${summary(stuck)}. Fix them by hand, then restart.`,
+				);
+			for (const v of vs)
+				db.run(`DELETE FROM "${v.table}" WHERE rowid = ?`, [v.rowid]);
+		}
+	})();
+	console.log("foreign key check: orphan rows deleted");
 };
 
 /** Apply the platform-DB migrations to a given Database (used by tests). */

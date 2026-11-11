@@ -9,13 +9,13 @@ import {
 import * as fs from "node:fs";
 import * as os from "node:os";
 import * as path from "node:path";
-import { SqliteClient } from "@effect/sql-sqlite-bun";
 import { Effect } from "effect";
 import { SqlClient } from "effect/sql";
+import { makeSqliteLayer } from "../db.js";
 import * as Databases from "./databases.js";
 
 const testDbPath = path.join(os.tmpdir(), `test-databases-${Date.now()}.db`);
-const TestSqlite = SqliteClient.layer({ filename: testDbPath });
+const TestSqlite = makeSqliteLayer(testDbPath);
 
 const setupDB = Effect.gen(function* () {
 	const sql = yield* SqlClient.SqlClient;
@@ -23,7 +23,7 @@ const setupDB = Effect.gen(function* () {
     CREATE TABLE pages (
       id TEXT PRIMARY KEY,
       title TEXT NOT NULL DEFAULT '',
-      parent_id TEXT REFERENCES pages(id),
+      parent_id TEXT REFERENCES pages(id) ON DELETE SET NULL,
       icon TEXT,
       cover_url TEXT,
       sort_order INTEGER NOT NULL DEFAULT 0,

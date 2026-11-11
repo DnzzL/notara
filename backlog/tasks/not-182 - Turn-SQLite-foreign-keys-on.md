@@ -2,9 +2,10 @@
 id: NOT-182
 title: Turn SQLite foreign keys on
 status: ready-for-agent
-assignee: []
+assignee:
+  - '@claude'
 created_date: '2026-11-11T13:21:00Z'
-updated_date: '2026-11-11T21:58:00Z'
+updated_date: '2026-11-11T22:39:00Z'
 labels:
   - bug
 milestone: m-4
@@ -22,11 +23,17 @@ Why: CLAUDE.md §7 known debt: the FK pragma is OFF, so ON DELETE CASCADE never 
 
 ## Acceptance Criteria
 <!-- AC:BEGIN -->
-- [ ] #1 An ADR records the decision and the rejected alternative
-- [ ] #2 Hard-deletes still remove all children
-- [ ] #3 The full server test suite passes with the pragma on
-- [ ] #4 The migration reports orphan rows; the DB opener sets PRAGMA foreign_keys=ON on every connection (the pragma is per-connection and a no-op inside a transaction)
+- [x] #1 An ADR records the decision and the rejected alternative
+- [x] #2 Hard-deletes still remove all children
+- [x] #3 The full server test suite passes with the pragma on
+- [x] #4 The migration reports orphan rows; the DB opener sets PRAGMA foreign_keys=ON on every connection (the pragma is per-connection and a no-op inside a transaction)
 <!-- AC:END -->
+
+## Implementation Notes
+
+<!-- SECTION:NOTES:BEGIN -->
+FK pragma ON in applyMigrations + makeSqliteLayer; checkForeignKeys reports/cleans orphans; ADR-013; purge/deleteField null NO ACTION refs
+<!-- SECTION:NOTES:END -->
 
 ## Comments
 

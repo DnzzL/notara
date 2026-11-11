@@ -11,9 +11,9 @@ import { afterAll, beforeAll, describe, expect, test } from "bun:test";
 import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
-import { SqliteClient } from "@effect/sql-sqlite-bun";
 import type { AuthError } from "@notara/shared";
 import { Cause, Effect, Exit, Layer, Option } from "effect";
+import { makeSqliteLayer } from "../src/db.js";
 import * as Pages from "../src/handlers/pages.js";
 import * as Permissions from "../src/handlers/permissions.js";
 import { PlatformDb, runPlatformMigrations } from "../src/platform-db.js";
@@ -91,7 +91,7 @@ afterAll(() => {
 const layers = () =>
 	Layer.provideMerge(
 		Layer.succeed(PlatformDb, platformDb),
-		SqliteClient.layer({ filename: sqliteFilename }),
+		makeSqliteLayer(sqliteFilename),
 	);
 
 /**
@@ -159,10 +159,7 @@ describe("page policies", () => {
 		const page = await Pages.createPage({
 			title: "Open",
 			parentId: null,
-		}).pipe(
-			Effect.provide(SqliteClient.layer({ filename: sqliteFilename })),
-			Effect.runPromise,
-		);
+		}).pipe(Effect.provide(makeSqliteLayer(sqliteFilename)), Effect.runPromise);
 
 		expect(
 			await as(MEMBER, guarded(Policies.page(ownerWs, page.id, "editor"))),
@@ -179,10 +176,7 @@ describe("page policies", () => {
 		const page = await Pages.createPage({
 			title: "Locked",
 			parentId: null,
-		}).pipe(
-			Effect.provide(SqliteClient.layer({ filename: sqliteFilename })),
-			Effect.runPromise,
-		);
+		}).pipe(Effect.provide(makeSqliteLayer(sqliteFilename)), Effect.runPromise);
 
 		await Permissions.writePagePermissions({
 			pageId: page.id,
@@ -201,10 +195,7 @@ describe("page policies", () => {
 		const page = await Pages.createPage({
 			title: "Read Only",
 			parentId: null,
-		}).pipe(
-			Effect.provide(SqliteClient.layer({ filename: sqliteFilename })),
-			Effect.runPromise,
-		);
+		}).pipe(Effect.provide(makeSqliteLayer(sqliteFilename)), Effect.runPromise);
 
 		await Permissions.writePagePermissions({
 			pageId: page.id,

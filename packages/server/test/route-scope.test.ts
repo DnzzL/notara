@@ -8,9 +8,9 @@ import { describe, expect, test } from "bun:test";
 import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
-import { SqliteClient } from "@effect/sql-sqlite-bun";
 import { Effect } from "effect";
 import type { SqlClient } from "effect/sql";
+import { makeSqliteLayer } from "../src/db.js";
 import * as Databases from "../src/handlers/databases.js";
 import * as Pages from "../src/handlers/pages.js";
 
@@ -30,7 +30,7 @@ const withDb = async <A>(
 	db.close();
 	try {
 		return await Effect.runPromise(
-			eff.pipe(Effect.provide(SqliteClient.layer({ filename }))),
+			eff.pipe(Effect.provide(makeSqliteLayer(filename))),
 		);
 	} finally {
 		fs.rmSync(tmpDir, { recursive: true, force: true });
