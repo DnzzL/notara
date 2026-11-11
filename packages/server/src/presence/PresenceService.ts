@@ -26,6 +26,11 @@ export type PresenceEvent =
 	| { type: "block.deleted"; actorUserId: string; blockId: string }
 	| { type: "block.reordered"; actorUserId: string; blockIds: string[] }
 	| {
+			type: "block.reparented";
+			actorUserId: string;
+			parents: { id: string; parentId: string | null }[];
+	  }
+	| {
 			type: "page.metaUpdated";
 			actorUserId: string;
 			fields: Record<string, unknown>;

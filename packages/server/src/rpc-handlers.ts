@@ -299,6 +299,35 @@ export const rpcHandlersLayer = AppRpc.toLayer(
 					return result;
 				}),
 			).pipe(dieUnlessApiError),
+		reparentBlock: ({ id, direction }) =>
+			withAuthedWorkspace(({ userId, workspaceId }) =>
+				Effect.gen(function* () {
+					yield* Permissions.checkBlockPermission(
+						userId,
+						workspaceId,
+						id,
+						"editor",
+					);
+					const pageId = yield* Blocks.getBlockPageId(id);
+					if (pageId) {
+						const holder = presence.lockHolder(workspaceId, pageId, id);
+						if (holder && holder !== userId) {
+							return yield* Effect.fail(
+								new BlockLockedError({ holderUserId: holder }),
+							);
+						}
+					}
+					const result = yield* Blocks.reparentBlock(id, direction);
+					if (pageId) {
+						presence.broadcast(workspaceId, pageId, {
+							type: "block.reparented",
+							actorUserId: userId,
+							parents: result.map((b) => ({ id: b.id, parentId: b.parentId })),
+						});
+					}
+					return result;
+				}),
+			).pipe(dieUnlessApiError),
 		getBacklinks: ({ pageId }) =>
 			withAuthedWorkspace(({ userId, workspaceId, role }) =>
 				Effect.gen(function* () {

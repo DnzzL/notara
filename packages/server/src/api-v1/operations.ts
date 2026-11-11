@@ -601,6 +601,38 @@ export const blockOperations = [
 				sqlDefect,
 			),
 	}),
+	typedOperation({
+		method: "POST",
+		path: "/api/v1/workspaces/:workspaceId/blocks/:blockId/reparent",
+		operationId: "reparentBlock",
+		tag: "Blocks",
+		summary: "Nest a block under its previous sibling, or lift it out",
+		description:
+			"`in` makes the block a child of its previous sibling (no-op if it has none). " +
+			"`out` moves it to its parent's level; its later siblings become its children " +
+			"(no-op at the top level). Returns the page's blocks.",
+		scope: "write",
+		input: Schema.Struct({
+			blockId: BlockId,
+			direction: Schema.Literals(["in", "out"]).annotate({
+				description: "`in` to nest (Tab), `out` to un-nest (Shift-Tab)",
+			}),
+		}),
+		output: Schema.Array(BlockJson),
+		run: (ctx, { blockId, direction }) =>
+			Effect.gen(function* () {
+				yield* blockPermission(ctx, blockId);
+				const pageId = yield* unlockedBlockPage(ctx, blockId);
+				const blocks = yield* Blocks.reparentBlock(blockId, direction);
+				if (pageId)
+					presence.broadcast(ctx.workspaceId, pageId, {
+						type: "block.reparented",
+						actorUserId: ctx.userId,
+						parents: blocks.map((b) => ({ id: b.id, parentId: b.parentId })),
+					});
+				return blocks;
+			}).pipe(sqlDefect),
+	}),
 ];
 
 // ── Databases, fields, records ─────────────────────────────────────────────────

@@ -600,6 +600,40 @@ const blocksReorder = Command.make(
 	Command.withDescription("Reorder a page's blocks"),
 );
 
+const blocksReparent = Command.make(
+	"reparent",
+	{
+		...globals,
+		blockId,
+		direction: Argument.Literals("direction", ["in", "out"]).pipe(
+			Argument.withDescription(
+				"in: nest under previous sibling; out: lift out",
+			),
+		),
+	},
+	(o) =>
+		Effect.gen(function* () {
+			const cfg = toCfg(o);
+			const base = yield* wsPath(cfg);
+			const data = yield* request(
+				cfg,
+				"POST",
+				`${base}/blocks/${o.blockId}/reparent`,
+				{ body: { direction: o.direction } },
+			);
+			yield* print(
+				o.json,
+				data,
+				() => `Moved block ${o.blockId} ${o.direction}`,
+			);
+		}),
+).pipe(
+	Command.annotate(OperationId, "reparentBlock"),
+	Command.withDescription(
+		"Nest a block under its previous sibling, or lift it out",
+	),
+);
+
 const blocksCmd = Command.make("blocks").pipe(
 	Command.withDescription("Manage the blocks within a page"),
 	Command.withSubcommands([
@@ -608,6 +642,7 @@ const blocksCmd = Command.make("blocks").pipe(
 		blocksUpdate,
 		blocksDelete,
 		blocksReorder,
+		blocksReparent,
 	]),
 );
 

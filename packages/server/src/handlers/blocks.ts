@@ -161,6 +161,58 @@ export const reorderBlocks = (pageId: string, blockIds: string[]) =>
 	});
 
 /**
+ * Nest a block under its previous sibling ("in") or lift it out to its
+ * parent's level ("out"). Returns the page's blocks.
+ *
+ * A page's blocks are a flat list in depth-first order; `parent_id` says who
+ * owns whom. Both moves keep that order valid, so no `index` is touched:
+ * - in: the block already follows its previous sibling's subtree.
+ * - out: the block's later siblings become its children (they follow it), as
+ *   in Notion — otherwise they would jump above it.
+ * A block with nothing to nest under, or already at the top, is left alone.
+ */
+export const reparentBlock = (id: string, direction: "in" | "out") =>
+	Effect.gen(function* () {
+		const sql = yield* SqlClient.SqlClient;
+		return yield* sql.withTransaction(
+			Effect.gen(function* () {
+				const found = yield* sql<{
+					page_id: string;
+					parent_id: string | null;
+					index: number;
+				}>`SELECT page_id, parent_id, "index" FROM blocks WHERE id = ${id}`;
+				const block = found[0];
+				if (!block) return yield* new NotFoundError({ resource: "block", id });
+				if (direction === "in") {
+					const prev = yield* sql<{ id: string }>`
+            SELECT id FROM blocks
+            WHERE page_id = ${block.page_id} AND parent_id IS ${block.parent_id}
+              AND "index" < ${block.index}
+            ORDER BY "index" DESC LIMIT 1
+          `;
+					if (prev[0])
+						yield* sql`UPDATE blocks SET parent_id = ${prev[0].id} WHERE id = ${id}`;
+				} else if (block.parent_id) {
+					const parent = yield* sql<{ parent_id: string | null }>`
+            SELECT parent_id FROM blocks WHERE id = ${block.parent_id}
+          `;
+					yield* sql`
+            UPDATE blocks SET parent_id = ${id}
+            WHERE page_id = ${block.page_id} AND parent_id = ${block.parent_id}
+              AND "index" > ${block.index}
+          `;
+					yield* sql`UPDATE blocks SET parent_id = ${parent[0]?.parent_id ?? null} WHERE id = ${id}`;
+				}
+				const rows = yield* sql.unsafe(
+					`SELECT ${BLOCK_COLS} FROM blocks WHERE page_id = ? ORDER BY "index" ASC`,
+					[block.page_id],
+				);
+				return rows.map(blockFromRow);
+			}),
+		);
+	});
+
+/**
  * Get all blocks that reference a specific page (backlinks).
  */
 export const getBacklinks = (pageId: string) =>
