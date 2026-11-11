@@ -50,18 +50,28 @@ jobs:
   #
   # Separate job so a browser download does not sit in front of the type-check
   # and unit tests, which are what most pushes are waiting on.
+  #
+  # Runs in the official Playwright image: browsers and system deps are baked
+  # in, so nothing is fetched from Ubuntu mirrors at run time (a DNS outage
+  # there once blocked every PR). The tag must match @playwright/test in
+  # bun.lock; the "image tag" step fails the job if they drift.
   e2e:
     runs-on: ubuntu-24.04
+    container: mcr.microsoft.com/playwright:v1.60.0-noble
     steps:
       - uses: actions/checkout@v6
-      - uses: oven-sh/setup-bun@v2
+      # setup-bun needs `unzip`, which the image lacks (and apt is what we avoid):
+      # take bun from npm, Node being in the image.
+      - run: npm install -g bun
 
       - run: bun install --frozen-lockfile --ignore-scripts
       - run: bun run apply-patches
       - run: bun run --filter @notara/shared build
 
-      - name: install browsers
-        run: bunx playwright install --with-deps chromium
+      - name: image tag matches @playwright/test
+        run: |
+          v=$(sed -n 's/.*"@playwright\/test@\([^"]*\)".*/\1/p' bun.lock | head -1)
+          grep -q "playwright:v$v-noble" .github/workflows/ci.yml
 
       - name: e2e
         run: bunx playwright test
