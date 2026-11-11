@@ -192,9 +192,11 @@ one zip of exactly that. These steps are exercised end to end by
 | Local filesystem | `BACKUP_DIR=/backups` | Mount `/backups` from **outside** the `/data` volume, e.g. `-v /srv/notara-backups:/backups`. Wins over S3 if both are set. |
 | S3-compatible | `S3_BUCKET`, `S3_ACCESS_KEY`, `S3_SECRET_KEY`, optional `S3_REGION`, `S3_ENDPOINT`, `S3_PREFIX` | Or in the workspace menu → **Settings → Backups** (S3 only). |
 
-With Docker Compose, `docker-compose.yml` only forwards the variables it lists; it already sets
-`BACKUP_DIR=/backups` with its own volume, and a local target wins over S3. To back up to S3
+With Docker Compose, the file only forwards the variables it lists. `compose.https.yml` already sets
+`BACKUP_DIR=/backups` with its own volume, and a local target wins over S3; to back up to S3
 instead, set `BACKUP_DIR=` (empty) and the `S3_*` variables in `.env`; for `S3_PREFIX`, add it to `environment:`.
+The default `docker-compose.yml` has no backup target: add `BACKUP_DIR` (and `S3_PREFIX`) to
+`environment:` and the `/backups` volume yourself.
 
 **Back up.** `POST /api/backup/trigger` as an admin (the Settings → Backups → **Backup
 Now** button does the same, S3 only). Scheduled backups and retention (`S3_KEEP_LAST`) use
@@ -213,8 +215,9 @@ curl -X POST -H "Cookie: $SESSION" http://localhost:3000/api/backup/trigger
 # Prebuilt image
 docker pull ghcr.io/dnzzl/notara:latest        # or pin a tag, e.g. :0.1.4
 docker rm -f notara && docker run -d --restart unless-stopped --name notara …   # same flags as before
-# Compose (builds from source)
-git pull && docker compose up -d --build
+# Compose (builds from source; HTTPS install)
+git pull && docker compose -f compose.https.yml up -d --build
+# Compose (default file, e.g. Dokploy): redeploy from your platform
 # Quadlet (local build)
 git pull && podman build -t notara . && systemctl --user restart notara
 ```
