@@ -222,6 +222,10 @@ git pull && docker compose -f compose.https.yml up -d --build
 git pull && podman build -t notara . && systemctl --user restart notara
 ```
 
+**Releasing (maintainers).** After tagging a new minor (`v0.N.0`), add its fixture: `mkdir -p packages/server/test/fixtures/<tag> && git archive <tag>
+packages/server/migrations | tar -x -C packages/server/test/fixtures/<tag> --strip-components=2`.
+`upgrade-restore.test.ts` upgrades every `fixtures/v*` directory; released migrations must never change.
+
 **Roll back.** Migrations only move forward, so an older image may not open a migrated
 database. Go back to the backup taken before the upgrade:
 
