@@ -10,7 +10,7 @@ The wizard has completed a PostHog analytics integration for Notara. PostHog was
 | `onboarding_tour_completed` | User reached the final step of the onboarding tour. | `src/components/OnboardingTour.tsx` |
 | `onboarding_tour_skipped` | User dismissed or skipped the tour before the final step. | `src/components/OnboardingTour.tsx` |
 | `import_started` | User clicked Import with a Notion export ZIP selected. | `src/components/ImportModal.tsx` |
-| `import_succeeded` | Notion import completed. Properties: `pages_imported`, `databases_imported`. | `src/components/ImportModal.tsx` |
+| `import_succeeded` | Notion import completed. Properties: `pages_created`, `pages_updated`, `databases_created`, `databases_updated`. | `src/components/ImportModal.tsx` |
 | `page_shared` | User granted a workspace member individual access to a page. Properties: `relation` (viewer/editor/owner). | `src/components/SharePageModal.tsx` |
 
 Pre-existing events retained: `checkout_clicked` (LandingPage.tsx) — already instrumented before this run.

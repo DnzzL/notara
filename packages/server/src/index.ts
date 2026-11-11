@@ -589,8 +589,10 @@ const staticFilesRoute = Effect.gen(function* () {
 
 				return HttpServerResponse.text(
 					JSON.stringify({
-						pagesImported: result.pagesImported,
-						databasesImported: result.databasesImported,
+						pagesCreated: result.pagesCreated,
+						pagesUpdated: result.pagesUpdated,
+						databasesCreated: result.databasesCreated,
+						databasesUpdated: result.databasesUpdated,
 					}),
 					{ headers: { "Content-Type": "application/json", ...corsHeaders } },
 				);

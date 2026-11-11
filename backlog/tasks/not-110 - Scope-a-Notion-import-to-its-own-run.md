@@ -5,7 +5,7 @@ status: done
 assignee:
   - '@thomas'
 created_date: 2026-08-26 11:11
-updated_date: '2026-11-11T13:21:00Z'
+updated_date: '2026-11-11T13:35:00Z'
 labels:
   - bug
 milestone: m-3
@@ -31,7 +31,7 @@ Build on the run scope introduced by the ledger: both passes must operate only o
 <!-- AC:BEGIN -->
 - [x] #1 Placeholder resolution only touches content created or updated by the current import run
 - [x] #2 The empty-page prune only considers pages created by the current import run
-- [ ] #3 A failure part-way through an import leaves no half-written import behind
+- [x] #3 A failure part-way through an import leaves no half-written import behind
 - [x] #4 A test runs two imports over different fixture trees and asserts the second leaves the first's pages, databases and hand-written pages untouched
 <!-- AC:END -->
 
@@ -49,6 +49,8 @@ AC 3 (a failure leaves no half-written import) is implemented but NOT proven, so
 Not covered by the rollback, and written into the docstring: attachment files copied to disk. A failed run leaves orphans there. They are unreferenced and harmless; making file copies transactional is a different problem.
 
 The E2E was verified red against the unscoped importer: 'My Empty Draft' was deleted by the second import.
+
+AC3 proven: packages/server/test/import-honest.test.ts forces a failure with a SQLite trigger on database_records after the page pass; fails (red) without sql.withTransaction.
 <!-- SECTION:NOTES:END -->
 
 ## Final Summary

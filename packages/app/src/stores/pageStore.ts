@@ -50,9 +50,12 @@ export interface PageState {
 	loadBacklinks: (pageId: string) => Promise<void>;
 	loadRecentPages: () => Promise<void>;
 
-	importNotion: (
-		directory: string,
-	) => Promise<{ pagesImported: number; databasesImported: number }>;
+	importNotion: (directory: string) => Promise<{
+		pagesCreated: number;
+		pagesUpdated: number;
+		databasesCreated: number;
+		databasesUpdated: number;
+	}>;
 }
 
 export const usePageStore = create<PageState>((set, get) => ({

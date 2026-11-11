@@ -155,10 +155,13 @@ export class DatabaseCsvExport extends Schema.Class<DatabaseCsvExport>(
 	csv: Schema.String,
 }) {}
 
-/** Result of importing from a directory. */
+/** Result of importing from a directory: rows written, new vs re-imported.
+ * Pages include database wrapper and row pages. */
 export class ImportResult extends Schema.Class<ImportResult>("ImportResult")({
-	pagesImported: Schema.Number,
-	databasesImported: Schema.Number,
+	pagesCreated: Schema.Number,
+	pagesUpdated: Schema.Number,
+	databasesCreated: Schema.Number,
+	databasesUpdated: Schema.Number,
 }) {}
 
 /** Result of exporting all pages to a directory. */

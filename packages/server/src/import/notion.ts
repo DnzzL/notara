@@ -549,7 +549,12 @@ function importRun(exportDir: string) {
 
 		if (sourceFiles.length === 0 && csvFiles.length === 0) {
 			// Nothing to import — return zero counts rather than creating an empty wrapper page.
-			return { pagesImported: 0, databasesImported: 0 };
+			return {
+				pagesCreated: 0,
+				pagesUpdated: 0,
+				databasesCreated: 0,
+				databasesUpdated: 0,
+			};
 		}
 
 		const fileContentMap = new Map<string, string>();
@@ -831,7 +836,6 @@ function importRun(exportDir: string) {
 		// some page (→ database lives on that parent) or is isolated (→ a
 		// new dedicated page is created to hold the database).
 		const csvGuidToDbId = new Map<string, string>();
-		let importedDbCount = 0;
 		// Process shallow CSVs first: a nested inline DB (CSV inside another
 		// record's content folder) needs its host's backing page already in
 		// folderMap so the layout-based inline check resolves correctly.
@@ -869,7 +873,6 @@ function importRun(exportDir: string) {
 				ledger,
 			);
 			if (result) {
-				importedDbCount += 1;
 				if (guid) csvGuidToDbId.set(guid, result.dbId);
 			}
 		}
@@ -1051,9 +1054,15 @@ function importRun(exportDir: string) {
 			}
 		}
 
+		// Counts come from what was written, not from files on disk: pruned
+		// stubs and skipped rows are not in the ledger scope.
+		const pages = yield* ledger.tally("page");
+		const databases = yield* ledger.tally("database");
 		return {
-			pagesImported: sourceFiles.length - recordPageRelPaths.size,
-			databasesImported: importedDbCount,
+			pagesCreated: pages.created,
+			pagesUpdated: pages.updated,
+			databasesCreated: databases.created,
+			databasesUpdated: databases.updated,
 			pageMap,
 		};
 	});
