@@ -1,6 +1,8 @@
 import { Effect } from "effect";
 import * as HttpRouter from "effect/http/HttpRouter";
 import * as HttpServerResponse from "effect/http/HttpServerResponse";
+import { BASE_URL } from "../email.js";
+import { llmsTxt } from "./llms.js";
 import { spec as openApiSpec, swaggerHtml } from "./openapi.js";
 import { registerTypedOperations, typedOperations } from "./operations.js";
 
@@ -17,6 +19,16 @@ export const registerV1Routes = Effect.gen(function* () {
 		Effect.succeed(
 			HttpServerResponse.text(JSON.stringify(openApiSpec, null, 2), {
 				headers: { "Content-Type": "application/json" },
+			}),
+		),
+	);
+
+	yield* router.add(
+		"GET",
+		"/llms.txt",
+		Effect.succeed(
+			HttpServerResponse.text(llmsTxt(typedOperations, BASE_URL), {
+				headers: { "Content-Type": "text/plain; charset=utf-8" },
 			}),
 		),
 	);

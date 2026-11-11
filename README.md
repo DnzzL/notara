@@ -256,7 +256,8 @@ curl https://notes.example.com/api/v1/workspaces/<workspaceId>/pages \
 **The MCP server.** Agents connect over Streamable HTTP at `/mcp` with the same
 `Authorization: Bearer ntr_…` key. Each typed API operation is one tool, checked against the
 same permissions as REST; a read-only key sees the read tools only. Supports MCP protocol
-versions `2025-06-18`, `2025-11-25` (sessions) and the stateless `2026-07-28` flow.
+versions `2025-06-18`, `2025-11-25` (sessions) and the stateless `2026-07-28` flow. Setup for
+Claude Code and Cursor: the `/agents` page; machine-readable index: `/llms.txt`.
 
 ```bash
 claude mcp add --transport http notara https://notes.example.com/mcp \

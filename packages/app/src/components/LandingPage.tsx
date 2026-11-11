@@ -305,7 +305,8 @@ export function LandingPage({ demoMode }: { demoMode: boolean }) {
 								The <code>notara</code> CLI, the REST API (OpenAPI) and an MCP
 								server at <code>/mcp</code> run the same operations, one MCP
 								tool each. A read or write API key decides what a client may do:
-								a read key only sees the read tools.
+								a read key only sees the read tools.{" "}
+								<a href="/agents">Set up your agent</a>.
 							</p>
 						</div>
 					</div>
