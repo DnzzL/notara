@@ -36,6 +36,10 @@ notara pages move <pageId> [--parent <pageId>]      # no --parent = top level
 notara pages reorder [--parent <pageId>] <pageId>...  # siblings, in the new order
 notara pages backlinks <pageId>
 notara pages export <pageId> [--include-databases]   # Markdown
+notara pages share-status <pageId>              # public share token, if any
+notara pages share <pageId> [--off]             # publish / revoke the public link
+notara pages permissions <pageId>               # access list + revision
+notara pages set-permissions <pageId> --body '{"set":[...],"remove":[...],"ifRevision":"..."}'
 
 notara blocks list <pageId>
 notara blocks create <pageId> --type paragraph --content "<p>Hello</p>" [--index 0]
@@ -69,6 +73,11 @@ notara databases export <dbId>                  # CSV
 notara databases reorder --page <pageId> <dbId>...   # databases hosted on a page
 notara databases reorder-fields <dbId> <fieldId>...
 notara databases reorder-records <dbId> <recordId>...
+
+notara members list
+notara members remove <userId>                  # owner only
+notara members invite <email>                   # owner only; mails the link
+notara members invite-link                      # owner only; new link token
 
 notara templates list                           # works without a workspace selected
 notara templates use <templateId> [--parent <pageId>]

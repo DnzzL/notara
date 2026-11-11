@@ -31,16 +31,10 @@ const RENAMED: Record<string, string> = {
 /** The one allowlist: RPCs with no operation, and why. */
 const NOT_AN_OPERATION: Record<string, string> = {
 	// Real user-facing gaps today.
-	createWorkspace: "TODO: missing operation",
-	getWorkspaceMembers: "TODO: missing operation",
-	removeMember: "TODO: missing operation",
-	inviteMemberByEmail: "TODO: missing operation",
-	regenerateInviteLink: "TODO: missing operation",
-	joinWorkspaceByToken: "TODO: missing operation",
-	getPageShare: "TODO: missing operation",
-	setPageSharing: "TODO: missing operation",
-	getPagePermissions: "TODO: missing operation",
-	writePagePermissions: "TODO: missing operation",
+	createWorkspace:
+		"Account-level: an API key belongs to one workspace and must not create others, same logic as an API key must not mint keys.",
+	joinWorkspaceByToken:
+		"Account-level: an API key belongs to one workspace and must not join others.",
 	importNotion:
 		"Takes a directory path on the server's disk; the UI uploads a zip through POST /api/import-notion instead. An operation would need an upload layer the table lacks.",
 	exportAll:

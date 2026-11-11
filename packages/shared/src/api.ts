@@ -17,7 +17,7 @@ const ShortName = Schema.String.pipe(
 const Slug = Schema.String.pipe(
 	Schema.check(Schema.isPattern(/^[a-z0-9](?:[a-z0-9-]{0,58}[a-z0-9])?$/)),
 );
-const Email = Schema.String.pipe(
+export const Email = Schema.String.pipe(
 	Schema.check(Schema.isPattern(/^[^\s@]+@[^\s@]+\.[^\s@]+$/)),
 	Schema.check(Schema.isMaxLength(254)),
 );

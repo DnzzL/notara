@@ -120,6 +120,22 @@ const ROUTES: Route[] = [
 	{ method: "get", path: "/pages/:pageId/export" },
 	{ method: "get", path: "/databases/:dbId/export" },
 	{ method: "post", path: "/templates/:templateId/pages", body: {} },
+	{ method: "get", path: "/members" },
+	{ method: "delete", path: "/members/:userId" },
+	{
+		method: "post",
+		path: "/invites/email",
+		body: { email: "intruder@example.com" },
+	},
+	{ method: "post", path: "/invites/link" },
+	{ method: "get", path: "/pages/:pageId/share" },
+	{ method: "put", path: "/pages/:pageId/share", body: { enabled: true } },
+	{ method: "get", path: "/pages/:pageId/permissions" },
+	{
+		method: "put",
+		path: "/pages/:pageId/permissions",
+		body: { set: [], remove: [] },
+	},
 	{ method: "get", path: "/search?q=secret" },
 	{ method: "get", path: "/trash" },
 ];
@@ -143,6 +159,7 @@ const fill = (path: string, f: Fixture) =>
 		.replace(":fieldId", f.fieldId)
 		.replace(":recordId", f.recordId)
 		.replace(":viewId", f.viewId)
+		.replace(":userId", "someone")
 		.replace(":templateId", "meeting-notes")}`;
 
 const fillBody = (body: Record<string, unknown> | undefined, f: Fixture) =>
