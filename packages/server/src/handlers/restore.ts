@@ -37,7 +37,9 @@ function rmDbFiles(dbPath: string): void {
  *
  * The requirement is in the signature: `scheduleExit` is required, so a caller
  * cannot compile without deciding how the process exits. It is invoked once,
- * after the restore succeeded (never on failure).
+ * after the restore succeeded. The type forces the choice, not the exit itself.
+ * Known gap: a failure after platformDb.close() (partial overwrite) throws
+ * without calling it, leaving the server on closed handles.
  */
 export async function restoreBackup(
 	key: string,
