@@ -49,6 +49,7 @@ const ROUTES: Route[] = [
 	{ method: "patch", path: "/databases/:dbId", body: { name: "X" } },
 	{ method: "delete", path: "/databases/:dbId" },
 	{ method: "post", path: "/databases/:dbId/restore" },
+	{ method: "get", path: "/databases/:dbId" },
 	{ method: "get", path: "/databases/:dbId/fields" },
 	{
 		method: "post",
@@ -68,6 +69,20 @@ const ROUTES: Route[] = [
 		path: "/databases/:dbId/records/:recordId",
 		body: { title: "R" },
 	},
+	{ method: "get", path: "/databases/:dbId/records/:recordId" },
+	{ method: "post", path: "/databases/:dbId/records/:recordId/page" },
+	{ method: "get", path: "/databases/:dbId/views" },
+	{
+		method: "post",
+		path: "/databases/:dbId/views",
+		body: { name: "V", type: "table" },
+	},
+	{
+		method: "patch",
+		path: "/databases/:dbId/views/:viewId",
+		body: { name: "V" },
+	},
+	{ method: "delete", path: "/databases/:dbId/views/:viewId" },
 	{ method: "delete", path: "/databases/:dbId/records/:recordId" },
 	{ method: "post", path: "/databases/:dbId/records/:recordId/restore" },
 	{
@@ -87,6 +102,7 @@ type Fixture = {
 	dbId: string;
 	fieldId: string;
 	recordId: string;
+	viewId: string;
 };
 
 const fill = (path: string, f: Fixture) =>
@@ -95,7 +111,8 @@ const fill = (path: string, f: Fixture) =>
 		.replace(":blockId", f.blockId)
 		.replace(":dbId", f.dbId)
 		.replace(":fieldId", f.fieldId)
-		.replace(":recordId", f.recordId)}`;
+		.replace(":recordId", f.recordId)
+		.replace(":viewId", f.viewId)}`;
 
 const fillBody = (body: Record<string, unknown> | undefined, f: Fixture) =>
 	body
@@ -138,6 +155,12 @@ test("no REST route serves a caller who is not a workspace member", async ({
 		soloWs.workspaceId,
 	);
 
+	const view = await alice.rpc<{ id: string }>(
+		"createView",
+		{ databaseId: db.id, name: "V", type: "table", groupByFieldId: null },
+		soloWs.workspaceId,
+	);
+
 	const fixture: Fixture = {
 		workspaceId: soloWs.workspaceId,
 		pageId,
@@ -145,6 +168,7 @@ test("no REST route serves a caller who is not a workspace member", async ({
 		dbId: db.id,
 		fieldId: field.id,
 		recordId: record.id,
+		viewId: view.id,
 	};
 
 	// Only a refusal counts as a refusal. Accepting "anything >= 400" would let a
