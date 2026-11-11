@@ -1,10 +1,11 @@
 ---
 id: NOT-127
 title: Does the todo markdown shortcut actually work?
-status: ready-for-agent
-assignee: []
+status: done
+assignee:
+  - '@claude'
 created_date: 2026-08-27 15:30
-updated_date: '2026-11-11T21:58:00Z'
+updated_date: '2026-11-11T22:26:00Z'
 labels:
   - bug
 milestone: m-2
@@ -29,15 +30,19 @@ Consequence either way: the todo half of the NOT-96 fix has no automated coverag
 
 ## Acceptance Criteria
 <!-- AC:BEGIN -->
-- [ ] #1 If it is a product defect, typing the shortcut creates a todo
-- [ ] #2 If it is a harness artifact, the todo split has an e2e that genuinely exercises the todo branch
-- [ ] #3 Established by manual check in a real browser (not Playwright typing) whether the shortcut works for a real user
+- [x] #1 If it is a product defect, typing the shortcut creates a todo
+- [x] #2 If it is a harness artifact, the todo split has an e2e that genuinely exercises the todo branch
+- [x] #3 Established by manual check in a real browser (not Playwright typing) whether the shortcut works for a real user
 <!-- AC:END -->
 
 ## Implementation Notes
 
 <!-- SECTION:NOTES:BEGIN -->
 Triage: AC #1 needs a manual check by a human typing in a real browser; Playwright typing cannot settle it. Agent work (AC #2/#3) follows the answer.
+
+Reproduced in Chromium (typed + reload): the shortcut DID create a todo, but the input rule inserted the task list at the typed range, leaving the emptied paragraph above it (block = <p></p><ul taskList>). So not a harness artifact, a product defect: users got a blank line above every todo.
+
+Fix: editorSchema.ts input rule now deleteRange + toggleTaskList (converts in place). e2e in editor-enter.spec.ts types both '[] ' and '[ ] ', reloads, asserts one li[data-checked] and no root-level <p>. Red before fix, green after.
 <!-- SECTION:NOTES:END -->
 
 ## Comments

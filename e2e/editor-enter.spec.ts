@@ -125,11 +125,32 @@ test.describe("Enter in a list or todo", () => {
 		await expect(blocks.nth(0).locator("li")).toHaveCount(1);
 	});
 
-	// The todo branch of the same fix is NOT covered here. Typing "[] " or "[ ] "
-	// — both forms the input rule accepts — does not produce a task list under
-	// Playwright, so the test that looked like it covered it was in fact
-	// exercising the paragraph branch and asserting nothing about todos. Whether
-	// the shortcut works for a real user is an open question: NOT-127.
+	// NOT-127: the todo shortcut. It did create a task list, but left the empty
+	// paragraph it was typed in sitting above it, so the block was a paragraph
+	// followed by a todo. Both forms the input rule accepts are covered, and the
+	// assertions run after a reload so they hold for what was saved.
+	for (const shortcut of ["[] ", "[ ] "]) {
+		test(`typing "${shortcut}" turns an empty paragraph into a todo`, async ({
+			page,
+		}) => {
+			const editor = await createPage(page, "Todo Shortcut");
+
+			await editor.click();
+			await editor.pressSequentially(shortcut);
+			await expect(page.locator("li[data-checked]")).toHaveCount(1);
+
+			// Let the debounced save land before reloading.
+			await page.waitForTimeout(1500);
+			await page.reload();
+
+			const root = page.locator(".ProseMirror").first();
+			await expect(root.locator("li[data-checked]")).toHaveCount(1, {
+				timeout: 10000,
+			});
+			// The todo replaces the paragraph; it must not sit below an empty one.
+			await expect(root.locator("> p")).toHaveCount(0);
+		});
+	}
 
 	test("Enter at the end of a list item still makes an empty sibling", async ({
 		page,

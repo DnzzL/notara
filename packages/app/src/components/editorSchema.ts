@@ -79,10 +79,10 @@ export function sharedExtensions(blockType: string) {
 				return [
 					new InputRule({
 						find: /^(?:\[\]|\[ \])\s$/,
-						handler({ range, commands }) {
-							const taskHtml =
-								'<ul data-type="taskList"><li data-type="taskItem" data-checked="false"><p></p></li></ul>';
-							commands.insertContentAt(range, taskHtml);
+						handler({ range, chain }) {
+							// Convert the paragraph in place. Inserting a task list at
+							// `range` left the emptied paragraph sitting above it.
+							chain().deleteRange(range).toggleTaskList().run();
 						},
 					}),
 				];
