@@ -111,7 +111,7 @@ describe("Permissions", () => {
 		const page = await Pages.createPage({
 			title: "Owner Page",
 			parentId: null,
-		}).pipe(Effect.provide(makeSqliteLayer(sqliteFilename)), Effect.runPromise);
+		}, { userId: "test-user" }).pipe(Effect.provide(makeSqliteLayer(sqliteFilename)), Effect.runPromise);
 
 		const rel = await Permissions.resolveEffectiveRelation(
 			owner.userId,
@@ -129,7 +129,7 @@ describe("Permissions", () => {
 		const page = await Pages.createPage({
 			title: "Owner Access",
 			parentId: null,
-		}).pipe(Effect.provide(makeSqliteLayer(sqliteFilename)), Effect.runPromise);
+		}, { userId: "test-user" }).pipe(Effect.provide(makeSqliteLayer(sqliteFilename)), Effect.runPromise);
 
 		const result = await Permissions.checkPagePermission(
 			owner.userId,
@@ -150,7 +150,7 @@ describe("Permissions", () => {
 		const page = await Pages.createPage({
 			title: "Member Page",
 			parentId: null,
-		}).pipe(Effect.provide(makeSqliteLayer(sqliteFilename)), Effect.runPromise);
+		}, { userId: "test-user" }).pipe(Effect.provide(makeSqliteLayer(sqliteFilename)), Effect.runPromise);
 
 		const rel = await Permissions.resolveEffectiveRelation(
 			member.userId,
@@ -168,7 +168,7 @@ describe("Permissions", () => {
 		const page = await Pages.createPage({
 			title: "Member Editor",
 			parentId: null,
-		}).pipe(Effect.provide(makeSqliteLayer(sqliteFilename)), Effect.runPromise);
+		}, { userId: "test-user" }).pipe(Effect.provide(makeSqliteLayer(sqliteFilename)), Effect.runPromise);
 
 		const result = await Permissions.checkPagePermission(
 			member.userId,
@@ -187,7 +187,7 @@ describe("Permissions", () => {
 		const page = await Pages.createPage({
 			title: "Stranger Page",
 			parentId: null,
-		}).pipe(Effect.provide(makeSqliteLayer(sqliteFilename)), Effect.runPromise);
+		}, { userId: "test-user" }).pipe(Effect.provide(makeSqliteLayer(sqliteFilename)), Effect.runPromise);
 
 		const rel = await Permissions.resolveEffectiveRelation(
 			"non-member",
@@ -211,7 +211,7 @@ describe("Permissions", () => {
 		const page = await Pages.createPage({
 			title: "Viewer Page",
 			parentId: null,
-		}).pipe(Effect.provide(makeSqliteLayer(sqliteFilename)), Effect.runPromise);
+		}, { userId: "test-user" }).pipe(Effect.provide(makeSqliteLayer(sqliteFilename)), Effect.runPromise);
 
 		// Grant viewer to member + owner to workspace owner (required by guard)
 		await Permissions.writePagePermissions({
@@ -242,7 +242,7 @@ describe("Permissions", () => {
 		const page = await Pages.createPage({
 			title: "Editor Grant",
 			parentId: null,
-		}).pipe(Effect.provide(makeSqliteLayer(sqliteFilename)), Effect.runPromise);
+		}, { userId: "test-user" }).pipe(Effect.provide(makeSqliteLayer(sqliteFilename)), Effect.runPromise);
 
 		await Permissions.writePagePermissions({
 			pageId: page.id,
@@ -272,7 +272,7 @@ describe("Permissions", () => {
 		const page = await Pages.createPage({
 			title: "Owner Grant",
 			parentId: null,
-		}).pipe(Effect.provide(makeSqliteLayer(sqliteFilename)), Effect.runPromise);
+		}, { userId: "test-user" }).pipe(Effect.provide(makeSqliteLayer(sqliteFilename)), Effect.runPromise);
 
 		await Permissions.writePagePermissions({
 			pageId: page.id,
@@ -301,7 +301,7 @@ describe("Permissions", () => {
 		const page = await Pages.createPage({
 			title: "Rank Override",
 			parentId: null,
-		}).pipe(Effect.provide(makeSqliteLayer(sqliteFilename)), Effect.runPromise);
+		}, { userId: "test-user" }).pipe(Effect.provide(makeSqliteLayer(sqliteFilename)), Effect.runPromise);
 
 		// Write both viewer + owner first, then upgrade member to editor
 		await Permissions.writePagePermissions({
@@ -345,7 +345,7 @@ describe("Permissions", () => {
 		const page = await Pages.createPage({
 			title: "All Members",
 			parentId: null,
-		}).pipe(Effect.provide(makeSqliteLayer(sqliteFilename)), Effect.runPromise);
+		}, { userId: "test-user" }).pipe(Effect.provide(makeSqliteLayer(sqliteFilename)), Effect.runPromise);
 
 		await Permissions.writePagePermissions({
 			pageId: page.id,
@@ -382,7 +382,7 @@ describe("Permissions", () => {
 		const page = await Pages.createPage({
 			title: "Public Page",
 			parentId: null,
-		}).pipe(Effect.provide(makeSqliteLayer(sqliteFilename)), Effect.runPromise);
+		}, { userId: "test-user" }).pipe(Effect.provide(makeSqliteLayer(sqliteFilename)), Effect.runPromise);
 
 		await Permissions.writePagePermissions({
 			pageId: page.id,
@@ -414,11 +414,11 @@ describe("Permissions", () => {
 		const parent = await Pages.createPage({
 			title: "Parent",
 			parentId: null,
-		}).pipe(Effect.provide(makeSqliteLayer(sqliteFilename)), Effect.runPromise);
+		}, { userId: "test-user" }).pipe(Effect.provide(makeSqliteLayer(sqliteFilename)), Effect.runPromise);
 		const child = await Pages.createPage({
 			title: "Child",
 			parentId: parent.id,
-		}).pipe(Effect.provide(makeSqliteLayer(sqliteFilename)), Effect.runPromise);
+		}, { userId: "test-user" }).pipe(Effect.provide(makeSqliteLayer(sqliteFilename)), Effect.runPromise);
 
 		// Lock the parent with grants for both member and owner
 		await Permissions.writePagePermissions({
@@ -450,15 +450,15 @@ describe("Permissions", () => {
 		const parent = await Pages.createPage({
 			title: "Ancestor",
 			parentId: null,
-		}).pipe(Effect.provide(makeSqliteLayer(sqliteFilename)), Effect.runPromise);
+		}, { userId: "test-user" }).pipe(Effect.provide(makeSqliteLayer(sqliteFilename)), Effect.runPromise);
 		const child = await Pages.createPage({
 			title: "Descendant",
 			parentId: parent.id,
-		}).pipe(Effect.provide(makeSqliteLayer(sqliteFilename)), Effect.runPromise);
+		}, { userId: "test-user" }).pipe(Effect.provide(makeSqliteLayer(sqliteFilename)), Effect.runPromise);
 		const grandchild = await Pages.createPage({
 			title: "Grandchild",
 			parentId: child.id,
-		}).pipe(Effect.provide(makeSqliteLayer(sqliteFilename)), Effect.runPromise);
+		}, { userId: "test-user" }).pipe(Effect.provide(makeSqliteLayer(sqliteFilename)), Effect.runPromise);
 
 		// Grant owner on the parent (already an owner grant from the member test user)
 		await Permissions.writePagePermissions({
@@ -491,11 +491,11 @@ describe("Permissions", () => {
 		const parent = await Pages.createPage({
 			title: "Locked Parent",
 			parentId: null,
-		}).pipe(Effect.provide(makeSqliteLayer(sqliteFilename)), Effect.runPromise);
+		}, { userId: "test-user" }).pipe(Effect.provide(makeSqliteLayer(sqliteFilename)), Effect.runPromise);
 		const child = await Pages.createPage({
 			title: "Blocked Child",
 			parentId: parent.id,
-		}).pipe(Effect.provide(makeSqliteLayer(sqliteFilename)), Effect.runPromise);
+		}, { userId: "test-user" }).pipe(Effect.provide(makeSqliteLayer(sqliteFilename)), Effect.runPromise);
 
 		// Lock the parent with a grant only for owner and a different user
 		await Permissions.writePagePermissions({
@@ -536,11 +536,11 @@ describe("Permissions", () => {
 		const parent = await Pages.createPage({
 			title: "Open To Member",
 			parentId: null,
-		}).pipe(Effect.provide(makeSqliteLayer(sqliteFilename)), Effect.runPromise);
+		}, { userId: "test-user" }).pipe(Effect.provide(makeSqliteLayer(sqliteFilename)), Effect.runPromise);
 		const child = await Pages.createPage({
 			title: "Restricted Below",
 			parentId: parent.id,
-		}).pipe(Effect.provide(makeSqliteLayer(sqliteFilename)), Effect.runPromise);
+		}, { userId: "test-user" }).pipe(Effect.provide(makeSqliteLayer(sqliteFilename)), Effect.runPromise);
 
 		await Permissions.writePagePermissions({
 			pageId: parent.id,
@@ -584,15 +584,15 @@ describe("Permissions", () => {
 		const parent = await Pages.createPage({
 			title: "Open Root",
 			parentId: null,
-		}).pipe(Effect.provide(makeSqliteLayer(sqliteFilename)), Effect.runPromise);
+		}, { userId: "test-user" }).pipe(Effect.provide(makeSqliteLayer(sqliteFilename)), Effect.runPromise);
 		const locked = await Pages.createPage({
 			title: "Locked Middle",
 			parentId: parent.id,
-		}).pipe(Effect.provide(makeSqliteLayer(sqliteFilename)), Effect.runPromise);
+		}, { userId: "test-user" }).pipe(Effect.provide(makeSqliteLayer(sqliteFilename)), Effect.runPromise);
 		const grandchild = await Pages.createPage({
 			title: "Below The Lock",
 			parentId: locked.id,
-		}).pipe(Effect.provide(makeSqliteLayer(sqliteFilename)), Effect.runPromise);
+		}, { userId: "test-user" }).pipe(Effect.provide(makeSqliteLayer(sqliteFilename)), Effect.runPromise);
 
 		await Permissions.writePagePermissions({
 			pageId: parent.id,
@@ -631,7 +631,7 @@ describe("Permissions", () => {
 		const page = await Pages.createPage({
 			title: "Roundtrip",
 			parentId: null,
-		}).pipe(Effect.provide(makeSqliteLayer(sqliteFilename)), Effect.runPromise);
+		}, { userId: "test-user" }).pipe(Effect.provide(makeSqliteLayer(sqliteFilename)), Effect.runPromise);
 
 		const writeResult = await Permissions.writePagePermissions({
 			pageId: page.id,
@@ -672,7 +672,7 @@ describe("Permissions", () => {
 		const page = await Pages.createPage({
 			title: "Revisions",
 			parentId: null,
-		}).pipe(Effect.provide(makeSqliteLayer(sqliteFilename)), Effect.runPromise);
+		}, { userId: "test-user" }).pipe(Effect.provide(makeSqliteLayer(sqliteFilename)), Effect.runPromise);
 
 		const r1 = await Permissions.writePagePermissions({
 			pageId: page.id,
@@ -704,7 +704,7 @@ describe("Permissions", () => {
 		const page = await Pages.createPage({
 			title: "Conflict",
 			parentId: null,
-		}).pipe(Effect.provide(makeSqliteLayer(sqliteFilename)), Effect.runPromise);
+		}, { userId: "test-user" }).pipe(Effect.provide(makeSqliteLayer(sqliteFilename)), Effect.runPromise);
 
 		// First write to get a revision
 		const r1 = await Permissions.writePagePermissions({
@@ -746,15 +746,15 @@ describe("Permissions", () => {
 		const ownerPage = await Pages.createPage({
 			title: "Open",
 			parentId: null,
-		}).pipe(Effect.provide(makeSqliteLayer(sqliteFilename)), Effect.runPromise);
+		}, { userId: "test-user" }).pipe(Effect.provide(makeSqliteLayer(sqliteFilename)), Effect.runPromise);
 		const restricted = await Pages.createPage({
 			title: "Restricted",
 			parentId: null,
-		}).pipe(Effect.provide(makeSqliteLayer(sqliteFilename)), Effect.runPromise);
+		}, { userId: "test-user" }).pipe(Effect.provide(makeSqliteLayer(sqliteFilename)), Effect.runPromise);
 		const childOfRestricted = await Pages.createPage({
 			title: "Child",
 			parentId: restricted.id,
-		}).pipe(Effect.provide(makeSqliteLayer(sqliteFilename)), Effect.runPromise);
+		}, { userId: "test-user" }).pipe(Effect.provide(makeSqliteLayer(sqliteFilename)), Effect.runPromise);
 
 		// Lock restricted with a grant for both member and owner
 		await Permissions.writePagePermissions({

@@ -2,6 +2,7 @@ import { ConflictError, NotFoundError, ValidationError } from "@notara/shared";
 import { Effect } from "effect";
 import { SqlClient } from "effect/sql";
 import { ulid } from "ulidx";
+import { type Editor, editorColumns } from "../editor.js";
 import { PAGE_COLS, pageFromRow } from "../mappers.js";
 
 export const listPages = Effect.gen(function* () {
@@ -24,9 +25,13 @@ export const getPage = (id: string) =>
 		return pageFromRow(rows[0]);
 	});
 
-export const createPage = (req: { title: string; parentId: string | null }) =>
+export const createPage = (
+	req: { title: string; parentId: string | null },
+	editor: Editor,
+) =>
 	Effect.gen(function* () {
 		const sql = yield* SqlClient.SqlClient;
+		const [by, keyId, keyName] = editorColumns(editor);
 		const id = ulid();
 		const now = new Date().toISOString();
 
@@ -42,8 +47,8 @@ export const createPage = (req: { title: string; parentId: string | null }) =>
 		const sortOrder = (Number(siblingMaxOrder[0]?.max_order) || 0) + 1;
 
 		yield* sql`
-      INSERT INTO pages (id, title, parent_id, sort_order, created_at, updated_at)
-      VALUES (${id}, ${req.title}, ${req.parentId}, ${sortOrder}, ${now}, ${now})
+      INSERT INTO pages (id, title, parent_id, sort_order, created_at, updated_at, updated_by, updated_by_key_id, updated_by_key_name)
+      VALUES (${id}, ${req.title}, ${req.parentId}, ${sortOrder}, ${now}, ${now}, ${by}, ${keyId}, ${keyName})
     `;
 		const rows = yield* sql.unsafe(
 			`SELECT ${PAGE_COLS} FROM pages WHERE id = ?`,
@@ -52,19 +57,27 @@ export const createPage = (req: { title: string; parentId: string | null }) =>
 		return pageFromRow(rows[0]);
 	});
 
-export const updatePage = (req: {
-	id: string;
-	title?: string | null;
-	icon?: string | null;
-	coverUrl?: string | null;
-	isFavorite?: boolean | null;
-}) =>
+export const updatePage = (
+	req: {
+		id: string;
+		title?: string | null;
+		icon?: string | null;
+		coverUrl?: string | null;
+		isFavorite?: boolean | null;
+	},
+	editor: Editor,
+) =>
 	Effect.gen(function* () {
 		const sql = yield* SqlClient.SqlClient;
 		const now = new Date().toISOString();
 
-		const sets: string[] = ["updated_at = ?"];
-		const params: unknown[] = [now];
+		const sets: string[] = [
+			"updated_at = ?",
+			"updated_by = ?",
+			"updated_by_key_id = ?",
+			"updated_by_key_name = ?",
+		];
+		const params: unknown[] = [now, ...editorColumns(editor)];
 		if (req.title !== undefined && req.title !== null) {
 			sets.push("title = ?");
 			params.push(req.title);

@@ -2,6 +2,7 @@ import { Backlink, NotFoundError } from "@notara/shared";
 import { Effect } from "effect";
 import { SqlClient } from "effect/sql";
 import { ulid } from "ulidx";
+import { type Editor, editorColumns } from "../editor.js";
 import { BLOCK_COLS, blockFromRow } from "../mappers.js";
 
 /**
@@ -62,16 +63,28 @@ export const listBlocks = (pageId: string) =>
  */
 const ULID_RE = /^[0-9A-HJKMNP-TV-Z]{26}$/;
 
-export const createBlock = (req: {
-	pageId: string;
-	type: string;
-	content: string;
-	index: number;
-	parentId: string | null;
-	id?: string | undefined;
-}) =>
+/** A block edit is a page edit: the page header names whoever touched it last. */
+const stampPage = (pageId: string, editor: Editor) =>
 	Effect.gen(function* () {
 		const sql = yield* SqlClient.SqlClient;
+		const [by, keyId, keyName] = editorColumns(editor);
+		yield* sql`UPDATE pages SET updated_by = ${by}, updated_by_key_id = ${keyId}, updated_by_key_name = ${keyName} WHERE id = ${pageId}`;
+	});
+
+export const createBlock = (
+	req: {
+		pageId: string;
+		type: string;
+		content: string;
+		index: number;
+		parentId: string | null;
+		id?: string | undefined;
+	},
+	editor: Editor,
+) =>
+	Effect.gen(function* () {
+		const sql = yield* SqlClient.SqlClient;
+		const [by, keyId, keyName] = editorColumns(editor);
 		return yield* sql.withTransaction(
 			Effect.gen(function* () {
 				const id = req.id && ULID_RE.test(req.id) ? req.id : ulid();
@@ -82,33 +95,39 @@ export const createBlock = (req: {
         WHERE page_id = ${req.pageId} AND "index" >= ${req.index}
       `;
 				const rows = yield* sql`
-        INSERT INTO blocks (id, page_id, type, content, "index", parent_id)
-        VALUES (${id}, ${req.pageId}, ${req.type}, ${req.content}, ${req.index}, ${req.parentId})
+        INSERT INTO blocks (id, page_id, type, content, "index", parent_id, updated_by, updated_by_key_id, updated_by_key_name)
+        VALUES (${id}, ${req.pageId}, ${req.type}, ${req.content}, ${req.index}, ${req.parentId}, ${by}, ${keyId}, ${keyName})
         RETURNING ${sql.unsafe(BLOCK_COLS)}
       `;
+				yield* stampPage(req.pageId, editor);
 				return blockFromRow(rows[0]);
 			}),
 		);
 	});
 
-export const updateBlock = (req: {
-	id: string;
-	content: string;
-	type?: string;
-}) =>
+export const updateBlock = (
+	req: {
+		id: string;
+		content: string;
+		type?: string;
+	},
+	editor: Editor,
+) =>
 	Effect.gen(function* () {
 		const sql = yield* SqlClient.SqlClient;
+		const [by, keyId, keyName] = editorColumns(editor);
 		const rows = yield* req.type
 			? sql`
-        UPDATE blocks SET content = ${req.content}, type = ${req.type} WHERE id = ${req.id}
+        UPDATE blocks SET content = ${req.content}, type = ${req.type}, updated_by = ${by}, updated_by_key_id = ${keyId}, updated_by_key_name = ${keyName} WHERE id = ${req.id}
         RETURNING ${sql.unsafe(BLOCK_COLS)}
       `
 			: sql`
-        UPDATE blocks SET content = ${req.content} WHERE id = ${req.id}
+        UPDATE blocks SET content = ${req.content}, updated_by = ${by}, updated_by_key_id = ${keyId}, updated_by_key_name = ${keyName} WHERE id = ${req.id}
         RETURNING ${sql.unsafe(BLOCK_COLS)}
       `;
 		if (rows.length === 0)
 			return yield* new NotFoundError({ resource: "block", id: req.id });
+		yield* stampPage(rows[0].pageId as string, editor);
 		return blockFromRow(rows[0]);
 	});
 

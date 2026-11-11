@@ -50,10 +50,13 @@ describe("Pages CRUD", () => {
 		const { filename, tmpDir } = makeTestDb();
 		try {
 			runMigrations(filename);
-			const page = await Pages.createPage({
-				title: "My Page",
-				parentId: null,
-			}).pipe(Effect.provide(TestDbLayer(filename)), Effect.runPromise);
+			const page = await Pages.createPage(
+				{
+					title: "My Page",
+					parentId: null,
+				},
+				{ userId: "test-user" },
+			).pipe(Effect.provide(TestDbLayer(filename)), Effect.runPromise);
 			expect(page).toBeDefined();
 			expect(page.id).toBeDefined();
 			expect(page.title).toBe("My Page");
@@ -70,14 +73,14 @@ describe("Pages CRUD", () => {
 		const { filename, tmpDir } = makeTestDb();
 		try {
 			runMigrations(filename);
-			await Pages.createPage({ title: "Page A", parentId: null }).pipe(
-				Effect.provide(TestDbLayer(filename)),
-				Effect.runPromise,
-			);
-			await Pages.createPage({ title: "Page B", parentId: null }).pipe(
-				Effect.provide(TestDbLayer(filename)),
-				Effect.runPromise,
-			);
+			await Pages.createPage(
+				{ title: "Page A", parentId: null },
+				{ userId: "test-user" },
+			).pipe(Effect.provide(TestDbLayer(filename)), Effect.runPromise);
+			await Pages.createPage(
+				{ title: "Page B", parentId: null },
+				{ userId: "test-user" },
+			).pipe(Effect.provide(TestDbLayer(filename)), Effect.runPromise);
 			const pages = await Pages.listPages.pipe(
 				Effect.provide(TestDbLayer(filename)),
 				Effect.runPromise,
@@ -95,10 +98,13 @@ describe("Pages CRUD", () => {
 		const { filename, tmpDir } = makeTestDb();
 		try {
 			runMigrations(filename);
-			const created = await Pages.createPage({
-				title: "Get Me",
-				parentId: null,
-			}).pipe(Effect.provide(TestDbLayer(filename)), Effect.runPromise);
+			const created = await Pages.createPage(
+				{
+					title: "Get Me",
+					parentId: null,
+				},
+				{ userId: "test-user" },
+			).pipe(Effect.provide(TestDbLayer(filename)), Effect.runPromise);
 			const page = await Pages.getPage(created.id).pipe(
 				Effect.provide(TestDbLayer(filename)),
 				Effect.runPromise,
@@ -128,14 +134,20 @@ describe("Pages CRUD", () => {
 		const { filename, tmpDir } = makeTestDb();
 		try {
 			runMigrations(filename);
-			const created = await Pages.createPage({
-				title: "Old Title",
-				parentId: null,
-			}).pipe(Effect.provide(TestDbLayer(filename)), Effect.runPromise);
-			const updated = await Pages.updatePage({
-				id: created.id,
-				title: "New Title",
-			}).pipe(Effect.provide(TestDbLayer(filename)), Effect.runPromise);
+			const created = await Pages.createPage(
+				{
+					title: "Old Title",
+					parentId: null,
+				},
+				{ userId: "test-user" },
+			).pipe(Effect.provide(TestDbLayer(filename)), Effect.runPromise);
+			const updated = await Pages.updatePage(
+				{
+					id: created.id,
+					title: "New Title",
+				},
+				{ userId: "test-user" },
+			).pipe(Effect.provide(TestDbLayer(filename)), Effect.runPromise);
 			expect(updated.title).toBe("New Title");
 			expect(updated.id).toBe(created.id);
 		} finally {
@@ -147,10 +159,13 @@ describe("Pages CRUD", () => {
 		const { filename, tmpDir } = makeTestDb();
 		try {
 			runMigrations(filename);
-			const created = await Pages.createPage({
-				title: "Delete Me",
-				parentId: null,
-			}).pipe(Effect.provide(TestDbLayer(filename)), Effect.runPromise);
+			const created = await Pages.createPage(
+				{
+					title: "Delete Me",
+					parentId: null,
+				},
+				{ userId: "test-user" },
+			).pipe(Effect.provide(TestDbLayer(filename)), Effect.runPromise);
 			await Pages.deletePage(created.id).pipe(
 				Effect.provide(TestDbLayer(filename)),
 				Effect.runPromise,
@@ -175,14 +190,17 @@ describe("Pages CRUD", () => {
 		const { filename, tmpDir } = makeTestDb();
 		try {
 			runMigrations(filename);
-			await Pages.createPage({
-				title: "Engineering Notes",
-				parentId: null,
-			}).pipe(Effect.provide(TestDbLayer(filename)), Effect.runPromise);
-			await Pages.createPage({ title: "Design Ideas", parentId: null }).pipe(
-				Effect.provide(TestDbLayer(filename)),
-				Effect.runPromise,
-			);
+			await Pages.createPage(
+				{
+					title: "Engineering Notes",
+					parentId: null,
+				},
+				{ userId: "test-user" },
+			).pipe(Effect.provide(TestDbLayer(filename)), Effect.runPromise);
+			await Pages.createPage(
+				{ title: "Design Ideas", parentId: null },
+				{ userId: "test-user" },
+			).pipe(Effect.provide(TestDbLayer(filename)), Effect.runPromise);
 			const results = await Pages.searchPages("Engineering").pipe(
 				Effect.provide(TestDbLayer(filename)),
 				Effect.runPromise,
@@ -198,14 +216,20 @@ describe("Pages CRUD", () => {
 		const { filename, tmpDir } = makeTestDb();
 		try {
 			runMigrations(filename);
-			const parent = await Pages.createPage({
-				title: "Parent",
-				parentId: null,
-			}).pipe(Effect.provide(TestDbLayer(filename)), Effect.runPromise);
-			const child = await Pages.createPage({
-				title: "Child",
-				parentId: parent.id,
-			}).pipe(Effect.provide(TestDbLayer(filename)), Effect.runPromise);
+			const parent = await Pages.createPage(
+				{
+					title: "Parent",
+					parentId: null,
+				},
+				{ userId: "test-user" },
+			).pipe(Effect.provide(TestDbLayer(filename)), Effect.runPromise);
+			const child = await Pages.createPage(
+				{
+					title: "Child",
+					parentId: parent.id,
+				},
+				{ userId: "test-user" },
+			).pipe(Effect.provide(TestDbLayer(filename)), Effect.runPromise);
 			expect(child.parentId).toBe(parent.id);
 		} finally {
 			cleanup(tmpDir);
@@ -216,18 +240,27 @@ describe("Pages CRUD", () => {
 		const { filename, tmpDir } = makeTestDb();
 		try {
 			runMigrations(filename);
-			const p1 = await Pages.createPage({
-				title: "First",
-				parentId: null,
-			}).pipe(Effect.provide(TestDbLayer(filename)), Effect.runPromise);
-			const p2 = await Pages.createPage({
-				title: "Second",
-				parentId: null,
-			}).pipe(Effect.provide(TestDbLayer(filename)), Effect.runPromise);
-			const p3 = await Pages.createPage({
-				title: "Third",
-				parentId: null,
-			}).pipe(Effect.provide(TestDbLayer(filename)), Effect.runPromise);
+			const p1 = await Pages.createPage(
+				{
+					title: "First",
+					parentId: null,
+				},
+				{ userId: "test-user" },
+			).pipe(Effect.provide(TestDbLayer(filename)), Effect.runPromise);
+			const p2 = await Pages.createPage(
+				{
+					title: "Second",
+					parentId: null,
+				},
+				{ userId: "test-user" },
+			).pipe(Effect.provide(TestDbLayer(filename)), Effect.runPromise);
+			const p3 = await Pages.createPage(
+				{
+					title: "Third",
+					parentId: null,
+				},
+				{ userId: "test-user" },
+			).pipe(Effect.provide(TestDbLayer(filename)), Effect.runPromise);
 			expect(p1.sortOrder).toBe(1);
 			expect(p2.sortOrder).toBe(2);
 			expect(p3.sortOrder).toBe(3);
@@ -240,18 +273,27 @@ describe("Pages CRUD", () => {
 		const { filename, tmpDir } = makeTestDb();
 		try {
 			runMigrations(filename);
-			const _p1 = await Pages.createPage({
-				title: "First",
-				parentId: null,
-			}).pipe(Effect.provide(TestDbLayer(filename)), Effect.runPromise);
-			const _p2 = await Pages.createPage({
-				title: "Second",
-				parentId: null,
-			}).pipe(Effect.provide(TestDbLayer(filename)), Effect.runPromise);
-			const _p3 = await Pages.createPage({
-				title: "Third",
-				parentId: null,
-			}).pipe(Effect.provide(TestDbLayer(filename)), Effect.runPromise);
+			const _p1 = await Pages.createPage(
+				{
+					title: "First",
+					parentId: null,
+				},
+				{ userId: "test-user" },
+			).pipe(Effect.provide(TestDbLayer(filename)), Effect.runPromise);
+			const _p2 = await Pages.createPage(
+				{
+					title: "Second",
+					parentId: null,
+				},
+				{ userId: "test-user" },
+			).pipe(Effect.provide(TestDbLayer(filename)), Effect.runPromise);
+			const _p3 = await Pages.createPage(
+				{
+					title: "Third",
+					parentId: null,
+				},
+				{ userId: "test-user" },
+			).pipe(Effect.provide(TestDbLayer(filename)), Effect.runPromise);
 
 			const pages = await Pages.listPages.pipe(
 				Effect.provide(TestDbLayer(filename)),
@@ -270,18 +312,27 @@ describe("Pages CRUD", () => {
 		const { filename, tmpDir } = makeTestDb();
 		try {
 			runMigrations(filename);
-			const p1 = await Pages.createPage({
-				title: "First",
-				parentId: null,
-			}).pipe(Effect.provide(TestDbLayer(filename)), Effect.runPromise);
-			const p2 = await Pages.createPage({
-				title: "Second",
-				parentId: null,
-			}).pipe(Effect.provide(TestDbLayer(filename)), Effect.runPromise);
-			const p3 = await Pages.createPage({
-				title: "Third",
-				parentId: null,
-			}).pipe(Effect.provide(TestDbLayer(filename)), Effect.runPromise);
+			const p1 = await Pages.createPage(
+				{
+					title: "First",
+					parentId: null,
+				},
+				{ userId: "test-user" },
+			).pipe(Effect.provide(TestDbLayer(filename)), Effect.runPromise);
+			const p2 = await Pages.createPage(
+				{
+					title: "Second",
+					parentId: null,
+				},
+				{ userId: "test-user" },
+			).pipe(Effect.provide(TestDbLayer(filename)), Effect.runPromise);
+			const p3 = await Pages.createPage(
+				{
+					title: "Third",
+					parentId: null,
+				},
+				{ userId: "test-user" },
+			).pipe(Effect.provide(TestDbLayer(filename)), Effect.runPromise);
 
 			// Reverse the order: Third, First, Second
 			const result = await Pages.reorderPages({
@@ -308,10 +359,13 @@ describe("Pages CRUD", () => {
 		const { filename, tmpDir } = makeTestDb();
 		try {
 			runMigrations(filename);
-			const page = await Pages.createPage({
-				title: "Test",
-				parentId: null,
-			}).pipe(Effect.provide(TestDbLayer(filename)), Effect.runPromise);
+			const page = await Pages.createPage(
+				{
+					title: "Test",
+					parentId: null,
+				},
+				{ userId: "test-user" },
+			).pipe(Effect.provide(TestDbLayer(filename)), Effect.runPromise);
 			expect(page.sortOrder).toBeDefined();
 			expect(typeof page.sortOrder).toBe("number");
 		} finally {
@@ -327,17 +381,23 @@ describe("Blocks CRUD", () => {
 		const { filename, tmpDir } = makeTestDb();
 		try {
 			runMigrations(filename);
-			const page = await Pages.createPage({
-				title: "Blocks Page",
-				parentId: null,
-			}).pipe(Effect.provide(TestDbLayer(filename)), Effect.runPromise);
-			const block = await Blocks.createBlock({
-				pageId: page.id,
-				type: "paragraph",
-				content: "Hello world",
-				index: 0,
-				parentId: null,
-			}).pipe(Effect.provide(TestDbLayer(filename)), Effect.runPromise);
+			const page = await Pages.createPage(
+				{
+					title: "Blocks Page",
+					parentId: null,
+				},
+				{ userId: "test-user" },
+			).pipe(Effect.provide(TestDbLayer(filename)), Effect.runPromise);
+			const block = await Blocks.createBlock(
+				{
+					pageId: page.id,
+					type: "paragraph",
+					content: "Hello world",
+					index: 0,
+					parentId: null,
+				},
+				{ userId: "test-user" },
+			).pipe(Effect.provide(TestDbLayer(filename)), Effect.runPromise);
 
 			expect(block).toBeDefined();
 			expect(block.pageId).toBe(page.id);
@@ -353,31 +413,43 @@ describe("Blocks CRUD", () => {
 		const { filename, tmpDir } = makeTestDb();
 		try {
 			runMigrations(filename);
-			const page = await Pages.createPage({
-				title: "Ordered Blocks",
-				parentId: null,
-			}).pipe(Effect.provide(TestDbLayer(filename)), Effect.runPromise);
-			await Blocks.createBlock({
-				pageId: page.id,
-				type: "heading1",
-				content: "Title",
-				index: 0,
-				parentId: null,
-			}).pipe(Effect.provide(TestDbLayer(filename)), Effect.runPromise);
-			await Blocks.createBlock({
-				pageId: page.id,
-				type: "paragraph",
-				content: "Body",
-				index: 1,
-				parentId: null,
-			}).pipe(Effect.provide(TestDbLayer(filename)), Effect.runPromise);
-			await Blocks.createBlock({
-				pageId: page.id,
-				type: "paragraph",
-				content: "Footer",
-				index: 2,
-				parentId: null,
-			}).pipe(Effect.provide(TestDbLayer(filename)), Effect.runPromise);
+			const page = await Pages.createPage(
+				{
+					title: "Ordered Blocks",
+					parentId: null,
+				},
+				{ userId: "test-user" },
+			).pipe(Effect.provide(TestDbLayer(filename)), Effect.runPromise);
+			await Blocks.createBlock(
+				{
+					pageId: page.id,
+					type: "heading1",
+					content: "Title",
+					index: 0,
+					parentId: null,
+				},
+				{ userId: "test-user" },
+			).pipe(Effect.provide(TestDbLayer(filename)), Effect.runPromise);
+			await Blocks.createBlock(
+				{
+					pageId: page.id,
+					type: "paragraph",
+					content: "Body",
+					index: 1,
+					parentId: null,
+				},
+				{ userId: "test-user" },
+			).pipe(Effect.provide(TestDbLayer(filename)), Effect.runPromise);
+			await Blocks.createBlock(
+				{
+					pageId: page.id,
+					type: "paragraph",
+					content: "Footer",
+					index: 2,
+					parentId: null,
+				},
+				{ userId: "test-user" },
+			).pipe(Effect.provide(TestDbLayer(filename)), Effect.runPromise);
 			const blocks = await Blocks.listBlocks(page.id).pipe(
 				Effect.provide(TestDbLayer(filename)),
 				Effect.runPromise,
@@ -395,22 +467,31 @@ describe("Blocks CRUD", () => {
 		const { filename, tmpDir } = makeTestDb();
 		try {
 			runMigrations(filename);
-			const page = await Pages.createPage({
-				title: "Update Block",
-				parentId: null,
-			}).pipe(Effect.provide(TestDbLayer(filename)), Effect.runPromise);
-			const block = await Blocks.createBlock({
-				pageId: page.id,
-				type: "paragraph",
-				content: "Old",
-				index: 0,
-				parentId: null,
-			}).pipe(Effect.provide(TestDbLayer(filename)), Effect.runPromise);
+			const page = await Pages.createPage(
+				{
+					title: "Update Block",
+					parentId: null,
+				},
+				{ userId: "test-user" },
+			).pipe(Effect.provide(TestDbLayer(filename)), Effect.runPromise);
+			const block = await Blocks.createBlock(
+				{
+					pageId: page.id,
+					type: "paragraph",
+					content: "Old",
+					index: 0,
+					parentId: null,
+				},
+				{ userId: "test-user" },
+			).pipe(Effect.provide(TestDbLayer(filename)), Effect.runPromise);
 
-			const updated = await Blocks.updateBlock({
-				id: block.id,
-				content: "Updated!",
-			}).pipe(Effect.provide(TestDbLayer(filename)), Effect.runPromise);
+			const updated = await Blocks.updateBlock(
+				{
+					id: block.id,
+					content: "Updated!",
+				},
+				{ userId: "test-user" },
+			).pipe(Effect.provide(TestDbLayer(filename)), Effect.runPromise);
 			expect(updated.content).toBe("Updated!");
 		} finally {
 			cleanup(tmpDir);
@@ -421,17 +502,23 @@ describe("Blocks CRUD", () => {
 		const { filename, tmpDir } = makeTestDb();
 		try {
 			runMigrations(filename);
-			const page = await Pages.createPage({
-				title: "Delete Block",
-				parentId: null,
-			}).pipe(Effect.provide(TestDbLayer(filename)), Effect.runPromise);
-			const block = await Blocks.createBlock({
-				pageId: page.id,
-				type: "paragraph",
-				content: "Delete me",
-				index: 0,
-				parentId: null,
-			}).pipe(Effect.provide(TestDbLayer(filename)), Effect.runPromise);
+			const page = await Pages.createPage(
+				{
+					title: "Delete Block",
+					parentId: null,
+				},
+				{ userId: "test-user" },
+			).pipe(Effect.provide(TestDbLayer(filename)), Effect.runPromise);
+			const block = await Blocks.createBlock(
+				{
+					pageId: page.id,
+					type: "paragraph",
+					content: "Delete me",
+					index: 0,
+					parentId: null,
+				},
+				{ userId: "test-user" },
+			).pipe(Effect.provide(TestDbLayer(filename)), Effect.runPromise);
 
 			await Blocks.deleteBlock(block.id).pipe(
 				Effect.provide(TestDbLayer(filename)),
@@ -451,31 +538,43 @@ describe("Blocks CRUD", () => {
 		const { filename, tmpDir } = makeTestDb();
 		try {
 			runMigrations(filename);
-			const page = await Pages.createPage({
-				title: "Reorder",
-				parentId: null,
-			}).pipe(Effect.provide(TestDbLayer(filename)), Effect.runPromise);
-			const b1 = await Blocks.createBlock({
-				pageId: page.id,
-				type: "paragraph",
-				content: "First",
-				index: 0,
-				parentId: null,
-			}).pipe(Effect.provide(TestDbLayer(filename)), Effect.runPromise);
-			const b2 = await Blocks.createBlock({
-				pageId: page.id,
-				type: "paragraph",
-				content: "Second",
-				index: 1,
-				parentId: null,
-			}).pipe(Effect.provide(TestDbLayer(filename)), Effect.runPromise);
-			const b3 = await Blocks.createBlock({
-				pageId: page.id,
-				type: "paragraph",
-				content: "Third",
-				index: 2,
-				parentId: null,
-			}).pipe(Effect.provide(TestDbLayer(filename)), Effect.runPromise);
+			const page = await Pages.createPage(
+				{
+					title: "Reorder",
+					parentId: null,
+				},
+				{ userId: "test-user" },
+			).pipe(Effect.provide(TestDbLayer(filename)), Effect.runPromise);
+			const b1 = await Blocks.createBlock(
+				{
+					pageId: page.id,
+					type: "paragraph",
+					content: "First",
+					index: 0,
+					parentId: null,
+				},
+				{ userId: "test-user" },
+			).pipe(Effect.provide(TestDbLayer(filename)), Effect.runPromise);
+			const b2 = await Blocks.createBlock(
+				{
+					pageId: page.id,
+					type: "paragraph",
+					content: "Second",
+					index: 1,
+					parentId: null,
+				},
+				{ userId: "test-user" },
+			).pipe(Effect.provide(TestDbLayer(filename)), Effect.runPromise);
+			const b3 = await Blocks.createBlock(
+				{
+					pageId: page.id,
+					type: "paragraph",
+					content: "Third",
+					index: 2,
+					parentId: null,
+				},
+				{ userId: "test-user" },
+			).pipe(Effect.provide(TestDbLayer(filename)), Effect.runPromise);
 
 			// Reverse the order
 			const reordered = await Blocks.reorderBlocks(page.id, [
@@ -495,24 +594,33 @@ describe("Blocks CRUD", () => {
 		const { filename, tmpDir } = makeTestDb();
 		try {
 			runMigrations(filename);
-			const page = await Pages.createPage({
-				title: "Nested",
-				parentId: null,
-			}).pipe(Effect.provide(TestDbLayer(filename)), Effect.runPromise);
-			const parent = await Blocks.createBlock({
-				pageId: page.id,
-				type: "bulletList",
-				content: "Parent item",
-				index: 0,
-				parentId: null,
-			}).pipe(Effect.provide(TestDbLayer(filename)), Effect.runPromise);
-			const child = await Blocks.createBlock({
-				pageId: page.id,
-				type: "paragraph",
-				content: "Child item",
-				index: 1,
-				parentId: parent.id,
-			}).pipe(Effect.provide(TestDbLayer(filename)), Effect.runPromise);
+			const page = await Pages.createPage(
+				{
+					title: "Nested",
+					parentId: null,
+				},
+				{ userId: "test-user" },
+			).pipe(Effect.provide(TestDbLayer(filename)), Effect.runPromise);
+			const parent = await Blocks.createBlock(
+				{
+					pageId: page.id,
+					type: "bulletList",
+					content: "Parent item",
+					index: 0,
+					parentId: null,
+				},
+				{ userId: "test-user" },
+			).pipe(Effect.provide(TestDbLayer(filename)), Effect.runPromise);
+			const child = await Blocks.createBlock(
+				{
+					pageId: page.id,
+					type: "paragraph",
+					content: "Child item",
+					index: 1,
+					parentId: parent.id,
+				},
+				{ userId: "test-user" },
+			).pipe(Effect.provide(TestDbLayer(filename)), Effect.runPromise);
 			expect(child.parentId).toBe(parent.id);
 		} finally {
 			cleanup(tmpDir);
@@ -523,25 +631,34 @@ describe("Blocks CRUD", () => {
 		const { filename, tmpDir } = makeTestDb();
 		try {
 			runMigrations(filename);
-			const page = await Pages.createPage({
-				title: "Type test",
-				parentId: null,
-			}).pipe(Effect.provide(TestDbLayer(filename)), Effect.runPromise);
-			const block = await Blocks.createBlock({
-				pageId: page.id,
-				type: "paragraph",
-				content: "<p>Hello</p>",
-				index: 0,
-				parentId: null,
-			}).pipe(Effect.provide(TestDbLayer(filename)), Effect.runPromise);
+			const page = await Pages.createPage(
+				{
+					title: "Type test",
+					parentId: null,
+				},
+				{ userId: "test-user" },
+			).pipe(Effect.provide(TestDbLayer(filename)), Effect.runPromise);
+			const block = await Blocks.createBlock(
+				{
+					pageId: page.id,
+					type: "paragraph",
+					content: "<p>Hello</p>",
+					index: 0,
+					parentId: null,
+				},
+				{ userId: "test-user" },
+			).pipe(Effect.provide(TestDbLayer(filename)), Effect.runPromise);
 			expect(block.type).toBe("paragraph");
 
 			// Update with a new type
-			const updated = await Blocks.updateBlock({
-				id: block.id,
-				content: "<h1>Hello</h1>",
-				type: "heading1",
-			}).pipe(Effect.provide(TestDbLayer(filename)), Effect.runPromise);
+			const updated = await Blocks.updateBlock(
+				{
+					id: block.id,
+					content: "<h1>Hello</h1>",
+					type: "heading1",
+				},
+				{ userId: "test-user" },
+			).pipe(Effect.provide(TestDbLayer(filename)), Effect.runPromise);
 			expect(updated.type).toBe("heading1");
 			expect(updated.content).toBe("<h1>Hello</h1>");
 
@@ -560,24 +677,33 @@ describe("Blocks CRUD", () => {
 		const { filename, tmpDir } = makeTestDb();
 		try {
 			runMigrations(filename);
-			const page = await Pages.createPage({
-				title: "Type unchanged",
-				parentId: null,
-			}).pipe(Effect.provide(TestDbLayer(filename)), Effect.runPromise);
-			const block = await Blocks.createBlock({
-				pageId: page.id,
-				type: "heading1",
-				content: "<h1>Title</h1>",
-				index: 0,
-				parentId: null,
-			}).pipe(Effect.provide(TestDbLayer(filename)), Effect.runPromise);
+			const page = await Pages.createPage(
+				{
+					title: "Type unchanged",
+					parentId: null,
+				},
+				{ userId: "test-user" },
+			).pipe(Effect.provide(TestDbLayer(filename)), Effect.runPromise);
+			const block = await Blocks.createBlock(
+				{
+					pageId: page.id,
+					type: "heading1",
+					content: "<h1>Title</h1>",
+					index: 0,
+					parentId: null,
+				},
+				{ userId: "test-user" },
+			).pipe(Effect.provide(TestDbLayer(filename)), Effect.runPromise);
 			expect(block.type).toBe("heading1");
 
 			// Update content without type — type should stay unchanged
-			const updated = await Blocks.updateBlock({
-				id: block.id,
-				content: "<h1>Updated Title</h1>",
-			}).pipe(Effect.provide(TestDbLayer(filename)), Effect.runPromise);
+			const updated = await Blocks.updateBlock(
+				{
+					id: block.id,
+					content: "<h1>Updated Title</h1>",
+				},
+				{ userId: "test-user" },
+			).pipe(Effect.provide(TestDbLayer(filename)), Effect.runPromise);
 			expect(updated.type).toBe("heading1");
 			expect(updated.content).toBe("<h1>Updated Title</h1>");
 		} finally {
@@ -589,23 +715,32 @@ describe("Blocks CRUD", () => {
 		const { filename, tmpDir } = makeTestDb();
 		try {
 			runMigrations(filename);
-			const page = await Pages.createPage({
-				title: "Both",
-				parentId: null,
-			}).pipe(Effect.provide(TestDbLayer(filename)), Effect.runPromise);
-			const block = await Blocks.createBlock({
-				pageId: page.id,
-				type: "paragraph",
-				content: "<p>Old</p>",
-				index: 0,
-				parentId: null,
-			}).pipe(Effect.provide(TestDbLayer(filename)), Effect.runPromise);
+			const page = await Pages.createPage(
+				{
+					title: "Both",
+					parentId: null,
+				},
+				{ userId: "test-user" },
+			).pipe(Effect.provide(TestDbLayer(filename)), Effect.runPromise);
+			const block = await Blocks.createBlock(
+				{
+					pageId: page.id,
+					type: "paragraph",
+					content: "<p>Old</p>",
+					index: 0,
+					parentId: null,
+				},
+				{ userId: "test-user" },
+			).pipe(Effect.provide(TestDbLayer(filename)), Effect.runPromise);
 
-			const updated = await Blocks.updateBlock({
-				id: block.id,
-				content: "<blockquote>New</blockquote>",
-				type: "blockquote",
-			}).pipe(Effect.provide(TestDbLayer(filename)), Effect.runPromise);
+			const updated = await Blocks.updateBlock(
+				{
+					id: block.id,
+					content: "<blockquote>New</blockquote>",
+					type: "blockquote",
+				},
+				{ userId: "test-user" },
+			).pipe(Effect.provide(TestDbLayer(filename)), Effect.runPromise);
 			expect(updated.type).toBe("blockquote");
 			expect(updated.content).toBe("<blockquote>New</blockquote>");
 		} finally {
@@ -623,10 +758,13 @@ describe("Database CRUD", () => {
 		const { filename, tmpDir } = makeTestDb();
 		try {
 			runMigrations(filename);
-			const page = await Pages.createPage({
-				title: "DB Page",
-				parentId: null,
-			}).pipe(Effect.provide(TestDbLayer(filename)), Effect.runPromise);
+			const page = await Pages.createPage(
+				{
+					title: "DB Page",
+					parentId: null,
+				},
+				{ userId: "test-user" },
+			).pipe(Effect.provide(TestDbLayer(filename)), Effect.runPromise);
 			const db = await Databases.createDatabase({
 				pageId: page.id,
 				name: "Tasks",
@@ -644,10 +782,13 @@ describe("Database CRUD", () => {
 		const { filename, tmpDir } = makeTestDb();
 		try {
 			runMigrations(filename);
-			const page = await Pages.createPage({
-				title: "DB Page",
-				parentId: null,
-			}).pipe(Effect.provide(TestDbLayer(filename)), Effect.runPromise);
+			const page = await Pages.createPage(
+				{
+					title: "DB Page",
+					parentId: null,
+				},
+				{ userId: "test-user" },
+			).pipe(Effect.provide(TestDbLayer(filename)), Effect.runPromise);
 			await Databases.createDatabase({ pageId: page.id, name: "Tasks" }).pipe(
 				Effect.provide(TestDbLayer(filename)),
 				Effect.runPromise,
@@ -670,10 +811,13 @@ describe("Database CRUD", () => {
 		const { filename, tmpDir } = makeTestDb();
 		try {
 			runMigrations(filename);
-			const page = await Pages.createPage({
-				title: "DB Page",
-				parentId: null,
-			}).pipe(Effect.provide(TestDbLayer(filename)), Effect.runPromise);
+			const page = await Pages.createPage(
+				{
+					title: "DB Page",
+					parentId: null,
+				},
+				{ userId: "test-user" },
+			).pipe(Effect.provide(TestDbLayer(filename)), Effect.runPromise);
 			const db = await Databases.createDatabase({
 				pageId: page.id,
 				name: "Tasks",
@@ -692,10 +836,13 @@ describe("Database CRUD", () => {
 		const { filename, tmpDir } = makeTestDb();
 		try {
 			runMigrations(filename);
-			const page = await Pages.createPage({
-				title: "DB Page",
-				parentId: null,
-			}).pipe(Effect.provide(TestDbLayer(filename)), Effect.runPromise);
+			const page = await Pages.createPage(
+				{
+					title: "DB Page",
+					parentId: null,
+				},
+				{ userId: "test-user" },
+			).pipe(Effect.provide(TestDbLayer(filename)), Effect.runPromise);
 			const db = await Databases.createDatabase({
 				pageId: page.id,
 				name: "Tasks",
@@ -737,10 +884,13 @@ describe("Database CRUD", () => {
 		const { filename, tmpDir } = makeTestDb();
 		try {
 			runMigrations(filename);
-			const page = await Pages.createPage({
-				title: "DB Page",
-				parentId: null,
-			}).pipe(Effect.provide(TestDbLayer(filename)), Effect.runPromise);
+			const page = await Pages.createPage(
+				{
+					title: "DB Page",
+					parentId: null,
+				},
+				{ userId: "test-user" },
+			).pipe(Effect.provide(TestDbLayer(filename)), Effect.runPromise);
 			const db = await Databases.createDatabase({
 				pageId: page.id,
 				name: "Tasks",
@@ -779,10 +929,13 @@ describe("Database CRUD", () => {
 		const { filename, tmpDir } = makeTestDb();
 		try {
 			runMigrations(filename);
-			const page = await Pages.createPage({
-				title: "DB Page",
-				parentId: null,
-			}).pipe(Effect.provide(TestDbLayer(filename)), Effect.runPromise);
+			const page = await Pages.createPage(
+				{
+					title: "DB Page",
+					parentId: null,
+				},
+				{ userId: "test-user" },
+			).pipe(Effect.provide(TestDbLayer(filename)), Effect.runPromise);
 			const db = await Databases.createDatabase({
 				pageId: page.id,
 				name: "Tasks",
@@ -846,10 +999,13 @@ describe("Database CRUD", () => {
 		const { filename, tmpDir } = makeTestDb();
 		try {
 			runMigrations(filename);
-			const page = await Pages.createPage({
-				title: "DB Page",
-				parentId: null,
-			}).pipe(Effect.provide(TestDbLayer(filename)), Effect.runPromise);
+			const page = await Pages.createPage(
+				{
+					title: "DB Page",
+					parentId: null,
+				},
+				{ userId: "test-user" },
+			).pipe(Effect.provide(TestDbLayer(filename)), Effect.runPromise);
 			const db = await Databases.createDatabase({
 				pageId: page.id,
 				name: "Tasks",
@@ -878,10 +1034,13 @@ describe("Database CRUD", () => {
 		const { filename, tmpDir } = makeTestDb();
 		try {
 			runMigrations(filename);
-			const page = await Pages.createPage({
-				title: "DB Page",
-				parentId: null,
-			}).pipe(Effect.provide(TestDbLayer(filename)), Effect.runPromise);
+			const page = await Pages.createPage(
+				{
+					title: "DB Page",
+					parentId: null,
+				},
+				{ userId: "test-user" },
+			).pipe(Effect.provide(TestDbLayer(filename)), Effect.runPromise);
 			const db = await Databases.createDatabase({
 				pageId: page.id,
 				name: "Tasks",
@@ -928,10 +1087,13 @@ describe("Database CRUD", () => {
 		const { filename, tmpDir } = makeTestDb();
 		try {
 			runMigrations(filename);
-			const page = await Pages.createPage({
-				title: "DB Page",
-				parentId: null,
-			}).pipe(Effect.provide(TestDbLayer(filename)), Effect.runPromise);
+			const page = await Pages.createPage(
+				{
+					title: "DB Page",
+					parentId: null,
+				},
+				{ userId: "test-user" },
+			).pipe(Effect.provide(TestDbLayer(filename)), Effect.runPromise);
 			const db = await Databases.createDatabase({
 				pageId: page.id,
 				name: "Tasks",
@@ -990,25 +1152,34 @@ describe("Page References (Backlinks)", () => {
 		try {
 			runMigrations(filename);
 			// Create two pages
-			const pageA = await Pages.createPage({
-				title: "Page A",
-				parentId: null,
-			}).pipe(Effect.provide(TestDbLayer(filename)), Effect.runPromise);
-			const pageB = await Pages.createPage({
-				title: "Page B",
-				parentId: null,
-			}).pipe(Effect.provide(TestDbLayer(filename)), Effect.runPromise);
+			const pageA = await Pages.createPage(
+				{
+					title: "Page A",
+					parentId: null,
+				},
+				{ userId: "test-user" },
+			).pipe(Effect.provide(TestDbLayer(filename)), Effect.runPromise);
+			const pageB = await Pages.createPage(
+				{
+					title: "Page B",
+					parentId: null,
+				},
+				{ userId: "test-user" },
+			).pipe(Effect.provide(TestDbLayer(filename)), Effect.runPromise);
 
 			// Create a block on Page A that references Page B
 			// The format will be: <span data-page-ref="pageId">Page Name</span>
 			const referenceContent = `<p>This links to <span data-page-ref="${pageB.id}">Page B</span>.</p>`;
-			await Blocks.createBlock({
-				pageId: pageA.id,
-				type: "paragraph",
-				content: referenceContent,
-				index: 0,
-				parentId: null,
-			}).pipe(Effect.provide(TestDbLayer(filename)), Effect.runPromise);
+			await Blocks.createBlock(
+				{
+					pageId: pageA.id,
+					type: "paragraph",
+					content: referenceContent,
+					index: 0,
+					parentId: null,
+				},
+				{ userId: "test-user" },
+			).pipe(Effect.provide(TestDbLayer(filename)), Effect.runPromise);
 
 			// Query for backlinks to Page B
 			const backlinks = await Blocks.getBacklinks(pageB.id).pipe(
@@ -1029,23 +1200,32 @@ describe("Page References (Backlinks)", () => {
 		const { filename, tmpDir } = makeTestDb();
 		try {
 			runMigrations(filename);
-			const pageA = await Pages.createPage({
-				title: "Page A",
-				parentId: null,
-			}).pipe(Effect.provide(TestDbLayer(filename)), Effect.runPromise);
-			const pageB = await Pages.createPage({
-				title: "Page B",
-				parentId: null,
-			}).pipe(Effect.provide(TestDbLayer(filename)), Effect.runPromise);
+			const pageA = await Pages.createPage(
+				{
+					title: "Page A",
+					parentId: null,
+				},
+				{ userId: "test-user" },
+			).pipe(Effect.provide(TestDbLayer(filename)), Effect.runPromise);
+			const pageB = await Pages.createPage(
+				{
+					title: "Page B",
+					parentId: null,
+				},
+				{ userId: "test-user" },
+			).pipe(Effect.provide(TestDbLayer(filename)), Effect.runPromise);
 
 			// No blocks reference Page B
-			await Blocks.createBlock({
-				pageId: pageA.id,
-				type: "paragraph",
-				content: "<p>No references here.</p>",
-				index: 0,
-				parentId: null,
-			}).pipe(Effect.provide(TestDbLayer(filename)), Effect.runPromise);
+			await Blocks.createBlock(
+				{
+					pageId: pageA.id,
+					type: "paragraph",
+					content: "<p>No references here.</p>",
+					index: 0,
+					parentId: null,
+				},
+				{ userId: "test-user" },
+			).pipe(Effect.provide(TestDbLayer(filename)), Effect.runPromise);
 
 			const backlinks = await Blocks.getBacklinks(pageB.id).pipe(
 				Effect.provide(TestDbLayer(filename)),
@@ -1062,36 +1242,51 @@ describe("Page References (Backlinks)", () => {
 		const { filename, tmpDir } = makeTestDb();
 		try {
 			runMigrations(filename);
-			const pageA = await Pages.createPage({
-				title: "Page A",
-				parentId: null,
-			}).pipe(Effect.provide(TestDbLayer(filename)), Effect.runPromise);
-			const pageB = await Pages.createPage({
-				title: "Page B",
-				parentId: null,
-			}).pipe(Effect.provide(TestDbLayer(filename)), Effect.runPromise);
-			const pageC = await Pages.createPage({
-				title: "Page C",
-				parentId: null,
-			}).pipe(Effect.provide(TestDbLayer(filename)), Effect.runPromise);
+			const pageA = await Pages.createPage(
+				{
+					title: "Page A",
+					parentId: null,
+				},
+				{ userId: "test-user" },
+			).pipe(Effect.provide(TestDbLayer(filename)), Effect.runPromise);
+			const pageB = await Pages.createPage(
+				{
+					title: "Page B",
+					parentId: null,
+				},
+				{ userId: "test-user" },
+			).pipe(Effect.provide(TestDbLayer(filename)), Effect.runPromise);
+			const pageC = await Pages.createPage(
+				{
+					title: "Page C",
+					parentId: null,
+				},
+				{ userId: "test-user" },
+			).pipe(Effect.provide(TestDbLayer(filename)), Effect.runPromise);
 
 			// Page A references Page B
-			await Blocks.createBlock({
-				pageId: pageA.id,
-				type: "paragraph",
-				content: `<p>See <span data-page-ref="${pageB.id}">Page B</span> for details.</p>`,
-				index: 0,
-				parentId: null,
-			}).pipe(Effect.provide(TestDbLayer(filename)), Effect.runPromise);
+			await Blocks.createBlock(
+				{
+					pageId: pageA.id,
+					type: "paragraph",
+					content: `<p>See <span data-page-ref="${pageB.id}">Page B</span> for details.</p>`,
+					index: 0,
+					parentId: null,
+				},
+				{ userId: "test-user" },
+			).pipe(Effect.provide(TestDbLayer(filename)), Effect.runPromise);
 
 			// Page C also references Page B
-			await Blocks.createBlock({
-				pageId: pageC.id,
-				type: "paragraph",
-				content: `<p>Related: <span data-page-ref="${pageB.id}">Page B</span></p>`,
-				index: 0,
-				parentId: null,
-			}).pipe(Effect.provide(TestDbLayer(filename)), Effect.runPromise);
+			await Blocks.createBlock(
+				{
+					pageId: pageC.id,
+					type: "paragraph",
+					content: `<p>Related: <span data-page-ref="${pageB.id}">Page B</span></p>`,
+					index: 0,
+					parentId: null,
+				},
+				{ userId: "test-user" },
+			).pipe(Effect.provide(TestDbLayer(filename)), Effect.runPromise);
 
 			const backlinks = await Blocks.getBacklinks(pageB.id).pipe(
 				Effect.provide(TestDbLayer(filename)),
@@ -1115,10 +1310,13 @@ describe("Trash lifecycle", () => {
 		const { filename, tmpDir } = makeTestDb();
 		try {
 			runMigrations(filename);
-			const page = await Pages.createPage({
-				title: "Trash Me",
-				parentId: null,
-			}).pipe(Effect.provide(TestDbLayer(filename)), Effect.runPromise);
+			const page = await Pages.createPage(
+				{
+					title: "Trash Me",
+					parentId: null,
+				},
+				{ userId: "test-user" },
+			).pipe(Effect.provide(TestDbLayer(filename)), Effect.runPromise);
 
 			// Soft-delete
 			await Pages.deletePage(page.id).pipe(
@@ -1151,10 +1349,13 @@ describe("Trash lifecycle", () => {
 		const { filename, tmpDir } = makeTestDb();
 		try {
 			runMigrations(filename);
-			const page = await Pages.createPage({
-				title: "Restore Me",
-				parentId: null,
-			}).pipe(Effect.provide(TestDbLayer(filename)), Effect.runPromise);
+			const page = await Pages.createPage(
+				{
+					title: "Restore Me",
+					parentId: null,
+				},
+				{ userId: "test-user" },
+			).pipe(Effect.provide(TestDbLayer(filename)), Effect.runPromise);
 			await Pages.deletePage(page.id).pipe(
 				Effect.provide(TestDbLayer(filename)),
 				Effect.runPromise,
@@ -1191,10 +1392,13 @@ describe("Trash lifecycle", () => {
 		const { filename, tmpDir } = makeTestDb();
 		try {
 			runMigrations(filename);
-			const page = await Pages.createPage({
-				title: "DB Host",
-				parentId: null,
-			}).pipe(Effect.provide(TestDbLayer(filename)), Effect.runPromise);
+			const page = await Pages.createPage(
+				{
+					title: "DB Host",
+					parentId: null,
+				},
+				{ userId: "test-user" },
+			).pipe(Effect.provide(TestDbLayer(filename)), Effect.runPromise);
 			const db = await Databases.createDatabase({
 				pageId: page.id,
 				name: "Tasks",
@@ -1246,18 +1450,24 @@ describe("Trash lifecycle", () => {
 		const { filename, tmpDir } = makeTestDb();
 		try {
 			runMigrations(filename);
-			const page = await Pages.createPage({
-				title: "Purge Me",
-				parentId: null,
-			}).pipe(Effect.provide(TestDbLayer(filename)), Effect.runPromise);
+			const page = await Pages.createPage(
+				{
+					title: "Purge Me",
+					parentId: null,
+				},
+				{ userId: "test-user" },
+			).pipe(Effect.provide(TestDbLayer(filename)), Effect.runPromise);
 			// Add a block
-			await Blocks.createBlock({
-				pageId: page.id,
-				type: "paragraph",
-				content: "<p>Child block</p>",
-				index: 0,
-				parentId: null,
-			}).pipe(Effect.provide(TestDbLayer(filename)), Effect.runPromise);
+			await Blocks.createBlock(
+				{
+					pageId: page.id,
+					type: "paragraph",
+					content: "<p>Child block</p>",
+					index: 0,
+					parentId: null,
+				},
+				{ userId: "test-user" },
+			).pipe(Effect.provide(TestDbLayer(filename)), Effect.runPromise);
 			// Add a database with a record
 			const db = await Databases.createDatabase({
 				pageId: page.id,
@@ -1315,10 +1525,13 @@ describe("Trash lifecycle", () => {
 		const { filename, tmpDir } = makeTestDb();
 		try {
 			runMigrations(filename);
-			const page = await Pages.createPage({
-				title: "DB Host",
-				parentId: null,
-			}).pipe(Effect.provide(TestDbLayer(filename)), Effect.runPromise);
+			const page = await Pages.createPage(
+				{
+					title: "DB Host",
+					parentId: null,
+				},
+				{ userId: "test-user" },
+			).pipe(Effect.provide(TestDbLayer(filename)), Effect.runPromise);
 			const db = await Databases.createDatabase({
 				pageId: page.id,
 				name: "To Purge",
@@ -1362,10 +1575,13 @@ describe("Trash lifecycle", () => {
 		const { filename, tmpDir } = makeTestDb();
 		try {
 			runMigrations(filename);
-			const page = await Pages.createPage({
-				title: "Expired",
-				parentId: null,
-			}).pipe(Effect.provide(TestDbLayer(filename)), Effect.runPromise);
+			const page = await Pages.createPage(
+				{
+					title: "Expired",
+					parentId: null,
+				},
+				{ userId: "test-user" },
+			).pipe(Effect.provide(TestDbLayer(filename)), Effect.runPromise);
 
 			// Manually set deleted_at far in the past (bypassing the normal soft-delete)
 			const rawDb = new Database(filename);
@@ -1396,10 +1612,13 @@ describe("Trash lifecycle", () => {
 		const { filename, tmpDir } = makeTestDb();
 		try {
 			runMigrations(filename);
-			const page = await Pages.createPage({
-				title: "Host",
-				parentId: null,
-			}).pipe(Effect.provide(TestDbLayer(filename)), Effect.runPromise);
+			const page = await Pages.createPage(
+				{
+					title: "Host",
+					parentId: null,
+				},
+				{ userId: "test-user" },
+			).pipe(Effect.provide(TestDbLayer(filename)), Effect.runPromise);
 			const db = await Databases.createDatabase({
 				pageId: page.id,
 				name: "Data",
@@ -1444,10 +1663,13 @@ describe("Trash lifecycle", () => {
 		const { filename, tmpDir } = makeTestDb();
 		try {
 			runMigrations(filename);
-			const page = await Pages.createPage({
-				title: "Host",
-				parentId: null,
-			}).pipe(Effect.provide(TestDbLayer(filename)), Effect.runPromise);
+			const page = await Pages.createPage(
+				{
+					title: "Host",
+					parentId: null,
+				},
+				{ userId: "test-user" },
+			).pipe(Effect.provide(TestDbLayer(filename)), Effect.runPromise);
 			const db = await Databases.createDatabase({
 				pageId: page.id,
 				name: "To Trash",
@@ -1490,10 +1712,13 @@ describe("Trash lifecycle", () => {
 		const { filename, tmpDir } = makeTestDb();
 		try {
 			runMigrations(filename);
-			const _page = await Pages.createPage({
-				title: "Active",
-				parentId: null,
-			}).pipe(Effect.provide(TestDbLayer(filename)), Effect.runPromise);
+			const _page = await Pages.createPage(
+				{
+					title: "Active",
+					parentId: null,
+				},
+				{ userId: "test-user" },
+			).pipe(Effect.provide(TestDbLayer(filename)), Effect.runPromise);
 
 			// Active page should not show in trash
 			const trash = await Databases.listTrash("owner", "ws", "owner").pipe(

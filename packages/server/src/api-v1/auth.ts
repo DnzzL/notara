@@ -3,6 +3,7 @@ import { AuthError } from "@notara/shared";
 import { Data, Effect } from "effect";
 import * as HttpServerRequest from "effect/http/HttpServerRequest";
 import { auth } from "../auth.js";
+import type { Editor } from "../editor.js";
 import * as Membership from "../membership.js";
 import { PlatformDb } from "../platform-db.js";
 import type { ApiKeyScope } from "./scope.js";
@@ -35,6 +36,7 @@ export const generateApiKey = (): {
 export type ApiUser = {
 	userId: string;
 	keyId: string | null;
+	keyName?: string;
 	scope?: ApiKeyScope;
 	/** Set when the key is limited to a page subtree; see acl.ts `KeyRoot`. */
 	rootPageId?: string | null;
@@ -44,9 +46,22 @@ export type ApiUser = {
 export type ApiKey = {
 	userId: string;
 	keyId: string;
+	keyName: string;
 	scope: ApiKeyScope;
 	rootPageId: string | null;
 };
+
+/** The `Editor` a write by this caller is stamped with: the key, by its current name. */
+export const editorOf = (caller: {
+	userId: string;
+	keyId?: string | null;
+	keyName?: string;
+}): Editor => ({
+	userId: caller.userId,
+	...(caller.keyId && caller.keyName
+		? { key: { id: caller.keyId, name: caller.keyName } }
+		: {}),
+});
 
 /**
  * Resolves `Authorization: Bearer ntr_...` to its key, and nothing else: a
@@ -73,11 +88,12 @@ export const resolveApiKey = (
 		const db = yield* PlatformDb;
 		const key = db
 			.prepare(
-				"SELECT id, user_id, scope, root_page_id FROM api_keys WHERE key_hash = ?",
+				"SELECT id, user_id, name, scope, root_page_id FROM api_keys WHERE key_hash = ?",
 			)
 			.get(sha256(authHeader.slice(7))) as {
 			id: string;
 			user_id: string;
+			name: string;
 			scope: ApiKeyScope;
 			root_page_id: string | null;
 		} | null;
@@ -96,6 +112,7 @@ export const resolveApiKey = (
 		return {
 			userId: key.user_id,
 			keyId: key.id,
+			keyName: key.name,
 			scope: key.scope,
 			rootPageId: key.root_page_id,
 		};

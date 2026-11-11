@@ -17,6 +17,9 @@ export class Page extends Schema.Class<Page>("Page")({
 	createdAt: Schema.String,
 	updatedAt: Schema.String,
 	deletedAt: Schema.NullOr(Schema.String),
+	/** Last editor: a user id, and the API key's name (snapshot) when a key made the edit. Null = unknown. */
+	updatedBy: Schema.NullOr(Schema.String),
+	updatedByKeyName: Schema.NullOr(Schema.String),
 }) {}
 
 export class Block extends Schema.Class<Block>("Block")({

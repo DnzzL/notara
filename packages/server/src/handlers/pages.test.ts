@@ -26,7 +26,10 @@ const setupDB = Effect.gen(function* () {
       is_favorite INTEGER NOT NULL DEFAULT 0,
       created_at TEXT NOT NULL DEFAULT (datetime('now')),
       updated_at TEXT NOT NULL DEFAULT (datetime('now')),
-      deleted_at TEXT
+      deleted_at TEXT,
+      updated_by TEXT,
+      updated_by_key_id TEXT,
+      updated_by_key_name TEXT
     )
   `;
 });

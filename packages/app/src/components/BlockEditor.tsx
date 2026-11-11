@@ -61,6 +61,7 @@ import {
 import { SLASH_COMMANDS } from "./blockTypes.js";
 import { DatabaseView } from "./DatabaseView.js";
 import { DragHandle } from "./DragHandle.js";
+import { EditedBy } from "./EditedBy.js";
 import { EmojiPicker } from "./EmojiPicker.js";
 import {
 	blockContent,
@@ -1615,6 +1616,7 @@ export function BlockEditor() {
 							workspaceId={getCurrentWorkspaceId()}
 						/>
 					</div>
+					<EditedBy page={currentPage} />
 					<EmojiPicker
 						open={iconPickerAnchor !== null}
 						anchor={iconPickerAnchor}

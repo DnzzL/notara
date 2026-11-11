@@ -39,6 +39,7 @@ import * as HttpServerRequest from "effect/http/HttpServerRequest";
 import { type SqlClient, SqlError } from "effect/sql";
 import { inSubtree, KeyRoot } from "../acl.js";
 import { WorkspaceDb } from "../db.js";
+import type { Editor } from "../editor.js";
 import * as Blocks from "../handlers/blocks.js";
 import * as Databases from "../handlers/databases.js";
 import * as ImportExport from "../handlers/importExport.js";
@@ -51,7 +52,12 @@ import * as Workspaces from "../handlers/workspaces.js";
 import type { WorkspaceRole } from "../membership.js";
 import type { PlatformDb } from "../platform-db.js";
 import { presence } from "../presence/index.js";
-import { ApiError, requireWorkspaceMember, resolveApiUser } from "./auth.js";
+import {
+	ApiError,
+	editorOf,
+	requireWorkspaceMember,
+	resolveApiUser,
+} from "./auth.js";
 import { created, handle, noContent, ok, requireParam } from "./response.js";
 import { type ApiKeyScope, enforceScope } from "./scope.js";
 
@@ -71,6 +77,8 @@ export interface OperationContext {
 	readonly role: WorkspaceRole;
 	/** Set when the caller is a key limited to a page subtree. */
 	readonly rootPageId: string | null;
+	/** Who is writing, for `updated_by` (ADR-013). */
+	readonly editor: Editor;
 }
 
 const errorRef = { $ref: "#/components/schemas/Error" };
@@ -252,11 +260,14 @@ export const pageOperations = [
 			parentId: Schema.optional(Schema.NullOr(Schema.String)),
 		}),
 		output: PageJson,
-		run: (_, input) =>
-			Pages.createPage({
-				title: input.title,
-				parentId: input.parentId ?? null,
-			}).pipe(sqlDefect),
+		run: (ctx, input) =>
+			Pages.createPage(
+				{
+					title: input.title,
+					parentId: input.parentId ?? null,
+				},
+				ctx.editor,
+			).pipe(sqlDefect),
 	}),
 	typedOperation({
 		method: "GET",
@@ -287,7 +298,7 @@ export const pageOperations = [
 		output: PageJson,
 		checkPermission: pagePermission("editor"),
 		run: (ctx, { pageId, ...patch }) =>
-			Pages.updatePage({ id: pageId, ...patch }).pipe(
+			Pages.updatePage({ id: pageId, ...patch }, ctx.editor).pipe(
 				Effect.tap((page) =>
 					Effect.sync(() =>
 						presence.broadcast(ctx.workspaceId, pageId, {
@@ -466,13 +477,16 @@ export const blockOperations = [
 		run: (ctx, input) =>
 			requirePage(input.pageId).pipe(
 				Effect.andThen(
-					Blocks.createBlock({
-						pageId: input.pageId,
-						type: input.type,
-						content: input.content,
-						index: input.index ?? 0,
-						parentId: input.parentId ?? null,
-					}),
+					Blocks.createBlock(
+						{
+							pageId: input.pageId,
+							type: input.type,
+							content: input.content,
+							index: input.index ?? 0,
+							parentId: input.parentId ?? null,
+						},
+						ctx.editor,
+					),
 				),
 				Effect.tap((block) =>
 					Effect.sync(() =>
@@ -507,11 +521,14 @@ export const blockOperations = [
 			Effect.gen(function* () {
 				yield* blockPermission(ctx, input.blockId);
 				const pageId = yield* unlockedBlockPage(ctx, input.blockId);
-				const block = yield* Blocks.updateBlock({
-					id: input.blockId,
-					content: input.content,
-					type: input.type,
-				});
+				const block = yield* Blocks.updateBlock(
+					{
+						id: input.blockId,
+						content: input.content,
+						type: input.type,
+					},
+					ctx.editor,
+				);
 				if (pageId)
 					presence.broadcast(ctx.workspaceId, pageId, {
 						type: "block.updated",
@@ -1553,7 +1570,7 @@ const withWorkspace = <A, E, R>(
 		// The subtree a key is limited to is enforced from here: acl.ts reads
 		// KeyRoot for every page check and permissions.ts for every page list.
 		return yield* Effect.provide(
-			f({ userId, workspaceId, role, rootPageId }),
+			f({ userId, workspaceId, role, rootPageId, editor: editorOf(caller) }),
 			wdb.getLayer(workspaceId),
 		).pipe(Effect.provideService(KeyRoot, rootPageId));
 	});
@@ -1562,6 +1579,9 @@ const withWorkspace = <A, E, R>(
 export interface Caller {
 	readonly userId: string;
 	readonly rootPageId: string | null;
+	/** Set for an API key; stamped on writes as `updated_by_key_*` (ADR-013). */
+	readonly keyId?: string | null;
+	readonly keyName?: string;
 }
 
 const OUTSIDE_SUBTREE = new AuthError({
@@ -1672,7 +1692,12 @@ export const registerTypedOperations = (
 					const { workspaceId, ...pathParams } = yield* HttpRouter.params;
 					const output = yield* runOperation(
 						op,
-						{ userId: caller.userId, rootPageId: caller.rootPageId ?? null },
+						{
+							userId: caller.userId,
+							rootPageId: caller.rootPageId ?? null,
+							keyId: caller.keyId,
+							keyName: caller.keyName,
+						},
 						requireParam({ workspaceId }, "workspaceId"),
 						Schema.decodeUnknownEffect(op.input)({
 							...rest,

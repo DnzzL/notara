@@ -75,7 +75,7 @@ export const rpcHandlersLayer = AppRpc.toLayer({
 	createPage: (req) =>
 		withAuthedWorkspace(({ userId, workspaceId }) =>
 			Effect.gen(function* () {
-				const page = yield* Pages.createPage(req);
+				const page = yield* Pages.createPage(req, { userId });
 				track("page_created", userId, {
 					workspace_id: workspaceId,
 					page_id: page.id,
@@ -92,7 +92,7 @@ export const rpcHandlersLayer = AppRpc.toLayer({
 					req.id,
 					"editor",
 				);
-				const page = yield* Pages.updatePage(req);
+				const page = yield* Pages.updatePage(req, { userId });
 				presence.broadcast(workspaceId, req.id, {
 					type: "page.metaUpdated",
 					actorUserId: userId,
@@ -182,7 +182,7 @@ export const rpcHandlersLayer = AppRpc.toLayer({
 					req.pageId,
 					"editor",
 				);
-				const block = yield* Blocks.createBlock(req);
+				const block = yield* Blocks.createBlock(req, { userId });
 				presence.broadcast(workspaceId, req.pageId, {
 					type: "block.created",
 					actorUserId: userId,
@@ -209,7 +209,7 @@ export const rpcHandlersLayer = AppRpc.toLayer({
 						);
 					}
 				}
-				const block = yield* Blocks.updateBlock(req);
+				const block = yield* Blocks.updateBlock(req, { userId });
 				if (pageId) {
 					presence.broadcast(workspaceId, pageId, {
 						type: "block.updated",

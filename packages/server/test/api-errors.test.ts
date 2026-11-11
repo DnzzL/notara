@@ -98,15 +98,24 @@ describe("typed handler failures", () => {
 	test("moving a page under its own grandchild fails with ConflictError", async () => {
 		const error = await failureOf(
 			Effect.gen(function* () {
-				const parent = yield* Pages.createPage({ title: "a", parentId: null });
-				const child = yield* Pages.createPage({
-					title: "b",
-					parentId: parent.id,
-				});
-				const grandchild = yield* Pages.createPage({
-					title: "c",
-					parentId: child.id,
-				});
+				const parent = yield* Pages.createPage(
+					{ title: "a", parentId: null },
+					{ userId: "test-user" },
+				);
+				const child = yield* Pages.createPage(
+					{
+						title: "b",
+						parentId: parent.id,
+					},
+					{ userId: "test-user" },
+				);
+				const grandchild = yield* Pages.createPage(
+					{
+						title: "c",
+						parentId: child.id,
+					},
+					{ userId: "test-user" },
+				);
 				return yield* Pages.movePage({
 					id: parent.id,
 					parentId: grandchild.id,

@@ -33,15 +33,19 @@ async function withDb<T>(
 	}
 }
 
-const mkPage = (title: string) => Pages.createPage({ title, parentId: null });
+const mkPage = (title: string) =>
+	Pages.createPage({ title, parentId: null }, { userId: "test-user" });
 const mkBlock = (pageId: string, content: string) =>
-	Blocks.createBlock({
-		pageId,
-		type: "paragraph",
-		content,
-		index: 0,
-		parentId: null,
-	});
+	Blocks.createBlock(
+		{
+			pageId,
+			type: "paragraph",
+			content,
+			index: 0,
+			parentId: null,
+		},
+		{ userId: "test-user" },
+	);
 
 describe("globalSearch", () => {
 	test("page title match returns the page", async () => {
@@ -58,7 +62,11 @@ describe("globalSearch", () => {
 	test("renamed page is found by its new title only", async () => {
 		await withDb(async (run) => {
 			const p = await run(mkPage("Old name"));
-			await run(Pages.updatePage({ id: p.id, title: "Fresh name" } as any));
+			await run(
+				Pages.updatePage({ id: p.id, title: "Fresh name" } as any, {
+					userId: "test-user",
+				}),
+			);
 			expect(await run(globalSearch("fresh"))).toHaveLength(1);
 			expect(await run(globalSearch("old"))).toHaveLength(0);
 		});

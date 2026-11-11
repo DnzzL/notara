@@ -159,7 +159,7 @@ describe("page policies", () => {
 		const page = await Pages.createPage({
 			title: "Open",
 			parentId: null,
-		}).pipe(Effect.provide(makeSqliteLayer(sqliteFilename)), Effect.runPromise);
+		}, { userId: "test-user" }).pipe(Effect.provide(makeSqliteLayer(sqliteFilename)), Effect.runPromise);
 
 		expect(
 			await as(MEMBER, guarded(Policies.page(ownerWs, page.id, "editor"))),
@@ -176,7 +176,7 @@ describe("page policies", () => {
 		const page = await Pages.createPage({
 			title: "Locked",
 			parentId: null,
-		}).pipe(Effect.provide(makeSqliteLayer(sqliteFilename)), Effect.runPromise);
+		}, { userId: "test-user" }).pipe(Effect.provide(makeSqliteLayer(sqliteFilename)), Effect.runPromise);
 
 		await Permissions.writePagePermissions({
 			pageId: page.id,
@@ -195,7 +195,7 @@ describe("page policies", () => {
 		const page = await Pages.createPage({
 			title: "Read Only",
 			parentId: null,
-		}).pipe(Effect.provide(makeSqliteLayer(sqliteFilename)), Effect.runPromise);
+		}, { userId: "test-user" }).pipe(Effect.provide(makeSqliteLayer(sqliteFilename)), Effect.runPromise);
 
 		await Permissions.writePagePermissions({
 			pageId: page.id,
