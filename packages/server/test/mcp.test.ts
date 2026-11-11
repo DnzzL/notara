@@ -581,31 +581,49 @@ describe("audit log", () => {
 		expect(await list(owner.cookie, "no-such-key")).toEqual([]);
 	});
 
-	test("deleteRecord and setCell target the record, not the database", async () => {
-		const db = await call(
+	test("record and cell writes target the record; creates target the new thing", async () => {
+		const W = `/api/v1/workspaces/${ws.id}`;
+		const page = await call(writeKey, "POST", PAGES, { title: "Audit host" });
+		const block = await call(
 			writeKey,
 			"POST",
-			`/api/v1/workspaces/${ws.id}/databases`,
+			`${PAGES}/${page.body.id}/blocks`,
 			{
-				title: "Audit db",
+				type: "paragraph",
+				content: "<p>x</p>",
 			},
 		);
+		const db = await call(writeKey, "POST", `${W}/databases`, {
+			pageId: page.body.id,
+			name: "Audit db",
+		});
+		expect(db.status).toBe(201);
 		const rec = await call(
 			writeKey,
 			"POST",
-			`/api/v1/workspaces/${ws.id}/databases/${db.body.id}/records`,
-			{},
+			`${W}/databases/${db.body.id}/records`,
+			{
+				title: "r",
+			},
 		);
-		const recId = rec.body.id ?? rec.body.record?.id;
-		await call(
+		expect(rec.status).toBe(201);
+		const _fields = await call(
+			writeKey,
+			"GET",
+			`${W}/databases/${db.body.id}/fields`,
+		);
+		const del = await call(
 			writeKey,
 			"DELETE",
-			`/api/v1/workspaces/${ws.id}/databases/${db.body.id}/records/${recId}`,
+			`${W}/databases/${db.body.id}/records/${rec.body.id}`,
 		);
-		const del = (await list(owner.cookie)).find(
-			(e) => e.operation === "deleteRecord",
-		);
-		expect(del?.target).toBe(recId);
+		expect(del.status).toBeLessThan(300);
+		const entries = await list(owner.cookie);
+		const target = (op: string) =>
+			entries.find((e) => e.operation === op)?.target;
+		expect(target("deleteRecord")).toBe(rec.body.id);
+		expect(target("createBlock")).toBe(block.body.id);
+		expect(target("createDatabase")).toBe(db.body.id);
 	});
 
 	test("rows hold no secret and no page content", async () => {

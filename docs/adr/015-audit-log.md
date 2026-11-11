@@ -26,3 +26,4 @@ Would catch UI edits too, but means the same insert in many handlers and loses t
 - A write that fails midway leaves no row; a row exists only after the operation succeeded.
 - Rows live and die with the workspace DB (backups, deletion).
 - Revoking a key keeps its rows; the filter by key id still works.
+- The audit insert runs after the write commits. If it fails, the caller gets an error though the write happened; a retried create then duplicates. Accepted: the insert is a plain append.

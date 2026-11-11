@@ -1637,7 +1637,11 @@ const AUDIT_TARGET_KEYS = [
 ];
 
 /** The id a write touched: a specific input id, else the output's id, else any input id. Never content. */
-const auditTarget = (input: unknown, output: unknown): string | null => {
+const auditTarget = (
+	operationId: string,
+	input: unknown,
+	output: unknown,
+): string | null => {
 	const str = (o: unknown, k: string) =>
 		o && typeof o === "object" && typeof (o as any)[k] === "string"
 			? ((o as any)[k] as string)
@@ -1647,7 +1651,10 @@ const auditTarget = (input: unknown, output: unknown): string | null => {
 		.filter((k) => k === "id" || k.endsWith("Id"))
 		.map((k) => str(input, k))
 		.find(Boolean);
-	return specific ?? str(output, "id") ?? anyInputId ?? null;
+	// A create's input names its parent; the thing touched is what it returned.
+	return operationId.startsWith("create")
+		? (str(output, "id") ?? specific ?? anyInputId ?? null)
+		: (specific ?? str(output, "id") ?? anyInputId ?? null);
 };
 
 /**
@@ -1686,7 +1693,7 @@ export const runOperation = <I, O, E, R>(
 							yield* recordAudit(
 								ctx.editor,
 								op.operationId,
-								auditTarget(decoded, output),
+								auditTarget(op.operationId, decoded, output),
 							);
 						return output;
 					}),
