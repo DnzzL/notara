@@ -607,11 +607,6 @@ describe("audit log", () => {
 			},
 		);
 		expect(rec.status).toBe(201);
-		const _fields = await call(
-			writeKey,
-			"GET",
-			`${W}/databases/${db.body.id}/fields`,
-		);
 		const del = await call(
 			writeKey,
 			"DELETE",
