@@ -38,6 +38,7 @@ import * as HttpRouter from "effect/http/HttpRouter";
 import * as HttpServerRequest from "effect/http/HttpServerRequest";
 import { type SqlClient, SqlError } from "effect/sql";
 import { inSubtree, KeyRoot } from "../acl.js";
+import { type ChangeSpec, trackChange } from "../change-events.js";
 import { WorkspaceDb } from "../db.js";
 import type { Editor } from "../editor.js";
 import * as Blocks from "../handlers/blocks.js";
@@ -147,6 +148,8 @@ export interface TypedOperation<I, O> {
 	/** REST door only; 200 when omitted. */
 	readonly successStatus?: 201 | 204;
 	readonly scope: ApiKeyScope;
+	/** Set on operations that change a page, block or record: they emit a change event (ADR-015). */
+	readonly change?: ChangeSpec;
 	/** Its input's `parentId` is where a page is placed; see requireParentInSubtree. */
 	readonly placesPage?: true;
 	readonly input: Schema.Codec<I, unknown> & {
@@ -250,6 +253,7 @@ export const pageOperations = [
 		method: "POST",
 		path: "/api/v1/workspaces/:workspaceId/pages",
 		operationId: "createPage",
+		change: { kind: "page", op: "create", id: "output" },
 		placesPage: true,
 		tag: "Pages",
 		summary: "Create a page",
@@ -285,6 +289,7 @@ export const pageOperations = [
 		method: "PATCH",
 		path: "/api/v1/workspaces/:workspaceId/pages/:pageId",
 		operationId: "updatePage",
+		change: { kind: "page", op: "update", id: "pageId" },
 		tag: "Pages",
 		summary: "Update a page",
 		scope: "write",
@@ -319,6 +324,7 @@ export const pageOperations = [
 		method: "DELETE",
 		path: "/api/v1/workspaces/:workspaceId/pages/:pageId",
 		operationId: "deletePage",
+		change: { kind: "page", op: "delete", id: "pageId" },
 		tag: "Pages",
 		summary: "Delete a page",
 		description:
@@ -338,6 +344,7 @@ export const pageOperations = [
 		method: "POST",
 		path: "/api/v1/workspaces/:workspaceId/pages/:pageId/restore",
 		operationId: "restorePage",
+		change: { kind: "page", op: "update", id: "pageId" },
 		tag: "Pages",
 		summary: "Restore a trashed page",
 		scope: "write",
@@ -350,6 +357,7 @@ export const pageOperations = [
 		method: "POST",
 		path: "/api/v1/workspaces/:workspaceId/pages/:pageId/move",
 		operationId: "movePage",
+		change: { kind: "page", op: "update", id: "pageId" },
 		placesPage: true,
 		tag: "Pages",
 		summary: "Move a page under another parent",
@@ -461,6 +469,7 @@ export const blockOperations = [
 		method: "POST",
 		path: "/api/v1/workspaces/:workspaceId/pages/:pageId/blocks",
 		operationId: "createBlock",
+		change: { kind: "block", op: "create", id: "output" },
 		tag: "Blocks",
 		summary: "Create a block",
 		successStatus: 201,
@@ -504,6 +513,7 @@ export const blockOperations = [
 		method: "PATCH",
 		path: "/api/v1/workspaces/:workspaceId/blocks/:blockId",
 		operationId: "updateBlock",
+		change: { kind: "block", op: "update", id: "blockId" },
 		tag: "Blocks",
 		summary: "Update a block's content, and optionally its type",
 		scope: "write",
@@ -543,6 +553,7 @@ export const blockOperations = [
 		method: "DELETE",
 		path: "/api/v1/workspaces/:workspaceId/blocks/:blockId",
 		operationId: "deleteBlock",
+		change: { kind: "block", op: "delete", id: "blockId" },
 		tag: "Blocks",
 		summary: "Delete a block",
 		successStatus: 204,
@@ -903,6 +914,7 @@ export const databaseOperations = [
 		method: "POST",
 		path: "/api/v1/workspaces/:workspaceId/databases/:dbId/records",
 		operationId: "createRecord",
+		change: { kind: "record", op: "create", id: "output" },
 		tag: "Databases",
 		summary: "Create a record (row)",
 		successStatus: 201,
@@ -939,6 +951,7 @@ export const databaseOperations = [
 		method: "PATCH",
 		path: "/api/v1/workspaces/:workspaceId/databases/:dbId/records/:recordId",
 		operationId: "updateRecord",
+		change: { kind: "record", op: "update", id: "recordId" },
 		tag: "Databases",
 		summary: "Update a record's title or description",
 		scope: "write",
@@ -959,6 +972,7 @@ export const databaseOperations = [
 		method: "DELETE",
 		path: "/api/v1/workspaces/:workspaceId/databases/:dbId/records/:recordId",
 		operationId: "deleteRecord",
+		change: { kind: "record", op: "delete", id: "recordId" },
 		tag: "Databases",
 		summary: "Delete a record",
 		description:
@@ -982,6 +996,7 @@ export const databaseOperations = [
 		method: "POST",
 		path: "/api/v1/workspaces/:workspaceId/databases/:dbId/records/:recordId/restore",
 		operationId: "restoreRecord",
+		change: { kind: "record", op: "update", id: "recordId" },
 		tag: "Databases",
 		summary: "Restore a trashed record",
 		scope: "write",
@@ -994,6 +1009,7 @@ export const databaseOperations = [
 		method: "PUT",
 		path: "/api/v1/workspaces/:workspaceId/databases/:dbId/records/:recordId/fields/:fieldId",
 		operationId: "setCell",
+		change: { kind: "record", op: "update", id: "recordId" },
 		tag: "Databases",
 		summary: "Set a single cell value",
 		scope: "write",
@@ -1245,6 +1261,7 @@ export const exchangeOperations = [
 		method: "POST",
 		path: "/api/v1/workspaces/:workspaceId/templates/:templateId/pages",
 		operationId: "createPageFromTemplate",
+		change: { kind: "page", op: "create", id: "output" },
 		placesPage: true,
 		tag: "Templates",
 		summary: "Create a page from a template",
@@ -1637,7 +1654,10 @@ export const runOperation = <I, O, E, R>(
 							decoded as Record<string, unknown>,
 						);
 						if (op.checkPermission) yield* op.checkPermission(ctx, decoded);
-						return yield* op.run(ctx, decoded);
+						const run = op.run(ctx, decoded);
+						return yield* op.change
+							? trackChange(op.change, ctx, decoded, run)
+							: run;
 					}),
 				),
 			);

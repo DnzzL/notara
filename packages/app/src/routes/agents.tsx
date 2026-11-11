@@ -78,6 +78,21 @@ function AgentsPage() {
 					<code>{cursor}</code>
 				</pre>
 
+				<h2>4. React to changes</h2>
+				<p>
+					Instead of polling, listen to{" "}
+					<code>GET {origin}/api/v1/workspaces/&lt;workspaceId&gt;/events</code>{" "}
+					with the same key. It streams server-sent events: each{" "}
+					<code>change</code> names the <code>kind</code> (page, block or
+					record), the <code>op</code> (create, update or delete), the{" "}
+					<code>id</code> and who made it. You only hear about what the key may
+					read, and a read key may listen.
+				</p>
+				<pre>
+					<code>{`curl -N ${origin}/api/v1/workspaces/<workspaceId>/events \
+  -H "Authorization: Bearer ntr_your_key_here"`}</code>
+				</pre>
+
 				<h2>API key scopes</h2>
 				<p>
 					<strong>read</strong> keys only read: write tools are not listed over
