@@ -85,9 +85,11 @@ test("an object payload is refused instead of silently corrupting the block", as
 		{ data: { type: "paragraph", content: { text: "hi" }, index: 0 } },
 	);
 
-	expect(res.status()).toBe(400);
+	expect(res.status()).toBe(422);
 	// The refusal has to say what to send, or it just moves the confusion.
-	expect(await res.text()).toContain("must be a string");
+	const body = await res.text();
+	expect(body).toContain("content");
+	expect(body).toContain("Expected string");
 });
 
 test("REST edits are visible to RPC unchanged", async ({ alice, soloWs }) => {

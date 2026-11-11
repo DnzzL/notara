@@ -90,7 +90,7 @@ describe("trashing a page takes its subtree", () => {
 
 			// The trash names what the user deleted, not everything it dragged
 			// along — otherwise one delete fills the trash with three entries.
-			const trash = await run(Databases.listTrash);
+			const trash = await run(Databases.listTrash("owner", "ws", "owner"));
 			expect(trash.pages.map((p) => p.id)).toEqual([parent.id]);
 		} finally {
 			fs.rmSync(tmpDir, { recursive: true, force: true });
@@ -133,7 +133,7 @@ describe("trashing a page takes its subtree", () => {
 			expect(live.map((p) => p.id)).not.toContain(grandchild.id);
 
 			// And it is back in the trash under its own name, restorable on its own.
-			const trash = await run(Databases.listTrash);
+			const trash = await run(Databases.listTrash("owner", "ws", "owner"));
 			expect(trash.pages.map((p) => p.id)).toEqual([child.id]);
 		} finally {
 			fs.rmSync(tmpDir, { recursive: true, force: true });

@@ -5,13 +5,14 @@ status: ready-for-agent
 assignee:
   - '@thomas'
 created_date: '2026-08-26 11:13'
-updated_date: '2026-08-27 07:29'
+updated_date: '2026-10-29 19:56'
 labels:
   - enhancement
 dependencies:
   - NOT-104
   - NOT-106
   - NOT-107
+  - NOT-169.5
 priority: medium
 ordinal: 117000
 ---

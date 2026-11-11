@@ -270,7 +270,7 @@ describe("trash listing, restore, and purge sweep", () => {
 				yield* sql`UPDATE pages SET is_deleted = 1, deleted_at = datetime('now') WHERE id = 'host-page'`;
 			}),
 		);
-		const trash = await testRun(Databases.listTrash);
+		const trash = await testRun(Databases.listTrash("owner", "ws", "owner"));
 		expect(trash.databases.map((d) => d.id)).toContain("db1");
 		expect(trash.records.map((r) => r.id)).toContain("rec1");
 		expect(trash.pages.map((p) => p.id)).toContain("host-page");

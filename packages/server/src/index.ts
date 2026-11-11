@@ -13,7 +13,9 @@ import * as HttpServerRequest from "effect/http/HttpServerRequest";
 import * as HttpServerResponse from "effect/http/HttpServerResponse";
 import * as RpcSerialization from "effect/rpc/RpcSerialization";
 import * as RpcServer from "effect/rpc/RpcServer";
+import { McpLive } from "./api-v1/mcp.js";
 import { registerV1Routes } from "./api-v1/routes.js";
+import { type ApiKeyScope, allows, SCOPE_REFUSAL } from "./api-v1/scope.js";
 import { auth } from "./auth.js";
 import { startBackupScheduler } from "./backup-scheduler.js";
 import {
@@ -42,7 +44,7 @@ import {
 import { LoggerLive, reportCause } from "./observability.js";
 import { PlatformDb, PlatformDbLive, platformDb } from "./platform-db.js";
 import * as Policies from "./policies.js";
-import { withPolicy } from "./policy.js";
+import { CurrentUser, forbidden, withPolicy } from "./policy.js";
 import {
 	leaveHandler,
 	makeHeartbeatHandler,
@@ -191,10 +193,24 @@ const staticFilesRoute = Effect.gen(function* () {
 	// The decision itself lives in policies.ts and is unit-tested there; this only
 	// resolves the caller and turns a refusal into a response. An unconfigured
 	// ADMIN_EMAILS closes rather than opens — see ADR-008.
-	const requireAdmin = <A>(inner: Effect.Effect<A, unknown, any>) =>
+	//
+	// Each route declares the scope it needs, as the v1 operations do: an
+	// admin's read key may read the admin routes, never change the instance.
+	const requireAdmin = <A>(
+		needed: ApiKeyScope,
+		inner: Effect.Effect<A, unknown, any>,
+	) =>
 		inner.pipe(
+			withPolicy(
+				Effect.flatMap(CurrentUser, (user) =>
+					allows(user.scope, needed)
+						? Effect.void
+						: Effect.fail(forbidden(SCOPE_REFUSAL)),
+				),
+			),
 			withPolicy(Policies.instanceAdmin),
 			Effect.provide(Principal.layer),
+			withPlatformServices,
 			Effect.catchIf(
 				(error): error is AuthError => error instanceof AuthError,
 				(error) =>
@@ -334,6 +350,7 @@ const staticFilesRoute = Effect.gen(function* () {
 		"GET",
 		"/api/settings",
 		requireAdmin(
+			"read",
 			Effect.sync(() => {
 				const settings = loadSettings();
 				return HttpServerResponse.text(JSON.stringify(settings), {
@@ -348,6 +365,7 @@ const staticFilesRoute = Effect.gen(function* () {
 		"POST",
 		"/api/settings",
 		requireAdmin(
+			"write",
 			Effect.gen(function* () {
 				const request = yield* HttpServerRequest.HttpServerRequest;
 				const ab = yield* request.arrayBuffer;
@@ -372,6 +390,7 @@ const staticFilesRoute = Effect.gen(function* () {
 		"POST",
 		"/api/backup/trigger",
 		requireAdmin(
+			"write",
 			Effect.gen(function* () {
 				const result = yield* Effect.promise(() => triggerBackup());
 				return HttpServerResponse.text(JSON.stringify(result), {
@@ -386,6 +405,7 @@ const staticFilesRoute = Effect.gen(function* () {
 		"GET",
 		"/api/backup/list",
 		requireAdmin(
+			"read",
 			Effect.gen(function* () {
 				const items = yield* Effect.promise(() => listBackups());
 				return HttpServerResponse.text(JSON.stringify(items), {
@@ -402,6 +422,7 @@ const staticFilesRoute = Effect.gen(function* () {
 		"POST",
 		"/api/backup/restore",
 		requireAdmin(
+			"write",
 			Effect.gen(function* () {
 				const request = yield* HttpServerRequest.HttpServerRequest;
 				const ab = yield* request.arrayBuffer;
@@ -440,6 +461,7 @@ const staticFilesRoute = Effect.gen(function* () {
 		"GET",
 		"/api/admin/users",
 		requireAdmin(
+			"read",
 			Effect.sync(() => {
 				const users = platformDb
 					.prepare(
@@ -462,6 +484,7 @@ const staticFilesRoute = Effect.gen(function* () {
 		"GET",
 		"/api/admin/workspaces",
 		requireAdmin(
+			"read",
 			Effect.sync(() => {
 				const workspaces = platformDb
 					.prepare(
@@ -484,6 +507,7 @@ const staticFilesRoute = Effect.gen(function* () {
 		"DELETE",
 		"/api/admin/users/:userId",
 		requireAdmin(
+			"write",
 			Effect.gen(function* () {
 				const params = yield* HttpRouter.params;
 				const userId = params.userId as string | undefined;
@@ -775,7 +799,12 @@ const RpcRouterLive = RpcServer.layerHttp({
 });
 
 // Combine all layers: RPC + static files + handlers + serialization + database
-const AppLive = Layer.mergeAll(RpcRouterLive, StaticFilesLive, ApiV1Live).pipe(
+const AppLive = Layer.mergeAll(
+	RpcRouterLive,
+	StaticFilesLive,
+	ApiV1Live,
+	McpLive,
+).pipe(
 	Layer.provide(rpcHandlersLayer),
 	Layer.provide(RpcSerialization.layerJson),
 	Layer.provide(SqliteLive),

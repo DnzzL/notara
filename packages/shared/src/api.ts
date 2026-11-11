@@ -7,7 +7,9 @@ import { ApiError } from "./errors.js";
 // reject obviously bad inputs without scattering checks across handlers. Decoded
 // values are still plain strings; the constraints only affect input acceptance.
 
-const TitleString = Schema.String.pipe(Schema.check(Schema.isMaxLength(500)));
+export const TitleString = Schema.String.pipe(
+	Schema.check(Schema.isMaxLength(500)),
+);
 const ShortName = Schema.String.pipe(
 	Schema.check(Schema.isMinLength(1)),
 	Schema.check(Schema.isMaxLength(120)),
@@ -19,8 +21,10 @@ const Email = Schema.String.pipe(
 	Schema.check(Schema.isPattern(/^[^\s@]+@[^\s@]+\.[^\s@]+$/)),
 	Schema.check(Schema.isMaxLength(254)),
 );
-const SearchQuery = Schema.String.pipe(Schema.check(Schema.isMaxLength(500)));
-const BlockContent = Schema.String.pipe(
+export const SearchQuery = Schema.String.pipe(
+	Schema.check(Schema.isMaxLength(500)),
+);
+export const BlockContent = Schema.String.pipe(
 	Schema.check(Schema.isMaxLength(1_048_576)),
 );
 
