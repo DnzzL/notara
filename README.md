@@ -11,12 +11,17 @@
 
 I wanted a Notion I could actually own — everything in **one SQLite file** on a box I
 control, no subscription, no cloud, and few enough features that one person can keep them
-all working. That's Notara: a self-hostable, **open-source** Notion alternative with a
-block editor, inline databases, and real-time collaboration. It's free to self-host, and
-there's nothing to be locked into.
+all working. That's Notara, in three pillars:
 
-It's built and maintained by one person ([me](https://thomas.legrand.sh)), on purpose. The
-guiding rule is *fewer features, done well* — so the list below is deliberately short.
+1. **Minimalist** — a Notion you own: block editor, inline databases and real-time
+   collaboration, *few features done well*.
+2. **Self-host in 1 minute** — one `docker run`, one SQLite file, AGPL-3.0-or-later, free.
+3. **Agent-ready** — pages, blocks, databases, records, search and trash are drivable from
+   the `notara` CLI, the REST API (OpenAPI) and an MCP server, with scoped read/write API
+   keys.
+
+It's built and maintained by one person ([me](https://thomas.legrand.sh)), on purpose, so
+the list below is deliberately short.
 
 <div align="center">
 <img src="docs/screenshots/notara-hero.gif" width="720" alt="A Notara database, the same records shown as a table and as a board" />
@@ -39,6 +44,9 @@ Open `http://localhost:3000` and create your account. Your data lives in the
 
 | | |
 |---|---|
+| **Minimalist** | A Notion you own: few features, done well |
+| **Self-host in 1 minute** | One `docker run` ([Quick start](#quick-start)); free, AGPL-3.0-or-later, no licence key |
+| **Agent-ready** | Pages, blocks, databases, records, search and trash from the `notara` CLI, the REST API (OpenAPI) or an MCP server at `/mcp`; read/write-scoped API keys |
 | **Block editor** | Paragraphs, headings, todos, code, toggles, callouts, images, PDFs and more |
 | **Inline databases** | Table and board views with fields, relations and custom views |
 | **Real-time collaboration** | Invite by email or link, see who's on the page, edit together |
@@ -243,6 +251,16 @@ for automation and CI. Interactive docs at `GET /api/docs`, OpenAPI at
 ```bash
 curl https://notes.example.com/api/v1/workspaces/<workspaceId>/pages \
   -H "Authorization: Bearer ntr_your_key_here"
+```
+
+**The MCP server.** Agents connect over Streamable HTTP at `/mcp` with the same
+`Authorization: Bearer ntr_…` key. Each typed API operation is one tool, checked against the
+same permissions as REST; a read-only key sees the read tools only. Supports MCP protocol
+versions `2025-06-18`, `2025-11-25` (sessions) and the stateless `2026-07-28` flow.
+
+```bash
+claude mcp add --transport http notara https://notes.example.com/mcp \
+  --header "Authorization: Bearer ntr_your_key_here"
 ```
 
 **The desktop app.** Native macOS Electron build — lives in your dock, works offline,

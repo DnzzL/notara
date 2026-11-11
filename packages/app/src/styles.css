@@ -954,6 +954,24 @@ select, input, textarea, button { font-family: var(--font-ui); }
 .legal-content a:hover { text-decoration: underline; }
 .legal-meta { font-size: 13px; color: var(--text-3); margin-bottom: 32px; }
 
+/* ── Pillars ── */
+.lp-pillars { border-bottom: 2px solid var(--text); }
+.lp-pillars .lp-wrap { padding-top: 72px; padding-bottom: 72px; }
+.lp-pillars-title { font-family: var(--font-title); font-weight: 700; font-size: clamp(28px,3.4vw,42px); letter-spacing: -0.025em; line-height: 1.04; margin: 0 0 40px; max-width: 760px; color: var(--text); }
+.lp-pillars-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); border: 2px solid var(--text); }
+.lp-pillar { padding: 28px; display: flex; flex-direction: column; gap: 14px; min-width: 0; }
+.lp-pillar + .lp-pillar { border-left: 2px solid var(--text); }
+.lp-pillar h3 { font-family: var(--font-title); font-weight: 700; font-size: 20px; letter-spacing: -0.02em; line-height: 1.2; margin: 0; color: var(--text); }
+.lp-pillar p { font-size: 15px; line-height: 1.6; color: var(--text-2); margin: 0; }
+.lp-pillar code { font-family: var(--font-mono); font-size: 0.9em; background: var(--surface-3); padding: 1px 5px; border-radius: 3px; }
+.lp-code { font-family: var(--font-mono); font-size: 12px; line-height: 1.6; background: var(--surface-2); border: 1px solid var(--border); color: var(--text); padding: 14px; margin: 0; white-space: pre-wrap; overflow-wrap: anywhere; }
+.lp-pillar .lp-code code { background: none; padding: 0; font-size: inherit; }
+@media (max-width: 880px) {
+  .lp-pillars .lp-wrap { padding-top: 48px; padding-bottom: 48px; }
+  .lp-pillars-grid { grid-template-columns: 1fr; }
+  .lp-pillar + .lp-pillar { border-left: none; border-top: 2px solid var(--text); }
+}
+
 /* ── For developers ── */
 .landing-dev { border-bottom: 2px solid var(--text); background: var(--surface-2); }
 .landing-dev-in { padding: 72px 0; }
