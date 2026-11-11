@@ -2,27 +2,24 @@ import { SearchResult } from "@notara/shared";
 import { Effect } from "effect";
 import { SqlClient } from "effect/sql";
 
-// Escape special FTS5 characters, allow * for user-specified prefix matching
-function escapeFtsQuery(q: string): string {
-	return q.replace(/["<>~()]/g, "");
-}
-
-// Build a prefix-matching FTS5 query by appending * to each word
-function prefixQuery(q: string): string {
+// Build a prefix-matching FTS5 query: each whitespace-separated word becomes a
+// quoted string followed by * ("agent-browser"*), so operator characters
+// (- : ^ + AND/OR/NOT ...) are literal text, never syntax.
+function toFtsQuery(q: string): string {
 	return q
 		.split(/\s+/)
+		.map((w) => w.replace(/["*]/g, ""))
 		.filter(Boolean)
-		.map((w) => `${w.replace(/\*+$/, "")}*`)
+		.map((w) => `"${w}"*`)
 		.join(" ");
 }
 
 export const globalSearch = (query: string) =>
 	Effect.gen(function* () {
 		const sql = yield* SqlClient.SqlClient;
-		const safeQuery = escapeFtsQuery(query.trim());
-		if (!safeQuery) return [];
+		const ftsQuery = toFtsQuery(query);
+		if (!ftsQuery) return [];
 
-		const ftsQuery = prefixQuery(safeQuery);
 		const results: SearchResult[] = [];
 
 		// 1. Search pages by title via FTS (exclude deleted)

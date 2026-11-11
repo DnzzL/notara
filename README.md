@@ -11,12 +11,17 @@
 
 I wanted a Notion I could actually own — everything in **one SQLite file** on a box I
 control, no subscription, no cloud, and few enough features that one person can keep them
-all working. That's Notara: a self-hostable, **open-source** Notion alternative with a
-block editor, inline databases, and real-time collaboration. It's free to self-host, and
-there's nothing to be locked into.
+all working. That's Notara, in three pillars:
 
-It's built and maintained by one person ([me](https://thomas.legrand.sh)), on purpose. The
-guiding rule is *fewer features, done well* — so the list below is deliberately short.
+1. **Minimalist** — a Notion you own: block editor, inline databases and real-time
+   collaboration, *few features done well*.
+2. **Self-host in 1 minute** — one `docker run`, one SQLite file, AGPL-3.0-or-later, free.
+3. **Agent-ready** — pages, blocks, databases, records, search and trash are drivable from
+   the `notara` CLI, the REST API (OpenAPI) and an MCP server, with scoped read/write API
+   keys.
+
+It's built and maintained by one person ([me](https://thomas.legrand.sh)), on purpose, so
+the list below is deliberately short.
 
 <div align="center">
 <img src="docs/screenshots/notara-hero.gif" width="720" alt="A Notara database, the same records shown as a table and as a board" />
@@ -39,6 +44,9 @@ Open `http://localhost:3000` and create your account. Your data lives in the
 
 | | |
 |---|---|
+| **Minimalist** | A Notion you own: few features, done well |
+| **Self-host in 1 minute** | One `docker run` ([Quick start](#quick-start)); free, AGPL-3.0-or-later, no licence key |
+| **Agent-ready** | Pages, blocks, databases, records, search and trash from the `notara` CLI, the REST API (OpenAPI) or an MCP server at `/mcp`; read/write-scoped API keys |
 | **Block editor** | Paragraphs, headings, todos, code, toggles, callouts, images, PDFs and more |
 | **Inline databases** | Table and board views with fields, relations and custom views |
 | **Real-time collaboration** | Invite by email or link, see who's on the page, edit together |
@@ -160,6 +168,70 @@ fly secrets set BETTER_AUTH_SECRET=$(openssl rand -base64 32)
 fly deploy
 ```
 
+### Upgrade, backup and restore
+
+Everything lives in `/data` (`platform.db`, `workspaces/*.db`, `attachments/`). A backup is
+one zip of exactly that. These steps are exercised end to end by
+`packages/server/test/upgrade-restore.test.ts`.
+
+**Pick a backup target.** Admin = an email listed in `ADMIN_EMAILS`.
+
+| Target | Set | Notes |
+|--------|-----|-------|
+| Local filesystem | `BACKUP_DIR=/backups` | Mount `/backups` from **outside** the `/data` volume, e.g. `-v /srv/notara-backups:/backups`. Wins over S3 if both are set. |
+| S3-compatible | `S3_BUCKET`, `S3_ACCESS_KEY`, `S3_SECRET_KEY`, optional `S3_REGION`, `S3_ENDPOINT`, `S3_PREFIX` | Or in the workspace menu → **Settings → Backups** (S3 only). |
+
+With Docker Compose, `docker-compose.yml` only forwards the variables it lists: add
+`BACKUP_DIR` (and `S3_PREFIX`) to `environment:` and the `/backups` volume yourself.
+
+**Back up.** `POST /api/backup/trigger` as an admin (the Settings → Backups → **Backup
+Now** button does the same, S3 only). Scheduled backups and retention (`S3_KEEP_LAST`) use
+the same target.
+
+```bash
+# $SESSION: your session cookie, copied from the browser's dev tools after signing in
+# as an admin (e.g. "better-auth.session_token=…").
+curl -X POST -H "Cookie: $SESSION" http://localhost:3000/api/backup/trigger
+```
+
+**Upgrade.** Take a backup, then replace the container. Pending migrations run on boot;
+`/health` answers 200 once the database is open.
+
+```bash
+# Prebuilt image
+docker pull ghcr.io/dnzzl/notara:latest        # or pin a tag, e.g. :0.1.4
+docker rm -f notara && docker run -d --restart unless-stopped --name notara …   # same flags as before
+# Compose (builds from source)
+git pull && docker compose up -d --build
+# Quadlet (local build)
+git pull && podman build -t notara . && systemctl --user restart notara
+```
+
+**Roll back.** Migrations only move forward, so an older image may not open a migrated
+database. Go back to the backup taken before the upgrade:
+
+1. Stop the new container; start the **previous tag** on an empty `/data` volume (same
+   `BETTER_AUTH_SECRET`, `ADMIN_EMAILS` and backup target settings).
+2. Create an admin account on that fresh instance.
+3. Restore (below), picking the backup taken before the upgrade.
+
+**Restore.** As an admin, list the backups, then restore one by its key (copy it exactly
+from the list; S3 keys carry your prefix, e.g. `backups/backup-….zip`). In the UI, with S3:
+workspace menu → **Settings → Backups → Restore from backup**.
+
+```bash
+curl -H "Cookie: $SESSION" http://localhost:3000/api/backup/list           # keys, newest first
+curl -H "Cookie: $SESSION" -H 'Content-Type: application/json' \
+  -d '{"key":"backup-2026-01-01T00-00-00-000Z.zip"}' \
+  http://localhost:3000/api/backup/restore
+```
+
+Restore first snapshots the current state (a new backup in the same target), then
+overwrites `platform.db`, every workspace database and `attachments/`, and **exits the
+process with code 0**. Your orchestrator restarts it (`restart: unless-stopped` in the
+Compose file, `Restart=always` in the Quadlet unit, `--restart unless-stopped` for plain
+`docker run`). Accounts, sessions and passwords come from the backup too.
+
 ## The notara toolchain
 
 Notara is scriptable end to end — the app is one way in, not the only one.
@@ -185,6 +257,11 @@ curl https://notes.example.com/api/v1/workspaces/<workspaceId>/pages \
 `Authorization: Bearer ntr_…` key. Each typed API operation is one tool, checked against the
 same permissions as REST; a read-only key sees the read tools only. Supports MCP protocol
 versions `2025-06-18`, `2025-11-25` (sessions) and the stateless `2026-07-28` flow.
+
+```bash
+claude mcp add --transport http notara https://notes.example.com/mcp \
+  --header "Authorization: Bearer ntr_your_key_here"
+```
 
 **The desktop app.** Native macOS Electron build — lives in your dock, works offline,
 syncs to your server.

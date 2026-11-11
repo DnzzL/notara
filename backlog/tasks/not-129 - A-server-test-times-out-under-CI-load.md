@@ -1,11 +1,13 @@
 ---
 id: NOT-129
 title: A server test times out under CI load
-status: needs-triage
+status: ready-for-agent
 assignee: []
-created_date: '2026-08-27 15:45'
+created_date: 2026-08-27 15:45
+updated_date: '2026-11-10T20:04:00Z'
 labels:
   - bug
+milestone: m-2
 dependencies: []
 priority: low
 ordinal: 124000
@@ -25,6 +27,18 @@ If it turns out to be genuinely slow rather than flaky, the fix is in the handle
 
 ## Acceptance Criteria
 <!-- AC:BEGIN -->
-- [ ] #1 Established whether the test is slow or the assertion is slow
-- [ ] #2 CI passes this test consistently, without simply raising the timeout to hide it
+- [x] #1 Established whether the test is slow or the assertion is slow
+- [x] #2 CI passes this test consistently, without simply raising the timeout to hide it
 <!-- AC:END -->
+
+## Final Summary
+
+<!-- SECTION:FINAL_SUMMARY:BEGIN -->
+Cause: the named test never reached the cycle check (self-move returns before any SQL). Its cost was setup: each test replayed 23 migrations into a fresh on-disk SQLite file (fsync-bound, ~36ms locally, multi-second under CI I/O stall). Migrations now run once into a template DB; each test copies it (~1.7ms).
+
+Also fixed a real handler problem found while timing: movePage's descendant check walked the whole subtree (recursive CTE down). Moving a page with 20k children took 25.1s; now walks up the ancestor chain from the target parent: 7.3ms.
+
+Tests: bun test packages/server/test 283 pass; tsc server OK; bun lint OK. Added a descendant-move ConflictError test.
+
+Follow-up (not in this change): handlers.test.ts, trash-subtree.test.ts, import-ledger.test.ts still replay all migrations per test; same fix applies.
+<!-- SECTION:FINAL_SUMMARY:END -->
