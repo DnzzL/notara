@@ -13,26 +13,25 @@ Safer data and better signals for agents: who edited what, what an API key did, 
 
 ### Upgrade notes
 
-- **SQLite foreign keys are now enforced** (ADR-013). On first boot the server reports orphan rows, deletes the ones that cascade, and **refuses to start** on any other broken reference.
-- **Take a backup before upgrading.** If boot fails, the log names the broken reference. Rolling back to the 0.3.0 image is safe: restore the pre-upgrade backup as described in the README.
+- **SQLite foreign keys are now enforced** (ADR-013). On first boot the server reports orphan rows, deletes the ones that cascade, and **refuses to start** on any other broken reference. A broken workspace database is checked when it is first opened: the server starts, but that workspace fails to load and the log names the reference.
+- **Take a backup before upgrading.** If boot fails, the log names the broken reference. Rolling back to the 0.3.0 image is safe: restore the pre-upgrade backup as described in the README (Upgrade, backup and restore). Anything written under 0.4.0 is lost by that restore.
 
 ### Added
 
 - **Change events over SSE.** `GET /api/v1/workspaces/:id/events` streams every page, block and record change (kind, op, id, editor) to an API key or session, filtered by what it may read, so agents react instead of polling (ADR-015).
 - **API keys scoped to a page subtree.** A key can be limited to one page and its descendants (ADR-012).
 - **"Edited by" on pages and blocks.** The last editor is recorded and returned by the API (ADR-014).
-- **Audit log of API and MCP actions.** Every write made with an API key is recorded.
+- **Audit log of API and MCP actions.** Every write made with an API key (REST or MCP) is recorded, readable by the workspace owner only, and kept 90 days by default (`AUDIT_LOG_RETENTION_DAYS`) (ADR-015).
 - **Tab / Shift-Tab nest and unnest blocks** in the editor (ADR-016).
-- **`[]` markdown shortcut** creates a todo, without an empty paragraph above it.
 
 ### Changed
 
 - **Templates are data files**, one per template, discovered automatically.
 - **CI runs the e2e tests in the official Playwright image.**
-- Restoring a backup now schedules the process exit properly.
 
 ### Fixed
 
+- The `[]` shortcut creates a todo without leaving an empty paragraph above it.
 - The Electron bundle includes the templates.
 
 ## [0.3.0] - 2026-11-11
