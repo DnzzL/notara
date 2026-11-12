@@ -4,7 +4,7 @@ title: Make /health check the DB and back a Docker HEALTHCHECK
 status: done
 assignee: []
 created_date: '2026-11-10T17:05:00Z'
-updated_date: '2026-11-12T21:02:00Z'
+updated_date: '2026-11-12T21:08:00Z'
 labels:
   - enhancement
 milestone: m-1
@@ -32,5 +32,6 @@ Agent brief: unauthenticated /health runs a trivial DB query; 200 when OK (keep 
 <!-- SECTION:FINAL_SUMMARY:BEGIN -->
 /health runs SELECT 1 on the platform DB: 200 'ok' (unchanged body) or 503 'unavailable'. Unauthenticated, no details leaked, no rate limit. Logic in server/src/health.ts, tested in test/health.test.ts. Dockerfile HEALTHCHECK uses bun fetch (no new package).
 
-Verified (NA-48): root image built from this branch, run with a volume + BETTER_AUTH_SECRET; docker inspect reports 'healthy' after ~45s, probes exit 0. Compose files inherit the image HEALTHCHECK (their healthcheck block is commented out); unchanged.
+Verified (NA-48): docker build -t notara-hc . ; docker run -d -v <vol>:/data -e BETTER_AUTH_SECRET=... ; after ~45s docker inspect --format '{{.State.Health.Status}}' -> healthy, probes exit 0.
+compose.https.yml uses the root Dockerfile, so it inherits the HEALTHCHECK (Caddy waits on service_healthy). docker-compose.yml builds packages/server/Dockerfile, which has no HEALTHCHECK, and its healthcheck block is commented out: that stack has no health check (follow-up task).
 <!-- SECTION:FINAL_SUMMARY:END -->
