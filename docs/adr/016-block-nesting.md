@@ -43,8 +43,9 @@ Deleting a block deletes its subtree (the FK cascade, ADR-013); the client mirro
 
 - Anything that creates a block after another (Enter, slash commands) must pick its `parent_id`: first
   child if the block has children, else the same parent. `createBlock` itself does not check it.
-- Not covered yet (follow-up tickets): numbered lists do not restart per level; undo of a move
-  restores the order but not the old parent.
+- Not covered yet (follow-up tickets): numbered lists do not restart per level; a move that changes the parent is not recorded in
+  the undo history (undo restores order only); a drop's new parent comes from the target block, not
+  the horizontal position.
 - Duplicate puts the copy after the original's subtree; undo of a delete recreates the subtree
   (new ids).
 - Backspace-merge into the previous block is refused when the merged block has children (it would

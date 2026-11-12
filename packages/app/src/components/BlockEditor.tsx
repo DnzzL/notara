@@ -1241,13 +1241,21 @@ export function BlockEditor() {
 
 		if (oldIndex === -1 || newIndex === -1) return;
 
-		// Block onto block: one server-side move, subtree included. Moving down
-		// drops after the target's subtree, moving up before the target.
-		if (!`${active.id}`.startsWith("db-") && !`${over.id}`.startsWith("db-")) {
+		// A block dropped on a block or on an orphan database goes through the
+		// server-side move, subtree included (orphan databases are listed after
+		// every block, so that drop means "after the last top-level block").
+		// Moving down drops after the target's subtree, moving up before it.
+		if (!`${active.id}`.startsWith("db-")) {
+			const overIsDb = `${over.id}`.startsWith("db-");
+			const lastTop = [...visibleBlocks]
+				.reverse()
+				.find((b) => !b.parentId && b.id !== active.id);
+			const targetId = overIsDb ? lastTop?.id : `${over.id}`;
+			if (!targetId) return;
 			await moveBlockTo(
 				`${active.id}`,
-				`${over.id}`,
-				oldIndex < newIndex ? "after" : "before",
+				targetId,
+				overIsDb || oldIndex < newIndex ? "after" : "before",
 			);
 			return;
 		}

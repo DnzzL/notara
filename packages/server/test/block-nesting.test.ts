@@ -142,6 +142,17 @@ describe("moveBlock", () => {
 		expect(result.parents.e).toBe("a");
 	});
 
+	test("moving after a block with children lands after its subtree", async () => {
+		const result = await run(() =>
+			Effect.gen(function* () {
+				yield* nest; // a ⊃ b, c
+				yield* Blocks.moveBlock("e", "a", "after");
+				return order(yield* Blocks.listBlocks("p"));
+			}),
+		);
+		expect(result).toEqual(["a", "b", "c", "e", "d"]);
+	});
+
 	test("dropping a block into its own subtree is refused", async () => {
 		const result = await run((parents) =>
 			Effect.gen(function* () {

@@ -287,10 +287,16 @@ export const useBlockStore = create<BlockState>((set, get) => ({
 			const prevIds = [...get().blocks]
 				.sort((a, b) => a.index - b.index)
 				.map((b) => b.id);
-			const pageId = get().blocks.find((b) => b.id === id)?.pageId;
+			const moving = get().blocks.find((b) => b.id === id);
 			const blocks = await api.moveBlock({ id, targetId, position });
 			set({ blocks });
-			if (pageId)
+			// Undo restores the order only, so a move that changed the parent
+			// is not recorded: undoing it would leave the block mis-parented.
+			const pageId = moving?.pageId;
+			if (
+				pageId &&
+				blocks.find((b) => b.id === id)?.parentId === (moving?.parentId ?? null)
+			)
 				useHistoryStore
 					.getState()
 					.record({ kind: "reorder", pageId, ids: prevIds });
