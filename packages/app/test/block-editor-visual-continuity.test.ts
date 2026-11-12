@@ -1,28 +1,6 @@
 import { describe, expect, test } from "bun:test";
 
-// ── Helper: compute numbered-run index for consecutive numberedList blocks ──
-// This utility is extracted from the BlockEditor render loop. It assigns each
-// block a `numberedRunIndex` starting at 1, resetting to 1 whenever a
-// non-numberedList block appears between two numberedList blocks.
-
-type BlockShape = { id: string; type: string; index: number };
-
-function computeNumberedRunIndices(blocks: BlockShape[]): Map<string, number> {
-	const result = new Map<string, number>();
-	let currentRun = 1;
-
-	for (let i = 0; i < blocks.length; i++) {
-		const block = blocks[i];
-		if (block.type === "numberedList") {
-			result.set(block.id, currentRun);
-			currentRun++;
-		} else {
-			currentRun = 1;
-		}
-	}
-
-	return result;
-}
+import { computeNumberedRunIndices } from "../src/lib/blockDocument.js";
 
 describe("computeNumberedRunIndices", () => {
 	test("single numberedList block gets index 1", () => {
@@ -107,5 +85,48 @@ describe("computeNumberedRunIndices", () => {
 		expect(indices.has("a")).toBe(false);
 		expect(indices.has("b")).toBe(false);
 		expect(indices.has("c")).toBe(false);
+	});
+
+	const n = (
+		id: string,
+		parentId: string | null = null,
+		type = "numberedList",
+	) => ({
+		id,
+		type,
+		parentId,
+	});
+
+	test("nested run restarts at 1 and the outer list continues after it", () => {
+		const indices = computeNumberedRunIndices([
+			n("1"),
+			n("2"),
+			n("a", "2"),
+			n("b", "2"),
+			n("3"),
+		]);
+		expect(["1", "2", "a", "b", "3"].map((id) => indices.get(id))).toEqual([
+			1, 2, 1, 2, 3,
+		]);
+	});
+
+	test("a non-numbered sibling breaks a nested run", () => {
+		const indices = computeNumberedRunIndices([
+			n("1"),
+			n("a", "1"),
+			n("p", "1", "paragraph"),
+			n("b", "1"),
+		]);
+		expect(indices.get("a")).toBe(1);
+		expect(indices.get("b")).toBe(1);
+	});
+
+	test("a non-numbered child does not break the outer run", () => {
+		const indices = computeNumberedRunIndices([
+			n("1"),
+			n("p", "1", "paragraph"),
+			n("2"),
+		]);
+		expect(indices.get("2")).toBe(2);
 	});
 });

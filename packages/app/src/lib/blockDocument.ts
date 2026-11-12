@@ -158,6 +158,28 @@ export function blockDepths(
 }
 
 /**
+ * Number each numbered-list block within its run of siblings: consecutive
+ * numbered blocks under the same parent count 1, 2, 3. A non-numbered sibling
+ * ends the run; a nested run (other parent) counts apart and leaves the outer
+ * count untouched, so the outer list continues after it.
+ */
+export function computeNumberedRunIndices(
+	blocks: readonly { id: string; type: string; parentId?: string | null }[],
+): Map<string, number> {
+	const result = new Map<string, number>();
+	const runs = new Map<string | null, number>();
+	for (const b of blocks) {
+		const parent = b.parentId ?? null;
+		if (b.type === "numberedList") {
+			const n = (runs.get(parent) ?? 0) + 1;
+			runs.set(parent, n);
+			result.set(b.id, n);
+		} else runs.delete(parent);
+	}
+	return result;
+}
+
+/**
  * The parent changes `reparentBlock` makes, worked out locally so the screen
  * (and a block inserted a keystroke later) agrees before the server replies.
  * Same rules as the server's `reparentBlock`, which stays authoritative.

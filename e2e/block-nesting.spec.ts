@@ -139,3 +139,36 @@ test("Dragging a parent below another block carries its children", async ({
 	await page.reload();
 	await check();
 });
+
+test("a nested numbered list restarts at 1 under its parent", async ({
+	page,
+}) => {
+	await gotoApp(page);
+	const editor = await createPage(page, "Nested numbering");
+	await editor.click();
+	await editor.pressSequentially("1. one");
+	await page.keyboard.press("Enter");
+	await page.keyboard.type("two");
+	await page.keyboard.press("Enter");
+	await page.keyboard.type("a");
+	await page.keyboard.press("Enter");
+	await page.keyboard.type("b");
+	await page.keyboard.press("Enter");
+	await page.keyboard.type("three");
+	await expect(page.locator(".ProseMirror")).toHaveCount(5, { timeout: 10000 });
+
+	// "a" and "b" both nest under "two" (Tab goes under the previous top-level block).
+	await page.locator(".ProseMirror").nth(2).click();
+	await page.keyboard.press("Tab");
+	await page.locator(".ProseMirror").nth(3).click();
+	await page.keyboard.press("Tab");
+	await expect(wrapper(page, 3)).toHaveCSS("margin-left", "24px");
+
+	const run = (i: number) =>
+		wrapper(page, i).evaluate((el) =>
+			getComputedStyle(el).getPropertyValue("--numbered-run").trim(),
+		);
+	// Outer 1, 2, nested 1, 2, outer continues at 3.
+	const runs = await Promise.all([0, 1, 2, 3, 4].map(run));
+	expect(runs).toEqual(["1", "2", "1", "2", "3"]);
+});
