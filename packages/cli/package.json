@@ -1,6 +1,6 @@
 {
 	"name": "@notara/cli",
-	"version": "0.4.0",
+	"version": "0.4.1",
 	"type": "module",
 	"main": "dist/main.js",
 	"bin": {
@@ -9,7 +9,8 @@
 	"scripts": {
 		"dev": "bun src/main.ts",
 		"build": "tsc",
-		"start": "bun src/main.ts"
+		"start": "bun src/main.ts",
+		"test": "bun test"
 	},
 	"dependencies": {
 		"@effect/platform-node": "4.0.0",
