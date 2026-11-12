@@ -1,9 +1,10 @@
 ---
 id: NOT-170
 title: Une page renommée par l'API reste introuvable sous son nouveau titre
-status: needs-triage
+status: done
 assignee: []
-created_date: '2026-10-29 20:43'
+created_date: 2026-10-29 20:43
+updated_date: '2026-11-12T20:49:00Z'
 labels:
   - bug
 dependencies: []

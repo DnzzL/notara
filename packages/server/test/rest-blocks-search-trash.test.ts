@@ -324,6 +324,20 @@ describe("search through REST", () => {
 		expect(pagesSeen).not.toContain(locked);
 	});
 
+	test("a renamed page is found under its new title, not the old one", async () => {
+		const id = await newPage("Quokkaold plan");
+		const patched = await call(writeKey, "PATCH", `${PAGES}/${id}`, {
+			title: "Wombatnew plan",
+		});
+		expect(patched.status).toBe(200);
+		const ids = async (q: string) =>
+			(await call(readKey, "GET", `${WS}/search?q=${q}`)).body.map(
+				(r: { pageId: string }) => r.pageId,
+			);
+		expect(await ids("wombatnew")).toContain(id);
+		expect(await ids("quokkaold")).not.toContain(id);
+	});
+
 	test("a search without a query is a 422 naming q", async () => {
 		for (const qs of ["", "?q=", "?q=%20%20"]) {
 			const res = await call(readKey, "GET", `${WS}/search${qs}`);
