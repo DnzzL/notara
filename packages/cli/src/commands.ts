@@ -634,6 +634,43 @@ const blocksReparent = Command.make(
 	),
 );
 
+const blocksMove = Command.make(
+	"move",
+	{
+		...globals,
+		blockId,
+		targetId: Argument.String("targetId").pipe(
+			Argument.withDescription("Block to drop next to"),
+		),
+		position: Argument.Literals("position", ["before", "after"]).pipe(
+			Argument.withDescription(
+				"before the target, or after its subtree; takes the target's parent",
+			),
+		),
+	},
+	(o) =>
+		Effect.gen(function* () {
+			const cfg = toCfg(o);
+			const base = yield* wsPath(cfg);
+			const data = yield* request(
+				cfg,
+				"POST",
+				`${base}/blocks/${o.blockId}/move`,
+				{ body: { targetId: o.targetId, position: o.position } },
+			);
+			yield* print(
+				o.json,
+				data,
+				() => `Moved block ${o.blockId} ${o.position} ${o.targetId}`,
+			);
+		}),
+).pipe(
+	Command.annotate(OperationId, "moveBlock"),
+	Command.withDescription(
+		"Move a block and its children next to another block",
+	),
+);
+
 const blocksCmd = Command.make("blocks").pipe(
 	Command.withDescription("Manage the blocks within a page"),
 	Command.withSubcommands([
@@ -643,6 +680,7 @@ const blocksCmd = Command.make("blocks").pipe(
 		blocksDelete,
 		blocksReorder,
 		blocksReparent,
+		blocksMove,
 	]),
 );
 

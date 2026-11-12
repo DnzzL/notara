@@ -73,6 +73,11 @@ const ROUTES: Route[] = [
 		path: "/blocks/:blockId/reparent",
 		body: { direction: "in" },
 	},
+	{
+		method: "post",
+		path: "/blocks/:blockId/move",
+		body: { targetId: ":blockId", position: "after" },
+	},
 	{ method: "get", path: "/databases" },
 	{
 		method: "post",
@@ -172,7 +177,11 @@ const fill = (path: string, f: Fixture) =>
 
 const fillBody = (body: Record<string, unknown> | undefined, f: Fixture) =>
 	body
-		? JSON.parse(JSON.stringify(body).replace(":pageId", f.pageId))
+		? JSON.parse(
+				JSON.stringify(body)
+					.replace(":pageId", f.pageId)
+					.replace(":blockId", f.blockId),
+			)
 		: undefined;
 
 test("no REST route serves a caller who is not a workspace member", async ({

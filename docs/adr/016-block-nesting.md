@@ -22,6 +22,13 @@ Both moves keep the order depth-first, so **no `index` is rewritten**. Returns t
 Rendering is the flat list, indented by depth (24px per level). The DOM is not nested: one TipTap
 editor per block stays a sibling of the others (see the block-per-editor decision).
 
+`moveBlock(blockId, targetId, "before" | "after")` is the only way to reorder (drag-and-drop, Move
+up/down, Cmd+Shift+↑/↓): the block and its subtree land right before the target, or right after the
+target's subtree, and the block takes the target's parent. `index` is rewritten for the page. A target
+inside the moved subtree (or the block itself) is refused (`ValidationError`). Move up/down drop
+before the previous sibling / after the next sibling. `reorderBlocks` stays as the raw full-order
+write and does not look at `parent_id`.
+
 Deleting a block deletes its subtree (the FK cascade, ADR-013); the client mirrors it locally.
 
 ## Rejected
@@ -36,8 +43,9 @@ Deleting a block deletes its subtree (the FK cascade, ADR-013); the client mirro
 
 - Anything that creates a block after another (Enter, slash commands) must pick its `parent_id`: first
   child if the block has children, else the same parent. `createBlock` itself does not check it.
-- Not covered yet (follow-up tickets): drag-and-drop and Move up/down do not carry a block's subtree;
-  numbered lists do not restart per level.
+- Not covered yet (follow-up tickets): numbered lists do not restart per level; a move that changes the parent is not recorded in
+  the undo history (undo restores order only); a drop's new parent comes from the target block, not
+  the horizontal position.
 - Duplicate puts the copy after the original's subtree; undo of a delete recreates the subtree
   (new ids).
 - Backspace-merge into the previous block is refused when the merged block has children (it would

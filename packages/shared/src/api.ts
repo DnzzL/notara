@@ -168,6 +168,15 @@ export const AppRpc = RpcGroup.make(
 		},
 		success: Schema.Array(Block),
 	}),
+	Rpc.make("moveBlock", {
+		error: ApiError,
+		payload: {
+			id: Schema.String,
+			targetId: Schema.String,
+			position: Schema.Literals(["before", "after"]),
+		},
+		success: Schema.Array(Block),
+	}),
 	Rpc.make("getBacklinks", {
 		error: ApiError,
 		payload: { pageId: Schema.String },

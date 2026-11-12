@@ -30,6 +30,7 @@ import {
 	insertBlockAfter as computeInsertBlockAfter,
 	splitBlock as computeSplitBlock,
 	mergeBlocks,
+	stepTarget,
 } from "../lib/blockDocument.js";
 import {
 	setFocusedBlock,
@@ -735,6 +736,8 @@ export function BlockEditor() {
 	const reparentBlock = useBlockStore((s) => s.reparentBlock);
 	const duplicateBlock = useBlockStore((s) => s.duplicateBlock);
 	const reorderBlocks = useBlockStore((s) => s.reorderBlocks);
+	const moveBlockTo = useBlockStore((s) => s.moveBlock);
+	const stepBlock = useBlockStore((s) => s.stepBlock);
 	const loadBlocks = useBlockStore((s) => s.loadBlocks);
 	const databases = useDatabaseStore((s) => s.databases);
 	const createDatabase = useDatabaseStore((s) => s.createDatabase);
@@ -1238,6 +1241,25 @@ export function BlockEditor() {
 
 		if (oldIndex === -1 || newIndex === -1) return;
 
+		// A block dropped on a block or on an orphan database goes through the
+		// server-side move, subtree included (orphan databases are listed after
+		// every block, so that drop means "after the last top-level block").
+		// Moving down drops after the target's subtree, moving up before it.
+		if (!`${active.id}`.startsWith("db-")) {
+			const overIsDb = `${over.id}`.startsWith("db-");
+			const lastTop = [...visibleBlocks]
+				.reverse()
+				.find((b) => !b.parentId && b.id !== active.id);
+			const targetId = overIsDb ? lastTop?.id : `${over.id}`;
+			if (!targetId) return;
+			await moveBlockTo(
+				`${active.id}`,
+				targetId,
+				overIsDb || oldIndex < newIndex ? "after" : "before",
+			);
+			return;
+		}
+
 		// Calculate new interleaved order
 		const newItems = [...allItems];
 		const [movedItem] = newItems.splice(oldIndex, 1);
@@ -1264,33 +1286,9 @@ export function BlockEditor() {
 	};
 
 	// ── Block context menu ────────────────────────────────────────────
-	/** Move a block up or down in the sorted order. */
-	const moveBlock = useCallback(
-		async (blockId: string, direction: "up" | "down") => {
-			if (!currentPage) return;
-			const ordered = [...blocks].sort((a, b) => a.index - b.index);
-			const idx = ordered.findIndex((b) => b.id === blockId);
-			if (idx === -1) return;
-			const swapWith = direction === "up" ? idx - 1 : idx + 1;
-			if (swapWith < 0 || swapWith >= ordered.length) return;
-			const reordered = [...ordered];
-			[reordered[idx], reordered[swapWith]] = [
-				reordered[swapWith],
-				reordered[idx],
-			];
-			await reorderBlocks(
-				currentPage.id,
-				reordered.map((b) => b.id),
-			);
-		},
-		[currentPage, blocks, reorderBlocks],
-	);
-
 	/** Build the context-menu items for a given block. */
 	const buildBlockMenuItems = useCallback(
 		(blockId: string): BlockMenuItem[] => {
-			const ordered = [...blocks].sort((a, b) => a.index - b.index);
-			const idx = ordered.findIndex((b) => b.id === blockId);
 			return [
 				{
 					id: "duplicate",
@@ -1304,18 +1302,18 @@ export function BlockEditor() {
 					id: "move-up",
 					label: "Move up",
 					icon: "↑",
-					disabled: idx <= 0,
+					disabled: !stepTarget(blocks, blockId, "up"),
 					onClick: () => {
-						moveBlock(blockId, "up");
+						stepBlock(blockId, "up");
 					},
 				},
 				{
 					id: "move-down",
 					label: "Move down",
 					icon: "↓",
-					disabled: idx === -1 || idx >= ordered.length - 1,
+					disabled: !stepTarget(blocks, blockId, "down"),
 					onClick: () => {
-						moveBlock(blockId, "down");
+						stepBlock(blockId, "down");
 					},
 				},
 				{
@@ -1329,7 +1327,7 @@ export function BlockEditor() {
 				},
 			];
 		},
-		[blocks, duplicateBlock, deleteBlock, moveBlock],
+		[blocks, duplicateBlock, deleteBlock, stepBlock],
 	);
 
 	/** Context-menu items for a database block. Deleting removes the database and,
