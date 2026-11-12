@@ -7,9 +7,33 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.4.0] - 2026-11-12
+
+Safer data and better signals for agents: who edited what, what an API key did, and what changed.
+
+### Upgrade notes
+
+- **SQLite foreign keys are now enforced** (ADR-013). On first boot the server reports orphan rows, deletes the ones that cascade, and **refuses to start** on any other broken reference.
+- **Take a backup before upgrading.** If boot fails, the log names the broken reference. Rolling back to the 0.3.0 image is safe: restore the pre-upgrade backup as described in the README.
+
 ### Added
 
 - **Change events over SSE.** `GET /api/v1/workspaces/:id/events` streams every page, block and record change (kind, op, id, editor) to an API key or session, filtered by what it may read, so agents react instead of polling (ADR-015).
+- **API keys scoped to a page subtree.** A key can be limited to one page and its descendants (ADR-012).
+- **"Edited by" on pages and blocks.** The last editor is recorded and returned by the API (ADR-014).
+- **Audit log of API and MCP actions.** Every write made with an API key is recorded.
+- **Tab / Shift-Tab nest and unnest blocks** in the editor (ADR-016).
+- **`[]` markdown shortcut** creates a todo, without an empty paragraph above it.
+
+### Changed
+
+- **Templates are data files**, one per template, discovered automatically.
+- **CI runs the e2e tests in the official Playwright image.**
+- Restoring a backup now schedules the process exit properly.
+
+### Fixed
+
+- The Electron bundle includes the templates.
 
 ## [0.3.0] - 2026-11-11
 
@@ -359,7 +383,8 @@ Defects found and fixed during pre-release development:
 - Admin user deletion left orphaned workspaces.
 - Added missing database indexes on hot query paths.
 
-[Unreleased]: https://github.com/dnzzl/notara/compare/v0.3.0...HEAD
+[Unreleased]: https://github.com/dnzzl/notara/compare/v0.4.0...HEAD
+[0.4.0]: https://github.com/dnzzl/notara/compare/v0.3.0...v0.4.0
 [0.3.0]: https://github.com/dnzzl/notara/compare/v0.2.0...v0.3.0
 [0.2.0]: https://github.com/dnzzl/notara/compare/v0.1.4...v0.2.0
 [0.1.3]: https://github.com/dnzzl/notara/compare/v0.1.2...v0.1.3
