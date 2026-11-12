@@ -1,10 +1,10 @@
 ---
 id: NOT-176
 title: Make /health check the DB and back a Docker HEALTHCHECK
-status: ready-for-agent
+status: done
 assignee: []
 created_date: '2026-11-10T17:05:00Z'
-updated_date: '2026-11-10T20:17:00Z'
+updated_date: '2026-11-12T21:08:00Z'
 labels:
   - enhancement
 milestone: m-1
@@ -23,12 +23,15 @@ Agent brief: unauthenticated /health runs a trivial DB query; 200 when OK (keep 
 ## Acceptance Criteria
 <!-- AC:BEGIN -->
 - [x] #1 Returns 503 when the DB query fails (tested)
-- [ ] #2 Dockerfile HEALTHCHECK uses it; container reports healthy in docker ps
+- [x] #2 Dockerfile HEALTHCHECK uses it; container reports healthy in docker ps
 - [x] #3 GET /health returns 200 when the DB is reachable, existing callers (Electron, BackupsPanel) keep working
 <!-- AC:END -->
 
 ## Final Summary
 
 <!-- SECTION:FINAL_SUMMARY:BEGIN -->
-/health now runs SELECT 1 on the platform DB: 200 'ok' (unchanged body) or 503 'unavailable'. Unauthenticated, no details leaked, no rate limit. Logic in server/src/health.ts, tested in test/health.test.ts (200 + 503). Dockerfile HEALTHCHECK uses bun fetch (no new package). Not verified: docker ps 'healthy' (AC #2) - docker engine unresponsive in the agent environment; probe command verified against a live server (exit 0).
+/health runs SELECT 1 on the platform DB: 200 'ok' (unchanged body) or 503 'unavailable'. Unauthenticated, no details leaked, no rate limit. Logic in server/src/health.ts, tested in test/health.test.ts. Dockerfile HEALTHCHECK uses bun fetch (no new package).
+
+Verified (NA-48): docker build -t notara-hc . ; docker run -d -v <vol>:/data -e BETTER_AUTH_SECRET=... ; after ~45s docker inspect --format '{{.State.Health.Status}}' -> healthy, probes exit 0.
+compose.https.yml uses the root Dockerfile, so it inherits the HEALTHCHECK (Caddy waits on service_healthy). docker-compose.yml builds packages/server/Dockerfile, which has no HEALTHCHECK, and its healthcheck block is commented out: that stack has no health check (follow-up task).
 <!-- SECTION:FINAL_SUMMARY:END -->
