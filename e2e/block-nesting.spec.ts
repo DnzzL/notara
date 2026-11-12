@@ -85,3 +85,57 @@ test("Undo of deleting a parent brings its child back, still nested", async ({
 	await expect(page.locator(".ProseMirror")).toHaveCount(3, { timeout: 10000 });
 	await expect(wrapper(page, 1)).toHaveCSS("margin-left", "24px");
 });
+
+test("Move down carries a parent's children and survives reload", async ({
+	page,
+}) => {
+	await pageWithTwoUnderOne(page); // one ⊃ two, then three
+	await wrapper(page, 0).locator(".ProseMirror").click({ button: "right" });
+	const moved = page.waitForResponse(
+		(r) =>
+			r.url().endsWith("/api") &&
+			!!r.request().postData()?.includes("moveBlock"),
+	);
+	await page.getByRole("menuitem", { name: /Move down/ }).click();
+	await moved;
+
+	const check = async () => {
+		await expect(page.locator(".ProseMirror")).toHaveText(
+			["three", "one", "two"],
+			{ timeout: 10000 },
+		);
+		await expect(wrapper(page, 1)).toHaveCSS("margin-left", "0px");
+		await expect(wrapper(page, 2)).toHaveCSS("margin-left", "24px");
+	};
+	await check();
+	await page.reload();
+	await check();
+});
+
+test("Dragging a parent below another block carries its children", async ({
+	page,
+}) => {
+	await pageWithTwoUnderOne(page); // one ⊃ two, then three
+	await wrapper(page, 0).hover();
+	const handle = wrapper(page, 0).getByTitle(/drag to reorder/);
+	const from = await handle.boundingBox();
+	const to = await wrapper(page, 2).boundingBox();
+	if (!from || !to) throw new Error("no boxes");
+	await page.mouse.move(from.x + from.width / 2, from.y + from.height / 2);
+	await page.mouse.down();
+	await page.mouse.move(from.x + 5, from.y + 20, { steps: 5 });
+	await page.mouse.move(to.x + 40, to.y + to.height / 2 + 4, { steps: 15 });
+	await page.mouse.up();
+
+	const check = async () => {
+		await expect(page.locator(".ProseMirror")).toHaveText(
+			["three", "one", "two"],
+			{ timeout: 10000 },
+		);
+		await expect(wrapper(page, 1)).toHaveCSS("margin-left", "0px");
+		await expect(wrapper(page, 2)).toHaveCSS("margin-left", "24px");
+	};
+	await check();
+	await page.reload();
+	await check();
+});

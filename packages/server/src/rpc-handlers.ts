@@ -329,6 +329,33 @@ export const rpcHandlersLayer = AppRpc.toLayer(
 					return result;
 				}),
 			).pipe(dieUnlessApiError),
+		moveBlock: ({ id, targetId, position }) =>
+			withAuthedWorkspace(({ userId, workspaceId }) =>
+				Effect.gen(function* () {
+					yield* Permissions.checkBlockPermission(
+						userId,
+						workspaceId,
+						id,
+						"editor",
+					);
+					const result = yield* Blocks.moveBlock(id, targetId, position);
+					const pageId = result[0]?.pageId;
+					if (pageId) {
+						// Peers apply the new order, then the parents.
+						presence.broadcast(workspaceId, pageId, {
+							type: "block.reordered",
+							actorUserId: userId,
+							blockIds: result.map((b) => b.id),
+						});
+						presence.broadcast(workspaceId, pageId, {
+							type: "block.reparented",
+							actorUserId: userId,
+							parents: result.map((b) => ({ id: b.id, parentId: b.parentId })),
+						});
+					}
+					return result;
+				}),
+			).pipe(dieUnlessApiError),
 		getBacklinks: ({ pageId }) =>
 			withAuthedWorkspace(({ userId, workspaceId, role }) =>
 				Effect.gen(function* () {

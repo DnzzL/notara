@@ -635,6 +635,44 @@ export const blockOperations = [
 				return blocks;
 			}).pipe(sqlDefect),
 	}),
+	typedOperation({
+		method: "POST",
+		path: "/api/v1/workspaces/:workspaceId/blocks/:blockId/move",
+		operationId: "moveBlock",
+		change: { kind: "block", op: "update", id: "blockId" },
+		tag: "Blocks",
+		summary: "Move a block and its children next to another block",
+		description:
+			"The block and all its descendants land right before `targetId` or right after " +
+			"`targetId`'s subtree, and the block takes the target's parent. Refused when the " +
+			"target is the block itself or one of its descendants. Returns the page's blocks.",
+		scope: "write",
+		input: Schema.Struct({
+			blockId: BlockId,
+			targetId: BlockId,
+			position: Schema.Literals(["before", "after"]),
+		}),
+		output: Schema.Array(BlockJson),
+		run: (ctx, { blockId, targetId, position }) =>
+			Effect.gen(function* () {
+				yield* blockPermission(ctx, blockId);
+				const blocks = yield* Blocks.moveBlock(blockId, targetId, position);
+				const pageId = blocks[0]?.pageId;
+				if (pageId) {
+					presence.broadcast(ctx.workspaceId, pageId, {
+						type: "block.reordered",
+						actorUserId: ctx.userId,
+						blockIds: blocks.map((b) => b.id),
+					});
+					presence.broadcast(ctx.workspaceId, pageId, {
+						type: "block.reparented",
+						actorUserId: ctx.userId,
+						parents: blocks.map((b) => ({ id: b.id, parentId: b.parentId })),
+					});
+				}
+				return blocks;
+			}).pipe(sqlDefect),
+	}),
 ];
 
 // ── Databases, fields, records ─────────────────────────────────────────────────

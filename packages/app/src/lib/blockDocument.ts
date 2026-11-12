@@ -183,3 +183,25 @@ export function reparentChanges(
 	}
 	return changes;
 }
+
+/**
+ * Where "move up/down" drops a block: before its previous sibling, or after
+ * its next sibling (same parent), so its subtree travels with it. Null at the
+ * edge of its siblings.
+ */
+export function stepTarget(
+	blocks: readonly { id: string; index: number; parentId?: string | null }[],
+	id: string,
+	direction: "up" | "down",
+): { targetId: string; position: "before" | "after" } | null {
+	const block = blocks.find((b) => b.id === id);
+	if (!block) return null;
+	const sibs = blocks
+		.filter((b) => (b.parentId ?? null) === (block.parentId ?? null))
+		.sort((a, b) => a.index - b.index);
+	const i = sibs.findIndex((b) => b.id === id);
+	const next = sibs[direction === "up" ? i - 1 : i + 1];
+	return next
+		? { targetId: next.id, position: direction === "up" ? "before" : "after" }
+		: null;
+}

@@ -1,4 +1,5 @@
 import { useEffect } from "react";
+import { stepTarget } from "../lib/blockDocument.js";
 import { useBlockStore, usePageStore } from "../store.js";
 import { useHistoryStore } from "../stores/historyStore.js";
 
@@ -15,7 +16,7 @@ export function KeyboardShortcuts() {
 	const currentPage = usePageStore((s) => s.currentPage);
 	const blocks = useBlockStore((s) => s.blocks);
 	const createBlock = useBlockStore((s) => s.createBlock);
-	const reorderBlocks = useBlockStore((s) => s.reorderBlocks);
+	const stepBlock = useBlockStore((s) => s.stepBlock);
 
 	useEffect(() => {
 		/**
@@ -93,25 +94,17 @@ export function KeyboardShortcuts() {
 			if (e.shiftKey && (e.key === "ArrowUp" || e.key === "ArrowDown")) {
 				const id = focusedBlockId();
 				if (id === null || !currentPage) return;
-				// Every block on the page, database blocks included: the reorder
-				// assigns each id its position in this list, so leaving any out
-				// hands the missing ones whatever index is left over.
-				const sorted = [...blocks].sort((a, b) => a.index - b.index);
-				const idx = sorted.findIndex((b) => b.id === id);
-				if (idx === -1 || sorted.length < 2) return;
-				const newIdx = idx + (e.key === "ArrowUp" ? -1 : 1);
-				if (newIdx < 0 || newIdx >= sorted.length) return;
+				const dir = e.key === "ArrowUp" ? "up" : "down";
+				if (!stepTarget(blocks, id, dir)) return;
 				e.preventDefault();
-				const ids = sorted.map((b) => b.id);
-				[ids[idx], ids[newIdx]] = [ids[newIdx], ids[idx]];
-				await reorderBlocks(currentPage.id, ids);
+				await stepBlock(id, dir);
 				return;
 			}
 		};
 
 		window.addEventListener("keydown", handler);
 		return () => window.removeEventListener("keydown", handler);
-	}, [currentPage, blocks, createBlock, reorderBlocks]);
+	}, [currentPage, blocks, createBlock, stepBlock]);
 
 	return null;
 }

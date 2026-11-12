@@ -1,4 +1,4 @@
-import { Backlink, NotFoundError } from "@notara/shared";
+import { Backlink, NotFoundError, ValidationError } from "@notara/shared";
 import { Effect } from "effect";
 import { SqlClient } from "effect/sql";
 import { ulid } from "ulidx";
@@ -206,6 +206,67 @@ export const reparentBlock = (id: string, direction: "in" | "out") =>
 				const rows = yield* sql.unsafe(
 					`SELECT ${BLOCK_COLS} FROM blocks WHERE page_id = ? ORDER BY "index" ASC`,
 					[block.page_id],
+				);
+				return rows.map(blockFromRow);
+			}),
+		);
+	});
+
+/**
+ * Move a block, with its whole subtree, right before `targetId` or right after
+ * `targetId`'s subtree, and make it a child of the target's parent (so a drop
+ * at another indentation changes the parent). Returns the page's blocks.
+ *
+ * Keeps the page's list depth-first and rewrites `index` for it. A target
+ * inside the moved subtree (or the block itself) would make the block its own
+ * descendant: refused.
+ */
+export const moveBlock = (
+	id: string,
+	targetId: string,
+	position: "before" | "after",
+) =>
+	Effect.gen(function* () {
+		const sql = yield* SqlClient.SqlClient;
+		return yield* sql.withTransaction(
+			Effect.gen(function* () {
+				const found = yield* sql<{ page_id: string }>`
+          SELECT page_id FROM blocks WHERE id = ${id}`;
+				if (!found[0])
+					return yield* new NotFoundError({ resource: "block", id });
+				const pageId = found[0].page_id;
+				const all = yield* sql<{ id: string; parent_id: string | null }>`
+          SELECT id, parent_id FROM blocks WHERE page_id = ${pageId} ORDER BY "index" ASC`;
+				const target = all.find((b) => b.id === targetId);
+				if (!target)
+					return yield* new NotFoundError({ resource: "block", id: targetId });
+				// Depth-first list: parents precede children, so one pass finds the subtree.
+				const subtree = new Set([id]);
+				for (const b of all)
+					if (b.parent_id && subtree.has(b.parent_id)) subtree.add(b.id);
+				if (subtree.has(targetId))
+					return yield* new ValidationError({
+						message: "A block cannot be moved into itself or its own children",
+					});
+				const moved = all.filter((b) => subtree.has(b.id));
+				const rest = all.filter((b) => !subtree.has(b.id));
+				let at = rest.findIndex((b) => b.id === targetId);
+				if (position === "after") {
+					// skip the target's own subtree
+					const targetTree = new Set([targetId]);
+					at++;
+					while (at < rest.length && targetTree.has(rest[at].parent_id ?? "")) {
+						targetTree.add(rest[at].id);
+						at++;
+					}
+				}
+				const order = [...rest.slice(0, at), ...moved, ...rest.slice(at)];
+				for (let i = 0; i < order.length; i++)
+					yield* sql`UPDATE blocks SET "index" = ${i} WHERE id = ${order[i].id}`;
+				yield* sql`UPDATE blocks SET parent_id = ${target.parent_id} WHERE id = ${id}`;
+				const rows = yield* sql.unsafe(
+					`SELECT ${BLOCK_COLS} FROM blocks WHERE page_id = ? ORDER BY "index" ASC`,
+					[pageId],
 				);
 				return rows.map(blockFromRow);
 			}),

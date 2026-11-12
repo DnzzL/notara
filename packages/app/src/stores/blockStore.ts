@@ -1,7 +1,7 @@
 import type { Block } from "@notara/shared";
 import { ulid } from "ulidx";
 import { create } from "zustand";
-import { reparentChanges } from "../lib/blockDocument.js";
+import { reparentChanges, stepTarget } from "../lib/blockDocument.js";
 import { AccessDeniedError, api } from "../rpc-client.js";
 import { toaster } from "../toaster.js";
 import { useHistoryStore } from "./historyStore.js";
@@ -52,6 +52,14 @@ export interface BlockState {
 	deleteBlock: (id: string) => Promise<void>;
 	duplicateBlock: (id: string) => Promise<Block | null>;
 	reorderBlocks: (pageId: string, blockIds: string[]) => Promise<void>;
+	/** Move a block and its subtree next to `targetId`, adopting the target's parent. */
+	moveBlock: (
+		id: string,
+		targetId: string,
+		position: "before" | "after",
+	) => Promise<void>;
+	/** Move up/down among siblings; no-op at the edge. */
+	stepBlock: (id: string, direction: "up" | "down") => Promise<void>;
 	/** Tab ("in") / Shift-Tab ("out"): nest under the previous sibling, or lift out. */
 	reparentBlock: (id: string, direction: "in" | "out") => Promise<void>;
 }
@@ -272,6 +280,28 @@ export const useBlockStore = create<BlockState>((set, get) => ({
 		} catch (e) {
 			showError("Failed to reorder blocks", e);
 		}
+	},
+
+	moveBlock: async (id, targetId, position) => {
+		try {
+			const prevIds = [...get().blocks]
+				.sort((a, b) => a.index - b.index)
+				.map((b) => b.id);
+			const pageId = get().blocks.find((b) => b.id === id)?.pageId;
+			const blocks = await api.moveBlock({ id, targetId, position });
+			set({ blocks });
+			if (pageId)
+				useHistoryStore
+					.getState()
+					.record({ kind: "reorder", pageId, ids: prevIds });
+		} catch (e) {
+			showError("Failed to move block", e);
+		}
+	},
+
+	stepBlock: async (id, direction) => {
+		const t = stepTarget(get().blocks, id, direction);
+		if (t) await get().moveBlock(id, t.targetId, t.position);
 	},
 
 	reparentBlock: async (id, direction) => {

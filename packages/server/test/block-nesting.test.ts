@@ -99,3 +99,64 @@ describe("reparentBlock", () => {
 		expect(after).toEqual({ d: null, e: null });
 	});
 });
+
+describe("moveBlock", () => {
+	/** a ⊃ b, c; then d, e at the top. */
+	const nest = Effect.gen(function* () {
+		yield* Blocks.reparentBlock("b", "in");
+		yield* Blocks.reparentBlock("c", "in");
+		yield* Blocks.reparentBlock("c", "out"); // c back to top, b stays under a
+		yield* Blocks.reparentBlock("c", "in"); // c under a (previous sibling)
+	});
+	const order = (bs: readonly { id: string }[]) => bs.map((b) => b.id);
+
+	test("a parent moves with its children, order and parents kept after reload", async () => {
+		const result = await run((parents) =>
+			Effect.gen(function* () {
+				yield* nest; // a ⊃ b, c
+				yield* Blocks.moveBlock("a", "e", "after");
+				const reloaded = yield* Blocks.listBlocks("p");
+				return { order: order(reloaded), parents: yield* parents() };
+			}),
+		);
+		expect(result.order).toEqual(["d", "e", "a", "b", "c"]);
+		expect(result.parents).toEqual({
+			a: null,
+			b: "a",
+			c: "a",
+			d: null,
+			e: null,
+		});
+	});
+
+	test("dropping next to a nested block adopts its parent", async () => {
+		const result = await run((parents) =>
+			Effect.gen(function* () {
+				yield* nest; // a ⊃ b, c
+				yield* Blocks.moveBlock("e", "c", "before");
+				const reloaded = yield* Blocks.listBlocks("p");
+				return { order: order(reloaded), parents: yield* parents() };
+			}),
+		);
+		expect(result.order).toEqual(["a", "b", "e", "c", "d"]);
+		expect(result.parents.e).toBe("a");
+	});
+
+	test("dropping a block into its own subtree is refused", async () => {
+		const result = await run((parents) =>
+			Effect.gen(function* () {
+				yield* nest;
+				const refused = yield* Effect.flip(Blocks.moveBlock("a", "b", "after"));
+				const self = yield* Effect.flip(Blocks.moveBlock("a", "a", "before"));
+				return {
+					refused: refused._tag,
+					self: self._tag,
+					order: order(yield* Blocks.listBlocks("p")),
+				};
+			}),
+		);
+		expect(result.refused).toBe("ValidationError");
+		expect(result.self).toBe("ValidationError");
+		expect(result.order).toEqual(["a", "b", "c", "d", "e"]);
+	});
+});
