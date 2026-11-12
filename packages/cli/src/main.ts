@@ -4,10 +4,11 @@ import * as NodeRuntime from "@effect/platform-node/NodeRuntime";
 import * as NodeServices from "@effect/platform-node/NodeServices";
 import { Console, Effect } from "effect";
 import { Command } from "effect/cli";
+import pkg from "../package.json" with { type: "json" };
 import type { NotaraError } from "./client.js";
 import { root } from "./commands.js";
 
-const cli = Command.runWith(root, { version: "0.3.0" });
+const cli = Command.runWith(root, { version: pkg.version });
 
 cli(process.argv.slice(2)).pipe(
 	Effect.catchTag("NotaraError", (e: NotaraError) =>

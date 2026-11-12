@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.4.1] - 2026-11-12
+
+### Fixed
+
+- The CLI reports its real version (`notara --version` printed 0.3.0 in the 0.4.0 binaries).
+
 ## [0.4.0] - 2026-11-12
 
 Safer data and better signals for agents: who edited what, what an API key did, and what changed.
@@ -382,7 +388,8 @@ Defects found and fixed during pre-release development:
 - Admin user deletion left orphaned workspaces.
 - Added missing database indexes on hot query paths.
 
-[Unreleased]: https://github.com/dnzzl/notara/compare/v0.4.0...HEAD
+[Unreleased]: https://github.com/dnzzl/notara/compare/v0.4.1...HEAD
+[0.4.1]: https://github.com/dnzzl/notara/compare/v0.4.0...v0.4.1
 [0.4.0]: https://github.com/dnzzl/notara/compare/v0.3.0...v0.4.0
 [0.3.0]: https://github.com/dnzzl/notara/compare/v0.2.0...v0.3.0
 [0.2.0]: https://github.com/dnzzl/notara/compare/v0.1.4...v0.2.0
