@@ -28,6 +28,7 @@ import { shouldOpenBlockMenu } from "../lib/blockContextMenu.js";
 import {
 	blockDepths,
 	insertBlockAfter as computeInsertBlockAfter,
+	computeNumberedRunIndices,
 	splitBlock as computeSplitBlock,
 	mergeBlocks,
 	stepTarget,
@@ -89,30 +90,6 @@ export {
 /** Extract text from HTML by stripping tags. */
 function stripHtml(html: string): string {
 	return html.replace(/<[^>]*>/g, "");
-}
-
-/**
- * Compute the numbered-run index for each block in a sorted list.
- * NumberedList blocks in a consecutive run get 1, 2, 3, ...
- * A non-numbered block mid-run resets the count so the next
- * NumberedList starts at 1 again.
- */
-function computeNumberedRunIndices(
-	blocks: { id: string; type: string }[],
-): Map<string, number> {
-	const result = new Map<string, number>();
-	let currentRun = 1;
-
-	for (const block of blocks) {
-		if (block.type === "numberedList") {
-			result.set(block.id, currentRun);
-			currentRun++;
-		} else {
-			currentRun = 1;
-		}
-	}
-
-	return result;
 }
 
 /** A single block with its own TipTap editor instance. */
@@ -1784,6 +1761,7 @@ export function BlockEditor() {
 											setBlockMenu({ blockId: block.id, x, y })
 										}
 										blockType={block.type}
+										numberedRun={numberedRunIndices.get(block.id)}
 										onGutterClick={(clientY) =>
 											handleGutterClick(block.id, clientY)
 										}

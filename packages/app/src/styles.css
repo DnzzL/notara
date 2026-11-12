@@ -295,7 +295,8 @@ body {
 	padding-left: 1.5em;
 }
 [data-block-type="numberedList"] .ProseMirror ol li::before {
-	content: var(--numbered-run) ". ";
+	counter-set: numbered-run var(--numbered-run);
+	content: counter(numbered-run) ". ";
 	position: absolute;
 	left: 0;
 	color: var(--text-3);
